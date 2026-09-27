@@ -3,6 +3,15 @@
 What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest first.
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
+## Unreleased
+
+### Changed
+- **The text beside a roll command names your statuses.** For example, Krunk attacking while
+  blessed shows "Greatsword attack (+1d4 Bless)", and while poisoned too "(+1d4 Bless,
+  disadvantage from Poisoned)". Checks, saves, initiative, Grapple, Shove and spell attacks do
+  the same, e.g. "Dexterity save (−2 Slowed)" or "Strength save (automatic failure:
+  Paralyzed)". Damage already listed Enlarged and Reduced.
+
 ## 2026-09-27 — Status: conditions and magic on you
 
 ### Added

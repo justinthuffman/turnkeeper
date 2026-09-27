@@ -2502,19 +2502,36 @@ function closeRollPopup(){
 }
 
 // Each command is {cmd, desc}: only `cmd` goes in the copy box; `desc` is shown beside it
+// What the statuses did to this roll, for the text beside the command:
+// "+1d4 Bless", "−2 Slowed", "disadvantage from Poisoned", "automatic failure (Paralyzed)"
+function statusDescParts(st){
+  if(!st) return [];
+  return [
+    ...st.dice.map(x=>`${x.expr.replace('-','−')} ${x.name}`),
+    ...st.flatWhy.map(w=>{ const m = w.match(/^(.*) ([+-]\d+)$/); return m ? `${m[2].replace('-','−')} ${m[1]}` : w; }),
+    ...(st.adv.length ? [`advantage from ${st.adv.join(', ')}`] : []),
+    ...(st.dis.length ? [`disadvantage from ${st.dis.join(', ')}`] : []),
+    ...(st.fail.length ? [`automatic failure: ${st.fail.join(', ')}`] : []),
+  ];
+}
+// "Grapple (Athletics)" + parts → "Grapple (Athletics, disadvantage from Poisoned)"
+function withParts(text, parts){
+  if(!parts.length) return text;
+  return /\)$/.test(text) ? `${text.slice(0, -1)}, ${parts.join(', ')})` : `${text} (${parts.join(', ')})`;
+}
 function toHitCommand(){
   const {sel, mode} = rollState;
   if(sel.kind==='weapon'){
     const bonus = parseInt(String(sel.attack.bonus||'0').replace(/\s/g,''),10) || 0;
     const on = fxOn(), toHit = on.reduce((n, e)=>n + (e.toHit || 0), 0);
-    const extras = [sel.power && `${sel.power} −5`, ...on.filter(e=>e.toHit).map(e=>`+${e.toHit} ${e.name}`), ...on.filter(e=>e.adv).map(e=>`advantage from ${e.name}`)].filter(Boolean);
+    const extras = [sel.power && `${sel.power} −5`, ...on.filter(e=>e.toHit).map(e=>`+${e.toHit} ${e.name}`), ...on.filter(e=>e.adv).map(e=>`advantage from ${e.name}`), ...statusDescParts(rollState.st)].filter(Boolean);
     return {cmd:d20Cmd(attackMode(), bonus - (sel.power ? 5 : 0) + toHit, false, statusDiceStr(rollState.st)), desc:`${sel.attack.name} attack${extras.length ? ` (${extras.join(', ')})` : ''}`};
   }
   if(sel.kind==='check'){
     const c = checkInfo(sel.type, sel.key);
-    return {cmd:d20Cmd(attackMode(), c.bonus + (rollState.st ? rollState.st.flat : 0), c.minTen, statusDiceStr(rollState.st)), desc: sel.label===c.name ? c.name : `${sel.label} (${sel.key})`};
+    return {cmd:d20Cmd(attackMode(), c.bonus + (rollState.st ? rollState.st.flat : 0), c.minTen, statusDiceStr(rollState.st)), desc: withParts(sel.label===c.name ? c.name : `${sel.label} (${sel.key})`, statusDescParts(rollState.st))};
   }
-  return {cmd:d20Cmd(attackMode(), skillMod('Athletics'), reliableFor('Athletics'), statusDiceStr(rollState.st)), desc:`${MANEUVERS[sel.kind].label} (Athletics)`};
+  return {cmd:d20Cmd(attackMode(), skillMod('Athletics'), reliableFor('Athletics'), statusDiceStr(rollState.st)), desc:withParts(`${MANEUVERS[sel.kind].label} (Athletics)`, statusDescParts(rollState.st))};
 }
 // Damage command plus a list of what's included, following the 2014 rules
 function damageCommand(){
@@ -2632,7 +2649,7 @@ function spellPopupHtml(){
       : infoBox('Not added yet', `Roll details for ${sp.name} haven’t been added to the tracker yet. Your spell attack is ${fmtMod(s.atk)} and your save DC is ${s.dc}.`));
   }
   const notes = [];
-  if(r.attack) html += cmdBox('Spell attack', {cmd:d20Cmd(attackMode(), s.atk, false, statusDiceStr(rollState.st)), desc:`${sp.name} (${r.attack} spell attack)`}, statusNotesHtml(rollState.st, mode));
+  if(r.attack) html += cmdBox('Spell attack', {cmd:d20Cmd(attackMode(), s.atk, false, statusDiceStr(rollState.st)), desc:withParts(`${sp.name} (${r.attack} spell attack)`, statusDescParts(rollState.st))}, statusNotesHtml(rollState.st, mode));
   if(r.save) html += infoBox('Saving throw', saveLine(s.dc, r.save, r.onSave, r.effect));
   // School of Evocation (wizard spells only): Empowered Evocation adds INT (min +1) to one damage
   // roll of a wizard evocation spell; Potent Cantrip makes a successful save still take half
