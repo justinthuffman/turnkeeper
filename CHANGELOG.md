@@ -3,6 +3,30 @@
 What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest first.
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
+## 2026-09-26 — Checks & Saves and a Subclass box
+
+### Added
+- **Checks & Saves** in the Combat Menu's new **Anytime** row, for whenever the DM asks for a
+  roll. Pick **Skill check**, **Ability check** or **Saving throw**, then the skill or ability
+  (each shows its modifier), then Advantage, Normal or Disadvantage, and **Roll** gives the
+  `!tk` command to copy, e.g. `!tk 1d20+5 adv`.
+  - **Jack of All Trades** (Bel) is added to plain ability checks, like a Strength check. Her
+    sheet's skills already include it.
+  - **Reliable Talent** adds `mi10` to skill checks you're proficient in, as Hide and Search
+    already do.
+  - **Aura of Protection** (Krunk, from level 6) adds his Charisma modifier to every save.
+  - **Reminders** about advantage and disadvantage show before you pick how to roll, e.g.
+    Fey Ancestry on saves against being charmed, War Caster on concentration saves, Supreme
+    Sneak on Stealth and Sunlight Sensitivity on Perception. The popup also reminds you of
+    Lucky and Portent.
+  - Opening Checks & Saves doesn't cancel Dash, since it isn't part of your turn.
+
+### Changed
+- **Class and Subclass have their own boxes** in Character Summary. The Class box shows just
+  the class, e.g. "Paladin". Subclass starts as whatever the sheet lists before the class, e.g.
+  "Vengeance" from "Vengeance Paladin". Once you pick a subclass in Class Features or the
+  choices box, it shows that one. It shows "—" if the sheet doesn't name a subclass.
+
 ## 2026-09-24 — Krunk's glowing sword
 
 ### Changed

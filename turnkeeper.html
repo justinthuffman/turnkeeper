@@ -574,6 +574,7 @@ applyTheme(savedTheme || DEFAULT_THEME);
     <div class="field"><label>Level</label><input id="f_level" type="text" readonly></div>
     <div class="field"><label>Race</label><input id="f_race" type="text" readonly></div>
     <div class="field"><label>Class</label><input id="f_class" type="text" readonly></div>
+    <div class="field"><label>Subclass</label><input id="f_subclass" type="text" readonly></div>
     <div class="field"><label>AC</label><input id="f_ac" type="text" readonly></div>
     <div class="field"><label>HP (current/max)</label><input id="f_hp" type="text" readonly></div>
     <div class="field"><label>Initiative</label><input id="f_init" type="text" readonly></div>
@@ -715,6 +716,9 @@ applyTheme(savedTheme || DEFAULT_THEME);
   <div class="action-grid"><button data-act="bonus">Bonus Action Options</button></div>
 
   <div class="free-note">4. Free action &mdash; opening a door, drawing/sheathing a weapon, dropping an item, and similar don't cost an action, bonus action, or reaction.</div>
+
+  <div class="action-row-label">Anytime</div>
+  <div class="action-grid"><button data-act="checks">Checks &amp; Saves</button></div>
 
   <div class="slide" id="actionDetailWrap"><div class="detail" id="actionDetail"></div></div>
 </div>
@@ -1755,6 +1759,14 @@ document.querySelector('.action-grid button[data-act="bonus"]').addEventListener
   renderBonusDetail();
   e.currentTarget.classList.add('active');
 });
+// Checks & Saves isn't part of your turn, so like Bonus Action Options it leaves Dash on
+document.querySelector('.action-grid button[data-act="checks"]').addEventListener('click', e=>{
+  if(detailOpenFor('checks')){ closeDetail(); return; }
+  document.querySelectorAll('.action-grid button').forEach(b=>b.classList.remove('active'));
+  openAct = 'checks';
+  renderChecksDetail();
+  e.currentTarget.classList.add('active');
+});
 
 /* ---------- Attack flow (V2): Attack → weapon/maneuver → roll mode → Roll → popup ----------
    Commands are plain dice rolls ONLY (never !a or other character commands), sent through
@@ -1808,7 +1820,91 @@ function renderCheckDetail(act){
   actionDetail.querySelectorAll('[data-skill]').forEach(b=>b.addEventListener('click', ()=>{ checkFlow.skill = b.dataset.skill; renderCheckDetail(act); }));
   actionDetail.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click', ()=>{ checkFlow.mode = b.dataset.mode; renderCheckDetail(act); }));
   const go = document.getElementById('flowRoll');
-  if(go) go.addEventListener('click', ()=>openRollPopup({kind:'check', label:def.title, skill:checkFlow.skill}, checkFlow.mode));
+  if(go) go.addEventListener('click', ()=>openRollPopup({kind:'check', label:def.title, type:'skill', key:checkFlow.skill}, checkFlow.mode));
+}
+
+/* ---------- Checks & Saves (Anytime): kind → skill/ability → roll mode → Roll → popup ----------
+   Skill checks and saves use the sheet's modifiers (Turnkeeper's ASI/feat changes included).
+   Jack of All Trades is already in the sheet's skills but not in a plain ability check, so it's
+   added there. Aura of Protection is added to every save: the sheet doesn't know about it. */
+const CHECK_KINDS = [['skill','Skill check'], ['ability','Ability check'], ['save','Saving throw']];
+const checksFlow = {type:null, key:null, mode:'normal'};
+const joatBonus = ()=>hasFeature('Jack of All Trades') ? Math.floor(proficiencyBonus()/2) : 0;
+const auraBonus = ()=>hasFeature('Aura of Protection') ? Math.max(1, abilityScoreMod('cha')) : 0;
+// What a check or save rolls: {name, bonus, minTen, included:[notes on what's in the bonus]}
+function checkInfo(type, key){
+  if(type==='skill'){
+    const s = state.skills.find(x=>x.name===key), minTen = reliableFor(key);
+    const included = [];
+    if(minTen) included.push('Reliable Talent: a d20 roll of 9 or lower counts as 10 (<code>mi10</code>).');
+    if(s && !s.prof && joatBonus()) included.push(`Jack of All Trades: your sheet’s ${key} modifier already includes +${joatBonus()}.`);
+    return {name:`${key} check`, bonus:skillMod(key), minTen, included};
+  }
+  if(type==='ability'){
+    const j = joatBonus();
+    return {name:`${ABILITY_FULL[key]} check`, bonus:abilityScoreMod(key) + j,
+      included: j ? [`Jack of All Trades: +${j} (half your proficiency bonus) included.`] : []};
+  }
+  const s = state.saves.find(x=>x.name===ABILITY_FULL[key]);
+  const base = s && typeof s.mod==='number' ? s.mod : abilityScoreMod(key) + (s && s.prof ? proficiencyBonus() : 0);
+  const aura = auraBonus();
+  return {name:`${ABILITY_FULL[key]} save`, bonus:base + aura,
+    included: aura ? [`Aura of Protection: +${aura} (Charisma) included while you’re conscious.`] : []};
+}
+// Advantage / disadvantage reminders and after-the-roll options from traits, features and feats.
+// `on(type, key)` says which rolls a reminder is for; `after` ones only show in the popup.
+const hasTrait = name=>traitsForRace(rt.raceKey).some(t=>t.name===name);
+const CHECK_REMINDERS = [
+  {has:()=>hasTrait('Fey Ancestry'), on:t=>t==='save', text:'<b>Fey Ancestry:</b> advantage on saves against being charmed.'},
+  {has:()=>hasTrait('Sunlight Sensitivity'), on:(t,k)=>t==='skill' && k==='Perception', text:'<b>Sunlight Sensitivity:</b> disadvantage if it relies on sight and you’re in direct sunlight.'},
+  {has:()=>hasFeature('Supreme Sneak'), on:(t,k)=>t==='skill' && k==='Stealth', text:'<b>Supreme Sneak:</b> advantage if you move no more than half your speed this turn.'},
+  {has:()=>hasFeature('Impostor'), on:(t,k)=>t==='skill' && k==='Deception', text:'<b>Impostor:</b> advantage to avoid detection while mimicking someone you’ve studied.'},
+  {has:()=>hasFeat('Actor'), on:(t,k)=>t==='skill' && (k==='Deception' || k==='Performance'), text:'<b>Actor:</b> advantage when passing yourself off as someone else.'},
+  {has:()=>hasFeat('Dungeon Delver'), on:(t,k)=>t==='skill' && (k==='Perception' || k==='Investigation'), text:'<b>Dungeon Delver:</b> advantage to find secret doors.'},
+  {has:()=>hasFeat('Dungeon Delver'), on:t=>t==='save', text:'<b>Dungeon Delver:</b> advantage on saves against traps.'},
+  {has:()=>hasFeat('War Caster'), on:(t,k)=>t==='save' && k==='con', text:'<b>War Caster:</b> advantage on Constitution saves to keep concentration.'},
+  {has:()=>hasFeat('Mage Slayer'), on:t=>t==='save', text:'<b>Mage Slayer:</b> advantage on saves against spells cast by a creature within 5 ft of you.'},
+  {has:()=>hasFeature('Spell Resistance'), on:t=>t==='save', text:'<b>Spell Resistance:</b> advantage on saves against spells.'},
+  {has:()=>hasFeature('Countercharm'), on:t=>t==='save', text:'<b>Countercharm:</b> while you’re performing it, advantage on saves against being frightened or charmed.'},
+  {has:()=>hasFeature('Aura of Courage'), on:t=>t==='save', text:'<b>Aura of Courage:</b> you can’t be frightened while you’re conscious.'},
+  {has:()=>hasFeature('Holy Nimbus'), on:t=>t==='save', text:'<b>Holy Nimbus:</b> while it’s active, advantage on saves against spells cast by fiends or undead.'},
+  {has:()=>hasFeature('Evasion'), on:(t,k)=>t==='save' && k==='dex', text:'<b>Evasion:</b> if the save would halve the damage, take none on a success and half on a failure.'},
+  {has:()=>hasFeat('Lucky'), after:true, on:()=>true, text:'<b>Lucky:</b> after you roll, spend a luck point to roll another d20 and pick which one counts. Lucky’s Roll button in Feats has the command.'},
+  {has:()=>hasFeature('Portent'), after:true, on:()=>true, text:'<b>Portent:</b> before you roll, you can swap in one of today’s foretold d20 results.'},
+];
+function checkReminders(type, key, withAfter){
+  return CHECK_REMINDERS.filter(r=>(withAfter || !r.after) && r.on(type, key) && r.has()).map(r=>r.text);
+}
+
+function renderChecksDetail(){
+  const f = checksFlow;
+  const picks = f.type==='skill' ? state.skills.map(s=>[s.name, s.name])
+    : f.type ? Object.entries(ABILITY_FULL) : [];
+  if(!picks.some(([k])=>k===f.key)) f.key = null;
+  let html = `<h4>Checks &amp; Saves</h4><div class="flow-summary" style="margin-top:0;">Roll when the DM asks for a check or a save. It doesn’t use your action.</div>`
+    + `<div class="flow-label">What are you rolling?</div><div class="flow-grid">`
+    + CHECK_KINDS.map(([k,l])=>`<button type="button" class="flow-btn${f.type===k?' active':''}" data-kind="${k}">${l}</button>`).join('') + `</div>`;
+  if(f.type==='skill' && !picks.length) html += `<p class="empty-note" style="margin-top:8px;">No skills imported yet. Import your sheet to see them here.</p>`;
+  if(picks.length){
+    html += `<div class="flow-label">${f.type==='skill' ? 'Which skill?' : 'Which ability?'}</div><div class="flow-grid">`
+      + picks.map(([k,l])=>`<button type="button" class="flow-btn${f.key===k?' active':''}" data-pick="${escapeHtml(k)}">${escapeHtml(l)} ${fmtMod(checkInfo(f.type, k).bonus)}</button>`).join('') + `</div>`;
+  }
+  if(f.key){
+    const notes = checkReminders(f.type, f.key, false);
+    if(notes.length) html += `<ul class="roll-notes">${notes.map(n=>`<li>${n}</li>`).join('')}</ul>`;
+    html += `<div class="flow-label">Roll with</div><div class="flow-grid">`
+      + ROLL_MODES.map(([k,l])=>`<button type="button" class="flow-btn${f.mode===k?' active':''}" data-mode="${k}">${l}</button>`).join('')
+      + `</div><div class="flow-go"><button type="button" id="flowRoll">Roll</button></div>`;
+  }
+  showDetail(html);
+  actionDetail.querySelectorAll('[data-kind]').forEach(b=>b.addEventListener('click', ()=>{
+    if(f.type !== b.dataset.kind) Object.assign(f, {type:b.dataset.kind, key:null, mode:'normal'});
+    renderChecksDetail();
+  }));
+  actionDetail.querySelectorAll('[data-pick]').forEach(b=>b.addEventListener('click', ()=>{ f.key = b.dataset.pick; renderChecksDetail(); }));
+  actionDetail.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click', ()=>{ f.mode = b.dataset.mode; renderChecksDetail(); }));
+  const go = document.getElementById('flowRoll');
+  if(go) go.addEventListener('click', ()=>openRollPopup({kind:'check', label:checkInfo(f.type, f.key).name, type:f.type, key:f.key}, f.mode));
 }
 
 function hasFeature(name){ return classFeatureItems().some(t=>t.name===name && charLevel() >= t.level); }
@@ -1913,7 +2009,10 @@ function toHitCommand(){
     const bonus = parseInt(String(sel.attack.bonus||'0').replace(/\s/g,''),10) || 0;
     return {cmd:d20Cmd(mode, bonus - (sel.power ? 5 : 0)), desc:`${sel.attack.name} attack${sel.power ? ` (${sel.power}: −5)` : ''}`};
   }
-  if(sel.kind==='check') return {cmd:d20Cmd(mode, skillMod(sel.skill), reliableFor(sel.skill)), desc:`${sel.label} (${sel.skill})`};
+  if(sel.kind==='check'){
+    const c = checkInfo(sel.type, sel.key);
+    return {cmd:d20Cmd(mode, c.bonus, c.minTen), desc: sel.label===c.name ? c.name : `${sel.label} (${sel.key})`};
+  }
   return {cmd:d20Cmd(mode, skillMod('Athletics'), reliableFor('Athletics')), desc:`${MANEUVERS[sel.kind].label} (Athletics)`};
 }
 // Damage command plus a list of what's included, following the 2014 rules
@@ -2117,7 +2216,11 @@ function renderRollPopup(){
     return;
   }
   let html = `<p class="roll-intro">Copy a command and paste it into Discord.</p>`
-    + cmdBox(sel.kind==='weapon' ? 'To hit' : `${sel.kind==='check' ? sel.skill : 'Athletics'} check`, toHitCommand());
+    + cmdBox(sel.kind==='weapon' ? 'To hit' : sel.kind==='check' ? checkInfo(sel.type, sel.key).name : 'Athletics check', toHitCommand());
+  if(sel.kind==='check'){
+    const notes = [...checkInfo(sel.type, sel.key).included, ...checkReminders(sel.type, sel.key, true)];
+    if(notes.length) html += `<ul class="roll-notes">${notes.map(n=>`<li>${n}</li>`).join('')}</ul>`;
+  }
   if(sel.kind==='weapon'){
     const dmg = damageCommand();
     if(!dmg){
@@ -2433,7 +2536,7 @@ function wireCunningStep(){
   }));
   actionDetail.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click', ()=>{ bonusFlow.cmode = b.dataset.mode; renderBonusDetail(); }));
   const go = document.getElementById('flowRoll');
-  if(go) go.addEventListener('click', ()=>openRollPopup({kind:'check', label:'Hide (Cunning Action)', skill:'Stealth'}, bonusFlow.cmode));
+  if(go) go.addEventListener('click', ()=>openRollPopup({kind:'check', label:'Hide (Cunning Action)', type:'skill', key:'Stealth'}, bonusFlow.cmode));
 }
 
 
@@ -2803,6 +2906,7 @@ async function runImport(){
     if(openAct) closeDetail();
     attackFlow.choice = null; attackFlow.mode = 'normal'; attackFlow.power = false;
     checkFlow.act = null;
+    checksFlow.type = null; checksFlow.key = null; checksFlow.mode = 'normal';
     castFlow.name = null; featureFlow.name = null;
     bonusFlow.pick = null; bonusFlow.weapon = null; bonusFlow.mode = 'normal'; bonusFlow.cunning = null; bonusFlow.cmode = 'normal';
     bonusDashActive = false;
@@ -3135,7 +3239,13 @@ function classKeyFrom(cls){
   const c = (cls||'').toLowerCase();
   return CLASS_NAMES.find(k=>c.includes(k)) || null;
 }
-// The sheet sometimes includes the subclass in the class text (e.g. "Assassin Rogue")
+// The sheet lists the subclass first in the class text (e.g. "Vengeance Paladin"): the words before
+// the class name, or '' if there are none
+function subclassPrefix(classKey, cls){
+  const c = String(cls||''), i = classKey ? c.toLowerCase().indexOf(classKey) : -1;
+  return i > 0 ? c.slice(0, i).trim() : '';
+}
+// That subclass as Turnkeeper names it (e.g. "Assassin Rogue" → "Assassin")
 function subclassFromText(classKey, cls){
   const entry = CLASS_FEATURES[classKey]; if(!entry) return '';
   const c = (cls||'').toLowerCase();
@@ -3488,7 +3598,7 @@ const racialSection = makePinSection({
 });
 
 // Subclass is picked by hand (the sheet has no reliable field for it) and remembered per character
-const cf = {classKey:null, subclass:''};
+const cf = {classKey:null, subclass:'', sheetText:''};
 function subclassStoreKey(){ return `dndTracker:subclass:${currentCharId}`; }
 function classFeatureItems(){
   const entry = CLASS_FEATURES[cf.classKey]; if(!entry) return [];
@@ -3518,6 +3628,7 @@ const classSection = makePinSection({
 document.getElementById('cfSubclass').addEventListener('change', e=>{
   cf.subclass = e.target.value;
   storageSet(subclassStoreKey(), cf.subclass || null);
+  updateClassFields();
   classSection.loadPins();
   classSection.render();
   updateFeaturesButton();
@@ -3540,12 +3651,25 @@ function dropChoicesAboveLevel(){
     setSlot(l, null);
   });
 }
+// Character Summary's Class and Subclass boxes. The subclass is the one picked in Class Features
+// (or the Build box), which starts as the one on the sheet
+function updateClassFields(){
+  const entry = CLASS_FEATURES[cf.classKey], clsEl = document.getElementById('f_class'), subEl = document.getElementById('f_subclass');
+  clsEl.value = cf.classKey ? cf.classKey.charAt(0).toUpperCase() + cf.classKey.slice(1) : cf.sheetText;
+  subEl.value = cf.subclass || subclassPrefix(cf.classKey, cf.sheetText) || (cf.sheetText ? '—' : '');
+  const fromSheet = !cf.subclass && subclassPrefix(cf.classKey, cf.sheetText);
+  subEl.title = !entry ? '' : cf.subclass ? `${entry.subclassLabel}. Change it in Class Features.`
+    : fromSheet && charLevel() < entry.subclassLevel ? `${entry.subclassLabel} from your sheet. Its features start at level ${entry.subclassLevel}.`
+    : `${entry.subclassLabel}: chosen at level ${entry.subclassLevel}${charLevel() >= entry.subclassLevel ? '. Pick one in Class Features.' : ''}`;
+}
 function setupClassFeatures(clsText){
+  cf.sheetText = String(clsText||'').trim();
   cf.classKey = classKeyFrom(clsText);
   const entry = CLASS_FEATURES[cf.classKey];
   const saved = storageGet(subclassStoreKey());
   cf.subclass = entry && saved && entry.subclasses[saved] ? saved : subclassFromText(cf.classKey, clsText);
   dropChoicesAboveLevel();
+  updateClassFields();
   classSection.loadPins();
   classSection.render();
   updateFeaturesButton();
