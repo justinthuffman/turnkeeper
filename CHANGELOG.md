@@ -3,6 +3,24 @@
 What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest first.
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
+## 2026-09-27 — Active effects and target toggles
+
+### Added
+- **Active effects.** Effects that change your own attacks are added to the Attack popup for
+  you while they last: Searing, Thunderous and Wrathful Smite, Divine Favor, Ensnaring Strike
+  and Sacred Weapon. Casting or using one lists it under the Combat Menu's move line, e.g.
+  "Sacred Weapon +2 to hit · 1 minute", with an **End** button.
+  - Next-hit smites end when you copy the attack's damage (it hit).
+  - Casting another concentration spell ends the one you were concentrating on.
+  - A short or long rest clears them all. Undo on the spell slot or use puts them back.
+  - Each one is a toggle in the Attack popup, so you can untick it for an attack it doesn't
+    cover. Extra dice double on a crit.
+- **Target effects are your call.** Effects on a creature, like Hunter's Mark and Vow of Enmity,
+  aren't added automatically, since Turnkeeper can't know what you're attacking. If you have one
+  prepared, the Attack popup shows an unticked **Hunter's Mark target** / **Vow of Enmity
+  target** toggle; tick it when you attack that creature. Vow of Enmity's advantage cancels
+  disadvantage, per the rules.
+
 ## 2026-09-27 — Reactions
 
 ### Added

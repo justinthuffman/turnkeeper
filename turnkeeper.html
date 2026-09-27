@@ -360,6 +360,11 @@ button.feat-opt[hidden]{display:none;}
 .weapon-row:last-child{border-bottom:none;}
 .weapon-row .wname{color:var(--ink); font-weight:600;}
 .weapon-row .wdmg{color:var(--ink-dim); font-size:0.82rem;}
+/* Active effects (Searing Smite, Sacred Weapon…) the Attack popup adds for you */
+.active-fx{display:flex; flex-wrap:wrap; align-items:center; gap:6px 8px; margin:-4px 0 12px; font-size:0.82rem; color:var(--ink-dim);}
+.active-fx[hidden]{display:none;}
+.fx-chip{display:inline-flex; align-items:center; gap:6px; border:1px solid var(--sea-dim); border-radius:999px; padding:2px 4px 2px 10px; color:var(--ink);}
+.fx-chip small{color:var(--ink-dim);}
 /* Build box (permanent choices) */
 .build-box{margin:0 0 14px; display:flex; flex-direction:column; gap:10px;}
 /* Asking for the character's name (the sheet template has no name cell) */
@@ -696,6 +701,7 @@ applyTheme(savedTheme || DEFAULT_THEME);
   <h2>Combat Menu</h2>
   <p class="turn-note">On your turn, you can do these in any order. The numbers are just for reference. You can also split your movement, for example moving 10 feet, attacking, then moving the rest. Some bonus actions do depend on something else first, such as off-hand attacks, which need the Attack action.</p>
   <div class="move-line">1. Move up to <span id="moveFt">30</span> feet.<span class="move-dash" id="moveDash"></span></div>
+  <div class="active-fx" id="activeFx" hidden></div>
 
   <div class="action-row-label">2. Action</div>
   <div class="action-grid" id="actionButtons">
@@ -1518,6 +1524,9 @@ const EXTRA_SPELLS = parseSpells(RACIAL_SPELL_RAW);
    heal / temp / pool / darts: special results.  rider: extra damage on a later weapon hit.
    hitSave: a save the target makes when the spell (or rider) hits.  ongoing: damage on later turns.
    effect: what a failed save does.  upcastNote: non-damage upcast effect.
+   fx: what the spell does to your weapon attacks once cast (see Active effects): weapon
+   ('melee'|'any'), until ('hit' = your next hit, or a duration), target:true if it only
+   applies against one creature. Its extra damage is the rider's dice.
    Currently: all cantrips and 1st-level spells on the class lists, plus the party's racial and
    Oath spells up to 1st level. Spells not here and not in NO_ROLL_SPELLS show "not added yet". */
 const SPELL_ROLLS = {
@@ -1544,13 +1553,13 @@ const SPELL_ROLLS = {
   'Hellish Rebuke': {save:'dex', onSave:'half', parts:[{d:'2d10', type:'fire', per:'1d10'}], note:'Reaction: when a creature you can see within 60 ft damages you.'},
 
   // Riders: no roll when cast; extra damage on a later weapon hit
-  'Searing Smite': {rider:{d:'1d6', type:'fire', per:'1d6', on:'your next melee weapon hit'},
+  'Searing Smite': {rider:{d:'1d6', type:'fire', per:'1d6', on:'your next melee weapon hit'}, fx:{until:'hit', weapon:'melee'},
     ongoing:{d:'1d6', type:'fire', save:'con', text:'At the start of each of its turns the target makes a Constitution save: on a failure it takes this damage, on a success the spell ends.'}},
-  'Thunderous Smite': {rider:{d:'2d6', type:'thunder', on:'your next melee weapon hit'}, hitSave:{save:'str', effect:'pushed 10 ft away and knocked prone'}},
-  'Wrathful Smite': {rider:{d:'1d6', type:'psychic', on:'your next melee weapon hit'}, hitSave:{save:'wis', effect:'frightened of you until the spell ends'}},
-  'Divine Favor': {rider:{d:'1d4', type:'radiant', on:'every weapon hit for the next minute (concentration)'}},
-  "Hunter's Mark": {rider:{d:'1d6', type:'same type as your weapon', on:'every weapon hit on the marked creature (concentration)'}},
-  'Ensnaring Strike': {rider:null, hitSave:{save:'str', effect:'restrained by thorny vines'}, onHit:'your next weapon hit',
+  'Thunderous Smite': {rider:{d:'2d6', type:'thunder', on:'your next melee weapon hit'}, fx:{until:'hit', weapon:'melee'}, hitSave:{save:'str', effect:'pushed 10 ft away and knocked prone'}},
+  'Wrathful Smite': {rider:{d:'1d6', type:'psychic', on:'your next melee weapon hit'}, fx:{until:'hit', weapon:'melee'}, hitSave:{save:'wis', effect:'frightened of you until the spell ends'}},
+  'Divine Favor': {rider:{d:'1d4', type:'radiant', on:'every weapon hit for the next minute (concentration)'}, fx:{until:'1 minute', weapon:'any'}},
+  "Hunter's Mark": {rider:{d:'1d6', type:'same type as your weapon', on:'every weapon hit on the marked creature (concentration)'}, fx:{target:true, weapon:'any'}},
+  'Ensnaring Strike': {rider:null, hitSave:{save:'str', effect:'restrained by thorny vines'}, onHit:'your next weapon hit', fx:{until:'hit', weapon:'any'},
     ongoing:{d:'1d6', type:'piercing', per:'1d6', text:'While restrained, it takes this at the start of each of its turns.'}},
 
   // Save only, no damage
@@ -1968,6 +1977,71 @@ function powerAttackFeat(attack){
   return null;
 }
 
+/* ---------- Active effects: riders the Attack popup adds for you ----------
+   `fx` on a spell's roll data or on a feature says what it does to weapon attacks: weapon
+   ('melee'|'any'), until ('hit' = your next hit, or a duration), toHit, adv, and extra dice
+   (a spell's rider, scaled by the slot). Nothing here is per character.
+   Effects on you (Searing Smite, Divine Favor, Sacred Weapon) start when you cast or use them,
+   show under the Combat Menu's move line, and are added to every attack they fit until they
+   end: copying the damage ends a next-hit rider, casting another concentration spell ends a
+   concentration one, and a rest or End clears them. Effects tied to one creature (target:true:
+   Hunter's Mark, Vow of Enmity) aren't tracked, because the tracker can't know what you're
+   attacking: the popup offers an unticked toggle for each one the character has prepared. */
+function spellFx(entry, slot){
+  const sp = entry.sp, r = SPELL_ROLLS[sp.name]; if(!r || !r.fx) return null;
+  const up = sp.level ? Math.max(0, (slot || sp.level) - sp.level) : 0;
+  return {id:'spell:'+sp.name, name:sp.name, conc:/Concentration/i.test(sp.duration), ...r.fx,
+    dice: r.rider ? scaleDice(r.rider.d, r.rider.per, {up}) : null, type: r.rider ? r.rider.type : '',
+    hitSave: r.hitSave || null, dc: spellStats(entry.ability).dc};
+}
+function featureFx(t){
+  if(!t.fx) return null;
+  return {id:'feat:'+t.name, name:t.name.replace(/^Channel Divinity: /, ''), ...(typeof t.fx==='function' ? t.fx() : t.fx)};
+}
+function fxWhen(e){ return e.until==='hit' ? `your next ${e.weapon==='melee' ? 'melee ' : ''}weapon hit` : `${e.until}${e.conc ? ', concentration' : ''}`; }
+function fxWhat(e){ return [e.toHit && `+${e.toHit} to hit`, e.dice && `+${e.dice}`, e.adv && 'advantage'].filter(Boolean).join(', '); }
+// Casting a concentration spell ends the one you were concentrating on
+function endConcentration(){
+  const ended = track.fx.filter(x=>x.conc).map(x=>x.name);
+  track.fx = track.fx.filter(x=>!x.conc);
+  return ended;
+}
+function startFx(e){ track.fx = track.fx.filter(x=>x.id!==e.id); track.fx.push(e); saveTrack(); renderActiveFx(); }
+function endFx(id){ track.fx = track.fx.filter(x=>x.id!==id); saveTrack(); renderActiveFx(); }
+function renderActiveFx(){
+  const box = document.getElementById('activeFx'), list = track.fx || [];
+  box.hidden = !list.length;
+  box.innerHTML = list.length ? `<span>Active effects:</span>` + list.map(e=>`<span class="fx-chip">${escapeHtml(e.name)} <small>${escapeHtml(fxWhat(e))}${fxWhat(e) ? ' &middot; ' : ''}${escapeHtml(fxWhen(e))}</small>`
+    + `<button type="button" class="sel-toggle" data-fx-end="${escapeHtml(e.id)}" aria-label="End ${escapeHtml(e.name)}">End</button></span>`).join('') : '';
+}
+document.getElementById('activeFx').addEventListener('click', e=>{ const b = e.target.closest('[data-fx-end]'); if(b) endFx(b.dataset.fxEnd); });
+// Effects tied to one creature that this character has prepared or can use
+function targetFxOptions(){
+  const spells = castableSpells().map(e=>spellFx(e, e.sp.level));
+  const feats = [...classFeatureItems(), ...featItems()].filter(t=>charLevel() >= t.level).map(featureFx);
+  return [...spells, ...feats].filter(f=>f && f.target);
+}
+// What an attack with this weapon can use: active effects that fit it (on by default), then
+// target effects (off until you tick them)
+function weaponFx(attack){
+  const p = parseWeaponDamage(attack.damage), melee = !p || /melee/i.test(p.props);
+  return [...(track.fx || []), ...targetFxOptions()].filter(e=>e.weapon!=='melee' || melee);
+}
+const fxOn = ()=>(rollState.fxList || []).filter(e=>rollState.fxOn[e.id]);
+// Advantage from an effect: cancels disadvantage (2014 rules), otherwise gives advantage
+function attackMode(){
+  const {mode} = rollState;
+  if(rollState.sel.kind!=='weapon' || !fxOn().some(e=>e.adv)) return mode;
+  return mode==='dis' ? 'normal' : 'adv';
+}
+function fxLineHtml(){
+  const f = rollState.fxStarted, ended = rollState.concEnded || [];
+  const parts = [];
+  if(f) parts.push(`Now active: ${f.name} (${[fxWhat(f), fxWhen(f)].filter(Boolean).join(', ')}). Your Attack popups add it.`);
+  if(ended.length) parts.push(`Ended ${ended.join(' and ')}: you can concentrate on one spell at a time.`);
+  return parts.length ? `<div class="spent-line">${parts.join(' ')}</div>` : '';
+}
+
 /* ---------- Roll popup ---------- */
 const rollPopup = document.getElementById('rollPopup');
 const rollState = {sel:null, mode:'normal', crit:false, smite:0, undead:false};
@@ -1976,7 +2050,8 @@ const ORDINAL = ['','1st','2nd','3rd','4th','5th'];
 
 function openRollPopup(sel, mode){
   hideTooltip();
-  Object.assign(rollState, {sel, mode, crit:false, smite:0, undead:false, alt:false, sneak:false, savage:false, spendInfo:null, smiteSpent:null});
+  Object.assign(rollState, {sel, mode, crit:false, smite:0, undead:false, alt:false, sneak:false, savage:false, spendInfo:null, smiteSpent:null,
+    fxList:[], fxOn:{}, fxStarted:null, concEnded:[], fxBefore:null, fxUsed:false});
   // Using a spell slot, racial use or feature charge is tracked as soon as the popup opens
   let id = null, desc = '';
   if(sel.kind==='spell' && sel.entry.sp.level > 0){
@@ -1992,6 +2067,20 @@ function openRollPopup(sel, mode){
   if(id && maxFor(id) > 0){
     if(remaining(id) > 0){ spend(id, 1); rollState.spendInfo = {id, desc, state:'spent'}; }
     else rollState.spendInfo = {id, desc, state:'none'};
+  }
+  // Casting or using something starts its effect on you; a concentration spell ends the last one.
+  // Undo (spell slot / use) puts effects back as they were.
+  if(sel.kind==='spell' || sel.kind==='feature'){
+    rollState.fxBefore = (track.fx || []).map(e=>({...e}));
+    if(sel.kind==='spell' && /Concentration/i.test(sel.entry.sp.duration)) rollState.concEnded = endConcentration().filter(n=>n!==sel.entry.sp.name);
+    const f = sel.kind==='spell' ? spellFx(sel.entry, sel.slot) : featureFx(sel.feature);
+    if(f && !f.target){ startFx(f); rollState.fxStarted = f; }
+    else if(rollState.concEnded.length){ saveTrack(); renderActiveFx(); }
+  }
+  // A weapon attack takes the effects as they are now, so later changes don't alter this popup
+  if(sel.kind==='weapon'){
+    rollState.fxList = weaponFx(sel.attack).map(e=>({...e}));
+    rollState.fxList.forEach(e=>{ rollState.fxOn[e.id] = !e.target; });
   }
   renderRollPopup();
   rollPopup.hidden = false;
@@ -2009,7 +2098,9 @@ function toHitCommand(){
   const {sel, mode} = rollState;
   if(sel.kind==='weapon'){
     const bonus = parseInt(String(sel.attack.bonus||'0').replace(/\s/g,''),10) || 0;
-    return {cmd:d20Cmd(mode, bonus - (sel.power ? 5 : 0)), desc:`${sel.attack.name} attack${sel.power ? ` (${sel.power}: −5)` : ''}`};
+    const on = fxOn(), toHit = on.reduce((n, e)=>n + (e.toHit || 0), 0);
+    const extras = [sel.power && `${sel.power} −5`, ...on.filter(e=>e.toHit).map(e=>`+${e.toHit} ${e.name}`), ...on.filter(e=>e.adv).map(e=>`advantage from ${e.name}`)].filter(Boolean);
+    return {cmd:d20Cmd(attackMode(), bonus - (sel.power ? 5 : 0) + toHit), desc:`${sel.attack.name} attack${extras.length ? ` (${extras.join(', ')})` : ''}`};
   }
   if(sel.kind==='check'){
     const c = checkInfo(sel.type, sel.key);
@@ -2063,7 +2154,16 @@ function damageCommand(){
   const weaponDice = `${count}d${p.die}${gwf?'ro<3':''}`;
   const savage = savageOk && rollState.savage;
   if(savage) notes.push('Savage Attacker: weapon dice rolled twice, the higher total is kept. Once per turn.');
-  const cmd = `${ROLL} ${savage ? `(${weaponDice},${weaponDice})kh1` : weaponDice}${mod ? fmtMod(mod) : ''}${sneak ? `+${sneak}d6` : ''}${radiant ? `+${radiant}d8` : ''}`;
+  // Active and ticked effects: extra dice (doubled on a crit), and next-hit riders ending on this hit
+  const fxDice = fxOn().filter(e=>e.dice).map(e=>{
+    const d = parseDice(e.dice), type = /same type/.test(e.type) ? p.type : e.type;
+    return {dice:`${d.n * critX}d${d.s}`, label:`${e.name}${type ? ` (${type})` : ''}`};
+  });
+  fxOn().forEach(e=>{
+    if(e.hitSave) notes.push(`${e.name}: the target makes a <b>DC ${e.dc} ${ABILITY_TEXT(e.hitSave.save)}</b> save or is ${e.hitSave.effect}.`);
+    if(e.until==='hit' && !e.target) notes.push(`${e.name} ends when you copy this damage (it hit).`);
+  });
+  const cmd = `${ROLL} ${savage ? `(${weaponDice},${weaponDice})kh1` : weaponDice}${mod ? fmtMod(mod) : ''}${sneak ? `+${sneak}d6` : ''}${radiant ? `+${radiant}d8` : ''}${fxDice.map(f=>'+'+f.dice).join('')}`;
   // Beside the command: the damage type, then everything the command adds or changes, e.g.
   // "Greatsword damage (slashing), +10 Great Weapon Master, +2d8 Divine Smite (radiant)"
   const extras = [
@@ -2075,16 +2175,17 @@ function damageCommand(){
     sneak && `+${sneak}d6 Sneak Attack`,
     smiteDice && `+${smiteDice}d8 Divine Smite (radiant)`,
     improvedDice && `+${improvedDice}d8 Improved Divine Smite (radiant)`,
+    ...fxDice.map(f=>`+${f.dice} ${f.label}`),
   ].filter(Boolean);
   const desc = `${a.name} damage${p.type ? ` (${p.type})` : ''}${extras.length ? ', ' + extras.join(', ') : ''}`;
-  return {cmd, desc, notes, melee, sneakOk, sneakDice, savageOk};
+  return {cmd, desc, notes, melee, sneakOk, sneakDice, savageOk, consume:true};
 }
 
 // Only the Avrae command goes in the box (and gets copied); the description sits beside it
 function cmdBox(label, c, extraHtml){
   return `<div class="roll-box"><div class="roll-box-label">${label}</div>
     <div class="roll-cmd-row"><code class="roll-cmd">${escapeHtml(c.cmd)}</code>
-    <button type="button" class="copy-btn" data-copy="${escapeHtml(c.cmd)}" aria-label="Copy ${label.toLowerCase()} command">Copy</button>
+    <button type="button" class="copy-btn" data-copy="${escapeHtml(c.cmd)}"${c.consume ? ' data-consume="1"' : ''} aria-label="Copy ${label.toLowerCase()} command">Copy</button>
     <span class="roll-cmd-desc">${escapeHtml(c.desc)}</span></div>${extraHtml||''}</div>`;
 }
 function toggleBtn(attr, value, label, on){
@@ -2158,7 +2259,7 @@ function spellPopupHtml(){
     notes.push(`${n} darts. Each one hits automatically; split them between targets however you like.`);
   }
   if(r.rider || r.onHit){
-    html += infoBox('No roll now', `This adds to ${r.rider ? r.rider.on : r.onHit}.`);
+    html += infoBox('No roll now', `This adds to ${r.rider ? r.rider.on : r.onHit}.${r.fx ? (r.fx.target ? ` When you attack that creature, tick <b>${sp.name} target</b> in the Attack popup.` : ' Your Attack popups add it while it lasts.') : ''}`);
     if(r.rider){
       html += cmdBox('Extra damage on the hit', {cmd:`${ROLL} ${scaleDice(r.rider.d, r.rider.per, {up, crit})}${adeptMi(r.rider.type)}`, desc:r.rider.type}, critToggle());
       notes.push('Roll this with your weapon damage. A crit doubles these dice too.');
@@ -2211,14 +2312,20 @@ function spendLineHtml(){
 }
 function renderRollPopup(){
   const {sel, mode} = rollState;
-  const modeLabel = ROLL_MODES.find(([k])=>k===mode)[1];
-  document.getElementById('rollTitle').textContent = `${sel.label}${sel.kind==='spell' && sel.slot && !sel.entry.fixedLevel && sel.slot > sel.entry.sp.level ? ` (${ORDINAL[sel.slot]}-level slot)` : ''}${mode!=='normal' ? ` — ${modeLabel}` : ''}`;
+  const modeLabel = ROLL_MODES.find(([k])=>k===attackMode())[1];
+  document.getElementById('rollTitle').textContent = `${sel.label}${sel.kind==='spell' && sel.slot && !sel.entry.fixedLevel && sel.slot > sel.entry.sp.level ? ` (${ORDINAL[sel.slot]}-level slot)` : ''}${attackMode()!=='normal' ? ` — ${modeLabel}` : ''}`;
   if(sel.kind==='spell' || sel.kind==='feature'){
-    document.getElementById('rollBody').innerHTML = spendLineHtml() + (sel.kind==='spell' ? spellPopupHtml() : featurePopupHtml());
+    document.getElementById('rollBody').innerHTML = spendLineHtml() + fxLineHtml() + (sel.kind==='spell' ? spellPopupHtml() : featurePopupHtml());
     return;
   }
-  let html = `<p class="roll-intro">Copy a command and paste it into Discord.</p>`
-    + cmdBox(sel.kind==='weapon' ? 'To hit' : sel.kind==='check' ? checkInfo(sel.type, sel.key).name : 'Athletics check', toHitCommand());
+  let html = `<p class="roll-intro">Copy a command and paste it into Discord.</p>`;
+  if(rollState.fxList.length){
+    const self = rollState.fxList.filter(e=>!e.target), target = rollState.fxList.filter(e=>e.target);
+    html += `<div class="roll-after">Effects${self.length ? ' (untick one that doesn’t apply to this attack)' : ''}:</div><div class="roll-toggles">`
+      + rollState.fxList.map(e=>toggleBtn('data-fx', escapeHtml(e.id), escapeHtml(e.target ? `${e.name} target` : `${e.name} (${fxWhat(e)})`), !!rollState.fxOn[e.id])).join('') + `</div>`;
+    if(target.length) html += `<div class="roll-after">Tick a target only if you’re attacking the creature it’s on.</div>`;
+  }
+  html += cmdBox(sel.kind==='weapon' ? 'To hit' : sel.kind==='check' ? checkInfo(sel.type, sel.key).name : 'Athletics check', toHitCommand());
   if(sel.kind==='check'){
     const notes = [...checkInfo(sel.type, sel.key).included, ...checkReminders(sel.type, sel.key, true)];
     if(notes.length) html += `<ul class="roll-notes">${notes.map(n=>`<li>${n}</li>`).join('')}</ul>`;
@@ -2265,7 +2372,11 @@ rollPopup.addEventListener('click', e=>{
     if(lvl){ const id = slotIdFor(lvl); if(spend(id, 1)) rollState.smiteSpent = id; }
     rollState.smite = lvl; if(!lvl) rollState.undead = false; renderRollPopup();
   }
-  else if(t.dataset.undoSpend){ const s = rollState.spendInfo; spend(s.id, -1); s.state = 'undone'; renderRollPopup(); }
+  else if(t.dataset.undoSpend){
+    const s = rollState.spendInfo; spend(s.id, -1); s.state = 'undone';
+    if(rollState.fxBefore){ track.fx = rollState.fxBefore; rollState.fxStarted = null; rollState.concEnded = []; saveTrack(); renderActiveFx(); }
+    renderRollPopup();
+  }
   else if(t.dataset.loh){
     const n = t.dataset.loh==='amt' ? (parseInt(document.getElementById('lohAmt').value,10) || 0) : +t.dataset.loh;
     if(n > 0) spend('feat:Lay on Hands', Math.min(n, remaining('feat:Lay on Hands')));
@@ -2273,7 +2384,15 @@ rollPopup.addEventListener('click', e=>{
   }
   else if(t.dataset.undead){ rollState.undead = !rollState.undead; renderRollPopup(); }
   else if(t.dataset.alt){ rollState.alt = !rollState.alt; renderRollPopup(); }
-  else if(t.dataset.copy !== undefined){ copyText(t.dataset.copy, t); }
+  else if(t.dataset.copy !== undefined){
+    copyText(t.dataset.copy, t);
+    // Copying the damage means it hit: next-hit riders that were included are used up
+    if(t.dataset.consume && !rollState.fxUsed){
+      fxOn().filter(e=>e.until==='hit' && !e.target).forEach(e=>endFx(e.id));
+      rollState.fxUsed = true;
+    }
+  }
+  else if(t.dataset.fx){ rollState.fxOn[t.dataset.fx] = !rollState.fxOn[t.dataset.fx]; renderRollPopup(); }
 });
 document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !rollPopup.hidden) closeRollPopup(); });
 
@@ -3133,7 +3252,7 @@ const CLASS_FEATURES = {
       'Oath of Devotion': [
         {level:3, name:'Oath Spells', desc:'Always prepared; they don’t count against your prepared spells.',
           tiers: oathSpells([[3,'Protection from Evil and Good'],[3,'Sanctuary'],[5,'Lesser Restoration'],[5,'Zone of Truth'],[9,'Beacon of Hope'],[9,'Dispel Magic'],[13,'Freedom of Movement'],[13,'Guardian of Faith'],[17,'Commune'],[17,'Flame Strike']])},
-        {level:3, name:'Channel Divinity: Sacred Weapon', type:'action', spends:'channelDivinity', tip:'For the next minute, add your Charisma modifier (minimum +1) to attack rolls with that weapon: add it to the to-hit command in the Attack popup.', desc:'For 1 minute, add your Charisma modifier (minimum +1) to attack rolls with one weapon you hold. It sheds bright light 20 ft (dim 20 ft more) and counts as magical.'},
+        {level:3, name:'Channel Divinity: Sacred Weapon', type:'action', spends:'channelDivinity', fx:()=>({until:'1 minute', weapon:'any', toHit:Math.max(1, abilityScoreMod('cha'))}), tip:'For the next minute, Turnkeeper adds your Charisma modifier to your Attack popups (see Active effects in the Combat Menu). Untick it there for a different weapon.', desc:'For 1 minute, add your Charisma modifier (minimum +1) to attack rolls with one weapon you hold. It sheds bright light 20 ft (dim 20 ft more) and counts as magical.'},
         {level:3, name:'Channel Divinity: Turn the Unholy', type:'action', spends:'channelDivinity', save:'wis', saveNote:'Each fiend or undead within 30 ft that can see or hear you. On a failure it is turned for 1 minute or until it takes damage.', desc:'Each fiend or undead within 30 ft that can see or hear you makes a Wisdom save or is turned for 1 minute or until it takes damage.'},
         {level:7, name:'Aura of Devotion', desc:'You and friendly creatures within 10 ft can’t be charmed while you’re conscious (30 ft at level 18).'},
         {level:15, name:'Purity of Spirit', desc:'You are always under the effects of Protection from Evil and Good.'},
@@ -3152,7 +3271,7 @@ const CLASS_FEATURES = {
         {level:3, name:'Oath Spells', desc:'Always prepared; they don’t count against your prepared spells.',
           tiers: oathSpells([[3,'Bane'],[3,"Hunter's Mark"],[5,'Hold Person'],[5,'Misty Step'],[9,'Haste'],[9,'Protection from Energy'],[13,'Banishment'],[13,'Dimension Door'],[17,'Hold Monster'],[17,'Scrying']])},
         {level:3, name:'Channel Divinity: Abjure Enemy', type:'action', spends:'channelDivinity', save:'wis', saveNote:'Fiends and undead have disadvantage. On a failure: frightened for 1 minute (or until it takes damage), speed 0. On a success: speed halved for 1 minute.', desc:'One creature within 60 ft makes a Wisdom save or is frightened for 1 minute (or until it takes damage) with speed 0. Fiends and undead save with disadvantage. On a success its speed is halved for 1 minute.'},
-        {level:3, name:'Channel Divinity: Vow of Enmity', type:'bonus', spends:'channelDivinity', tip:'For the next minute, pick <b>Advantage</b> when you Attack that creature.', desc:'Advantage on attack rolls against one creature within 10 ft for 1 minute.'},
+        {level:3, name:'Channel Divinity: Vow of Enmity', type:'bonus', spends:'channelDivinity', fx:{target:true, adv:true, weapon:'any'}, tip:'For the next minute, tick <b>Vow of Enmity target</b> in the Attack popup when you attack that creature.', desc:'Advantage on attack rolls against one creature within 10 ft for 1 minute.'},
         {level:7, name:'Relentless Avenger', desc:'When you hit with an opportunity attack, you can move up to half your speed right after, as part of the same reaction, without provoking opportunity attacks.'},
         {level:15, name:'Soul of Vengeance', type:'reaction', desc:'When the target of your Vow of Enmity attacks, make a melee weapon attack against it if it’s within reach.'},
         {level:20, name:'Avenging Angel', type:'action', uses:{max:()=>1, recharge:'long'}, save:'wis', saveNote:'The first time in a battle an enemy enters your 30 ft aura or starts its turn there. On a failure it is frightened for 1 minute or until it takes damage.', desc:'For 1 hour: gain a 60 ft flying speed and a 30 ft aura. The first time in a battle an enemy enters it or starts its turn there, it makes a Wisdom save or is frightened for 1 minute (or until it takes damage). Once per long rest.'},
@@ -4173,15 +4292,16 @@ function trackedResources(){
 // Resource a feature spends when used (its own uses, or a shared pool like Channel Divinity)
 function featureResourceId(t){ return t.spends || (t.uses ? 'feat:'+t.name : null); }
 
-const track = {hp:null, used:{}, sheetHp:{cur:null, max:null}};
+const track = {hp:null, used:{}, fx:[], sheetHp:{cur:null, max:null}};
 function trackKey(){ return `dndTracker:track:${currentCharId}`; }
 function loadTrack(){
   let saved = null;
   try{ saved = JSON.parse(storageGet(trackKey()) || 'null'); }catch(e){}
   track.hp = saved && typeof saved.hp==='number' ? saved.hp : null;
   track.used = saved && saved.used ? saved.used : {};
+  track.fx = saved && Array.isArray(saved.fx) ? saved.fx : [];
 }
-function saveTrack(){ if(currentCharId) storageSet(trackKey(), JSON.stringify({hp:track.hp, used:track.used})); }
+function saveTrack(){ if(currentCharId) storageSet(trackKey(), JSON.stringify({hp:track.hp, used:track.used, fx:track.fx})); }
 function maxFor(id){
   const s = slotTable().find(x=>x.id===id); if(s) return s.max;
   const r = trackedResources().find(x=>x.id===id); return r ? r.max : 0;
@@ -4206,7 +4326,8 @@ function setHp(v){
 // Rests, with a one-step Undo in case of a mis-click
 let restUndo = null;
 function takeRest(kind){
-  restUndo = JSON.stringify({hp:track.hp, used:track.used});
+  restUndo = JSON.stringify({hp:track.hp, used:track.used, fx:track.fx});
+  track.fx = [];   // anything lasting a minute or an hour is over after a rest
   const shortIds = new Set([...slotTable(), ...trackedResources()].filter(r=>r.recharge==='short').map(r=>r.id));
   if(kind==='long'){ track.used = {}; if(hpMax() !== null) track.hp = hpMax(); }
   else Object.keys(track.used).forEach(id=>{ if(shortIds.has(id)) delete track.used[id]; });
@@ -4216,7 +4337,7 @@ function takeRest(kind){
   const msg = document.getElementById('restMsg');
   msg.innerHTML = `${what} <button type="button" class="sel-toggle" id="restUndo">Undo</button>`;
   document.getElementById('restUndo').onclick = ()=>{
-    const s = JSON.parse(restUndo); track.hp = s.hp; track.used = s.used; restUndo = null;
+    const s = JSON.parse(restUndo); track.hp = s.hp; track.used = s.used; track.fx = s.fx || []; restUndo = null;
     saveTrack(); renderResources(); msg.textContent = 'Rest undone.';
   };
 }
@@ -4236,6 +4357,7 @@ function pipsHtml(id, max){
     `<button type="button" class="pip${i < left ? ' on' : ''}" data-pip="${escapeHtml(id)}" data-on="${i < left}" aria-label="${i < left ? 'Available: click to use' : 'Used: click to restore'}"></button>`).join('') + `</div>`;
 }
 function renderResources(){
+  renderActiveFx();
   const cur = hpNow(), max = hpMax();
   const hpEl = document.getElementById('hpNow');
   hpEl.textContent = cur === null ? '—' : cur;
