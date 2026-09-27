@@ -4630,11 +4630,26 @@ function takeRest(kind){
     track.temp = 0;   // temporary hit points last until a long rest
   }
   else Object.keys(track.used).forEach(id=>{ if(shortIds.has(id)) delete track.used[id]; });
+  // A short rest is when you spend Hit Dice, so it opens the Spend panel (a long rest closes it)
+  let hdText = '';
+  if(kind==='short' && hitDie()){
+    const hurt = hpNow() !== null && hpMax() !== null && hpNow() < hpMax(), left = remaining('hitDice');
+    Object.assign(hd, {open: hurt && left > 0, n:1, done:null});
+    hdText = !hurt ? ' You’re at full HP, so there’s no need to spend Hit Dice.'
+      : left ? ` Spend Hit Dice below to heal (${left} left).` : ' You have no Hit Dice left; half come back on a long rest.';
+  } else hd.open = false;
+  // Arcane Recovery is used when you finish a short rest (once a day)
+  if(kind==='short' && hasFeature('Arcane Recovery') && remaining('feat:Arcane Recovery') > 0)
+    hdText += ' You can also use Arcane Recovery now (its Roll link in Class Features shows how many slot levels).';
   saveTrack(); renderResources();
   const what = kind==='long' ? 'Long rest: hit points, spell slots and all features restored.'
-    : shortIds.size ? 'Short rest: short-rest features restored (e.g. Channel Divinity).' : 'Short rest: nothing of yours comes back on a short rest yet.';
+    : shortIds.size ? 'Short rest: short-rest features restored (e.g. Channel Divinity).' : 'Short rest taken (none of your features recharge on a short rest yet).';
   const msg = document.getElementById('restMsg');
-  msg.innerHTML = `${what} <button type="button" class="sel-toggle" id="restUndo">Undo</button>`;
+  msg.innerHTML = `${what}${hdText} <button type="button" class="sel-toggle" id="restUndo">Undo</button>`;
+  if(hd.open){
+    const panel = document.querySelector('.hd-panel');
+    if(panel){ panel.scrollIntoView({behavior:'smooth', block:'center'}); const t = document.getElementById('hdTotal'); if(t) t.focus({preventScroll:true}); }
+  }
   document.getElementById('restUndo').onclick = ()=>{
     const s = JSON.parse(restUndo); track.hp = s.hp; track.used = s.used; track.fx = s.fx || [];
     track.death = s.death || {s:0, f:0}; track.combat = s.combat || null; track.temp = s.temp || 0; restUndo = null;

@@ -3,6 +3,13 @@
 What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest first.
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
+## Unreleased
+
+### Changed
+- **Short Rest asks about Hit Dice.** Clicking Short Rest now opens the Hit Dice panel ready to
+  spend (and says how many you have left), or tells you there's no need at full HP or that you
+  have none left. Wizards are also reminded they can use Arcane Recovery.
+
 ## 2026-09-27 — Hit Dice and temporary hit points
 
 ### Added
