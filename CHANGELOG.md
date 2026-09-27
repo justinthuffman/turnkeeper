@@ -3,6 +3,22 @@
 What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest first.
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
+## Unreleased
+
+### Added
+- **Hit Dice** in Resources: one per level, sized by your class (d10 for Krunk, d8 for Venthor
+  and Bel, d6 for Ezlo). Click **Spend** on a short rest, pick how many, and copy the command,
+  e.g. `!tk 2d10+4` (the die plus your Constitution modifier, each). Enter the total you rolled
+  and **Spend and add HP** marks them used and heals you, with an Undo.
+  - A long rest gives back half your total Hit Dice (at least 1), per the 2014 rules.
+  - **Durable** sets each die's minimum in the command, and **Song of Rest** (Bel) is noted.
+- **Temporary hit points.** A **Temp HP** button beside Damage and Heal sets them from the amount
+  box, and they show next to your HP (and in Character Summary). They don't stack: you keep the
+  higher amount. **Damage uses them up first**, and a long rest clears them. Click the × to
+  clear them yourself.
+  - **False Life** asks for the total you rolled and sets them.
+  - **Inspiring Leader** can give them to you too.
+
 ## 2026-09-27 — Initiative, death saves and healing yourself
 
 ### Added

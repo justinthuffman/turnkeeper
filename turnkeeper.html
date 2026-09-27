@@ -407,6 +407,16 @@ button.build-tag:hover{background:var(--panel2); border-color:var(--sea);}
 .hp-adjust{display:flex; flex-wrap:wrap; align-items:center; gap:8px;}
 .hp-adjust input{width:64px; background:var(--panel2); border:1px solid var(--border); color:var(--ink); padding:7px 8px; border-radius:4px; font-size:0.95rem;}
 .hp-adjust button{padding:7px 12px; font-size:0.85rem;}
+/* Temporary hit points beside HP */
+.hp-temp{margin-left:8px; padding:1px 4px 1px 9px; border:1px solid var(--sea-dim); border-radius:999px; font-size:0.8rem; color:var(--sea); white-space:nowrap;}
+.hp-temp[hidden]{display:none;}
+.hp-temp button.sel-toggle{font-size:0.9rem; text-decoration:none; margin-left:2px;}
+/* Hit Dice row and Spend panel */
+.hd-ctrl{display:flex; flex-wrap:wrap; align-items:center; gap:8px; justify-content:flex-end;}
+.hd-panel{margin:4px 0 8px; padding:10px 12px; border:1px solid var(--border); border-radius:6px; background:var(--panel2); display:flex; flex-direction:column; gap:8px; font-size:0.85rem;}
+.hd-count{display:flex; flex-wrap:wrap; align-items:center; gap:8px; color:var(--ink-dim);}
+.hd-count b{min-width:1.2em; text-align:center; color:var(--ink); font-size:1rem;}
+.hd-count button.flow-btn{padding:3px 10px; font-size:0.85rem;}
 /* Death saves at 0 HP */
 .death-box{margin:10px 0 4px; padding:10px 12px; border:1px solid var(--danger); background:var(--orange-wash); border-radius:6px; font-size:0.85rem; display:flex; flex-direction:column; gap:8px;}
 .death-box[hidden]{display:none;}
@@ -696,11 +706,13 @@ applyTheme(savedTheme || DEFAULT_THEME);
   </div>
   <div class="rest-msg" id="restMsg" aria-live="polite"></div>
   <div class="hp-row">
-    <div class="hp-now"><span class="res-label">Hit Points</span> <span id="hpNow">&mdash;</span><span class="hp-max"> / <span id="hpMax">&mdash;</span></span></div>
+    <div class="hp-now"><span class="res-label">Hit Points</span> <span id="hpNow">&mdash;</span><span class="hp-max"> / <span id="hpMax">&mdash;</span></span>
+      <span class="hp-temp" id="hpTemp" hidden></span></div>
     <div class="hp-adjust">
-      <input type="number" id="hpAmount" min="1" value="1" aria-label="Amount of damage or healing">
+      <input type="number" id="hpAmount" min="1" value="1" aria-label="Amount of damage, healing or temporary hit points">
       <button type="button" id="hpDamage">Damage</button>
       <button type="button" id="hpHeal">Heal</button>
+      <button type="button" id="hpTempBtn" title="Set temporary hit points to this amount (they don't stack: you keep the higher)">Temp HP</button>
       <button type="button" class="sel-toggle" id="hpReset" title="Set hit points back to the value on your sheet">Reset to sheet</button>
     </div>
   </div>
@@ -2104,6 +2116,19 @@ function healMeHtml(){
   if(rollState.healed) return `<div class="roll-toggles heal-me"><span>Added ${rollState.healed} HP to you (now ${hpNow()} / ${hpMax()}).</span> <button type="button" class="sel-toggle" data-heal-undo="1">Undo</button></div>`;
   return `<div class="roll-toggles heal-me"><span>Healed yourself? Enter the total:</span><input type="number" class="num-in" id="healAmt" min="1" aria-label="Healing total"><button type="button" class="flow-btn" data-heal-me="1">Add to my HP</button></div>`;
 }
+// False Life and similar: "Got the temp HP? Enter the total" sets them (they don't stack)
+function tempMeHtml(){
+  if(!currentCharId) return '';
+  return `<div class="roll-toggles heal-me">` + (rollState.tempMsg ? `<span>${rollState.tempMsg}</span>`
+    : `<span>Got the temporary hit points? Enter the total:</span><input type="number" class="num-in" id="tempAmt" min="1" aria-label="Temporary hit points"><button type="button" class="flow-btn" data-temp-me="1">Set my temp HP</button>`) + `</div>`;
+}
+function tempFromPopup(n){
+  if(!(n > 0)) return;
+  const had = track.temp || 0;
+  gainTemp(n);
+  rollState.tempMsg = n > had ? `You now have ${track.temp} temporary hit points.` : `You already had ${had} temporary hit points; they don’t stack, so you keep the ${had}.`;
+  renderRollPopup();
+}
 function healSelf(n){
   if(!(n > 0) || hpNow() === null) return 0;
   rollState.healBefore = {hp:track.hp, death:{...track.death}};
@@ -2246,7 +2271,7 @@ const ORDINAL = ['','1st','2nd','3rd','4th','5th'];
 function openRollPopup(sel, mode){
   hideTooltip();
   Object.assign(rollState, {sel, mode, crit:false, smite:0, undead:false, alt:false, sneak:false, savage:false, spendInfo:null, smiteSpent:null,
-    fxList:[], fxOn:{}, fxStarted:null, concEnded:[], fxBefore:null, fxUsed:false, healed:null, healBefore:null});
+    fxList:[], fxOn:{}, fxStarted:null, concEnded:[], fxBefore:null, fxUsed:false, healed:null, healBefore:null, tempMsg:''});
   // Using a spell slot, racial use or feature charge is tracked as soon as the popup opens
   let id = null, desc = '';
   if(sel.kind==='spell' && sel.entry.sp.level > 0){
@@ -2445,7 +2470,7 @@ function spellPopupHtml(){
       + cmdBox('Explosion damage', {cmd:`${ROLL} ${scaleDice(x.d, x.per, {up})}${adeptMi(x.type)}`, desc:`${sp.name} explosion (${x.type})`});
   }
   if(r.heal){ const d = scaleDice(r.heal.d, r.heal.per, {up}); html += cmdBox('Healing', {cmd:`${ROLL} ${d}${fmtMod(s.mod)}`, desc:'hit points regained'}, healMeHtml()); }
-  if(r.temp) html += cmdBox('Temporary hit points', {cmd:`${ROLL} ${r.temp.d}+${r.temp.flat + r.temp.perFlat*up}`, desc:'temporary hit points for 1 hour'});
+  if(r.temp) html += cmdBox('Temporary hit points', {cmd:`${ROLL} ${r.temp.d}+${r.temp.flat + r.temp.perFlat*up}`, desc:'temporary hit points for 1 hour'}, tempMeHtml());
   if(r.pool) html += cmdBox('Hit point pool', {cmd:`${ROLL} ${scaleDice(r.pool.d, r.pool.per, {up})}`, desc:r.pool.what});
   if(r.darts){
     const n = r.darts.n + up;
@@ -2580,6 +2605,8 @@ rollPopup.addEventListener('click', e=>{
     if(t.dataset.loh==='self' && healSelf(spent)) rollState.healBefore.lohSpent = spent;   // Heal myself: the points spent go to your HP
     renderRollPopup();
   }
+  else if(t.dataset.tempMe) tempFromPopup(parseInt(document.getElementById('tempAmt').value,10) || 0);
+  else if(t.dataset.tempSet) tempFromPopup(+t.dataset.tempSet);
   else if(t.dataset.healMe){ healSelf(parseInt(document.getElementById('healAmt').value,10) || 0); renderRollPopup(); }
   else if(t.dataset.healUndo){
     const b = rollState.healBefore;
@@ -4116,7 +4143,8 @@ const FEATS = [
   {name:'Heavily Armored', prereq:'Proficiency with medium armor', asi:{str:1}, desc:'+1 Strength. Proficiency with heavy armor.'},
   {name:'Heavy Armor Master', prereq:'Proficiency with heavy armor', asi:{str:1}, desc:'+1 Strength. While wearing heavy armor, nonmagical bludgeoning, piercing and slashing damage you take is reduced by 3.'},
   {name:'Inspiring Leader', prereq:'Charisma 13', meets:needs('cha',13),
-    roll:{label:'Temporary hit points', info:()=>`Each creature gets <b>${Math.max(0, charLevel() + abilityScoreMod('cha'))} temporary hit points</b> (your level ${charLevel()} + Charisma modifier ${fmtMod(abilityScoreMod('cha'))}).`},
+    roll:{label:'Temporary hit points', info:()=>`Each creature gets <b>${Math.max(0, charLevel() + abilityScoreMod('cha'))} temporary hit points</b> (your level ${charLevel()} + Charisma modifier ${fmtMod(abilityScoreMod('cha'))}).`
+      + ` <button type="button" class="flow-btn" data-temp-set="${Math.max(0, charLevel() + abilityScoreMod('cha'))}">Give them to myself too</button>` + (rollState.tempMsg ? `<div class="spent-line">${rollState.tempMsg}</div>` : '')},
     desc:'Spend 10 minutes inspiring up to six friendly creatures (you can include yourself) within 30 ft that can see or hear you. Each gains temporary hit points equal to your level + your Charisma modifier. A creature can benefit once per short or long rest.'},
   {name:'Keen Mind', asi:{int:1}, desc:'+1 Intelligence. You always know which way is north and the hours until sunrise or sunset, and can recall anything you’ve seen or heard in the past month.'},
   {name:'Lightly Armored', asiPick:['str','dex'], desc:'+1 Strength or Dexterity. Proficiency with light armor.'},
@@ -4475,6 +4503,58 @@ function rechargeOf(r){ return typeof r === 'function' ? r() : r; }
 // Bard dice by level (2014 PHB): Bardic Inspiration d6/d8/d10/d12 at 1/5/10/15; Song of Rest at 2/9/13/17
 function bardicDie(){ const l = charLevel(); return l >= 15 ? 12 : l >= 10 ? 10 : l >= 5 ? 8 : 6; }
 function songOfRestDie(){ const l = charLevel(); return l >= 17 ? 12 : l >= 13 ? 10 : l >= 9 ? 8 : 6; }
+/* ---------- Hit Dice (2014 rules) ----------
+   One die per level, its size set by the class. Spend any number on a short rest: each rolls
+   the die + your Constitution modifier. A long rest gives back half your total (at least 1;
+   see takeRest). Durable: each die heals at least twice your Con modifier (minimum 2), done
+   with Avrae's `mi` on the die. Tracked as track.used.hitDice. */
+const HIT_DIE = {barbarian:12, fighter:10, paladin:10, ranger:10, bard:8, cleric:8, druid:8, monk:8, rogue:8, warlock:8, sorcerer:6, wizard:6};
+function hitDie(){ return HIT_DIE[cf.classKey] || 0; }
+const hd = {open:false, n:1, done:null};   // the Spend panel: how many, and the last spend (for Undo)
+function hitDiceCmd(n){
+  const con = abilityScoreMod('con'), die = hitDie();
+  const dieMin = hasFeat('Durable') ? Math.max(2*con, 2) - con : 0;
+  return `${ROLL} ${n}d${die}${dieMin > 1 ? `mi${Math.min(dieMin, die)}` : ''}${con ? fmtMod(n*con) : ''}`;
+}
+function hitDiceHtml(){
+  const die = hitDie(); if(!die) return '';
+  const max = maxFor('hitDice'), left = remaining('hitDice');
+  let html = `<div class="res-group">Hit Dice</div><div class="res-row"><div class="res-name">Hit Dice (d${die})<small>${left} of ${max} left &middot; spend on a short rest &middot; half come back on a long rest</small></div>`
+    + `<div class="hd-ctrl">${pipsHtml('hitDice', max)}<button type="button" class="sel-toggle" data-hd="toggle">${hd.open ? 'Close' : 'Spend'}</button></div></div>`;
+  if(!hd.open) return html;
+  hd.n = Math.max(1, Math.min(hd.n, left || 1));
+  const con = abilityScoreMod('con'), notes = [];
+  if(hasFeat('Durable')) notes.push(`Durable: each die heals at least ${Math.max(2*con, 2)}.`);
+  if(hasFeature('Song of Rest')) notes.push(`Song of Rest: if you perform during this short rest, you and everyone who spends Hit Dice regain an extra 1d${songOfRestDie()} (its Roll link is in Class Features).`);
+  html += `<div class="hd-panel">`;
+  if(hd.done) html += `<div class="spent-line">Spent ${hd.done.n} Hit ${hd.done.n===1 ? 'Die' : 'Dice'} and regained ${hd.done.gained} HP (now ${hpNow()} / ${hpMax()}). <button type="button" class="sel-toggle" data-hd="undo">Undo</button></div>`;
+  if(!left){ html += `<p class="empty-note">No Hit Dice left. Half of them come back on a long rest.</p></div>`; return html; }
+  html += `<div class="hd-count"><span>Spend</span><button type="button" class="flow-btn" data-hd="minus" aria-label="One fewer">&minus;</button><b>${hd.n}</b><button type="button" class="flow-btn" data-hd="plus" aria-label="One more">+</button><span>of ${left}</span></div>`
+    + `<div class="roll-cmd-row"><code class="roll-cmd">${escapeHtml(hitDiceCmd(hd.n))}</code><button type="button" class="copy-btn" data-copy="${escapeHtml(hitDiceCmd(hd.n))}">Copy</button><span class="roll-cmd-desc">${hd.n} d${die} + Constitution ${fmtMod(con)} each</span></div>`
+    + (notes.length ? `<ul class="roll-notes">${notes.map(n=>`<li>${n}</li>`).join('')}</ul>` : '')
+    + `<div class="hd-count"><span>Enter the total you rolled:</span><input type="number" class="num-in" id="hdTotal" min="0" aria-label="Hit Dice total"><button type="button" class="flow-btn" data-hd="spend">Spend and add HP</button></div></div>`;
+  return html;
+}
+function hitDiceClick(a){
+  if(a==='toggle'){ hd.open = !hd.open; hd.done = null; }
+  else if(a==='minus') hd.n = Math.max(1, hd.n - 1);
+  else if(a==='plus') hd.n = Math.min(remaining('hitDice'), hd.n + 1);
+  else if(a==='spend'){
+    const total = parseInt(document.getElementById('hdTotal').value, 10);
+    if(isNaN(total) || total < 0){ document.getElementById('hdTotal').focus(); return; }
+    const before = {hp:track.hp, death:{...track.death}}, hpBefore = hpNow();
+    const n = spend('hitDice', hd.n);
+    setHp(hpBefore + total);
+    hd.done = {n, gained:hpNow() - hpBefore, before};
+  }
+  else if(a==='undo' && hd.done){
+    spend('hitDice', -hd.done.n);
+    track.hp = hd.done.before.hp; track.death = hd.done.before.death; saveTrack();
+    hd.done = null;
+  }
+  renderResources();
+}
+
 function trackedResources(){
   const out = [], lvl = charLevel();
   const entry = CLASS_FEATURES[cf.classKey];
@@ -4496,7 +4576,7 @@ function trackedResources(){
 // Resource a feature spends when used (its own uses, or a shared pool like Channel Divinity)
 function featureResourceId(t){ return t.spends || (t.uses ? 'feat:'+t.name : null); }
 
-const track = {hp:null, used:{}, fx:[], death:{s:0, f:0}, combat:null, sheetHp:{cur:null, max:null}};
+const track = {hp:null, temp:0, used:{}, fx:[], death:{s:0, f:0}, combat:null, sheetHp:{cur:null, max:null}};
 function trackKey(){ return `dndTracker:track:${currentCharId}`; }
 function loadTrack(){
   let saved = null;
@@ -4506,9 +4586,11 @@ function loadTrack(){
   track.fx = saved && Array.isArray(saved.fx) ? saved.fx : [];
   track.death = saved && saved.death ? saved.death : {s:0, f:0};   // death saves while at 0 HP
   track.combat = saved && saved.combat ? saved.combat : null;      // {round, started, msg} while in combat
+  track.temp = saved && typeof saved.temp==='number' ? saved.temp : 0;   // temporary hit points
 }
-function saveTrack(){ if(currentCharId) storageSet(trackKey(), JSON.stringify({hp:track.hp, used:track.used, fx:track.fx, death:track.death, combat:track.combat})); }
+function saveTrack(){ if(currentCharId) storageSet(trackKey(), JSON.stringify({hp:track.hp, temp:track.temp, used:track.used, fx:track.fx, death:track.death, combat:track.combat})); }
 function maxFor(id){
+  if(id === 'hitDice') return hitDie() ? Math.min(20, Math.max(1, charLevel())) : 0;   // one Hit Die per level
   const s = slotTable().find(x=>x.id===id); if(s) return s.max;
   const r = trackedResources().find(x=>x.id===id); return r ? r.max : 0;
 }
@@ -4534,11 +4616,19 @@ function setHp(v){
 // Rests, with a one-step Undo in case of a mis-click
 let restUndo = null;
 function takeRest(kind){
-  restUndo = JSON.stringify({hp:track.hp, used:track.used, fx:track.fx, death:track.death, combat:track.combat});
+  restUndo = JSON.stringify({hp:track.hp, temp:track.temp, used:track.used, fx:track.fx, death:track.death, combat:track.combat});
   track.fx = [];   // anything lasting a minute or an hour is over after a rest
   track.combat = null;   // and combat is over
   const shortIds = new Set([...slotTable(), ...trackedResources()].filter(r=>r.recharge==='short').map(r=>r.id));
-  if(kind==='long'){ track.used = {}; if(hpMax() !== null) track.hp = hpMax(); track.death = {s:0, f:0}; }
+  if(kind==='long'){
+    // Everything comes back except Hit Dice: you regain half your total (at least 1), 2014 rules
+    const hdUsed = track.used.hitDice || 0, hdBack = Math.max(1, Math.floor(charLevel() / 2));
+    track.used = {};
+    if(hdUsed > hdBack) track.used.hitDice = hdUsed - hdBack;
+    if(hpMax() !== null) track.hp = hpMax();
+    track.death = {s:0, f:0};
+    track.temp = 0;   // temporary hit points last until a long rest
+  }
   else Object.keys(track.used).forEach(id=>{ if(shortIds.has(id)) delete track.used[id]; });
   saveTrack(); renderResources();
   const what = kind==='long' ? 'Long rest: hit points, spell slots and all features restored.'
@@ -4547,7 +4637,7 @@ function takeRest(kind){
   msg.innerHTML = `${what} <button type="button" class="sel-toggle" id="restUndo">Undo</button>`;
   document.getElementById('restUndo').onclick = ()=>{
     const s = JSON.parse(restUndo); track.hp = s.hp; track.used = s.used; track.fx = s.fx || [];
-    track.death = s.death || {s:0, f:0}; track.combat = s.combat || null; restUndo = null;
+    track.death = s.death || {s:0, f:0}; track.combat = s.combat || null; track.temp = s.temp || 0; restUndo = null;
     saveTrack(); renderResources(); msg.textContent = 'Rest undone.';
   };
 }
@@ -4556,7 +4646,30 @@ document.getElementById('longRestBtn').addEventListener('click', ()=>takeRest('l
 
 // Manual HP adjustments (falls, traps, anything the roll popups don't cover)
 function hpAmount(){ const n = parseInt(document.getElementById('hpAmount').value,10); return isNaN(n) || n < 0 ? 0 : n; }
-document.getElementById('hpDamage').addEventListener('click', ()=>{ if(hpNow()!==null) setHp(hpNow() - hpAmount()); });
+// Damage uses up temporary hit points first
+function takeDamage(n){
+  if(hpNow() === null || !(n > 0)) return;
+  const absorbed = Math.min(track.temp || 0, n);
+  track.temp = (track.temp || 0) - absorbed;
+  if(n - absorbed > 0) setHp(hpNow() - (n - absorbed));
+  else { saveTrack(); renderResources(); }
+  document.getElementById('restMsg').textContent = absorbed ? `Temporary hit points took ${absorbed} of the ${n} damage.` : '';
+}
+// Temporary hit points don't stack: gaining more keeps whichever is higher (2014 rules)
+function gainTemp(n){
+  if(!(n > 0) || !currentCharId) return false;
+  const had = track.temp || 0;
+  track.temp = Math.max(had, n);
+  saveTrack(); renderResources();
+  document.getElementById('restMsg').textContent = n > had ? `You have ${track.temp} temporary hit points.`
+    : `You already have ${had} temporary hit points. They don’t stack, so you keep the ${had}.`;
+  return n > had;
+}
+document.getElementById('hpDamage').addEventListener('click', ()=>takeDamage(hpAmount()));
+document.getElementById('hpTempBtn').addEventListener('click', ()=>gainTemp(hpAmount()));
+document.getElementById('hpTemp').addEventListener('click', e=>{
+  if(e.target.closest('[data-temp-clear]')){ track.temp = 0; saveTrack(); renderResources(); document.getElementById('restMsg').textContent = 'Temporary hit points cleared.'; }
+});
 document.getElementById('hpHeal').addEventListener('click', ()=>{ if(hpNow()!==null) setHp(hpNow() + hpAmount()); });
 document.getElementById('hpReset').addEventListener('click', ()=>{ track.hp = null; saveTrack(); renderResources(); });
 
@@ -4576,13 +4689,16 @@ function renderResources(){
   document.getElementById('hpMax').textContent = max === null ? '—' : max;
   hpEl.classList.toggle('hp-zero', cur === 0);
   hpEl.classList.toggle('hp-low', cur !== null && max && cur > 0 && cur <= max/2);
+  const temp = track.temp || 0, tempEl = document.getElementById('hpTemp');
+  tempEl.hidden = !temp;
+  tempEl.innerHTML = temp ? `+${temp} temp <button type="button" class="sel-toggle" data-temp-clear="1" aria-label="Clear temporary hit points">&times;</button>` : '';
   // Keep the summary's HP box in step with tracking
-  if(cur !== null) document.getElementById('f_hp').value = `${cur} / ${max === null ? '?' : max}`;
+  if(cur !== null) document.getElementById('f_hp').value = `${cur} / ${max === null ? '?' : max}${temp ? ` (+${temp} temp)` : ''}`;
 
   const rows = document.getElementById('resRows');
   document.getElementById('backupBar').hidden = !currentCharId;
   if(!currentCharId){ rows.innerHTML = `<p class="empty-note">Import a sheet to track resources.</p>`; return; }
-  let html = '';
+  let html = hitDiceHtml();
   const slots = slotTable().filter(s=>s.max>0);
   if(slots.length){
     html += `<div class="res-group">Spell slots</div>` + slots.map(s=>`<div class="res-row"><div class="res-name">${ORDINAL[s.level] || s.level+'th'} level${s.pact ? ' (Pact Magic)' : ''}<small>${remaining(s.id)} of ${s.max} left &middot; back on a ${RECHARGE_TEXT[s.recharge]}</small></div>${pipsHtml(s.id, s.max)}</div>`).join('');
@@ -4602,6 +4718,10 @@ function renderResources(){
   });
   rows.innerHTML = html || `<p class="empty-note">No spell slots or limited-use features at this level yet.</p>`;
   rows.querySelectorAll('[data-pip]').forEach(b=>b.addEventListener('click', ()=>spend(b.dataset.pip, b.dataset.on==='true' ? 1 : -1)));
+  rows.querySelectorAll('[data-hd]').forEach(b=>b.addEventListener('click', ()=>hitDiceClick(b.dataset.hd)));
+  rows.querySelectorAll('.hd-panel [data-copy]').forEach(b=>b.addEventListener('click', ()=>copyText(b.dataset.copy, b)));
+  const hdTotal = document.getElementById('hdTotal');
+  if(hdTotal) hdTotal.addEventListener('keydown', e=>{ if(e.key==='Enter') hitDiceClick('spend'); });
   rows.querySelectorAll('[data-pool]').forEach(b=>b.addEventListener('click', ()=>spend(b.dataset.pool, +b.dataset.n)));
 }
 
@@ -4614,6 +4734,7 @@ function usageItems(){
     ...slotTable().filter(s=>s.max>0).map(s=>({id:s.id, max:s.max,
       label: s.pact ? `Pact Magic slots (${ORDINAL[s.level]} level)` : `${ORDINAL[s.level] || s.level+'th'}-level slots`})),
     ...trackedResources().map(r=>({id:r.id, max:r.max, label: r.kind==='pool' ? `${r.label} pool` : r.label})),
+    ...(hitDie() ? [{id:'hitDice', max:maxFor('hitDice'), label:`Hit Dice (d${hitDie()})`}] : []),
   ];
 }
 const charDisplayName = ()=>document.getElementById('f_name').value.trim() || 'Unnamed character';
