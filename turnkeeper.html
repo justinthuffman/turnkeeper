@@ -229,17 +229,25 @@ button.ghost:hover{color:var(--ink); border-color:var(--sea-dim);}
 .status.ok{color:var(--green);}
 
 /* Character summary */
-.summary-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); gap:10px 14px;}
-.field{display:flex; flex-direction:column; gap:3px;}
+.summary-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(110px,1fr)); gap:10px 14px;}
+.field{display:flex; flex-direction:column; gap:3px; min-width:0;}
+/* Inputs sit on the bottom of their row, so a label that wraps to two lines doesn't push its box out of line */
+.field input{margin-top:auto;}
 .field label{font-size:0.68rem; text-transform:uppercase; letter-spacing:0.06em; color:var(--ink-dim);}
 .field input{background:var(--panel2); border:1px solid var(--border); color:var(--ink); padding:7px 8px; border-radius:4px; font-size:0.95rem; width:100%;}
 .field input[readonly]{cursor:default; opacity:0.92;}
-.field.wide{grid-column:1 / -1;}   /* the whole row, however many columns fit */
+.field.wide{grid-column:1 / -1;}   /* the whole row, until fitNameField() sizes it */
 .field.name input{font-family:var(--font-display); font-size:1.2rem; color:var(--sea);}
+/* One height for every summary box, whatever the theme's font or the name's bigger text, so rows line up */
+.summary-grid .field input{box-sizing:border-box; height:36px; padding-top:0; padding-bottom:0;}
 
-/* minmax(0,1fr) so the columns can shrink below the inputs' width; two rows of three on phones */
+/* minmax(0,1fr) so the six columns can shrink below the inputs' width; tighter on phones */
 .stats-row{display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:10px; margin-top:14px;}
-@media (max-width:520px){ .stats-row{grid-template-columns:repeat(3,minmax(0,1fr));} }
+@media (max-width:520px){
+  .stats-row{gap:5px;}
+  .stat-box{padding:8px 1px;}
+  .stat-box .abbr{font-size:0.66rem; letter-spacing:0.02em;}
+}
 .stat-box{background:var(--panel2); border:1px solid var(--border); border-radius:6px; text-align:center; padding:8px 4px;}
 .stat-box .abbr{font-size:0.72rem; color:var(--ink-dim); letter-spacing:0.05em;}
 .stat-box input{width:100%; max-width:44px; background:transparent; border:none; color:var(--ink); text-align:center; font-size:1.1rem; font-family:var(--font-display);}
@@ -586,7 +594,7 @@ applyTheme(savedTheme || DEFAULT_THEME);
     <div class="field"><label>HP (current/max)</label><input id="f_hp" type="text" readonly></div>
     <div class="field"><label>Initiative</label><input id="f_init" type="text" readonly></div>
     <div class="field"><label>Speed</label><input id="f_speed" type="text" readonly></div>
-    <div class="field"><label>Senses / Passive Perc.</label><input id="f_senses" type="text" readonly></div>
+    <div class="field"><label>Passive Perception</label><input id="f_senses" type="text" readonly></div>
     <div class="field"><label id="l_spelldc">Spell Save DC</label><input id="f_spelldc" type="text" readonly></div>
     <div class="field"><label id="l_spellatk">Spell Attack</label><input id="f_spellatk" type="text" readonly></div>
   </div>
@@ -1686,6 +1694,22 @@ function renderChips(containerId, arr, pin){
   });
 }
 function renderAttacksList(){ attackSection.render(); }
+
+/* ---------- Character Summary layout ----------
+   The name box takes as many columns as leave the other fields in full rows (e.g. on a phone
+   with two columns it shares a row with Level, so Spell Attack isn't left on a row by itself).
+   With a whole row free it spans all of it. */
+const summaryGrid = document.querySelector('.summary-grid');
+function fitNameField(){
+  const name = summaryGrid.querySelector('.field.name');
+  const cols = getComputedStyle(summaryGrid).gridTemplateColumns.split(' ').filter(Boolean).length || 1;
+  const others = [...summaryGrid.children].filter(el=>el!==name && !el.hidden && getComputedStyle(el).display!=='none').length;
+  const span = (cols - others % cols) % cols || cols;
+  name.style.gridColumn = `span ${span}`;
+}
+fitNameField();
+if(window.ResizeObserver) new ResizeObserver(fitNameField).observe(summaryGrid);
+else window.addEventListener('resize', fitNameField);
 
 /* ---------- Combat menu ---------- */
 // Slide animation needs each collapsible's contents in one inner wrapper (see .slide-inner CSS)
@@ -3933,7 +3957,7 @@ const FEATS = [
   {name:'Mobile', desc:'+10 ft speed (Turnkeeper adds it). Dashing ignores difficult terrain that turn. When you make a melee attack against a creature, it can’t make opportunity attacks against you for the rest of your turn.'},
   {name:'Moderately Armored', prereq:'Proficiency with light armor', asiPick:['str','dex'], desc:'+1 Strength or Dexterity. Proficiency with medium armor and shields.'},
   {name:'Mounted Combatant', desc:'While mounted: advantage on melee attacks against unmounted creatures smaller than your mount, you can make an attack targeting your mount target you instead, and your mount takes no damage on a successful Dexterity save for half (half on a failure).'},
-  {name:'Observant', asiPick:['int','wis'], desc:'+1 Intelligence or Wisdom. You can read lips in a language you know. +5 to your passive Perception and passive Investigation: Turnkeeper adds it to Senses / Passive Perc.'},
+  {name:'Observant', asiPick:['int','wis'], desc:'+1 Intelligence or Wisdom. You can read lips in a language you know. +5 to your passive Perception and passive Investigation: Turnkeeper adds it to Passive Perception.'},
   {name:'Polearm Master', type:'bonus',
     rolls:()=>{
       const a = polearmAttack(), p = a && parseWeaponDamage(a.damage);
@@ -4088,7 +4112,7 @@ const featSection = makePinSection({
   renderList: renderFeatSlots,
 });
 
-// Senses / Passive Perc.: 10 + Perception modifier from the sheet, +5 with Observant
+// Passive Perception: 10 + Perception modifier from the sheet, +5 with Observant
 let basePassive = null;
 function updateSenses(){
   const el = document.getElementById('f_senses');

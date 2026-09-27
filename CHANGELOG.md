@@ -6,9 +6,16 @@ Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wi
 ## 2026-09-27 — Character Summary on phones
 
 ### Fixed
-- **Character Summary fits on phones.** The six ability boxes wrap to two rows of three, and
-  the summary fields stay inside the screen. Before, Charisma and the right-hand column ran
-  off the edge.
+- **Character Summary fits on phones.** The six ability boxes stay in one row of tall, narrow
+  cards with tighter spacing, and the summary fields stay inside the screen. Before, Charisma
+  and the right-hand column ran off the edge.
+
+### Changed
+- "Senses / Passive Perc." in Character Summary is now just **Passive Perception**.
+- **Character Summary's boxes fill neat rows** at any screen size. The Character Name box
+  takes as much of its row as leaves the other boxes in full rows. On a phone it sits beside
+  Level, so Spell Attack is no longer left on a row by itself. Every box is the same height,
+  and boxes in a row line up even when a label wraps to two lines.
 
 ## 2026-09-27 — Active effects and target toggles
 
