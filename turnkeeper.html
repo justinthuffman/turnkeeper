@@ -114,7 +114,7 @@ html[data-theme="keep"] .field input, html[data-theme="keep"] .stat-box, html[da
   box-shadow:inset 0 2px 5px rgba(0,0,0,0.55);
 }
 /* Main buttons: hammered copper plates with a highlight and a dark lower edge */
-html[data-theme="keep"] button:not(.sel-toggle):not(.pip):not(.theme-toggle):not(.theme-option):not(.roll-close):not(.feat-opt):not(.chip-btn):not(.build-tag):not(.ghost){
+html[data-theme="keep"] button:not(.sel-toggle):not(.pip):not(.ds-mark):not(.theme-toggle):not(.theme-option):not(.roll-close):not(.feat-opt):not(.chip-btn):not(.build-tag):not(.ghost){
   background-image:linear-gradient(180deg, rgba(255,235,200,0.22), rgba(255,235,200,0.04) 45%, rgba(0,0,0,0.22));
   border-color:#2e1a0e; box-shadow:inset 0 1px 0 rgba(255,240,210,0.35), 0 2px 0 rgba(0,0,0,0.5);
   text-shadow:0 1px 0 rgba(0,0,0,0.55);
@@ -186,11 +186,11 @@ html[data-theme="inferno"] header.top h1{font-size:2rem;}
 /* The title sits on a line of fire */
 html[data-theme="inferno"] header.top{border-bottom:2px solid transparent; border-image:linear-gradient(90deg, transparent, #ff7a1a 20%, #b30f00 50%, #ff7a1a 80%, transparent) 1; box-shadow:0 8px 14px -8px rgba(255,80,0,0.5);}
 /* Buttons: blood red with a dark lower edge and a hot glow on hover */
-html[data-theme="inferno"] button:not(.sel-toggle):not(.pip):not(.theme-toggle):not(.theme-option):not(.roll-close):not(.feat-opt):not(.chip-btn):not(.build-tag):not(.ghost){
+html[data-theme="inferno"] button:not(.sel-toggle):not(.pip):not(.ds-mark):not(.theme-toggle):not(.theme-option):not(.roll-close):not(.feat-opt):not(.chip-btn):not(.build-tag):not(.ghost){
   background-image:linear-gradient(180deg, rgba(255,120,80,0.18), transparent 50%, rgba(0,0,0,0.3));
   border-color:#3a0705; box-shadow:inset 0 1px 0 rgba(255,150,110,0.25), 0 2px 0 rgba(0,0,0,0.6);
 }
-html[data-theme="inferno"] button:not(.sel-toggle):not(.pip):not(.theme-toggle):not(.theme-option):not(.roll-close):not(.feat-opt):not(.chip-btn):not(.build-tag):not(.ghost):hover{box-shadow:inset 0 1px 0 rgba(255,150,110,0.3), 0 0 12px rgba(255,60,10,0.55);}
+html[data-theme="inferno"] button:not(.sel-toggle):not(.pip):not(.ds-mark):not(.theme-toggle):not(.theme-option):not(.roll-close):not(.feat-opt):not(.chip-btn):not(.build-tag):not(.ghost):hover{box-shadow:inset 0 1px 0 rgba(255,150,110,0.3), 0 0 12px rgba(255,60,10,0.55);}
 /* Charges (spell slots, uses) are blood drops: full drops are left, hollow ones are spent */
 html[data-theme="inferno"] button.pip{border-radius:0 50% 50% 50%; transform:rotate(45deg); border-color:#c0180f;}
 html[data-theme="inferno"] button.pip.on{background:radial-gradient(circle at 35% 35%, #e0301f, #8a0905 70%); box-shadow:0 0 6px rgba(200,20,10,0.6);}
@@ -407,6 +407,29 @@ button.build-tag:hover{background:var(--panel2); border-color:var(--sea);}
 .hp-adjust{display:flex; flex-wrap:wrap; align-items:center; gap:8px;}
 .hp-adjust input{width:64px; background:var(--panel2); border:1px solid var(--border); color:var(--ink); padding:7px 8px; border-radius:4px; font-size:0.95rem;}
 .hp-adjust button{padding:7px 12px; font-size:0.85rem;}
+/* Death saves at 0 HP */
+.death-box{margin:10px 0 4px; padding:10px 12px; border:1px solid var(--danger); background:var(--orange-wash); border-radius:6px; font-size:0.85rem; display:flex; flex-direction:column; gap:8px;}
+.death-box[hidden]{display:none;}
+.ds-head{display:flex; flex-wrap:wrap; align-items:center; gap:6px 16px;}
+.ds-state{color:var(--danger); font-family:var(--font-display); font-size:1.05rem;}
+.ds-track{display:inline-flex; align-items:center; gap:5px; color:var(--ink-dim);}
+button.ds-mark{width:16px; height:16px; padding:0; border-radius:50%; background:transparent; border:2px solid var(--border); cursor:pointer; box-shadow:none;}
+button.ds-mark.ds-s.on{background:var(--green); border-color:var(--green);}
+button.ds-mark.ds-f.on{background:var(--danger); border-color:var(--danger);}
+button.ds-mark:hover{border-color:var(--ink);}
+.ds-msg{margin:0; color:var(--ink-dim);}
+.ds-btns{display:flex; flex-wrap:wrap; align-items:center; gap:6px;}
+.ds-btns button.flow-btn{padding:5px 10px; font-size:0.8rem;}
+.ds-label{font-size:0.78rem; color:var(--ink-dim);}
+/* Combat round counter under the move line */
+.combat-bar{display:flex; flex-wrap:wrap; align-items:center; gap:6px 10px; margin:-4px 0 12px; padding:6px 10px; border:1px solid var(--danger); border-radius:6px; background:var(--orange-wash); font-size:0.85rem;}
+.combat-bar[hidden]{display:none;}
+.combat-round{font-family:var(--font-display); color:var(--danger); font-size:1rem;}
+.combat-bar button.flow-btn{padding:5px 12px; font-size:0.82rem;}
+.combat-msg{flex-basis:100%; color:var(--ink-dim); font-size:0.8rem;}
+/* "Healed yourself?" under a heal spell's command */
+.heal-me{align-items:center; margin-top:8px; font-size:0.82rem; color:var(--ink-dim);}
+input.num-in{width:64px; background:var(--bg); border:1px solid var(--border); color:var(--ink); padding:5px 8px; border-radius:4px;}
 .res-row{display:flex; flex-wrap:wrap; align-items:center; gap:6px 12px; padding:8px 0; border-bottom:1px solid var(--border);}
 .res-row:last-child{border-bottom:none;}
 .res-name{min-width:150px; font-size:0.9rem; color:var(--ink);}
@@ -681,6 +704,7 @@ applyTheme(savedTheme || DEFAULT_THEME);
       <button type="button" class="sel-toggle" id="hpReset" title="Set hit points back to the value on your sheet">Reset to sheet</button>
     </div>
   </div>
+  <div class="death-box" id="deathBox" hidden></div>
   <div id="resRows"><p class="empty-note">Import a sheet to track resources.</p></div>
   <div class="racial collapsible backup" id="backupBar" hidden>
     <div class="rt-toggle" role="button" tabindex="0" aria-expanded="false"><span class="arrow">&#9656;</span><span class="subhead" style="margin:0;">Backup</span></div>
@@ -711,6 +735,7 @@ applyTheme(savedTheme || DEFAULT_THEME);
   <h2>Combat Menu</h2>
   <p class="turn-note">On your turn, you can do these in any order. The numbers are just for reference. You can also split your movement, for example moving 10 feet, attacking, then moving the rest. Some bonus actions do depend on something else first, such as off-hand attacks, which need the Attack action.</p>
   <div class="move-line">1. Move up to <span id="moveFt">30</span> feet.<span class="move-dash" id="moveDash"></span></div>
+  <div class="combat-bar" id="combatBar" hidden></div>
   <div class="active-fx" id="activeFx" hidden></div>
 
   <div class="action-row-label">2. Action</div>
@@ -734,7 +759,7 @@ applyTheme(savedTheme || DEFAULT_THEME);
   <div class="free-note">4. Free action &mdash; opening a door, drawing/sheathing a weapon, dropping an item, and similar don't cost an action, bonus action, or reaction.</div>
 
   <div class="action-row-label">Anytime</div>
-  <div class="action-grid"><button data-act="reactions">Reactions</button><button data-act="checks">Checks &amp; Saves</button></div>
+  <div class="action-grid"><button data-act="init">Roll Initiative</button><button data-act="reactions">Reactions</button><button data-act="checks">Checks &amp; Saves</button></div>
 
   <div class="slide" id="actionDetailWrap"><div class="detail" id="actionDetail"></div></div>
 </div>
@@ -1795,7 +1820,7 @@ document.querySelector('.action-grid button[data-act="bonus"]').addEventListener
   e.currentTarget.classList.add('active');
 });
 // The Anytime row isn't part of your turn, so like Bonus Action Options it leaves Dash on
-[['reactions', ()=>renderReactionsDetail()], ['checks', ()=>renderChecksDetail()]].forEach(([act, render])=>{
+[['init', ()=>renderInitDetail()], ['reactions', ()=>renderReactionsDetail()], ['checks', ()=>renderChecksDetail()]].forEach(([act, render])=>{
   document.querySelector(`.action-grid button[data-act="${act}"]`).addEventListener('click', e=>{
     if(detailOpenFor(act)){ closeDetail(); return; }
     document.querySelectorAll('.action-grid button').forEach(b=>b.classList.remove('active'));
@@ -1870,6 +1895,11 @@ const joatBonus = ()=>hasFeature('Jack of All Trades') ? Math.floor(proficiencyB
 const auraBonus = ()=>hasFeature('Aura of Protection') ? Math.max(1, abilityScoreMod('cha')) : 0;
 // What a check or save rolls: {name, bonus, minTen, included:[notes on what's in the bonus]}
 function checkInfo(type, key){
+  if(type==='init'){
+    // The summary's Initiative box: the sheet's value with Dexterity changes and Alert applied
+    const n = parseInt(String(document.getElementById('f_init').value).replace(/\s/g,''),10) || 0;
+    return {name:'Initiative', bonus:n, included: hasFeat('Alert') ? ['Alert: +5 included, and you can’t be surprised while you’re conscious.'] : []};
+  }
   if(type==='skill'){
     const s = state.skills.find(x=>x.name===key), minTen = reliableFor(key);
     const included = [];
@@ -1942,6 +1972,145 @@ function renderChecksDetail(){
   actionDetail.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click', ()=>{ f.mode = b.dataset.mode; renderChecksDetail(); }));
   const go = document.getElementById('flowRoll');
   if(go) go.addEventListener('click', ()=>openRollPopup({kind:'check', label:checkInfo(f.type, f.key).name, type:f.type, key:f.key}, f.mode));
+}
+
+/* ---------- Initiative and the round counter (Anytime) ----------
+   Roll Initiative gives the !tk command (the summary's initiative, Alert included) and starts
+   combat: a bar under the move line shows the round, with "Start of my turn" and "End
+   combat". Start of my turn moves to the next round (after the first), counts down effects
+   with a length (1 minute = 10 rounds) and ends them when they run out, and resets Dash. The
+   shared, DM-run initiative table comes later (see the long-term notes); this is one
+   character's own count. */
+const initFlow = {mode:'normal'};
+function renderInitDetail(){
+  const c = checkInfo('init');
+  let html = `<h4>Roll Initiative</h4><div class="flow-summary" style="margin-top:0;">When combat starts, everyone rolls initiative to set the turn order. Yours is <b>${fmtMod(c.bonus)}</b>. Rolling also starts Turnkeeper’s round counter.</div>`;
+  const notes = checkReminders('init', 'init', false);
+  if(notes.length) html += `<ul class="roll-notes">${notes.map(n=>`<li>${n}</li>`).join('')}</ul>`;
+  html += `<div class="flow-label">Roll with</div><div class="flow-grid">`
+    + ROLL_MODES.map(([k,l])=>`<button type="button" class="flow-btn${initFlow.mode===k?' active':''}" data-mode="${k}">${l}</button>`).join('')
+    + `</div><div class="flow-go"><button type="button" id="flowRoll">Roll</button></div>`;
+  showDetail(html);
+  actionDetail.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click', ()=>{ initFlow.mode = b.dataset.mode; renderInitDetail(); }));
+  document.getElementById('flowRoll').addEventListener('click', ()=>{
+    track.combat = {round:1, started:false, msg:'Combat started. Click “Start of my turn” when your turn comes up.'};
+    saveTrack(); renderCombat();
+    openRollPopup({kind:'check', label:'Initiative', type:'init', key:'init'}, initFlow.mode);
+  });
+}
+// How many rounds an effect lasts: "1 minute" = 10, "10 minutes" = 100, "1 hour" = 600
+function fxRounds(until){
+  const m = /(\d+)\s*minute/i.exec(until || ''); if(m) return +m[1] * 10;
+  const h = /(\d+)?\s*hour/i.exec(until || ''); return h ? (+(h[1] || 1)) * 600 : null;
+}
+function renderCombat(){
+  const bar = document.getElementById('combatBar'), c = track.combat;
+  bar.hidden = !c || !currentCharId;
+  if(bar.hidden){ bar.innerHTML = ''; return; }
+  bar.innerHTML = `<span class="combat-round">Round ${c.round}</span>`
+    + `<button type="button" class="flow-btn" data-combat="turn">Start of my turn</button>`
+    + `<button type="button" class="sel-toggle" data-combat="end">End combat</button>`
+    + (c.msg ? `<span class="combat-msg">${escapeHtml(c.msg)}</span>` : '');
+}
+function startOfTurn(){
+  const c = track.combat, ended = [];
+  if(c.started){
+    c.round += 1;
+    track.fx = (track.fx || []).filter(e=>{
+      if(typeof e.rounds !== 'number') return true;
+      e.rounds -= 1;
+      if(e.rounds > 0) return true;
+      ended.push(`${e.name} (${e.until})`); return false;
+    });
+  }
+  c.started = true;
+  c.msg = `Round ${c.round}: your turn.` + (ended.length ? ` Ended: ${ended.join(', ')}.` : '');
+  // A new turn: Dash from last turn is over
+  dashActive = false; bonusDashActive = false;
+  closeDetail();
+  saveTrack(); renderActiveFx(); renderCombat(); updateMoveLine();
+}
+document.getElementById('combatBar').addEventListener('click', e=>{
+  const b = e.target.closest('[data-combat]'); if(!b) return;
+  if(b.dataset.combat === 'end'){ track.combat = null; saveTrack(); renderCombat(); renderActiveFx(); }
+  else startOfTurn();
+});
+
+/* ---------- Death saves (2014 rules), shown in Resources at 0 HP ----------
+   Roll !tk 1d20 in Discord, then click what happened: 10+ is a success, 9 or lower a failure,
+   a natural 1 two failures, a natural 20 brings you back with 1 HP. Damage at 0 HP is a
+   failure (two on a crit). Three successes: stable. Three failures: dead. Healing above 0
+   clears them (setHp). Click a mark to correct it; one-step Undo. */
+let deathUndo = null;
+function renderDeath(){
+  const box = document.getElementById('deathBox');
+  const dying = !!currentCharId && hpNow() === 0;
+  box.hidden = !dying;
+  if(!dying){ box.innerHTML = ''; deathUndo = null; return; }
+  const d = track.death, dead = d.f >= 3, stable = !dead && d.s >= 3;
+  const marks = (kind, n)=>Array.from({length:3}, (_,i)=>
+    `<button type="button" class="ds-mark ds-${kind}${i < n ? ' on' : ''}" data-ds-mark="${kind}" data-i="${i}" aria-label="${kind==='s' ? 'Success' : 'Failure'} ${i+1}${i < n ? ', marked' : ''}"></button>`).join('');
+  let html = `<div class="ds-head"><b class="ds-state">${dead ? 'Dead' : stable ? 'Stable' : 'Dying'}</b>`
+    + `<span class="ds-track">Successes ${marks('s', d.s)}</span><span class="ds-track">Failures ${marks('f', d.f)}</span></div>`;
+  // Half-Orc Relentless Endurance: drop to 1 HP instead (once per long rest), before any saves
+  if(!dead && !stable && hasTrait('Relentless Endurance') && remaining('race:Relentless Endurance') > 0)
+    html += `<div class="ds-btns"><button type="button" class="flow-btn" data-ds="relentless">Use Relentless Endurance: go to 1 HP instead</button><span class="ds-label">Once per long rest, if you weren’t killed outright.</span></div>`;
+  if(dead) html += `<p class="ds-msg">Three failed death saves: your character has died. Only magic such as <i>Revivify</i> can bring them back. If a mark is wrong, click it to fix it.</p>`;
+  else if(stable) html += `<p class="ds-msg">Three successes: you’re stable. You stop rolling death saves and stay unconscious at 0 HP, regaining 1 HP after 1d4 hours. Taking damage starts the saves again.</p>`;
+  else html += `<p class="ds-msg">You’re unconscious at 0 HP. At the start of each of your turns, roll a death saving throw (no modifiers) and click what you rolled.</p>`
+    + `<div class="roll-cmd-row"><code class="roll-cmd">${ROLL} 1d20</code><button type="button" class="copy-btn" data-copy="${ROLL} 1d20">Copy</button><span class="roll-cmd-desc">death saving throw</span></div>`
+    + `<div class="ds-btns">${[['succ','10 or higher'],['fail','9 or lower'],['n20','Natural 20'],['n1','Natural 1']].map(([k,l])=>`<button type="button" class="flow-btn" data-ds="${k}">${l}</button>`).join('')}</div>`;
+  if(!dead) html += `<div class="ds-btns"><span class="ds-label">Took damage at 0 HP?</span><button type="button" class="flow-btn" data-ds="dmg">Damage (1 failure)</button><button type="button" class="flow-btn" data-ds="crit">Critical hit (2 failures)</button></div>`;
+  if(deathUndo) html += `<button type="button" class="sel-toggle" data-ds="undo">Undo</button>`;
+  box.innerHTML = html;
+}
+document.getElementById('deathBox').addEventListener('click', e=>{
+  const copy = e.target.closest('[data-copy]'); if(copy){ copyText(copy.dataset.copy, copy); return; }
+  const mark = e.target.closest('[data-ds-mark]'), b = e.target.closest('[data-ds]');
+  if(!mark && !b) return;
+  const d = track.death;
+  if(b && b.dataset.ds === 'undo'){ if(deathUndo){ track.death = JSON.parse(deathUndo); deathUndo = null; saveTrack(); renderResources(); } return; }
+  document.getElementById('restMsg').textContent = '';
+  if(b && b.dataset.ds === 'relentless'){
+    deathUndo = null; spend('race:Relentless Endurance', 1); setHp(1);
+    document.getElementById('restMsg').textContent = 'Relentless Endurance: you drop to 1 hit point instead of 0. It’s back after a long rest.';
+    return;
+  }
+  deathUndo = JSON.stringify(d);
+  if(mark){
+    const k = mark.dataset.dsMark, i = +mark.dataset.i;
+    d[k] = d[k] === i + 1 ? i : i + 1;   // click a mark to set the count there, or clear the last one
+  } else {
+    const a = b.dataset.ds;
+    if(a === 'n20'){
+      deathUndo = null; setHp(1);
+      document.getElementById('restMsg').textContent = 'Natural 20: you regain 1 hit point and wake up.';
+      return;
+    }
+    if((a === 'dmg' || a === 'crit') && d.s >= 3){ d.s = 0; d.f = 0; }   // damage ends being stable
+    if(a === 'succ') d.s += 1;
+    if(a === 'fail' || a === 'dmg') d.f += 1;
+    if(a === 'n1' || a === 'crit') d.f += 2;
+  }
+  d.s = Math.min(3, d.s); d.f = Math.min(3, d.f);
+  saveTrack(); renderResources();
+});
+
+/* ---------- Healing yourself ----------
+   Heal spells can target anyone, so the popup asks: "Healed yourself? Enter the total" and adds
+   it to HP (with Undo). Lay on Hands has "Heal myself", which spends from the pool too. */
+function healMeHtml(){
+  if(!currentCharId || hpNow() === null) return '';
+  if(rollState.healed) return `<div class="roll-toggles heal-me"><span>Added ${rollState.healed} HP to you (now ${hpNow()} / ${hpMax()}).</span> <button type="button" class="sel-toggle" data-heal-undo="1">Undo</button></div>`;
+  return `<div class="roll-toggles heal-me"><span>Healed yourself? Enter the total:</span><input type="number" class="num-in" id="healAmt" min="1" aria-label="Healing total"><button type="button" class="flow-btn" data-heal-me="1">Add to my HP</button></div>`;
+}
+function healSelf(n){
+  if(!(n > 0) || hpNow() === null) return 0;
+  rollState.healBefore = {hp:track.hp, death:{...track.death}};
+  const before = hpNow();
+  setHp(before + n);
+  rollState.healed = hpNow() - before;
+  return rollState.healed;
 }
 
 function hasFeature(name){ return classFeatureItems().some(t=>t.name===name && charLevel() >= t.level); }
@@ -2032,12 +2201,12 @@ function endConcentration(){
   track.fx = track.fx.filter(x=>!x.conc);
   return ended;
 }
-function startFx(e){ track.fx = track.fx.filter(x=>x.id!==e.id); track.fx.push(e); saveTrack(); renderActiveFx(); }
+function startFx(e){ if(e.rounds === undefined) e.rounds = fxRounds(e.until); track.fx = track.fx.filter(x=>x.id!==e.id); track.fx.push(e); saveTrack(); renderActiveFx(); }
 function endFx(id){ track.fx = track.fx.filter(x=>x.id!==id); saveTrack(); renderActiveFx(); }
 function renderActiveFx(){
   const box = document.getElementById('activeFx'), list = track.fx || [];
   box.hidden = !list.length;
-  box.innerHTML = list.length ? `<span>Active effects:</span>` + list.map(e=>`<span class="fx-chip">${escapeHtml(e.name)} <small>${escapeHtml(fxWhat(e))}${fxWhat(e) ? ' &middot; ' : ''}${escapeHtml(fxWhen(e))}</small>`
+  box.innerHTML = list.length ? `<span>Active effects:</span>` + list.map(e=>`<span class="fx-chip">${escapeHtml(e.name)} <small>${escapeHtml(fxWhat(e))}${fxWhat(e) ? ' &middot; ' : ''}${escapeHtml(fxWhen(e))}${track.combat && typeof e.rounds==='number' ? ` &middot; ${e.rounds} round${e.rounds===1 ? '' : 's'} left` : ''}</small>`
     + `<button type="button" class="sel-toggle" data-fx-end="${escapeHtml(e.id)}" aria-label="End ${escapeHtml(e.name)}">End</button></span>`).join('') : '';
 }
 document.getElementById('activeFx').addEventListener('click', e=>{ const b = e.target.closest('[data-fx-end]'); if(b) endFx(b.dataset.fxEnd); });
@@ -2077,7 +2246,7 @@ const ORDINAL = ['','1st','2nd','3rd','4th','5th'];
 function openRollPopup(sel, mode){
   hideTooltip();
   Object.assign(rollState, {sel, mode, crit:false, smite:0, undead:false, alt:false, sneak:false, savage:false, spendInfo:null, smiteSpent:null,
-    fxList:[], fxOn:{}, fxStarted:null, concEnded:[], fxBefore:null, fxUsed:false});
+    fxList:[], fxOn:{}, fxStarted:null, concEnded:[], fxBefore:null, fxUsed:false, healed:null, healBefore:null});
   // Using a spell slot, racial use or feature charge is tracked as soon as the popup opens
   let id = null, desc = '';
   if(sel.kind==='spell' && sel.entry.sp.level > 0){
@@ -2275,7 +2444,7 @@ function spellPopupHtml(){
     html += infoBox('Explosion', `${x.text} ${saveLine(s.dc, x.save, x.onSave)}`)
       + cmdBox('Explosion damage', {cmd:`${ROLL} ${scaleDice(x.d, x.per, {up})}${adeptMi(x.type)}`, desc:`${sp.name} explosion (${x.type})`});
   }
-  if(r.heal){ const d = scaleDice(r.heal.d, r.heal.per, {up}); html += cmdBox('Healing', {cmd:`${ROLL} ${d}${fmtMod(s.mod)}`, desc:'hit points regained'}); }
+  if(r.heal){ const d = scaleDice(r.heal.d, r.heal.per, {up}); html += cmdBox('Healing', {cmd:`${ROLL} ${d}${fmtMod(s.mod)}`, desc:'hit points regained'}, healMeHtml()); }
   if(r.temp) html += cmdBox('Temporary hit points', {cmd:`${ROLL} ${r.temp.d}+${r.temp.flat + r.temp.perFlat*up}`, desc:'temporary hit points for 1 hour'});
   if(r.pool) html += cmdBox('Hit point pool', {cmd:`${ROLL} ${scaleDice(r.pool.d, r.pool.per, {up})}`, desc:r.pool.what});
   if(r.darts){
@@ -2322,7 +2491,9 @@ function featurePopupHtml(){
     html += infoBox('Healing pool', `<b>${left} of ${t.pool.max()} hit points</b> left (5 × paladin level, refilled on a long rest). Touch a creature and spend any amount; there’s nothing to roll. Or spend 5 to cure one disease or neutralize one poison.`
       + `<div class="roll-toggles" style="margin-top:8px; align-items:center;"><input type="number" id="lohAmt" min="1" max="${left}" value="${Math.min(5, left) || 1}" style="width:64px; background:var(--bg); border:1px solid var(--border); color:var(--ink); padding:5px 8px; border-radius:4px;" aria-label="Hit points to spend">`
       + `<button type="button" class="flow-btn" data-loh="amt"${left ? '' : ' disabled'}>Spend</button>`
+      + `<button type="button" class="flow-btn" data-loh="self"${left ? '' : ' disabled'}>Heal myself</button>`
       + `<button type="button" class="flow-btn" data-loh="5"${left >= 5 ? '' : ' disabled'}>Cure disease/poison (5)</button></div>`);
+    if(rollState.healed) html += `<div class="spent-line">Healed yourself for ${rollState.healed} HP (now ${hpNow()} / ${hpMax()}). <button type="button" class="sel-toggle" data-heal-undo="1">Undo</button></div>`;
   }
   else if(!featureRolls(t).length) html += infoBox('No roll', `${t.name} doesn’t need a roll.${t.tip ? ` ${t.tip}` : ''}`);
   return html;
@@ -2404,9 +2575,16 @@ rollPopup.addEventListener('click', e=>{
     renderRollPopup();
   }
   else if(t.dataset.loh){
-    const n = t.dataset.loh==='amt' ? (parseInt(document.getElementById('lohAmt').value,10) || 0) : +t.dataset.loh;
-    if(n > 0) spend('feat:Lay on Hands', Math.min(n, remaining('feat:Lay on Hands')));
+    const n = t.dataset.loh==='5' ? 5 : (parseInt(document.getElementById('lohAmt').value,10) || 0);
+    const spent = n > 0 ? spend('feat:Lay on Hands', Math.min(n, remaining('feat:Lay on Hands'))) : 0;
+    if(t.dataset.loh==='self' && healSelf(spent)) rollState.healBefore.lohSpent = spent;   // Heal myself: the points spent go to your HP
     renderRollPopup();
+  }
+  else if(t.dataset.healMe){ healSelf(parseInt(document.getElementById('healAmt').value,10) || 0); renderRollPopup(); }
+  else if(t.dataset.healUndo){
+    const b = rollState.healBefore;
+    if(b){ track.hp = b.hp; track.death = b.death; saveTrack(); if(b.lohSpent) spend('feat:Lay on Hands', -b.lohSpent); renderResources(); }
+    rollState.healed = null; rollState.healBefore = null; renderRollPopup();
   }
   else if(t.dataset.undead){ rollState.undead = !rollState.undead; renderRollPopup(); }
   else if(t.dataset.alt){ rollState.alt = !rollState.alt; renderRollPopup(); }
@@ -4318,7 +4496,7 @@ function trackedResources(){
 // Resource a feature spends when used (its own uses, or a shared pool like Channel Divinity)
 function featureResourceId(t){ return t.spends || (t.uses ? 'feat:'+t.name : null); }
 
-const track = {hp:null, used:{}, fx:[], sheetHp:{cur:null, max:null}};
+const track = {hp:null, used:{}, fx:[], death:{s:0, f:0}, combat:null, sheetHp:{cur:null, max:null}};
 function trackKey(){ return `dndTracker:track:${currentCharId}`; }
 function loadTrack(){
   let saved = null;
@@ -4326,8 +4504,10 @@ function loadTrack(){
   track.hp = saved && typeof saved.hp==='number' ? saved.hp : null;
   track.used = saved && saved.used ? saved.used : {};
   track.fx = saved && Array.isArray(saved.fx) ? saved.fx : [];
+  track.death = saved && saved.death ? saved.death : {s:0, f:0};   // death saves while at 0 HP
+  track.combat = saved && saved.combat ? saved.combat : null;      // {round, started, msg} while in combat
 }
-function saveTrack(){ if(currentCharId) storageSet(trackKey(), JSON.stringify({hp:track.hp, used:track.used, fx:track.fx})); }
+function saveTrack(){ if(currentCharId) storageSet(trackKey(), JSON.stringify({hp:track.hp, used:track.used, fx:track.fx, death:track.death, combat:track.combat})); }
 function maxFor(id){
   const s = slotTable().find(x=>x.id===id); if(s) return s.max;
   const r = trackedResources().find(x=>x.id===id); return r ? r.max : 0;
@@ -4344,18 +4524,21 @@ function spend(id, n=1){
 function hpMax(){ return track.sheetHp.max; }
 function hpNow(){ return track.hp !== null ? track.hp : track.sheetHp.cur; }
 function setHp(v){
-  const max = hpMax();
+  const max = hpMax(), was = hpNow();
   track.hp = Math.max(0, max !== null ? Math.min(max, v) : v);
+  // Any healing above 0 ends dying; dropping to 0 starts death saves fresh
+  if(track.hp > 0 || (was !== 0 && track.hp === 0)) track.death = {s:0, f:0};
   saveTrack(); renderResources();
 }
 
 // Rests, with a one-step Undo in case of a mis-click
 let restUndo = null;
 function takeRest(kind){
-  restUndo = JSON.stringify({hp:track.hp, used:track.used, fx:track.fx});
+  restUndo = JSON.stringify({hp:track.hp, used:track.used, fx:track.fx, death:track.death, combat:track.combat});
   track.fx = [];   // anything lasting a minute or an hour is over after a rest
+  track.combat = null;   // and combat is over
   const shortIds = new Set([...slotTable(), ...trackedResources()].filter(r=>r.recharge==='short').map(r=>r.id));
-  if(kind==='long'){ track.used = {}; if(hpMax() !== null) track.hp = hpMax(); }
+  if(kind==='long'){ track.used = {}; if(hpMax() !== null) track.hp = hpMax(); track.death = {s:0, f:0}; }
   else Object.keys(track.used).forEach(id=>{ if(shortIds.has(id)) delete track.used[id]; });
   saveTrack(); renderResources();
   const what = kind==='long' ? 'Long rest: hit points, spell slots and all features restored.'
@@ -4363,7 +4546,8 @@ function takeRest(kind){
   const msg = document.getElementById('restMsg');
   msg.innerHTML = `${what} <button type="button" class="sel-toggle" id="restUndo">Undo</button>`;
   document.getElementById('restUndo').onclick = ()=>{
-    const s = JSON.parse(restUndo); track.hp = s.hp; track.used = s.used; track.fx = s.fx || []; restUndo = null;
+    const s = JSON.parse(restUndo); track.hp = s.hp; track.used = s.used; track.fx = s.fx || [];
+    track.death = s.death || {s:0, f:0}; track.combat = s.combat || null; restUndo = null;
     saveTrack(); renderResources(); msg.textContent = 'Rest undone.';
   };
 }
@@ -4384,6 +4568,8 @@ function pipsHtml(id, max){
 }
 function renderResources(){
   renderActiveFx();
+  renderDeath();
+  renderCombat();
   const cur = hpNow(), max = hpMax();
   const hpEl = document.getElementById('hpNow');
   hpEl.textContent = cur === null ? '—' : cur;

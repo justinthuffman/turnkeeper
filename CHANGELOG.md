@@ -3,6 +3,27 @@
 What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest first.
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
+## Unreleased
+
+### Added
+- **Roll Initiative** in the Combat Menu's Anytime row: your initiative (Alert included) with
+  Advantage / Normal / Disadvantage gives the `!tk` command. Rolling starts a **round counter**
+  under the move line with **Start of my turn** and **End combat**.
+  - **Start of my turn** moves to the next round, resets Dash, and counts down effects that
+    last a while (1 minute is 10 rounds). The active effect shows how many rounds are left,
+    and it ends with a message when time's up, e.g. "Ended: Divine Favor (1 minute)".
+  - A rest ends combat too.
+- **Death saves.** At 0 HP, a **Dying** box in Resources shows three success and three failure
+  marks and the `!tk 1d20` command. After you roll, click what happened: 10 or higher,
+  9 or lower, a natural 20 (back up with 1 HP) or a natural 1 (two failures). **Took damage**
+  adds a failure (two for a critical hit). Three successes: stable. Three failures: dead.
+  Click a mark to fix it, and there's an Undo. Any healing clears the death saves.
+  - **Relentless Endurance** (Krunk): when you drop to 0 HP, a button takes you to 1 HP
+    instead, once per long rest.
+- **Healing yourself.** Healing spells like Cure Wounds and Healing Word ask "Healed yourself?
+  Enter the total" and add it to your HP. **Lay on Hands** has a **Heal myself** button that
+  spends from the pool and heals you. Both have an Undo.
+
 ## 2026-09-27 — Character Summary on phones
 
 ### Fixed
