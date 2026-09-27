@@ -3,6 +3,33 @@
 What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest first.
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
+## 2026-09-27 — Inspiration and your turn, start to end
+
+### Added
+- **Inspiration.** A **✧ Inspiration** button sits beside your hit points. It starts from the
+  sheet's Inspiration box; click it when the DM gives you Inspiration or takes it away. While
+  you have it, roll popups for attack rolls, ability checks and saving throws offer **Use
+  Inspiration (advantage)**. Ticking it spends your Inspiration, and unticking gives it back.
+  If the sheet's box changes, the sheet wins.
+- **Your turn, start to end.** In combat, the round bar's button switches between **Start of
+  my turn** and **End my turn**, and the bar shows what you've used:
+  - **Reaction ready / used.** Using anything from Reactions (an opportunity attack, Shield,
+    Uncanny Dodge…) marks it used. It comes back at the start of your turn. Click it to change
+    it by hand.
+  - **Attacks 1 of 2.** Each attack from the Attack action counts when you copy its to-hit,
+    and the popup says which attack it is. Extra Attack gives two. Resets at the start of your
+    turn.
+  - **Sneak Attack used / Savage Attacker used.** Once-per-turn features count when you copy
+    damage that includes them, and the popup reminds you. They reset when your turn starts and
+    ends, so an opportunity attack on someone else's turn can use them again.
+
+### Changed
+- **End my turn is what counts time.** Each time you end your turn, one round passes for
+  everything with a length. One minute is 10 turns, so an effect ends when you end your
+  10th turn with it. This covers active effects (Divine Favor, Sacred Weapon), your
+  concentration spell, and magic on you in Status: Bless, Bane, Haste, Heroism, Shield of
+  Faith and so on, even when someone else cast them. Their chips show the turns left.
+
 ## 2026-09-27 — Helpful spells on yourself
 
 ### Added

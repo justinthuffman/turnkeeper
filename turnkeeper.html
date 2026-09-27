@@ -441,6 +441,15 @@ button.ds-mark:hover{border-color:var(--ink);}
 .combat-round{font-family:var(--font-display); color:var(--danger); font-size:1rem;}
 .combat-bar button.flow-btn{padding:5px 12px; font-size:0.82rem;}
 .combat-msg{flex-basis:100%; color:var(--ink-dim); font-size:0.8rem;}
+/* What's used this turn / round: reaction, Attack action attacks, once-per-turn features */
+.turn-chip{border:1px solid var(--border); border-radius:999px; padding:1px 9px; font-size:0.78rem; color:var(--ink); background:var(--panel2);}
+button.turn-chip{cursor:pointer;}
+button.turn-chip:hover{background:var(--panel2); border-color:var(--sea);}
+.turn-chip.used{border-color:var(--orange); background:var(--orange-tint);}
+/* Inspiration beside hit points */
+button.insp-btn{margin-left:8px; padding:1px 10px; border:1px solid var(--border); border-radius:999px; font-size:0.8rem; background:var(--panel2); color:var(--ink-dim); white-space:nowrap;}
+button.insp-btn:hover{background:var(--panel2); border-color:var(--sea);}
+button.insp-btn.on{border-color:var(--orange); background:var(--orange-tint); color:var(--ink);}
 /* Status panel: condition and magic chips; active ones in orange like pinned chips */
 .status-now{font-size:0.9rem; color:var(--ink-dim); display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 8px;}
 .status-now b{color:var(--ink);}
@@ -723,7 +732,7 @@ applyTheme(savedTheme || DEFAULT_THEME);
   <div class="rest-msg" id="restMsg" aria-live="polite"></div>
   <div class="hp-row">
     <div class="hp-now"><span class="res-label">Hit Points</span> <span id="hpNow">&mdash;</span><span class="hp-max"> / <span id="hpMax">&mdash;</span></span>
-      <span class="hp-temp" id="hpTemp" hidden></span></div>
+      <span class="hp-temp" id="hpTemp" hidden></span><button type="button" class="insp-btn" id="inspBtn" hidden></button></div>
     <div class="hp-adjust">
       <input type="number" id="hpAmount" min="1" value="1" aria-label="Amount of damage, healing or temporary hit points">
       <button type="button" id="hpDamage">Damage</button>
@@ -2016,11 +2025,10 @@ function renderChecksDetail(){
 
 /* ---------- Initiative and the round counter (Anytime) ----------
    Roll Initiative gives the !tk command (the summary's initiative, Alert included) and starts
-   combat: a bar under the move line shows the round, with "Start of my turn" and "End
-   combat". Start of my turn moves to the next round (after the first), counts down effects
-   with a length (1 minute = 10 rounds) and ends them when they run out, and resets Dash. The
-   shared, DM-run initiative table comes later (see the long-term notes); this is one
-   character's own count. */
+   combat: a bar under the move line shows the round, the Start of my turn / End my turn
+   button, what's used this turn (reaction, attacks, once-per-turn features) and End combat.
+   See the turn cycle below. The shared, DM-run initiative table comes later (see the
+   long-term notes); this is one character's own count. */
 const initFlow = {mode:'normal'};
 function renderInitDetail(){
   const c = checkInfo('init');
@@ -2033,7 +2041,7 @@ function renderInitDetail(){
   showDetail(html);
   actionDetail.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click', ()=>{ initFlow.mode = b.dataset.mode; renderInitDetail(); }));
   document.getElementById('flowRoll').addEventListener('click', ()=>{
-    track.combat = {round:1, started:false, msg:'Combat started. Click “Start of my turn” when your turn comes up.'};
+    track.combat = newCombat();
     saveTrack(); renderCombat();
     openRollPopup({kind:'check', label:'Initiative', type:'init', key:'init'}, initFlow.mode);
   });
@@ -2043,46 +2051,90 @@ function fxRounds(until){
   const m = /(\d+)\s*minute/i.exec(until || ''); if(m) return +m[1] * 10;
   const h = /(\d+)?\s*hour/i.exec(until || ''); return h ? (+(h[1] || 1)) * 600 : null;
 }
+function newCombat(){
+  return {round:1, started:false, onTurn:false, reaction:false, attacks:0, once:{}, msg:'Combat started. Click “Start of my turn” when your turn comes up.'};
+}
+const inCombat = ()=>!!(currentCharId && track.combat);
+// Attacks per Attack action: 1, or more from a feature with `attacks` (Extra Attack)
+function attacksPerAction(){
+  return Math.max(1, ...classFeatureItems().filter(t=>t.attacks && charLevel() >= t.level).map(t=>t.attacks));
+}
+// Once-per-turn features Turnkeeper keeps count of (used when you copy damage that includes them)
+const ONCE_PER_TURN = {sneak:'Sneak Attack', savage:'Savage Attacker'};
+/* The turn cycle: Start of my turn (the round goes up after the first; your reaction comes
+   back; the Attack action's attacks and once-per-turn features reset; Dash ends) → End my
+   turn (one round passes for everything with a length: 1 minute = 10 turns, so an effect
+   ends when you end your 10th turn with it; once-per-turn features reset, since the next
+   turn is someone else's and an opportunity attack can use them again). */
 function renderCombat(){
   const bar = document.getElementById('combatBar'), c = track.combat;
   bar.hidden = !c || !currentCharId;
   if(bar.hidden){ bar.innerHTML = ''; return; }
+  const per = attacksPerAction();
+  const chips = [
+    `<button type="button" class="turn-chip${c.reaction ? ' used' : ''}" data-combat="reaction" title="${c.reaction ? 'Used: back at the start of your turn. Click to give it back.' : 'Available. Click to mark it used.'}">Reaction ${c.reaction ? 'used' : 'ready'}</button>`,
+    c.onTurn ? `<button type="button" class="turn-chip${c.attacks >= per ? ' used' : ''}" data-combat="attacks" title="Attacks you've copied from the Attack action this turn. Click to set it back to 0.">Attacks ${c.attacks || 0} of ${per}</button>` : '',
+    ...Object.entries(ONCE_PER_TURN).filter(([k])=>c.once && c.once[k]).map(([k, name])=>`<button type="button" class="turn-chip used" data-combat="once" data-once="${k}" title="Once per turn. Click to give it back.">${name} used</button>`),
+  ].join('');
   bar.innerHTML = `<span class="combat-round">Round ${c.round}</span>`
-    + `<button type="button" class="flow-btn" data-combat="turn">Start of my turn</button>`
+    + (c.onTurn ? `<button type="button" class="flow-btn" data-combat="endturn">End my turn</button>` : `<button type="button" class="flow-btn" data-combat="turn">Start of my turn</button>`)
+    + chips
     + `<button type="button" class="sel-toggle" data-combat="end">End combat</button>`
     + (c.msg ? `<span class="combat-msg">${escapeHtml(c.msg)}</span>` : '');
 }
 function startOfTurn(){
+  const c = track.combat;
+  if(c.started) c.round += 1;
+  Object.assign(c, {started:true, onTurn:true, reaction:false, attacks:0, once:{}});
+  c.msg = `Round ${c.round}: your turn. Your reaction is back.`;
+  // A new turn: Dash from last turn is over
+  dashActive = false; bonusDashActive = false;
+  closeDetail();
+  saveTrack(); renderCombat(); updateMoveLine();
+}
+function endOfTurn(){
   const c = track.combat, ended = [];
-  if(c.started){
-    c.round += 1;
-    track.fx = (track.fx || []).filter(e=>{
-      if(typeof e.rounds !== 'number') return true;
-      e.rounds -= 1;
-      if(e.rounds > 0) return true;
-      ended.push(`${e.name} (${e.until})`); return false;
-    });
-  }
+  track.fx = (track.fx || []).filter(e=>{
+    if(typeof e.rounds !== 'number') return true;
+    e.rounds -= 1;
+    if(e.rounds > 0) return true;
+    ended.push(`${e.name} (${e.until})`); return false;
+  });
   // Concentration counts down the same way (skipping a spell that just ended as an effect above)
   const k = track.conc;
-  if(c.started && k && typeof k.rounds === 'number'){
+  if(k && typeof k.rounds === 'number'){
     k.rounds -= 1;
     if(k.rounds <= 0){
       if(!ended.some(x=>x.startsWith(k.name + ' '))) ended.push(`${k.name} (${k.duration || 'concentration'})`);
       endConcentration();
     }
   }
-  c.started = true;
-  c.msg = `Round ${c.round}: your turn.` + (ended.length ? ` Ended: ${ended.join(', ')}.` : '');
-  // A new turn: Dash from last turn is over
+  // Magic on you with a length (Bless from an ally, Haste…): the caster's timing may differ from
+  // yours by up to a turn, so the chip can also be unticked by hand
+  const st = statusState(), timers = st.rounds || {};
+  Object.keys(timers).forEach(key=>{
+    if(!st.on[key]){ delete timers[key]; return; }
+    timers[key] -= 1;
+    if(timers[key] <= 0){ ended.push(`${STATUS_BY_KEY[key].name} (${STATUS_BY_KEY[key].lasts})`); setStatusOn(key, false); }
+  });
+  Object.assign(c, {onTurn:false, once:{}});
+  c.msg = `Turn ended (round ${c.round}).` + (ended.length ? ` Ended: ${ended.join(', ')}.` : '') + ' Click “Start of my turn” when it comes around again.';
   dashActive = false; bonusDashActive = false;
   closeDetail();
-  saveTrack(); renderActiveFx(); renderCombat(); updateMoveLine();
+  saveTrack(); renderActiveFx(); renderCombat(); updateMoveLine(); renderStatus();
 }
 document.getElementById('combatBar').addEventListener('click', e=>{
   const b = e.target.closest('[data-combat]'); if(!b) return;
-  if(b.dataset.combat === 'end'){ track.combat = null; saveTrack(); renderCombat(); renderActiveFx(); }
-  else startOfTurn();
+  const c = track.combat, k = b.dataset.combat;
+  if(k === 'end'){ track.combat = null; saveTrack(); renderCombat(); renderActiveFx(); return; }
+  if(k === 'turn') startOfTurn();
+  else if(k === 'endturn') endOfTurn();
+  else {
+    if(k === 'reaction') c.reaction = !c.reaction;
+    else if(k === 'attacks') c.attacks = 0;
+    else if(k === 'once') delete c.once[b.dataset.once];
+    saveTrack(); renderCombat();
+  }
 });
 
 /* ---------- Death saves (2014 rules), shown in Resources at 0 HP ----------
@@ -2346,6 +2398,21 @@ function weaponFx(attack){
 }
 const fxOn = ()=>(rollState.fxList || []).filter(e=>rollState.fxOn[e.id]);
 // Advantage from an effect: cancels disadvantage (2014 rules), otherwise gives advantage
+const onceUsed = k=>inCombat() && !!(track.combat.once && track.combat.once[k]);
+// Popups that use your reaction, or are one of the Attack action's attacks
+function isReactionSel(sel){
+  return !!sel.reaction || (sel.kind==='feature' && sel.feature.type==='reaction') || (sel.kind==='spell' && isReactionSpell(sel.entry.sp));
+}
+const isAttackActionSel = sel=>!sel.reaction && !sel.offhand && (sel.kind==='weapon' || !!MANEUVERS[sel.kind]);
+function turnLineHtml(){
+  const c = track.combat; if(!inCombat()) return '';
+  if(rollState.reactionMarked) return `<div class="spent-line${rollState.reactionWasUsed ? ' warn' : ''}">${rollState.reactionWasUsed ? 'You’d already used your reaction this round. Check with your DM.' : 'Uses your reaction: it comes back at the start of your turn.'}</div>`;
+  if(rollState.attackNo){
+    const per = attacksPerAction();
+    return `<div class="spent-line${rollState.attackNo > per ? ' warn' : ''}">Attack ${rollState.attackNo} of ${per} from your Attack action this turn${rollState.attackNo > per ? ': that’s more than you get' : ''}. It counts when you copy the to-hit.</div>`;
+  }
+  return '';
+}
 // Which status kind a popup's d20 roll is: an attack, or a check or save with its ability
 function rollKindOf(sel){
   if(sel.kind==='weapon') return ['attack'];
@@ -2361,7 +2428,7 @@ function rollKindOf(sel){
 }
 function attackMode(){
   const {mode, sel} = rollState;
-  const fxAdv = sel.kind==='weapon' && fxOn().some(e=>e.adv);
+  const fxAdv = (sel.kind==='weapon' && fxOn().some(e=>e.adv)) || !!rollState.insp;
   if(!rollState.st && !fxAdv) return mode;
   return combineMode(mode, rollState.st, fxAdv);
 }
@@ -2401,18 +2468,18 @@ const STATUS_DEFS = [
   {key:'stunned', name:'Stunned', group:'cond', incap:true, speed:0, fail:['str','dex'], desc:'Incapacitated, can’t move, can speak only falteringly, automatically fail Strength and Dexterity saves; attacks against you have advantage.'},
   {key:'unconscious', name:'Unconscious', group:'cond', incap:true, speed:0, fail:['str','dex'], desc:'Incapacitated and prone, unaware of your surroundings, automatically fail Strength and Dexterity saves; attacks against you have advantage, and hits from within 5 ft are critical hits.'},
   // Magic on you
-  {key:'bless', name:'Bless', group:'magic', dice:{attack:'+1d4', save:'+1d4'}, desc:'+1d4 to attack rolls and saving throws (the caster concentrates, up to 1 minute).'},
-  {key:'bane', name:'Bane', group:'magic', dice:{attack:'-1d4', save:'-1d4'}, desc:'−1d4 on attack rolls and saving throws (the caster concentrates, up to 1 minute).'},
-  {key:'guidance', name:'Guidance', group:'magic', dice:{check:'+1d4'}, oneShot:['check'], desc:'+1d4 to one ability check of your choice, then it ends.'},
-  {key:'resistance', name:'Resistance', group:'magic', dice:{save:'+1d4'}, oneShot:['save'], desc:'+1d4 to one saving throw of your choice, then it ends.'},
-  {key:'bardic', name:'Bardic Inspiration', group:'magic', after:['attack','check','save'], desc:'A bard’s inspiration die: add it to one ability check, attack roll or save after you see the roll, then it’s gone.'},
-  {key:'enlarge', name:'Enlarged', group:'magic', check:{str:'adv'}, save:{str:'adv'}, dice:{damage:'+1d4'}, desc:'Enlarge: advantage on Strength checks and saves, and your weapon attacks deal +1d4 damage.'},
-  {key:'reduce', name:'Reduced', group:'magic', check:{str:'dis'}, save:{str:'dis'}, dice:{damage:'-1d4'}, desc:'Reduce: disadvantage on Strength checks and saves, and your weapon attacks deal −1d4 damage.'},
-  {key:'haste', name:'Hasted', group:'magic', save:{dex:'adv'}, ac:2, speed:'double', desc:'Haste: +2 AC, advantage on Dexterity saves, double speed, and one extra action each turn (Attack with one weapon attack, Dash, Disengage, Hide or Use an Object). When it ends you lose your next turn.'},
-  {key:'slow', name:'Slowed', group:'magic', flat:{save:{dex:-2}}, ac:-2, speed:'half', desc:'Slow: −2 AC and Dexterity saves, half speed, no reactions, and an action or a bonus action on your turn, not both.'},
-  {key:'heroism', name:'Heroism', group:'magic', desc:'You can’t be frightened, and gain temporary hit points equal to the caster’s spellcasting modifier at the start of each of your turns (set them with Temp HP).'},
-  {key:'shieldOfFaith', name:'Shield of Faith', group:'magic', ac:2, desc:'+2 AC (the caster concentrates, up to 10 minutes).'},
-  {key:'faerieFire', name:'Faerie Fire', group:'magic', desc:'Outlined in light: attacks against you have advantage and you can’t benefit from being invisible.'},
+  {key:'bless', name:'Bless', group:'magic', lasts:'1 minute', dice:{attack:'+1d4', save:'+1d4'}, desc:'+1d4 to attack rolls and saving throws (the caster concentrates, up to 1 minute).'},
+  {key:'bane', name:'Bane', group:'magic', lasts:'1 minute', dice:{attack:'-1d4', save:'-1d4'}, desc:'−1d4 on attack rolls and saving throws (the caster concentrates, up to 1 minute).'},
+  {key:'guidance', name:'Guidance', group:'magic', lasts:'1 minute', dice:{check:'+1d4'}, oneShot:['check'], desc:'+1d4 to one ability check of your choice, then it ends.'},
+  {key:'resistance', name:'Resistance', group:'magic', lasts:'1 minute', dice:{save:'+1d4'}, oneShot:['save'], desc:'+1d4 to one saving throw of your choice, then it ends.'},
+  {key:'bardic', name:'Bardic Inspiration', group:'magic', lasts:'10 minutes', after:['attack','check','save'], desc:'A bard’s inspiration die: add it to one ability check, attack roll or save after you see the roll, then it’s gone.'},
+  {key:'enlarge', name:'Enlarged', group:'magic', lasts:'1 minute', check:{str:'adv'}, save:{str:'adv'}, dice:{damage:'+1d4'}, desc:'Enlarge: advantage on Strength checks and saves, and your weapon attacks deal +1d4 damage.'},
+  {key:'reduce', name:'Reduced', group:'magic', lasts:'1 minute', check:{str:'dis'}, save:{str:'dis'}, dice:{damage:'-1d4'}, desc:'Reduce: disadvantage on Strength checks and saves, and your weapon attacks deal −1d4 damage.'},
+  {key:'haste', name:'Hasted', group:'magic', lasts:'1 minute', save:{dex:'adv'}, ac:2, speed:'double', desc:'Haste: +2 AC, advantage on Dexterity saves, double speed, and one extra action each turn (Attack with one weapon attack, Dash, Disengage, Hide or Use an Object). When it ends you lose your next turn.'},
+  {key:'slow', name:'Slowed', group:'magic', lasts:'1 minute', flat:{save:{dex:-2}}, ac:-2, speed:'half', desc:'Slow: −2 AC and Dexterity saves, half speed, no reactions, and an action or a bonus action on your turn, not both.'},
+  {key:'heroism', name:'Heroism', group:'magic', lasts:'1 minute', desc:'You can’t be frightened, and gain temporary hit points equal to the caster’s spellcasting modifier at the start of each of your turns (set them with Temp HP).'},
+  {key:'shieldOfFaith', name:'Shield of Faith', group:'magic', lasts:'10 minutes', ac:2, desc:'+2 AC (the caster concentrates, up to 10 minutes).'},
+  {key:'faerieFire', name:'Faerie Fire', group:'magic', lasts:'1 minute', desc:'Outlined in light: attacks against you have advantage and you can’t benefit from being invisible.'},
 ];
 const STATUS_BY_KEY = Object.fromEntries(STATUS_DEFS.map(d=>[d.key, d]));
 function statusState(){ if(!track.status) track.status = {on:{}, exh:0, bi:6}; return track.status; }
@@ -2486,7 +2553,8 @@ function renderStatus(){
   panel.hidden = !currentCharId;
   if(!currentCharId) return;
   const s = statusState(), on = statusActive(), x = exhaustion();
-  const chip = d=>`<button type="button" class="status-chip${s.on[d.key] ? ' on' : ''}" data-status="${d.key}" aria-pressed="${!!s.on[d.key]}" title="${escapeHtml(d.desc)}">${d.name}</button>`;
+  const left = d=>s.on[d.key] && inCombat() && s.rounds && s.rounds[d.key] ? ` <small>· ${s.rounds[d.key]} turn${s.rounds[d.key]===1 ? '' : 's'} left</small>` : '';
+  const chip = d=>`<button type="button" class="status-chip${s.on[d.key] ? ' on' : ''}" data-status="${d.key}" aria-pressed="${!!s.on[d.key]}" title="${escapeHtml(d.desc)}${d.lasts ? ` Lasts up to ${d.lasts}: Turnkeeper counts it down each time you end your turn.` : ''}">${d.name}${left(d)}</button>`;
   const activeNames = on.map(d=>d.key==='bardic' ? `Bardic Inspiration (d${s.bi || 6})` : d.name).concat(x ? [`Exhaustion ${x}`] : []);
   let html = `<div class="status-now">${activeNames.length ? `<b>Now:</b> ${activeNames.join(', ')}` : 'No conditions or effects on you.'}`
     + ` <button type="button" class="sel-toggle" data-status-ui="toggle">${statusUi.open ? 'Done' : 'Change'}</button>`
@@ -2510,7 +2578,9 @@ function renderStatus(){
 const EXHAUSTION_TEXT = ['No exhaustion.', '1: disadvantage on ability checks.', '2: speed halved (plus level 1).', '3: disadvantage on attack rolls and saves (plus 1–2).',
   '4: hit point maximum halved (plus 1–3).', '5: speed reduced to 0 (plus 1–4).', '6: death.'];
 function setStatusOn(key, on){
-  const s = statusState(); if(on) s.on[key] = true; else { delete s.on[key]; if(s.linked) delete s.linked[key]; }
+  const s = statusState(); s.rounds = s.rounds || {};
+  if(on){ s.on[key] = true; const n = fxRounds(STATUS_BY_KEY[key] && STATUS_BY_KEY[key].lasts); if(n) s.rounds[key] = n; }
+  else { delete s.on[key]; delete s.rounds[key]; if(s.linked) delete s.linked[key]; }
   saveTrack(); renderStatus(); renderResources();
   if(on && INCAP_KEYS.includes(key) && track.conc) concEndedBy(STATUS_BY_KEY[key].name);   // incapacitated: concentration ends
 }
@@ -2534,7 +2604,15 @@ const ORDINAL = ['','1st','2nd','3rd','4th','5th'];
 function openRollPopup(sel, mode){
   hideTooltip();
   Object.assign(rollState, {sel, mode, crit:false, smite:0, undead:false, alt:false, sneak:false, savage:false, spendInfo:null, smiteSpent:null,
-    fxList:[], fxOn:{}, fxStarted:null, concEnded:[], fxBefore:null, fxUsed:false, healed:null, healBefore:null, tempMsg:'', selfCast:null, statusBefore:null});
+    fxList:[], fxOn:{}, fxStarted:null, concEnded:[], fxBefore:null, fxUsed:false, healed:null, healBefore:null, tempMsg:'', selfCast:null, statusBefore:null,
+    insp:false, reactionMarked:false, reactionWasUsed:false, attackNo:0, attackCounted:false});
+  // In combat: a reaction is marked used when its popup opens (Undo on the slot gives it back);
+  // an attack from the Attack action is counted when you copy its to-hit command
+  if(inCombat()){
+    const c = track.combat;
+    if(isReactionSel(sel)){ rollState.reactionWasUsed = c.reaction; c.reaction = true; rollState.reactionMarked = true; saveTrack(); renderCombat(); }
+    else if(isAttackActionSel(sel) && c.onTurn) rollState.attackNo = (c.attacks || 0) + 1;
+  }
   // Using a spell slot, racial use or feature charge is tracked as soon as the popup opens
   let id = null, desc = '';
   if(sel.kind==='spell' && sel.entry.sp.level > 0){
@@ -2610,14 +2688,14 @@ function toHitCommand(){
   if(sel.kind==='weapon'){
     const bonus = parseInt(String(sel.attack.bonus||'0').replace(/\s/g,''),10) || 0;
     const on = fxOn(), toHit = on.reduce((n, e)=>n + (e.toHit || 0), 0);
-    const extras = [sel.power && `${sel.power} −5`, ...on.filter(e=>e.toHit).map(e=>`+${e.toHit} ${e.name}`), ...on.filter(e=>e.adv).map(e=>`advantage from ${e.name}`), ...statusDescParts(rollState.st)].filter(Boolean);
+    const extras = [sel.power && `${sel.power} −5`, ...on.filter(e=>e.toHit).map(e=>`+${e.toHit} ${e.name}`), ...on.filter(e=>e.adv).map(e=>`advantage from ${e.name}`), ...inspPart(), ...statusDescParts(rollState.st)].filter(Boolean);
     return {cmd:d20Cmd(attackMode(), bonus - (sel.power ? 5 : 0) + toHit, false, statusDiceStr(rollState.st)), desc:`${sel.attack.name} attack${extras.length ? ` (${extras.join(', ')})` : ''}`};
   }
   if(sel.kind==='check'){
     const c = checkInfo(sel.type, sel.key);
-    return {cmd:d20Cmd(attackMode(), c.bonus + (rollState.st ? rollState.st.flat : 0), c.minTen, statusDiceStr(rollState.st)), desc: withParts(sel.label===c.name ? c.name : `${sel.label} (${sel.key})`, statusDescParts(rollState.st))};
+    return {cmd:d20Cmd(attackMode(), c.bonus + (rollState.st ? rollState.st.flat : 0), c.minTen, statusDiceStr(rollState.st)), desc: withParts(sel.label===c.name ? c.name : `${sel.label} (${sel.key})`, [...inspPart(), ...statusDescParts(rollState.st)])};
   }
-  return {cmd:d20Cmd(attackMode(), skillMod('Athletics'), reliableFor('Athletics'), statusDiceStr(rollState.st)), desc:withParts(`${MANEUVERS[sel.kind].label} (Athletics)`, statusDescParts(rollState.st))};
+  return {cmd:d20Cmd(attackMode(), skillMod('Athletics'), reliableFor('Athletics'), statusDiceStr(rollState.st)), desc:withParts(`${MANEUVERS[sel.kind].label} (Athletics)`, [...inspPart(), ...statusDescParts(rollState.st)])};
 }
 // Damage command plus a list of what's included, following the 2014 rules
 function damageCommand(){
@@ -2699,7 +2777,7 @@ function damageCommand(){
 function cmdBox(label, c, extraHtml){
   return `<div class="roll-box"><div class="roll-box-label">${label}</div>
     <div class="roll-cmd-row"><code class="roll-cmd">${escapeHtml(c.cmd)}</code>
-    <button type="button" class="copy-btn" data-copy="${escapeHtml(c.cmd)}"${c.consume ? ' data-consume="1"' : ''} aria-label="Copy ${label.toLowerCase()} command">Copy</button>
+    <button type="button" class="copy-btn" data-copy="${escapeHtml(c.cmd)}"${c.consume ? ' data-consume="1"' : ''}${c.countAttack ? ' data-count-attack="1"' : ''} aria-label="Copy ${label.toLowerCase()} command">Copy</button>
     <span class="roll-cmd-desc">${escapeHtml(c.desc)}</span></div>${extraHtml||''}</div>`;
 }
 function toggleBtn(attr, value, label, on){
@@ -2763,7 +2841,7 @@ function spellPopupHtml(){
       : infoBox('Not added yet', `Roll details for ${sp.name} haven’t been added to the tracker yet. Your spell attack is ${fmtMod(s.atk)} and your save DC is ${s.dc}.`));
   }
   const notes = [];
-  if(r.attack) html += cmdBox('Spell attack', {cmd:d20Cmd(attackMode(), s.atk, false, statusDiceStr(rollState.st)), desc:withParts(`${sp.name} (${r.attack} spell attack)`, statusDescParts(rollState.st))}, statusNotesHtml(rollState.st, mode));
+  if(r.attack) html += inspToggleHtml() + cmdBox('Spell attack', {cmd:d20Cmd(attackMode(), s.atk, false, statusDiceStr(rollState.st)), desc:withParts(`${sp.name} (${r.attack} spell attack)`, [...inspPart(), ...statusDescParts(rollState.st)])}, statusNotesHtml(rollState.st, mode));
   if(r.save) html += infoBox('Saving throw', saveLine(s.dc, r.save, r.onSave, r.effect));
   // School of Evocation (wizard spells only): Empowered Evocation adds INT (min +1) to one damage
   // roll of a wizard evocation spell; Potent Cantrip makes a successful save still take half
@@ -2859,17 +2937,17 @@ function renderRollPopup(){
   const modeLabel = ROLL_MODES.find(([k])=>k===attackMode())[1];
   document.getElementById('rollTitle').textContent = `${sel.label}${sel.kind==='spell' && sel.slot && !sel.entry.fixedLevel && sel.slot > sel.entry.sp.level ? ` (${ORDINAL[sel.slot]}-level slot)` : ''}${attackMode()!=='normal' ? ` — ${modeLabel}` : ''}`;
   if(sel.kind==='spell' || sel.kind==='feature'){
-    document.getElementById('rollBody').innerHTML = spendLineHtml() + fxLineHtml() + (sel.kind==='spell' ? spellPopupHtml() : featurePopupHtml());
+    document.getElementById('rollBody').innerHTML = spendLineHtml() + turnLineHtml() + fxLineHtml() + (sel.kind==='spell' ? spellPopupHtml() : featurePopupHtml());
     return;
   }
-  let html = `<p class="roll-intro">Copy a command and paste it into Discord.</p>`;
+  let html = `<p class="roll-intro">Copy a command and paste it into Discord.</p>` + turnLineHtml() + inspToggleHtml();
   if(rollState.fxList.length){
     const self = rollState.fxList.filter(e=>!e.target), target = rollState.fxList.filter(e=>e.target);
     html += `<div class="roll-after">Effects${self.length ? ' (untick one that doesn’t apply to this attack)' : ''}:</div><div class="roll-toggles">`
       + rollState.fxList.map(e=>toggleBtn('data-fx', escapeHtml(e.id), escapeHtml(e.target ? `${e.name} target` : `${e.name} (${fxWhat(e)})`), !!rollState.fxOn[e.id])).join('') + `</div>`;
     if(target.length) html += `<div class="roll-after">Tick a target only if you’re attacking the creature it’s on.</div>`;
   }
-  html += cmdBox(sel.kind==='weapon' ? 'To hit' : sel.kind==='check' ? checkInfo(sel.type, sel.key).name : 'Athletics check', toHitCommand());
+  html += cmdBox(sel.kind==='weapon' ? 'To hit' : sel.kind==='check' ? checkInfo(sel.type, sel.key).name : 'Athletics check', {...toHitCommand(), countAttack: !!rollState.attackNo});
   html += statusNotesHtml(rollState.st, rollState.mode);
   if(sel.kind==='check'){
     const notes = [...checkInfo(sel.type, sel.key).included, ...checkReminders(sel.type, sel.key, true)];
@@ -2882,8 +2960,8 @@ function renderRollPopup(){
     } else {
       // Decided after seeing the to-hit roll, per the rules: crit and Divine Smite
       let toggles = `<div class="roll-after">After you see the roll:</div><div class="roll-toggles">${toggleBtn('data-crit','1','Crit',rollState.crit)}`
-        + (dmg.sneakOk ? toggleBtn('data-sneak','1',`Sneak Attack (+${dmg.sneakDice}d6)`,!!rollState.sneak) : '')
-        + (dmg.savageOk ? toggleBtn('data-savage','1','Savage Attacker',!!rollState.savage) : '') + `</div>`;
+        + (dmg.sneakOk ? toggleBtn('data-sneak','1',`Sneak Attack (+${dmg.sneakDice}d6)${onceUsed('sneak') ? ' · used this turn' : ''}`,!!rollState.sneak) : '')
+        + (dmg.savageOk ? toggleBtn('data-savage','1',`Savage Attacker${onceUsed('savage') ? ' · used this turn' : ''}`,!!rollState.savage) : '') + `</div>`;
       if(dmg.sneakOk && !rollState.sneak) toggles += `<div class="roll-after">Sneak Attack needs advantage, or another enemy of the target within 5 ft of it (and no disadvantage). Once per turn.</div>`;
       const smiteLevels = castableSlotLevels(1);
       if(dmg.melee && hasFeature('Divine Smite') && smiteLevels.length){
@@ -2919,6 +2997,7 @@ rollPopup.addEventListener('click', e=>{
   }
   else if(t.dataset.undoSpend){
     const s = rollState.spendInfo; spend(s.id, -1); s.state = 'undone';
+    if(rollState.reactionMarked && inCombat()){ track.combat.reaction = rollState.reactionWasUsed; rollState.reactionMarked = false; saveTrack(); renderCombat(); }
     if(rollState.fxBefore){ track.conc = rollState.concBefore || null; track.fx = rollState.fxBefore; rollState.fxStarted = null; rollState.concEnded = []; saveTrack(); renderActiveFx(); }
     // Status goes back to how it was before the cast (a self-cast buff comes off, a linked one returns)
     if(rollState.statusBefore){ track.status = rollState.statusBefore; rollState.selfCast = null; saveTrack(); renderStatus(); renderResources(); }
@@ -2948,9 +3027,24 @@ rollPopup.addEventListener('click', e=>{
     if(t.dataset.consume && !rollState.fxUsed){
       fxOn().filter(e=>e.until==='hit' && !e.target).forEach(e=>endFx(e.id));
       rollState.fxUsed = true;
+      // Once-per-turn features included in this damage are used for the turn
+      if(inCombat()){
+        const c = track.combat; c.once = c.once || {};
+        Object.keys(ONCE_PER_TURN).forEach(k=>{ if(rollState[k]) c.once[k] = true; });
+        saveTrack(); renderCombat();
+      }
+    }
+    if(t.dataset.countAttack && !rollState.attackCounted && inCombat()){
+      track.combat.attacks = (track.combat.attacks || 0) + 1; rollState.attackCounted = true;
+      saveTrack(); renderCombat();
     }
   }
   else if(t.dataset.fx){ rollState.fxOn[t.dataset.fx] = !rollState.fxOn[t.dataset.fx]; renderRollPopup(); }
+  else if(t.dataset.insp){
+    // Using Inspiration spends it; unticking gives it back
+    rollState.insp = !rollState.insp; track.insp = !rollState.insp;
+    saveTrack(); renderInspiration(); renderRollPopup();
+  }
 });
 document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !rollPopup.hidden) closeRollPopup(); });
 
@@ -3242,6 +3336,7 @@ function renderReactionsDetail(){
   if(!picks.includes(reactFlow.pick)) reactFlow.pick = null;
   const btn = (key, label, extra='')=>`<button type="button" class="flow-btn${reactFlow.pick===key?' active':''}" data-react="${escapeHtml(key)}">${label}${extra}</button>`;
   let html = `<h4>Reactions</h4><div class="flow-summary" style="margin-top:0;">One reaction per round, usually on someone else’s turn. You get it back at the start of your turn.</div>`
+    + (inCombat() && track.combat.reaction ? `<div class="spent-line warn">You’ve used your reaction this round.</div>` : '')
     + `<div class="flow-label">Attack</div><div class="flow-grid">${btn('oa','Opportunity Attack')}</div>`;
   if(feats.length) html += `<div class="flow-label">${featsLabel(feats)}</div><div class="flow-grid">${feats.map(t=>btn('f:'+t.name, t.name)).join('')}</div>`;
   if(spells.length) html += `<div class="flow-label">Spells</div><div class="flow-grid">${spells.map(e=>btn('s:'+e.sp.name, e.sp.name, e.source ? sourceTag(e.source) : '')).join('')}</div>`;
@@ -3291,7 +3386,7 @@ function renderReactionsDetail(){
     const go = document.getElementById('flowRoll');
     if(go) go.addEventListener('click', ()=>{
       const power = reactFlow.power ? powerAttackFeat(sel) : null;
-      openRollPopup({kind:'weapon', label:`${sel.name} (opportunity attack)`, attack:sel, ...(power ? {power} : {})}, reactFlow.mode);
+      openRollPopup({kind:'weapon', label:`${sel.name} (opportunity attack)`, attack:sel, reaction:true, ...(power ? {power} : {})}, reactFlow.mode);
     });
   } else if(pick && pick.startsWith('f:')){
     wireFeatureStep(feats.find(t=>'f:'+t.name===pick));
@@ -3526,6 +3621,7 @@ function extractAttacks(table, range){
 }
 
 const RANGES = {
+  insp:'H6:H6',   // the Inspiration box: 1 (shown as ✧) when you have it
   name:'BZ61:BZ61', level:'AL2:AL2', race:'T3:T3', class:'T1:T1',
   ac:'R7:R7', init:'V7:V7', speed:'Z7:Z7', hpmax:'U11:U11', hpcur:'R12:R12',
   str:'C10:C10', dex:'C15:C15', con:'C20:C20', int:'C25:C25', wis:'C30:C30', cha:'C35:C35'
@@ -3637,6 +3733,7 @@ async function runImport(){
     document.getElementById('f_init').value = getFirstValue(table, RANGES.init);
     document.getElementById('f_speed').value = getFirstValue(table, RANGES.speed);
     const hpMax = getFirstValue(table, RANGES.hpmax), hpCur = getFirstValue(table, RANGES.hpcur);
+    const inspCell = getFirstValue(table, RANGES.insp);
     document.getElementById('f_hp').value = (hpCur||'?') + ' / ' + (hpMax||'?');
 
     document.getElementById('s_str').value = getFirstValue(table, RANGES.str) || '10';
@@ -3696,6 +3793,7 @@ async function runImport(){
     captureSheetBase();
     applyFeatStats();
     loadTrack();
+    syncInspiration(parseFloat(inspCell) > 0);
     renderResources();
     renderStatus();
     concUi.check = null; renderConc();   // no save waiting for a freshly loaded character
@@ -3802,7 +3900,7 @@ const CLASS_FEATURES = {
       {level:3, name:'Divine Health', desc:'You are immune to disease.'},
       {level:3, name:'Sacred Oath', desc:'Swear your Oath (pick it above). It grants Oath spells and Channel Divinity options; Channel Divinity can be used once per short or long rest.'},
       {level:4, name:'Ability Score Improvement', desc:'At levels 4, 8, 12, 16 and 19: raise one ability score by 2, or two scores by 1 each (max 20), or take a feat if your table allows it.'},
-      {level:5, name:'Extra Attack', desc:'Attack twice when you take the Attack action.'},
+      {level:5, name:'Extra Attack', attacks:2, desc:'Attack twice when you take the Attack action.'},
       {level:6, name:'Aura of Protection', desc:'You and friendly creatures within 10 ft add your Charisma modifier (minimum +1) to saving throws while you’re conscious.'},
       {level:10, name:'Aura of Courage', desc:'You and friendly creatures within 10 ft can’t be frightened while you’re conscious.'},
       {level:11, name:'Improved Divine Smite', desc:'Every melee weapon hit deals an extra 1d8 radiant damage.'},
@@ -3952,7 +4050,7 @@ const CLASS_FEATURES = {
       'College of Valor': [
         {level:3, name:'Bonus Proficiencies', desc:'Proficiency with medium armor, shields and martial weapons.'},
         {level:3, name:'Combat Inspiration', desc:'A creature with your inspiration die can also add it to a weapon damage roll it just made, or use its reaction to add it to its AC against an attack after seeing the roll but before knowing whether it hits.'},
-        {level:6, name:'Extra Attack', desc:'Attack twice when you take the Attack action.'},
+        {level:6, name:'Extra Attack', attacks:2, desc:'Attack twice when you take the Attack action.'},
         {level:14, name:'Battle Magic', type:'bonus', desc:'When you use your action to cast a bard spell, you can make one weapon attack as a bonus action.'},
       ],
     },
@@ -4919,8 +5017,10 @@ function loadTrack(){
   track.temp = saved && typeof saved.temp==='number' ? saved.temp : 0;   // temporary hit points
   track.status = saved && saved.status ? saved.status : {on:{}, exh:0, bi:6};   // conditions and magic on you
   track.conc = saved && saved.conc ? saved.conc : null;   // the spell you're concentrating on: {name, rounds}
+  track.insp = saved && typeof saved.insp==='boolean' ? saved.insp : null;   // Inspiration (see syncInspiration)
+  track.inspSheet = saved && typeof saved.inspSheet==='boolean' ? saved.inspSheet : null;
 }
-function saveTrack(){ if(currentCharId) storageSet(trackKey(), JSON.stringify({hp:track.hp, temp:track.temp, used:track.used, fx:track.fx, death:track.death, combat:track.combat, status:track.status, conc:track.conc})); }
+function saveTrack(){ if(currentCharId) storageSet(trackKey(), JSON.stringify({hp:track.hp, temp:track.temp, used:track.used, fx:track.fx, death:track.death, combat:track.combat, status:track.status, conc:track.conc, insp:track.insp, inspSheet:track.inspSheet})); }
 function maxFor(id){
   if(id === 'hitDice') return hitDie() ? Math.min(20, Math.max(1, charLevel())) : 0;   // one Hit Die per level
   const s = slotTable().find(x=>x.id===id); if(s) return s.max;
@@ -5040,7 +5140,33 @@ function pipsHtml(id, max){
   return `<div class="pips" role="group">` + Array.from({length:max}, (_,i)=>
     `<button type="button" class="pip${i < left ? ' on' : ''}" data-pip="${escapeHtml(id)}" data-on="${i < left}" aria-label="${i < left ? 'Available: click to use' : 'Used: click to restore'}"></button>`).join('') + `</div>`;
 }
+/* ---------- Inspiration (2014): the DM awards it; spend it for advantage on one attack roll,
+   saving throw or ability check. Turnkeeper keeps its own on/off per character, starting from
+   the sheet's Inspiration box; if the sheet's box changes (the DM gave or took it there), the
+   sheet wins. Using it in a roll popup turns it off here, not on the sheet. ---------- */
+function syncInspiration(sheetHas){
+  if(track.inspSheet !== sheetHas){ track.insp = sheetHas; track.inspSheet = sheetHas; saveTrack(); }
+}
+function renderInspiration(){
+  const b = document.getElementById('inspBtn');
+  b.hidden = !currentCharId;
+  const on = !!track.insp;
+  b.classList.toggle('on', on);
+  b.setAttribute('aria-pressed', on);
+  b.textContent = on ? '✧ Inspiration' : 'No Inspiration';
+  b.title = on ? 'You have Inspiration: use it in a roll popup for advantage. Click if you gave it away or the DM took it.'
+    : 'Click when the DM gives you Inspiration.';
+}
+document.getElementById('inspBtn').addEventListener('click', ()=>{ track.insp = !track.insp; saveTrack(); renderInspiration(); });
+// "Use Inspiration" in a popup with a d20 attack roll, check or save
+function inspToggleHtml(){
+  if(!rollKindOf(rollState.sel) || !(track.insp || rollState.insp)) return '';
+  return `<div class="roll-toggles" style="margin-top:6px;">${toggleBtn('data-insp','1','Use Inspiration (advantage)', !!rollState.insp)}</div>`;
+}
+const inspPart = ()=>rollState.insp ? ['advantage from Inspiration'] : [];
+
 function renderResources(){
+  renderInspiration();
   renderActiveFx();
   renderDeath();
   renderCombat();
