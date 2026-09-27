@@ -3,6 +3,31 @@
 What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest first.
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
+## 2026-09-27 — Spell limits and the wizard's spellbook
+
+### Added
+- **Spell limits from the Player's Handbook.** The Spells list shows how many you can have,
+  e.g. "Cantrips: 2 of 3 · Prepared spells: 4 of 4", and stops you ticking more:
+  - **Prepared casters** (Cleric, Druid, Paladin, Wizard) get their ability modifier plus
+    their level. A Paladin uses half their level. The minimum is 1.
+  - **Known casters** (Bard, Sorcerer, Ranger, Warlock, Arcane Trickster) get their class
+    table's Spells Known.
+  - **Cantrips** have their own count from the class table.
+  - **Always-prepared spells** (Oath and racial spells) don't count.
+  - **Spells above your highest spell slot level** can't be ticked.
+  - Hover over a greyed-out box to see why. Unticking always works. If you already had more
+    ticked than allowed, or a spell that's now too high, the list says which to untick.
+  - "Select all" is gone for spellcasters, since you pick up to your number.
+- **Wizard's spellbook.** Each wizard spell has two boxes: the first puts it in your
+  spellbook, the second prepares it, and you can only prepare spells from your spellbook.
+  - The book holds 6 spells at level 1 plus 2 more each time you level up ("Spellbook: 8 of
+    8"), of any level you have slots for.
+  - Once those are used up, ticking another asks whether you copied it from a scroll or
+    another spellbook. Copied spells are tagged **Copied** and have no limit.
+  - Turnkeeper doesn't charge gold or time for copying; your DM decides that.
+  - Cantrips aren't kept in the spellbook and work as before.
+  - Wizards need to re-tick their spells once.
+
 ## 2026-09-27 — Inspiration and your turn, start to end
 
 ### Added

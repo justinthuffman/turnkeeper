@@ -556,6 +556,21 @@ button.flow-btn .src-tag{color:var(--ink); border-color:rgba(255,255,255,0.6);}
 .prep-hint{font-size:0.85rem; color:var(--ink-dim); margin:10px 0 12px;}
 .prep-hint b{color:var(--orange); font-weight:600;}
 .no-spells-note{font-size:0.85rem; color:var(--ink-dim); padding:8px 0;}
+/* Wizard spellbook: a book box and a prepared box per spell, copied spells tagged */
+.book-legend{font-size:0.78rem; color:var(--ink-dim); margin:-4px 0 10px;}
+.spell-row input.book-cb{accent-color:var(--sea);}
+.copied-tag{font-size:0.66rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--sea); border:1px solid var(--sea-dim); border-radius:999px; padding:0 6px;}
+.book-ask{display:flex; flex-wrap:wrap; align-items:center; gap:6px 10px; margin:2px 0 6px 26px; padding:6px 10px; border:1px solid var(--sea-dim); border-radius:6px; background:var(--panel2); font-size:0.82rem; color:var(--ink-dim);}
+.book-ask button{padding:3px 10px; font-size:0.8rem;}
+/* How many spells you can prepare or know, and rows you can't pick */
+.prep-limits{display:flex; flex-wrap:wrap; gap:6px 10px; align-items:baseline; font-size:0.85rem; color:var(--ink-dim); margin:0 0 12px;}
+.prep-count{border:1px solid var(--border); border-radius:999px; padding:2px 10px; background:var(--panel2); color:var(--ink);}
+.prep-count.full{border-color:var(--sea);}
+.prep-count.over{border-color:var(--danger); color:var(--danger);}
+.prep-warn{flex-basis:100%; color:var(--danger);}
+.spell-row.spell-over input{outline:2px solid var(--danger); outline-offset:1px;}
+.spell-row.spell-blocked{opacity:0.45;}
+.spell-row.spell-blocked input{cursor:not-allowed;}
 .sname.act-action{color:var(--act-action);}
 .sname.act-bonus{color:var(--act-bonus);}
 .sname.act-ritual{color:var(--act-ritual); font-style:italic;}
@@ -1676,6 +1691,7 @@ const LEVEL_NAMES = ['Cantrip','1st Level','2nd Level','3rd Level','4th Level','
 
 /* ---------- State ---------- */
 const state = {
+  spellbook: {},
   attacks: [],
   saves: [],
   skills: [],
@@ -3396,6 +3412,49 @@ function renderReactionsDetail(){
 }
 
 
+/* ---------- How many spells a character can prepare or know (2014 PHB class tables) ----------
+   Prepared casters (Cleric, Druid, Paladin, Wizard): ability modifier + class level (half,
+   rounded down, for the Paladin), minimum 1. Known casters: the class table's Spells Known. Cantrips are counted
+   separately from the Cantrips Known column. Always-prepared spells (Oath, racial) don't count.
+   No spell above the highest spell slot level the character has. Keys are class keys, or
+   'class|Subclass' for a subclass that adds spellcasting. */
+const byLevel20 = arr=>lvl=>arr[Math.min(20, Math.max(1, lvl)) - 1];
+const cantripsAt = (n1, n4, n10)=>lvl=>lvl >= 10 ? n10 : lvl >= 4 ? n4 : n1;
+const SPELL_LIMITS = {
+  bard:     {cantrips:cantripsAt(2,3,4), known:byLevel20([4,5,6,7,8,9,10,11,12,14,15,15,16,18,19,19,20,22,22,22])},
+  cleric:   {cantrips:cantripsAt(3,4,5), prepared:'wis'},
+  druid:    {cantrips:cantripsAt(2,3,4), prepared:'wis'},
+  paladin:  {prepared:'cha', half:true},
+  ranger:   {known:byLevel20([0,2,3,3,4,4,5,5,6,6,7,7,8,8,9,9,10,10,11,11])},
+  sorcerer: {cantrips:cantripsAt(4,5,6), known:byLevel20([2,3,4,5,6,7,8,9,10,11,12,12,13,13,14,14,15,15,15,15])},
+  warlock:  {cantrips:cantripsAt(2,3,4), known:byLevel20([2,3,4,5,6,7,8,9,10,10,11,11,12,12,13,13,14,14,15,15])},
+  wizard:   {cantrips:cantripsAt(3,4,5), prepared:'int'},
+  'rogue|Arcane Trickster': {cantrips:lvl=>lvl >= 10 ? 4 : 3, known:byLevel20([0,0,3,4,4,4,5,6,6,7,8,8,9,10,10,11,11,11,12,13])},
+};
+// {cantrips, spells, kind, maxLevel, why} for the character now, or {none:reason}; null if the class isn't known
+function spellLimits(){
+  if(!cf.classKey) return null;
+  const casting = castingFor(), lvl = charLevel();
+  if(!casting) return {none:'Your class doesn’t cast spells from a class list.'};
+  if(lvl < casting.from) return {none:`Your spellcasting starts at level ${casting.from}.`};
+  const t = SPELL_LIMITS[cf.classKey] || SPELL_LIMITS[`${cf.classKey}|${cf.subclass}`];
+  if(!t) return null;
+  const cantrips = t.cantrips ? t.cantrips(lvl) : 0, maxLevel = maxSlotLevel();
+  if(t.prepared){
+    const mod = abilityScoreMod(t.prepared), part = t.half ? Math.floor(lvl / 2) : lvl;
+    return {cantrips, maxLevel, kind:'prepared', spells:Math.max(1, mod + part),
+      why:`${ABILITY_FULL[t.prepared]} ${fmtMod(mod)} + ${t.half ? 'half your level' : 'your level'} (${part}), minimum 1`};
+  }
+  return {cantrips, maxLevel, kind:'known', spells:t.known(lvl), why:`Spells Known at level ${lvl}`};
+}
+// The ticked spells that count toward the limits (always-prepared ones don't), split by cantrip
+function preparedCounts(){
+  const always = new Set(alwaysPreparedSpells().map(x=>x.sp.name));
+  let cantrips = 0, spells = 0;
+  state.preparedSpells.forEach(n=>{ const sp = findSpell(n); if(!sp || always.has(n)) return; if(sp.level === 0) cantrips++; else spells++; });
+  return {cantrips, spells};
+}
+
 /* ---------- Spells section ---------- */
 const spellToggle = document.getElementById('spellToggle');
 const spellBody = document.getElementById('spellBody');
@@ -3411,6 +3470,8 @@ document.getElementById('spellClassSelect').addEventListener('change', renderSpe
 
 // Select all / none for the class spell list shown (always-prepared spells have no tick box)
 function updateSpellSelToggle(list){
+  // With limits there's no "Select all": you pick up to your number
+  if(spellLimits()) list = [];
   wireSelToggle(document.getElementById('spellsSelAll'), list.map(sp=>sp.name), n=>state.preparedSpells.has(n), (on, names)=>{
     names.forEach(n=>{ if(on) state.preparedSpells.add(n); else state.preparedSpells.delete(n); });
     savePrepared();
@@ -3440,6 +3501,33 @@ function renderSpellList(){
 
   const list = SPELL_DATA[classKey];
   updateSpellSelToggle(list);
+  // Limits: how many you can pick, and the highest spell level you can
+  const lim = spellLimits(), counts = preparedCounts();
+  if(lim){
+    const box = document.createElement('div'); box.className = 'prep-limits';
+    if(lim.none){
+      box.innerHTML = `<span>${lim.none}</span>`;
+    } else {
+      const pill = (n, max, label, title)=>`<span class="prep-count${n > max ? ' over' : n === max ? ' full' : ''}" title="${escapeHtml(title)}">${label}: ${n} of ${max}</span>`;
+      const verb = lim.kind==='prepared' ? 'Prepared' : 'Known';
+      const bc = usesSpellbook() ? bookCounts() : null;
+      box.innerHTML = (bc ? pill(bc.free, bc.freeMax, 'Spellbook', '6 at level 1, plus 2 each time you level up') + (bc.copied ? `<span class="prep-count">+ ${bc.copied} copied</span>` : '') : '')
+        + (lim.cantrips ? pill(counts.cantrips, lim.cantrips, 'Cantrips', 'Cantrips Known from your class table') : '')
+        + pill(counts.spells, lim.spells, `${verb} spells`, lim.why)
+        + `<span>Up to ${lim.maxLevel ? `${ORDINAL[lim.maxLevel] || lim.maxLevel+'th'}-level spells` : 'cantrips only'}${lim.kind==='prepared' ? ' · change them after a long rest' : ' · swap one when you level up'}</span>`;
+      const over = [counts.cantrips > lim.cantrips && `${counts.cantrips - lim.cantrips} cantrip${counts.cantrips - lim.cantrips > 1 ? 's' : ''}`,
+                    counts.spells > lim.spells && `${counts.spells - lim.spells} spell${counts.spells - lim.spells > 1 ? 's' : ''}`].filter(Boolean);
+      const tooHigh = [...state.preparedSpells].map(findSpell).filter(sp=>sp && sp.level > lim.maxLevel);
+      if(over.length) box.innerHTML += `<span class="prep-warn">That’s more than you can have: untick ${over.join(' and ')}.</span>`;
+      if(tooHigh.length) box.innerHTML += `<span class="prep-warn">Too high for your spell slots: ${tooHigh.map(sp=>sp.name).join(', ')}. Untick ${tooHigh.length > 1 ? 'them' : 'it'}.</span>`;
+    }
+    area.insertBefore(box, area.firstChild);
+    if(usesSpellbook() && !lim.none && classKey === 'wizard'){
+      const legend = document.createElement('div'); legend.className = 'book-legend';
+      legend.textContent = 'For each spell: first box, it’s in your spellbook; second box, you’ve prepared it. You can only prepare spells from your spellbook. Cantrips aren’t kept in the book.';
+      box.after(legend);
+    }
+  }
   if(!list.length){
     const note = document.createElement('div'); note.className='no-spells-note';
     note.textContent = 'Rogues have no base class spell list — spellcasting only comes from the Arcane Trickster subclass, which borrows Enchantment/Illusion spells from the Wizard list. Switch the dropdown to Wizard and pick from there if that applies to your character.';
@@ -3453,19 +3541,65 @@ function renderSpellList(){
     group.innerHTML = `<h3>${LEVEL_NAMES[lvl]}</h3>`;
     byLevel[lvl].sort((a,b)=>a.name.localeCompare(b.name)).forEach(sp=>{
       const row = document.createElement('div'); row.className='spell-row';
-      const checked = state.preparedSpells.has(sp.name) ? 'checked' : '';
-      row.innerHTML = `<input type="checkbox" ${checked}><span class="sname ${sp.cls}">${sp.name}</span>`;
-      const cb = row.querySelector('input');
+      const on = state.preparedSpells.has(sp.name);
+      // Can't tick: too high a level, no spellcasting yet, or already at the limit (unticking always works)
+      let blocked = '';
+      if(lim && !on){
+        if(lim.none) blocked = lim.none;
+        else if(sp.level > lim.maxLevel) blocked = `Needs ${ORDINAL[sp.level] || sp.level+'th'}-level spell slots, which you don’t have yet.`;
+        else if(sp.level === 0 ? counts.cantrips >= lim.cantrips : counts.spells >= lim.spells)
+          blocked = sp.level === 0 ? (lim.cantrips ? `You know ${lim.cantrips} cantrips already. Untick one to pick this.` : 'Your class doesn’t learn cantrips.')
+            : `You have all ${lim.spells} ${lim.kind==='prepared' ? 'prepared' : 'known'} spells. Untick one to pick this.`;
+      }
+      const tooMany = lim && !lim.none && on && (sp.level > lim.maxLevel);
+      // Wizards: a spellbook box before the prepared box; prepare only what's in the book
+      const book = lim && !lim.none && usesSpellbook() && classKey === 'wizard' && sp.level > 0;
+      const inBook = book && !!state.spellbook[sp.name];
+      let bookBlocked = '';
+      if(book){
+        if(!inBook && sp.level > lim.maxLevel) bookBlocked = `You can only add spells of a level you have slots for (${ORDINAL[lim.maxLevel] || lim.maxLevel+'th'} or lower).`;
+        if(!inBook && !on) blocked = 'Add it to your spellbook first (the first box).';
+      }
+      if(blocked && !book) row.classList.add('spell-blocked');
+      if(tooMany) row.classList.add('spell-over');
+      const bookBox = book ? `<input type="checkbox" class="book-cb" ${inBook ? 'checked' : ''}${bookBlocked ? ` disabled title="${escapeHtml(bookBlocked)}"` : ''} aria-label="${escapeHtml(sp.name)} in spellbook">` : '';
+      row.innerHTML = bookBox + `<input type="checkbox" class="prep-cb" ${on ? 'checked' : ''}${blocked ? ' disabled' : ''}${blocked ? ` title="${escapeHtml(blocked)}"` : ''} aria-label="${escapeHtml(sp.name)}${book ? ' prepared' : ''}"><span class="sname ${sp.cls}">${sp.name}</span>`
+        + (inBook && state.spellbook[sp.name]==='copied' ? `<span class="copied-tag" title="Copied from a scroll or another spellbook">Copied</span>` : '');
+      if(blocked && !book) row.title = blocked;
+      if(book){
+        const bcb = row.querySelector('.book-cb');
+        bcb.addEventListener('change', ()=>{
+          if(bcb.checked){
+            const bc = bookCounts();
+            if(bc.free < bc.freeMax) state.spellbook[sp.name] = 'free';
+            else { bcb.checked = false; bookAsk = sp.name; renderSpellList(); return; }
+          } else {
+            delete state.spellbook[sp.name];
+            if(state.preparedSpells.delete(sp.name)) savePrepared();   // out of the book: no longer prepared
+          }
+          bookAsk = null; saveBook(); renderSpellList();
+        });
+      }
+      const cb = row.querySelector('.prep-cb');
       cb.addEventListener('change', ()=>{
         if(cb.checked) state.preparedSpells.add(sp.name); else state.preparedSpells.delete(sp.name);
         savePrepared();
-        updateSpellSelToggle(list);
+        renderSpellList();   // counts and which boxes can be ticked change
       });
       const sname = row.querySelector('.sname');
       sname.addEventListener('mouseenter', e=>showTooltip(e, sp));
       sname.addEventListener('mousemove', moveTooltip);
       sname.addEventListener('mouseleave', hideTooltip);
       group.appendChild(row);
+      if(bookAsk === sp.name){
+        const ask = document.createElement('div'); ask.className = 'book-ask';
+        const bc = bookCounts();
+        ask.innerHTML = `<span>Your ${bc.freeMax} free spells from leveling are all in your book. Did you copy ${escapeHtml(sp.name)} from a scroll or another spellbook?</span>`
+          + `<button type="button" data-book-copy="1">Yes, copied it</button><button type="button" class="ghost" data-book-cancel="1">Cancel</button>`;
+        ask.querySelector('[data-book-copy]').addEventListener('click', ()=>{ state.spellbook[sp.name] = 'copied'; bookAsk = null; saveBook(); renderSpellList(); });
+        ask.querySelector('[data-book-cancel]').addEventListener('click', ()=>{ bookAsk = null; renderSpellList(); });
+        group.appendChild(ask);
+      }
     });
     area.appendChild(group);
   });
@@ -3772,6 +3906,7 @@ async function runImport(){
     bonusDashActive = false;
     // Prepared spells are saved per character; load this one's
     loadPrepared();
+    loadBook();
     lastImportedId = sheetId;
     dashActive = false;
     attackSection.loadPins();
@@ -4169,6 +4304,30 @@ function savePrepared(){
   const list = [...state.preparedSpells];
   preparedMem.set(preparedKey(), list);
   storageSet(preparedKey(), list.length ? JSON.stringify(list) : null);
+}
+/* Wizard spellbook (2014): 6 1st-level spells at level 1 and 2 more each level up (free),
+   plus any the wizard copies from scrolls or other spellbooks (no limit). Copying costs are
+   left to the DM, so Turnkeeper only records that a spell was copied. Wizards prepare only
+   from their spellbook. Saved per character: {spell name: 'free' | 'copied'}. */
+const bookMem = new Map();
+let bookAsk = null;   // a spell waiting for "Copied it?" once the free spells are used up
+function bookKey(){ return `dndTracker:spellbook:${currentCharId}`; }
+function saveBook(){
+  if(!currentCharId) return;
+  bookMem.set(bookKey(), {...state.spellbook});
+  storageSet(bookKey(), Object.keys(state.spellbook).length ? JSON.stringify(state.spellbook) : null);
+}
+function loadBook(){
+  const k = bookKey();
+  let b = bookMem.get(k);
+  if(!b){ try{ b = JSON.parse(storageGet(k) || '{}'); }catch(e){ b = {}; } }
+  state.spellbook = b && typeof b === 'object' ? {...b} : {};
+  bookAsk = null;
+}
+const usesSpellbook = ()=>cf.classKey === 'wizard';
+function bookCounts(){
+  const v = Object.values(state.spellbook || {});
+  return {free: v.filter(x=>x==='free').length, copied: v.filter(x=>x==='copied').length, freeMax: 6 + 2 * (Math.max(1, charLevel()) - 1)};
 }
 function loadPrepared(){
   const k = preparedKey();
