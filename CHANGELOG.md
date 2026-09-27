@@ -3,6 +3,17 @@
 What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest first.
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
+## Unreleased
+
+### Added
+- **Casting a helpful spell on yourself.** Bless, Heroism, Shield of Faith, Haste,
+  Enlarge/Reduce, Guidance and Resistance ask "Casting it on yourself?" when you cast them.
+  **Yes, on me** ticks it in your Status straight away (with an Undo); **No, someone else**
+  reminds you that they can tick it on their own sheet.
+  - If it's a concentration spell, it's linked: losing concentration (a failed save, dropping to
+    0 HP, casting another concentration spell…) takes it off your Status too.
+  - Undo on the spell slot puts your Status back the way it was before the cast.
+
 ## 2026-09-27 — Concentration
 
 ### Added

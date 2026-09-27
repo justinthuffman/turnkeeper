@@ -2265,6 +2265,12 @@ function endConcentration(){
   track.fx = track.fx.filter(x=>!x.conc);
   track.conc = null;
   if(typeof concUi !== 'undefined') concUi.check = null;
+  // Statuses you gave yourself with that spell (e.g. Bless cast on you) end with it
+  const s = track.status;
+  if(s && s.linked){
+    Object.keys(s.linked).forEach(k=>{ if(ended.includes(s.linked[k])){ delete s.on[k]; delete s.linked[k]; } });
+    if(typeof renderStatus === 'function' && currentCharId) renderStatus();
+  }
   return ended;
 }
 function startFx(e){ if(e.rounds === undefined) e.rounds = fxRounds(e.until); track.fx = track.fx.filter(x=>x.id!==e.id); track.fx.push(e); saveTrack(); renderActiveFx(); }
@@ -2504,7 +2510,7 @@ function renderStatus(){
 const EXHAUSTION_TEXT = ['No exhaustion.', '1: disadvantage on ability checks.', '2: speed halved (plus level 1).', '3: disadvantage on attack rolls and saves (plus 1–2).',
   '4: hit point maximum halved (plus 1–3).', '5: speed reduced to 0 (plus 1–4).', '6: death.'];
 function setStatusOn(key, on){
-  const s = statusState(); if(on) s.on[key] = true; else delete s.on[key];
+  const s = statusState(); if(on) s.on[key] = true; else { delete s.on[key]; if(s.linked) delete s.linked[key]; }
   saveTrack(); renderStatus(); renderResources();
   if(on && INCAP_KEYS.includes(key) && track.conc) concEndedBy(STATUS_BY_KEY[key].name);   // incapacitated: concentration ends
 }
@@ -2528,7 +2534,7 @@ const ORDINAL = ['','1st','2nd','3rd','4th','5th'];
 function openRollPopup(sel, mode){
   hideTooltip();
   Object.assign(rollState, {sel, mode, crit:false, smite:0, undead:false, alt:false, sneak:false, savage:false, spendInfo:null, smiteSpent:null,
-    fxList:[], fxOn:{}, fxStarted:null, concEnded:[], fxBefore:null, fxUsed:false, healed:null, healBefore:null, tempMsg:''});
+    fxList:[], fxOn:{}, fxStarted:null, concEnded:[], fxBefore:null, fxUsed:false, healed:null, healBefore:null, tempMsg:'', selfCast:null, statusBefore:null});
   // Using a spell slot, racial use or feature charge is tracked as soon as the popup opens
   let id = null, desc = '';
   if(sel.kind==='spell' && sel.entry.sp.level > 0){
@@ -2550,6 +2556,7 @@ function openRollPopup(sel, mode){
   if(sel.kind==='spell' || sel.kind==='feature'){
     rollState.fxBefore = (track.fx || []).map(e=>({...e}));
     rollState.concBefore = track.conc ? {...track.conc} : null;
+    rollState.statusBefore = JSON.parse(JSON.stringify(statusState()));
     if(sel.kind==='spell' && /Concentration/i.test(sel.entry.sp.duration)){
       // The last concentration spell ends; this one is remembered (Undo on the slot puts it back)
       rollState.concEnded = endConcentration().filter(n=>n!==sel.entry.sp.name);
@@ -2717,11 +2724,39 @@ function saveLine(dc, ability, onSave, effect){
 }
 const critToggle = ()=>`<div class="roll-after">After you see the attack roll:</div><div class="roll-toggles">${toggleBtn('data-crit','1','Crit',rollState.crit)}</div>`;
 
+/* ---------- Casting a helpful spell on yourself ----------
+   Spells that match a "Magic on you" status ask "Casting it on yourself?". Yes ticks it in
+   Status (with Undo). If it's a concentration spell, the status is linked to it
+   (track.status.linked = {statusKey: spellName}), so losing concentration takes it off too.
+   Later, with the shared table, this becomes "pick your targets" (see the long-term notes). */
+const SPELL_SELF_STATUS = {'Bless':'bless', 'Guidance':'guidance', 'Resistance':'resistance', 'Heroism':'heroism',
+  'Shield of Faith':'shieldOfFaith', 'Haste':'haste', 'Enlarge/Reduce':'enlarge'};
+function selfCastHtml(sp){
+  const key = SPELL_SELF_STATUS[sp.name];
+  if(!key || !currentCharId) return '';
+  const name = STATUS_BY_KEY[key].name, conc = /Concentration/i.test(sp.duration);
+  if(rollState.selfCast === 'yes') return `<div class="spent-line">${name} is on you: ticked in your Status${conc ? ', and it ends if you lose concentration' : ''}. <button type="button" class="sel-toggle" data-self-cast="undo">Undo</button></div>`;
+  if(rollState.selfCast === 'no') return `<div class="spent-line">Cast on someone else: they can tick ${name} under Magic on you in their own Status.</div>`;
+  return `<div class="roll-box self-cast"><div class="roll-box-label">Casting it on yourself?</div><div class="roll-toggles">`
+    + `<button type="button" class="flow-btn" data-self-cast="yes">Yes, on me${key==='enlarge' ? ' (Enlarge)' : ''}</button>`
+    + `<button type="button" class="flow-btn" data-self-cast="no">No, someone else</button></div></div>`;
+}
+function selfCastClick(a){
+  const sp = rollState.sel.entry.sp, key = SPELL_SELF_STATUS[sp.name];
+  if(a === 'yes'){
+    setStatusOn(key, true);
+    if(/Concentration/i.test(sp.duration)){ const s = statusState(); s.linked = s.linked || {}; s.linked[key] = sp.name; saveTrack(); }
+    rollState.selfCast = 'yes';
+  } else if(a === 'undo'){ setStatusOn(key, false); rollState.selfCast = null; }
+  else rollState.selfCast = 'no';
+  renderRollPopup();
+}
 function spellPopupHtml(){
   const {sel, mode, crit} = rollState, e = sel.entry, sp = e.sp, r = SPELL_ROLLS[sp.name];
   const s = spellStats(e.ability), up = sp.level ? Math.max(0, sel.slot - sp.level) : 0, cantrip = !!(r && r.cantrip);
   const abil = ABILITY_FULL[e.ability];
-  let html = `<p class="roll-intro">${sp.level ? (e.fixedLevel ? `Cast at ${ORDINAL[sel.slot]} level (no spell slot).` : `Uses a ${ORDINAL[sel.slot]}-level spell slot.`) : 'Cantrip.'} ${abil} is your spellcasting ability for it.</p>`;
+  const selfBox = selfCastHtml(sp);
+  let html = selfBox + `<p class="roll-intro">${sp.level ? (e.fixedLevel ? `Cast at ${ORDINAL[sel.slot]} level (no spell slot).` : `Uses a ${ORDINAL[sel.slot]}-level spell slot.`) : 'Cantrip.'} ${abil} is your spellcasting ability for it.</p>`;
   if(!r){
     return html + (NO_ROLL_SPELLS.has(sp.name)
       ? infoBox('No roll', `${sp.name} doesn’t need a roll. ${sp.desc}`)
@@ -2885,6 +2920,8 @@ rollPopup.addEventListener('click', e=>{
   else if(t.dataset.undoSpend){
     const s = rollState.spendInfo; spend(s.id, -1); s.state = 'undone';
     if(rollState.fxBefore){ track.conc = rollState.concBefore || null; track.fx = rollState.fxBefore; rollState.fxStarted = null; rollState.concEnded = []; saveTrack(); renderActiveFx(); }
+    // Status goes back to how it was before the cast (a self-cast buff comes off, a linked one returns)
+    if(rollState.statusBefore){ track.status = rollState.statusBefore; rollState.selfCast = null; saveTrack(); renderStatus(); renderResources(); }
     renderRollPopup();
   }
   else if(t.dataset.loh){
@@ -2893,6 +2930,7 @@ rollPopup.addEventListener('click', e=>{
     if(t.dataset.loh==='self' && healSelf(spent)) rollState.healBefore.lohSpent = spent;   // Heal myself: the points spent go to your HP
     renderRollPopup();
   }
+  else if(t.dataset.selfCast) selfCastClick(t.dataset.selfCast);
   else if(t.dataset.statusUsed){ setStatusOn(t.dataset.statusUsed, false); t.closest('li').innerHTML = `${STATUS_BY_KEY[t.dataset.statusUsed].name} removed from Status.`; }
   else if(t.dataset.tempMe) tempFromPopup(parseInt(document.getElementById('tempAmt').value,10) || 0);
   else if(t.dataset.tempSet) tempFromPopup(+t.dataset.tempSet);
