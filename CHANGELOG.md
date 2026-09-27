@@ -3,6 +3,34 @@
 What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest first.
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
+## Unreleased
+
+### Added
+- **Status.** A new panel after Resources for conditions and magic that are on you. Click
+  **Change** and pick what applies; it's shown as "Now: Poisoned, Bless" and also under the
+  Combat Menu's move line. Hover a chip for its rules.
+  - **Conditions** from the Player's Handbook (Blinded, Charmed, Deafened, Frightened, Grappled,
+    Incapacitated, Invisible, Paralyzed, Petrified, Poisoned, Prone, Restrained, Stunned,
+    Unconscious) and **Exhaustion** levels 1–6.
+  - **Magic on you:** Bless, Bane, Guidance, Resistance, Bardic Inspiration (pick the die),
+    Enlarge, Reduce, Haste, Slow, Heroism, Shield of Faith and Faerie Fire.
+- **Statuses change your rolls.** Every attack, spell attack, check, save and initiative roll
+  uses them, and the popup lists what changed:
+  - Advantage and disadvantage from statuses (e.g. Poisoned, Invisible, Restrained on Dex saves,
+    Exhaustion) combine with the one you pick, and cancel out per the 2014 rules.
+  - Dice are added to the command: Bless `+1d4`, Bane `-1d4`, Guidance on checks, Resistance on
+    saves, Enlarge `+1d4` weapon damage (doubled on a crit), Reduce `-1d4`. Slow takes 2 off
+    Dexterity saves.
+  - Paralyzed, Petrified, Stunned and Unconscious say you automatically fail Strength and
+    Dexterity saves.
+  - One-use buffs (Guidance, Resistance, Bardic Inspiration) have a button to remove them once
+    used; Bardic Inspiration gives its `!tk 1d8`-style command to add after the roll.
+- **Statuses change your speed, HP and AC too.** Grappled, Restrained, Paralyzed and Exhaustion 5
+  make your speed 0, Exhaustion 2 and Slow halve it and Haste doubles it (the move line says
+  why). Exhaustion 4 halves your hit point maximum. Haste and Shield of Faith add 2 to the AC
+  box and Slow takes 2 off. Incapacitating conditions warn that you can't take actions.
+- A long rest ends magic on you and lowers Exhaustion by 1. Conditions stay until you clear them.
+
 ## 2026-09-27 — Short Rest asks about Hit Dice
 
 ### Changed

@@ -114,7 +114,7 @@ html[data-theme="keep"] .field input, html[data-theme="keep"] .stat-box, html[da
   box-shadow:inset 0 2px 5px rgba(0,0,0,0.55);
 }
 /* Main buttons: hammered copper plates with a highlight and a dark lower edge */
-html[data-theme="keep"] button:not(.sel-toggle):not(.pip):not(.ds-mark):not(.theme-toggle):not(.theme-option):not(.roll-close):not(.feat-opt):not(.chip-btn):not(.build-tag):not(.ghost){
+html[data-theme="keep"] button:not(.sel-toggle):not(.pip):not(.ds-mark):not(.status-chip):not(.theme-toggle):not(.theme-option):not(.roll-close):not(.feat-opt):not(.chip-btn):not(.build-tag):not(.ghost){
   background-image:linear-gradient(180deg, rgba(255,235,200,0.22), rgba(255,235,200,0.04) 45%, rgba(0,0,0,0.22));
   border-color:#2e1a0e; box-shadow:inset 0 1px 0 rgba(255,240,210,0.35), 0 2px 0 rgba(0,0,0,0.5);
   text-shadow:0 1px 0 rgba(0,0,0,0.55);
@@ -186,11 +186,11 @@ html[data-theme="inferno"] header.top h1{font-size:2rem;}
 /* The title sits on a line of fire */
 html[data-theme="inferno"] header.top{border-bottom:2px solid transparent; border-image:linear-gradient(90deg, transparent, #ff7a1a 20%, #b30f00 50%, #ff7a1a 80%, transparent) 1; box-shadow:0 8px 14px -8px rgba(255,80,0,0.5);}
 /* Buttons: blood red with a dark lower edge and a hot glow on hover */
-html[data-theme="inferno"] button:not(.sel-toggle):not(.pip):not(.ds-mark):not(.theme-toggle):not(.theme-option):not(.roll-close):not(.feat-opt):not(.chip-btn):not(.build-tag):not(.ghost){
+html[data-theme="inferno"] button:not(.sel-toggle):not(.pip):not(.ds-mark):not(.status-chip):not(.theme-toggle):not(.theme-option):not(.roll-close):not(.feat-opt):not(.chip-btn):not(.build-tag):not(.ghost){
   background-image:linear-gradient(180deg, rgba(255,120,80,0.18), transparent 50%, rgba(0,0,0,0.3));
   border-color:#3a0705; box-shadow:inset 0 1px 0 rgba(255,150,110,0.25), 0 2px 0 rgba(0,0,0,0.6);
 }
-html[data-theme="inferno"] button:not(.sel-toggle):not(.pip):not(.ds-mark):not(.theme-toggle):not(.theme-option):not(.roll-close):not(.feat-opt):not(.chip-btn):not(.build-tag):not(.ghost):hover{box-shadow:inset 0 1px 0 rgba(255,150,110,0.3), 0 0 12px rgba(255,60,10,0.55);}
+html[data-theme="inferno"] button:not(.sel-toggle):not(.pip):not(.ds-mark):not(.status-chip):not(.theme-toggle):not(.theme-option):not(.roll-close):not(.feat-opt):not(.chip-btn):not(.build-tag):not(.ghost):hover{box-shadow:inset 0 1px 0 rgba(255,150,110,0.3), 0 0 12px rgba(255,60,10,0.55);}
 /* Charges (spell slots, uses) are blood drops: full drops are left, hollow ones are spent */
 html[data-theme="inferno"] button.pip{border-radius:0 50% 50% 50%; transform:rotate(45deg); border-color:#c0180f;}
 html[data-theme="inferno"] button.pip.on{background:radial-gradient(circle at 35% 35%, #e0301f, #8a0905 70%); box-shadow:0 0 6px rgba(200,20,10,0.6);}
@@ -437,6 +437,18 @@ button.ds-mark:hover{border-color:var(--ink);}
 .combat-round{font-family:var(--font-display); color:var(--danger); font-size:1rem;}
 .combat-bar button.flow-btn{padding:5px 12px; font-size:0.82rem;}
 .combat-msg{flex-basis:100%; color:var(--ink-dim); font-size:0.8rem;}
+/* Status panel: condition and magic chips; active ones in orange like pinned chips */
+.status-now{font-size:0.9rem; color:var(--ink-dim); display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 8px;}
+.status-now b{color:var(--ink);}
+.status-group{font-size:0.72rem; text-transform:uppercase; letter-spacing:0.06em; color:var(--sea-dim); margin:12px 0 5px;}
+.status-chips{display:flex; flex-wrap:wrap; align-items:center; gap:6px;}
+.status-sub{margin-top:8px; font-size:0.8rem; color:var(--ink-dim);}
+button.status-chip{background:var(--panel2); border:1px solid var(--border); border-radius:999px; color:var(--ink-dim); padding:4px 12px; font-size:0.8rem; box-shadow:none; text-shadow:none; background-image:none;}
+button.status-chip:hover{background:var(--panel2); border-color:var(--sea-dim); color:var(--ink);}
+button.status-chip.on{background:var(--orange-tint); border-color:var(--orange); color:var(--ink);}
+#statusPanel .rt-note{margin-top:10px;}
+.status-line .fx-chip{padding:2px 10px;}
+.status-warn{color:var(--danger);}
 /* "Healed yourself?" under a heal spell's command */
 .heal-me{align-items:center; margin-top:8px; font-size:0.82rem; color:var(--ink-dim);}
 input.num-in{width:64px; background:var(--bg); border:1px solid var(--border); color:var(--ink); padding:5px 8px; border-radius:4px;}
@@ -742,12 +754,19 @@ applyTheme(savedTheme || DEFAULT_THEME);
   </div>
 </div>
 
+<!-- STATUS: conditions and magic on you; they change your rolls, speed, HP and AC -->
+<div class="panel" id="statusPanel" hidden>
+  <h2>Status</h2>
+  <div class="status-body"></div>
+</div>
+
 <!-- COMBAT MENU -->
 <div class="panel">
   <h2>Combat Menu</h2>
   <p class="turn-note">On your turn, you can do these in any order. The numbers are just for reference. You can also split your movement, for example moving 10 feet, attacking, then moving the rest. Some bonus actions do depend on something else first, such as off-hand attacks, which need the Attack action.</p>
   <div class="move-line">1. Move up to <span id="moveFt">30</span> feet.<span class="move-dash" id="moveDash"></span></div>
   <div class="combat-bar" id="combatBar" hidden></div>
+  <div class="active-fx status-line" id="statusLine" hidden></div>
   <div class="active-fx" id="activeFx" hidden></div>
 
   <div class="action-row-label">2. Action</div>
@@ -1798,7 +1817,10 @@ function closeDetail(){
 // Options doesn't cancel it (you still get a bonus action).
 let dashActive = false;
 function updateMoveLine(){
-  const n = parseInt(document.getElementById('f_speed').value,10), speed = isNaN(n) ? 30 : n;
+  const n = parseInt(document.getElementById('f_speed').value,10), base = isNaN(n) ? 30 : n;
+  // Statuses: speed 0 (Grappled, Restrained…), halved (Exhaustion 2, Slow) or doubled (Haste)
+  const ss = typeof statusSpeed==='function' && track && currentCharId ? statusSpeed() : {mult:1, why:''};
+  const speed = Math.floor(base * ss.mult);
   // Dash with your action and/or your bonus action (Rogue Cunning Action): each adds your speed
   const bonusDash = typeof bonusDashActive !== 'undefined' && bonusDashActive;
   const dashing = dashActive || bonusDash;
@@ -1807,6 +1829,7 @@ function updateMoveLine(){
   const parts = [dashActive ? `${speed} from Dash` : '', bonusDash ? `${speed} from Cunning Action` : ''].filter(Boolean);
   document.getElementById('moveFt').textContent = speed * (1 + parts.length);
   document.getElementById('moveDash').textContent = parts.length ? ` (${speed} + ${parts.join(' + ')})` : '';
+  if(ss.why) document.getElementById('moveDash').textContent += ` (${ss.mult===0 ? 'speed 0: ' : ''}${ss.why})`;
   document.querySelector('.move-line').classList.toggle('dashing', dashing);
 }
 document.getElementById('actionButtons').addEventListener('click', e=>{
@@ -2148,9 +2171,9 @@ const ROLL = '!tk';
 // A d20 roll command: "!tk 1d20+5", with Avrae's ` adv` / ` dis` word for advantage and
 // disadvantage (Avrae's !roll help: "!r 1d20+1 adv"; !tk rolls the two d20s itself).
 // minTen: Reliable Talent (a d20 roll of 9 or lower counts as 10) → `mi10`.
-function d20Cmd(mode, bonus, minTen){
+function d20Cmd(mode, bonus, minTen, extra){
   const word = mode==='adv' ? ' adv' : mode==='dis' ? ' dis' : '';
-  return `${ROLL} 1d20${minTen ? 'mi10' : ''}${fmtMod(bonus)}${word}`;
+  return `${ROLL} 1d20${minTen ? 'mi10' : ''}${fmtMod(bonus)}${extra || ''}${word}`;
 }
 // Reliable Talent applies to ability checks you're proficient in
 function reliableFor(skill){
@@ -2249,10 +2272,24 @@ function weaponFx(attack){
 }
 const fxOn = ()=>(rollState.fxList || []).filter(e=>rollState.fxOn[e.id]);
 // Advantage from an effect: cancels disadvantage (2014 rules), otherwise gives advantage
+// Which status kind a popup's d20 roll is: an attack, or a check or save with its ability
+function rollKindOf(sel){
+  if(sel.kind==='weapon') return ['attack'];
+  if(sel.kind==='spell') return SPELL_ROLLS[sel.entry.sp.name] && SPELL_ROLLS[sel.entry.sp.name].attack ? ['attack'] : null;
+  if(sel.kind==='check'){
+    if(sel.type==='save') return ['save', sel.key];
+    if(sel.type==='skill') return ['check', ABILITY_ABBR[SKILL_ABILITY[sel.key]]];
+    if(sel.type==='init') return ['check', 'dex'];
+    return ['check', sel.key];
+  }
+  if(MANEUVERS[sel.kind]) return ['check', 'str'];
+  return null;
+}
 function attackMode(){
-  const {mode} = rollState;
-  if(rollState.sel.kind!=='weapon' || !fxOn().some(e=>e.adv)) return mode;
-  return mode==='dis' ? 'normal' : 'adv';
+  const {mode, sel} = rollState;
+  const fxAdv = sel.kind==='weapon' && fxOn().some(e=>e.adv);
+  if(!rollState.st && !fxAdv) return mode;
+  return combineMode(mode, rollState.st, fxAdv);
 }
 function fxLineHtml(){
   const f = rollState.fxStarted, ended = rollState.concEnded || [];
@@ -2261,6 +2298,154 @@ function fxLineHtml(){
   if(ended.length) parts.push(`Ended ${ended.join(' and ')}: you can concentrate on one spell at a time.`);
   return parts.length ? `<div class="spent-line">${parts.join(' ')}</div>` : '';
 }
+
+/* ---------- Status: conditions and magic on you (2014 rules) ----------
+   Click on what you're under; it changes your own rolls until you click it off. For a roll
+   kind ('attack' | 'check' | 'save' | 'damage') and ability, statusFor() gathers advantage /
+   disadvantage sources, dice to add (Bless +1d4…), flat changes (Slow −2 Dex saves), automatic
+   save failures and notes. Advantage and disadvantage from any sources cancel out (2014).
+   Speed (updateMoveLine), max HP (Exhaustion 4) and AC also follow them. Saved in
+   track.status = {on:{key:true}, exh:0-6, bi:die}. Effects on your target (Faerie Fire on a
+   goblin) aren't here: this is what's on YOU. */
+const STATUS_DEFS = [
+  // Conditions (PHB Appendix A)
+  {key:'blinded', name:'Blinded', group:'cond', attack:'dis', desc:'Can’t see: you automatically fail checks that need sight, your attacks have disadvantage, and attacks against you have advantage.',
+    notes:{check:'Blinded: you automatically fail a check that needs sight.'}},
+  {key:'charmed', name:'Charmed', group:'cond', desc:'You can’t attack the charmer or target it with harmful abilities or magic, and it has advantage on social checks with you.',
+    notes:{attack:'Charmed: you can’t attack the creature that charmed you.'}},
+  {key:'deafened', name:'Deafened', group:'cond', desc:'Can’t hear: you automatically fail checks that need hearing.', notes:{check:'Deafened: you automatically fail a check that needs hearing.'}},
+  {key:'frightened', name:'Frightened', group:'cond', attack:'dis', check:'dis', desc:'Disadvantage on checks and attacks while the source of your fear is in sight, and you can’t willingly move closer to it.',
+    notes:{attack:'Frightened: only while the source of your fear is in sight.', check:'Frightened: only while the source of your fear is in sight.'}},
+  {key:'grappled', name:'Grappled', group:'cond', speed:0, desc:'Your speed is 0. It ends if the grappler is incapacitated or you’re moved out of its reach.'},
+  {key:'incapacitated', name:'Incapacitated', group:'cond', incap:true, desc:'You can’t take actions or reactions.'},
+  {key:'invisible', name:'Invisible', group:'cond', attack:'adv', desc:'You can’t be seen without magic or special senses: your attacks have advantage and attacks against you have disadvantage.'},
+  {key:'paralyzed', name:'Paralyzed', group:'cond', incap:true, speed:0, fail:['str','dex'], desc:'Incapacitated, can’t move or speak, automatically fail Strength and Dexterity saves; attacks against you have advantage, and hits from within 5 ft are critical hits.'},
+  {key:'petrified', name:'Petrified', group:'cond', incap:true, speed:0, fail:['str','dex'], desc:'Turned to stone: incapacitated, can’t move or speak, automatically fail Strength and Dexterity saves, resistance to all damage.'},
+  {key:'poisoned', name:'Poisoned', group:'cond', attack:'dis', check:'dis', desc:'Disadvantage on attack rolls and ability checks.'},
+  {key:'prone', name:'Prone', group:'cond', attack:'dis', desc:'Your attacks have disadvantage. Melee attacks against you have advantage, ranged ones disadvantage. Crawling costs double; standing up costs half your speed.'},
+  {key:'restrained', name:'Restrained', group:'cond', attack:'dis', save:{dex:'dis'}, speed:0, desc:'Speed 0, disadvantage on attacks and Dexterity saves, and attacks against you have advantage.'},
+  {key:'stunned', name:'Stunned', group:'cond', incap:true, speed:0, fail:['str','dex'], desc:'Incapacitated, can’t move, can speak only falteringly, automatically fail Strength and Dexterity saves; attacks against you have advantage.'},
+  {key:'unconscious', name:'Unconscious', group:'cond', incap:true, speed:0, fail:['str','dex'], desc:'Incapacitated and prone, unaware of your surroundings, automatically fail Strength and Dexterity saves; attacks against you have advantage, and hits from within 5 ft are critical hits.'},
+  // Magic on you
+  {key:'bless', name:'Bless', group:'magic', dice:{attack:'+1d4', save:'+1d4'}, desc:'+1d4 to attack rolls and saving throws (the caster concentrates, up to 1 minute).'},
+  {key:'bane', name:'Bane', group:'magic', dice:{attack:'-1d4', save:'-1d4'}, desc:'−1d4 on attack rolls and saving throws (the caster concentrates, up to 1 minute).'},
+  {key:'guidance', name:'Guidance', group:'magic', dice:{check:'+1d4'}, oneShot:['check'], desc:'+1d4 to one ability check of your choice, then it ends.'},
+  {key:'resistance', name:'Resistance', group:'magic', dice:{save:'+1d4'}, oneShot:['save'], desc:'+1d4 to one saving throw of your choice, then it ends.'},
+  {key:'bardic', name:'Bardic Inspiration', group:'magic', after:['attack','check','save'], desc:'A bard’s inspiration die: add it to one ability check, attack roll or save after you see the roll, then it’s gone.'},
+  {key:'enlarge', name:'Enlarged', group:'magic', check:{str:'adv'}, save:{str:'adv'}, dice:{damage:'+1d4'}, desc:'Enlarge: advantage on Strength checks and saves, and your weapon attacks deal +1d4 damage.'},
+  {key:'reduce', name:'Reduced', group:'magic', check:{str:'dis'}, save:{str:'dis'}, dice:{damage:'-1d4'}, desc:'Reduce: disadvantage on Strength checks and saves, and your weapon attacks deal −1d4 damage.'},
+  {key:'haste', name:'Hasted', group:'magic', save:{dex:'adv'}, ac:2, speed:'double', desc:'Haste: +2 AC, advantage on Dexterity saves, double speed, and one extra action each turn (Attack with one weapon attack, Dash, Disengage, Hide or Use an Object). When it ends you lose your next turn.'},
+  {key:'slow', name:'Slowed', group:'magic', flat:{save:{dex:-2}}, ac:-2, speed:'half', desc:'Slow: −2 AC and Dexterity saves, half speed, no reactions, and an action or a bonus action on your turn, not both.'},
+  {key:'heroism', name:'Heroism', group:'magic', desc:'You can’t be frightened, and gain temporary hit points equal to the caster’s spellcasting modifier at the start of each of your turns (set them with Temp HP).'},
+  {key:'shieldOfFaith', name:'Shield of Faith', group:'magic', ac:2, desc:'+2 AC (the caster concentrates, up to 10 minutes).'},
+  {key:'faerieFire', name:'Faerie Fire', group:'magic', desc:'Outlined in light: attacks against you have advantage and you can’t benefit from being invisible.'},
+];
+const STATUS_BY_KEY = Object.fromEntries(STATUS_DEFS.map(d=>[d.key, d]));
+function statusState(){ if(!track.status) track.status = {on:{}, exh:0, bi:6}; return track.status; }
+function statusActive(){ const s = statusState(); return STATUS_DEFS.filter(d=>s.on[d.key]); }
+function exhaustion(){ return (track.status && track.status.exh) || 0; }
+// Advantage, disadvantage, dice and notes for one of your rolls
+function statusFor(kind, ability){
+  const st = {adv:[], dis:[], dice:[], flat:0, flatWhy:[], fail:[], notes:[], oneShot:[], after:null};
+  if(!currentCharId) return st;
+  const pick = v=>v && typeof v==='object' ? v[ability] : v;
+  statusActive().forEach(d=>{
+    const m = pick(d[kind]);
+    if(m==='adv') st.adv.push(d.name); else if(m==='dis') st.dis.push(d.name);
+    if(d.dice && d.dice[kind]) st.dice.push({expr:d.dice[kind], name:d.name});
+    const f = d.flat && d.flat[kind] && d.flat[kind][ability];
+    if(f){ st.flat += f; st.flatWhy.push(`${d.name} ${fmtMod(f)}`); }
+    if(kind==='save' && d.fail && d.fail.includes(ability)) st.fail.push(d.name);
+    if(d.notes && d.notes[kind]) st.notes.push(d.notes[kind]);
+    if(d.oneShot && d.oneShot.includes(kind)) st.oneShot.push(d);
+    if(d.after && d.after.includes(kind)) st.after = d;
+  });
+  const x = exhaustion();
+  if(x >= 1 && kind==='check') st.dis.push(`Exhaustion ${x}`);
+  if(x >= 3 && (kind==='attack' || kind==='save')) st.dis.push(`Exhaustion ${x}`);
+  return st;
+}
+// Final roll mode: the chosen mode plus status (and effect) sources; adv + dis = normal (2014)
+function combineMode(chosen, st, extraAdv){
+  const a = chosen==='adv' || extraAdv || (st && st.adv.length), d = chosen==='dis' || (st && st.dis.length);
+  return a && d ? 'normal' : a ? 'adv' : d ? 'dis' : 'normal';
+}
+function statusDiceStr(st){ return st ? st.dice.map(x=>x.expr).join('') : ''; }
+// Popup notes for the statuses that changed a roll, with "Done with it" for one-use buffs
+function statusNotesHtml(st, chosen, finalMode){
+  if(!st) return '';
+  const li = [];
+  if(st.adv.length) li.push(`Advantage from ${st.adv.join(', ')}.`);
+  if(st.dis.length) li.push(`Disadvantage from ${st.dis.join(', ')}.`);
+  if((st.adv.length || chosen==='adv') && (st.dis.length || chosen==='dis')) li.push('Advantage and disadvantage cancel out, so it’s a normal roll.');
+  st.dice.forEach(x=>li.push(`${x.name}: ${x.expr.replace('-','−')} added.`));
+  if(st.flatWhy.length) li.push(`${st.flatWhy.join(', ')} included.`);
+  if(st.fail.length) li.push(`<b>${st.fail.join(', ')}: you automatically fail this save.</b>`);
+  st.notes.forEach(n=>li.push(n));
+  if(st.after){ const die = statusState().bi || 6; li.push(`Bardic Inspiration: after you see the roll, you can add 1d${die}: <code>${ROLL} 1d${die}</code> <button type="button" class="sel-toggle" data-status-used="bardic">Used it</button>`); }
+  st.oneShot.forEach(d=>li.push(`${d.name} ends after this roll. <button type="button" class="sel-toggle" data-status-used="${d.key}">Done with ${d.name}</button>`));
+  if(!li.length) return '';
+  return `<div class="roll-after">Status:</div><ul class="roll-notes">${li.map(x=>`<li>${x}</li>`).join('')}</ul>`;
+}
+// Speed: 0 (Grappled, Restrained, Exhaustion 5…), half (Exhaustion 2, Slow) or double (Haste)
+function statusSpeed(){
+  const on = statusActive(), x = exhaustion();
+  const zero = on.filter(d=>d.speed===0).map(d=>d.name).concat(x >= 5 ? [`Exhaustion ${x}`] : []);
+  if(zero.length) return {mult:0, why:zero.join(', ')};
+  let mult = 1; const why = [];
+  if(x >= 2){ mult /= 2; why.push(`Exhaustion ${x}: half`); }
+  on.filter(d=>d.speed==='half').forEach(d=>{ mult /= 2; why.push(`${d.name}: half`); });
+  on.filter(d=>d.speed==='double').forEach(d=>{ mult *= 2; why.push(`${d.name}: double`); });
+  return {mult, why:why.join(', ')};
+}
+function statusAC(){ return statusActive().reduce((n, d)=>n + (d.ac || 0), 0); }
+let statusBaseAC = '';   // the sheet's AC, set on import
+function updateACBox(){
+  const el = document.getElementById('f_ac'), base = parseInt(statusBaseAC, 10), mod = statusAC();
+  if(isNaN(base)){ el.value = statusBaseAC; el.title = ''; return; }
+  el.value = String(base + mod);
+  el.title = mod ? `${base} on your sheet ${fmtMod(mod)} (${statusActive().filter(d=>d.ac).map(d=>`${d.name} ${fmtMod(d.ac)}`).join(', ')})` : '';
+}
+const statusUi = {open:false};
+function renderStatus(){
+  const panel = document.getElementById('statusPanel');
+  panel.hidden = !currentCharId;
+  if(!currentCharId) return;
+  const s = statusState(), on = statusActive(), x = exhaustion();
+  const chip = d=>`<button type="button" class="status-chip${s.on[d.key] ? ' on' : ''}" data-status="${d.key}" aria-pressed="${!!s.on[d.key]}" title="${escapeHtml(d.desc)}">${d.name}</button>`;
+  const activeNames = on.map(d=>d.key==='bardic' ? `Bardic Inspiration (d${s.bi || 6})` : d.name).concat(x ? [`Exhaustion ${x}`] : []);
+  let html = `<div class="status-now">${activeNames.length ? `<b>Now:</b> ${activeNames.join(', ')}` : 'No conditions or effects on you.'}`
+    + ` <button type="button" class="sel-toggle" data-status-ui="toggle">${statusUi.open ? 'Done' : 'Change'}</button>`
+    + (activeNames.length ? ` <button type="button" class="sel-toggle" data-status-ui="clear">Clear all</button>` : '') + `</div>`;
+  if(statusUi.open){
+    html += `<p class="rt-note"><span>Click what you’re under; Turnkeeper adds it to your rolls (and speed, HP and AC) until you click it off. Hover for the rules.</span></p>`
+      + `<div class="status-group">Conditions</div><div class="status-chips">${STATUS_DEFS.filter(d=>d.group==='cond').map(chip).join('')}</div>`
+      + `<div class="status-group">Exhaustion</div><div class="status-chips">${[0,1,2,3,4,5,6].map(n=>`<button type="button" class="status-chip${x===n ? ' on' : ''}" data-exh="${n}" aria-pressed="${x===n}" title="${escapeHtml(EXHAUSTION_TEXT[n])}">${n===0 ? 'None' : n}</button>`).join('')}</div>`
+      + `<div class="status-group">Magic on you</div><div class="status-chips">${STATUS_DEFS.filter(d=>d.group==='magic').map(chip).join('')}</div>`;
+    if(s.on.bardic) html += `<div class="status-chips status-sub"><span>Inspiration die:</span>${[6,8,10,12].map(n=>`<button type="button" class="status-chip${(s.bi||6)===n ? ' on' : ''}" data-bi="${n}">d${n}</button>`).join('')}</div>`;
+  }
+  panel.querySelector('.status-body').innerHTML = html;
+  // The Combat Menu shows what's active too, and warns when you can't act
+  const line = document.getElementById('statusLine'), incap = on.filter(d=>d.incap).map(d=>d.name);
+  line.hidden = !activeNames.length;
+  line.innerHTML = activeNames.length ? `<span>Status:</span> ${activeNames.map(n=>`<span class="fx-chip">${escapeHtml(n)}</span>`).join('')}`
+    + (incap.length ? ` <b class="status-warn">${incap.join(', ')}: you can’t take actions or reactions.</b>` : '') + (x >= 6 ? ` <b class="status-warn">Exhaustion 6: death.</b>` : '') : '';
+  updateACBox();
+  updateMoveLine();
+}
+const EXHAUSTION_TEXT = ['No exhaustion.', '1: disadvantage on ability checks.', '2: speed halved (plus level 1).', '3: disadvantage on attack rolls and saves (plus 1–2).',
+  '4: hit point maximum halved (plus 1–3).', '5: speed reduced to 0 (plus 1–4).', '6: death.'];
+function setStatusOn(key, on){ const s = statusState(); if(on) s.on[key] = true; else delete s.on[key]; saveTrack(); renderStatus(); renderResources(); }
+document.getElementById('statusPanel').addEventListener('click', e=>{
+  const b = e.target.closest('button'); if(!b) return;
+  const s = statusState();
+  if(b.dataset.status){ setStatusOn(b.dataset.status, !s.on[b.dataset.status]); return; }
+  if(b.dataset.exh !== undefined){ s.exh = +b.dataset.exh; saveTrack(); if(hpNow() !== null && hpMax() !== null && hpNow() > hpMax()) track.hp = hpMax(); saveTrack(); renderStatus(); renderResources(); return; }
+  if(b.dataset.bi){ s.bi = +b.dataset.bi; saveTrack(); renderStatus(); return; }
+  if(b.dataset.statusUi==='toggle'){ statusUi.open = !statusUi.open; rememberOpen('status', statusUi.open); renderStatus(); }
+  if(b.dataset.statusUi==='clear'){ s.on = {}; s.exh = 0; saveTrack(); renderStatus(); renderResources(); }
+});
+statusUi.open = wasOpen('status');
 
 /* ---------- Roll popup ---------- */
 const rollPopup = document.getElementById('rollPopup');
@@ -2297,6 +2482,9 @@ function openRollPopup(sel, mode){
     if(f && !f.target){ startFx(f); rollState.fxStarted = f; }
     else if(rollState.concEnded.length){ saveTrack(); renderActiveFx(); }
   }
+  const rk = rollKindOf(sel);
+  rollState.st = rk ? statusFor(rk[0], rk[1]) : null;
+  rollState.stDmg = sel.kind==='weapon' ? statusFor('damage') : null;
   // A weapon attack takes the effects as they are now, so later changes don't alter this popup
   if(sel.kind==='weapon'){
     rollState.fxList = weaponFx(sel.attack).map(e=>({...e}));
@@ -2320,13 +2508,13 @@ function toHitCommand(){
     const bonus = parseInt(String(sel.attack.bonus||'0').replace(/\s/g,''),10) || 0;
     const on = fxOn(), toHit = on.reduce((n, e)=>n + (e.toHit || 0), 0);
     const extras = [sel.power && `${sel.power} −5`, ...on.filter(e=>e.toHit).map(e=>`+${e.toHit} ${e.name}`), ...on.filter(e=>e.adv).map(e=>`advantage from ${e.name}`)].filter(Boolean);
-    return {cmd:d20Cmd(attackMode(), bonus - (sel.power ? 5 : 0) + toHit), desc:`${sel.attack.name} attack${extras.length ? ` (${extras.join(', ')})` : ''}`};
+    return {cmd:d20Cmd(attackMode(), bonus - (sel.power ? 5 : 0) + toHit, false, statusDiceStr(rollState.st)), desc:`${sel.attack.name} attack${extras.length ? ` (${extras.join(', ')})` : ''}`};
   }
   if(sel.kind==='check'){
     const c = checkInfo(sel.type, sel.key);
-    return {cmd:d20Cmd(mode, c.bonus, c.minTen), desc: sel.label===c.name ? c.name : `${sel.label} (${sel.key})`};
+    return {cmd:d20Cmd(attackMode(), c.bonus + (rollState.st ? rollState.st.flat : 0), c.minTen, statusDiceStr(rollState.st)), desc: sel.label===c.name ? c.name : `${sel.label} (${sel.key})`};
   }
-  return {cmd:d20Cmd(mode, skillMod('Athletics'), reliableFor('Athletics')), desc:`${MANEUVERS[sel.kind].label} (Athletics)`};
+  return {cmd:d20Cmd(attackMode(), skillMod('Athletics'), reliableFor('Athletics'), statusDiceStr(rollState.st)), desc:`${MANEUVERS[sel.kind].label} (Athletics)`};
 }
 // Damage command plus a list of what's included, following the 2014 rules
 function damageCommand(){
@@ -2375,6 +2563,8 @@ function damageCommand(){
   const savage = savageOk && rollState.savage;
   if(savage) notes.push('Savage Attacker: weapon dice rolled twice, the higher total is kept. Once per turn.');
   // Active and ticked effects: extra dice (doubled on a crit), and next-hit riders ending on this hit
+  // Statuses that change weapon damage (Enlarge, Reduce); extra dice double on a crit
+  const stDice = (rollState.stDmg ? rollState.stDmg.dice : []).map(x=>{ const m = x.expr.match(/^([+-])(\d+)d(\d+)$/); return m ? {expr:`${m[1]}${+m[2] * critX}d${m[3]}`, name:x.name} : x; });
   const fxDice = fxOn().filter(e=>e.dice).map(e=>{
     const d = parseDice(e.dice), type = /same type/.test(e.type) ? p.type : e.type;
     return {dice:`${d.n * critX}d${d.s}`, label:`${e.name}${type ? ` (${type})` : ''}`};
@@ -2383,7 +2573,7 @@ function damageCommand(){
     if(e.hitSave) notes.push(`${e.name}: the target makes a <b>DC ${e.dc} ${ABILITY_TEXT(e.hitSave.save)}</b> save or is ${e.hitSave.effect}.`);
     if(e.until==='hit' && !e.target) notes.push(`${e.name} ends when you copy this damage (it hit).`);
   });
-  const cmd = `${ROLL} ${savage ? `(${weaponDice},${weaponDice})kh1` : weaponDice}${mod ? fmtMod(mod) : ''}${sneak ? `+${sneak}d6` : ''}${radiant ? `+${radiant}d8` : ''}${fxDice.map(f=>'+'+f.dice).join('')}`;
+  const cmd = `${ROLL} ${savage ? `(${weaponDice},${weaponDice})kh1` : weaponDice}${mod ? fmtMod(mod) : ''}${sneak ? `+${sneak}d6` : ''}${radiant ? `+${radiant}d8` : ''}${fxDice.map(f=>'+'+f.dice).join('')}${stDice.map(x=>x.expr).join('')}`;
   // Beside the command: the damage type, then everything the command adds or changes, e.g.
   // "Greatsword damage (slashing), +10 Great Weapon Master, +2d8 Divine Smite (radiant)"
   const extras = [
@@ -2396,6 +2586,7 @@ function damageCommand(){
     smiteDice && `+${smiteDice}d8 Divine Smite (radiant)`,
     improvedDice && `+${improvedDice}d8 Improved Divine Smite (radiant)`,
     ...fxDice.map(f=>`+${f.dice} ${f.label}`),
+    ...stDice.map(x=>`${x.expr.replace('-','−')} ${x.name}`),
   ].filter(Boolean);
   const desc = `${a.name} damage${p.type ? ` (${p.type})` : ''}${extras.length ? ', ' + extras.join(', ') : ''}`;
   return {cmd, desc, notes, melee, sneakOk, sneakDice, savageOk, consume:true};
@@ -2441,7 +2632,7 @@ function spellPopupHtml(){
       : infoBox('Not added yet', `Roll details for ${sp.name} haven’t been added to the tracker yet. Your spell attack is ${fmtMod(s.atk)} and your save DC is ${s.dc}.`));
   }
   const notes = [];
-  if(r.attack) html += cmdBox('Spell attack', {cmd:d20Cmd(mode, s.atk), desc:`${sp.name} (${r.attack} spell attack)`});
+  if(r.attack) html += cmdBox('Spell attack', {cmd:d20Cmd(attackMode(), s.atk, false, statusDiceStr(rollState.st)), desc:`${sp.name} (${r.attack} spell attack)`}, statusNotesHtml(rollState.st, mode));
   if(r.save) html += infoBox('Saving throw', saveLine(s.dc, r.save, r.onSave, r.effect));
   // School of Evocation (wizard spells only): Empowered Evocation adds INT (min +1) to one damage
   // roll of a wizard evocation spell; Potent Cantrip makes a successful save still take half
@@ -2548,6 +2739,7 @@ function renderRollPopup(){
     if(target.length) html += `<div class="roll-after">Tick a target only if you’re attacking the creature it’s on.</div>`;
   }
   html += cmdBox(sel.kind==='weapon' ? 'To hit' : sel.kind==='check' ? checkInfo(sel.type, sel.key).name : 'Athletics check', toHitCommand());
+  html += statusNotesHtml(rollState.st, rollState.mode);
   if(sel.kind==='check'){
     const notes = [...checkInfo(sel.type, sel.key).included, ...checkReminders(sel.type, sel.key, true)];
     if(notes.length) html += `<ul class="roll-notes">${notes.map(n=>`<li>${n}</li>`).join('')}</ul>`;
@@ -2605,6 +2797,7 @@ rollPopup.addEventListener('click', e=>{
     if(t.dataset.loh==='self' && healSelf(spent)) rollState.healBefore.lohSpent = spent;   // Heal myself: the points spent go to your HP
     renderRollPopup();
   }
+  else if(t.dataset.statusUsed){ setStatusOn(t.dataset.statusUsed, false); t.closest('li').innerHTML = `${STATUS_BY_KEY[t.dataset.statusUsed].name} removed from Status.`; }
   else if(t.dataset.tempMe) tempFromPopup(parseInt(document.getElementById('tempAmt').value,10) || 0);
   else if(t.dataset.tempSet) tempFromPopup(+t.dataset.tempSet);
   else if(t.dataset.healMe){ healSelf(parseInt(document.getElementById('healAmt').value,10) || 0); renderRollPopup(); }
@@ -3306,6 +3499,7 @@ async function runImport(){
     const cls = getFirstValue(table, RANGES.class);
     document.getElementById('f_class').value = cls;
     document.getElementById('f_ac').value = getFirstValue(table, RANGES.ac);
+    statusBaseAC = document.getElementById('f_ac').value;   // Status (Haste, Shield of Faith…) adjusts from this
     document.getElementById('f_init').value = getFirstValue(table, RANGES.init);
     document.getElementById('f_speed').value = getFirstValue(table, RANGES.speed);
     const hpMax = getFirstValue(table, RANGES.hpmax), hpCur = getFirstValue(table, RANGES.hpcur);
@@ -3369,6 +3563,7 @@ async function runImport(){
     applyFeatStats();
     loadTrack();
     renderResources();
+    renderStatus();
     document.getElementById('restMsg').textContent = '';
     document.getElementById('backupMsg').textContent = '';
     closeClipPanel(); clipBox.value = ''; restoreConfirm = null;
@@ -4576,7 +4771,7 @@ function trackedResources(){
 // Resource a feature spends when used (its own uses, or a shared pool like Channel Divinity)
 function featureResourceId(t){ return t.spends || (t.uses ? 'feat:'+t.name : null); }
 
-const track = {hp:null, temp:0, used:{}, fx:[], death:{s:0, f:0}, combat:null, sheetHp:{cur:null, max:null}};
+const track = {hp:null, temp:0, used:{}, fx:[], death:{s:0, f:0}, combat:null, status:{on:{}, exh:0, bi:6}, sheetHp:{cur:null, max:null}};
 function trackKey(){ return `dndTracker:track:${currentCharId}`; }
 function loadTrack(){
   let saved = null;
@@ -4587,8 +4782,9 @@ function loadTrack(){
   track.death = saved && saved.death ? saved.death : {s:0, f:0};   // death saves while at 0 HP
   track.combat = saved && saved.combat ? saved.combat : null;      // {round, started, msg} while in combat
   track.temp = saved && typeof saved.temp==='number' ? saved.temp : 0;   // temporary hit points
+  track.status = saved && saved.status ? saved.status : {on:{}, exh:0, bi:6};   // conditions and magic on you
 }
-function saveTrack(){ if(currentCharId) storageSet(trackKey(), JSON.stringify({hp:track.hp, temp:track.temp, used:track.used, fx:track.fx, death:track.death, combat:track.combat})); }
+function saveTrack(){ if(currentCharId) storageSet(trackKey(), JSON.stringify({hp:track.hp, temp:track.temp, used:track.used, fx:track.fx, death:track.death, combat:track.combat, status:track.status})); }
 function maxFor(id){
   if(id === 'hitDice') return hitDie() ? Math.min(20, Math.max(1, charLevel())) : 0;   // one Hit Die per level
   const s = slotTable().find(x=>x.id===id); if(s) return s.max;
@@ -4603,8 +4799,14 @@ function spend(id, n=1){
   return after - before;
 }
 
-function hpMax(){ return track.sheetHp.max; }
-function hpNow(){ return track.hp !== null ? track.hp : track.sheetHp.cur; }
+function hpMax(){
+  const m = track.sheetHp.max;
+  return m !== null && exhaustion() >= 4 ? Math.floor(m / 2) : m;   // Exhaustion 4: maximum halved
+}
+function hpNow(){
+  const h = track.hp !== null ? track.hp : track.sheetHp.cur, m = hpMax();
+  return h !== null && m !== null ? Math.min(h, m) : h;
+}
 function setHp(v){
   const max = hpMax(), was = hpNow();
   track.hp = Math.max(0, max !== null ? Math.min(max, v) : v);
@@ -4616,7 +4818,7 @@ function setHp(v){
 // Rests, with a one-step Undo in case of a mis-click
 let restUndo = null;
 function takeRest(kind){
-  restUndo = JSON.stringify({hp:track.hp, temp:track.temp, used:track.used, fx:track.fx, death:track.death, combat:track.combat});
+  restUndo = JSON.stringify({hp:track.hp, temp:track.temp, used:track.used, fx:track.fx, death:track.death, combat:track.combat, status:track.status});
   track.fx = [];   // anything lasting a minute or an hour is over after a rest
   track.combat = null;   // and combat is over
   const shortIds = new Set([...slotTable(), ...trackedResources()].filter(r=>r.recharge==='short').map(r=>r.id));
@@ -4628,6 +4830,10 @@ function takeRest(kind){
     if(hpMax() !== null) track.hp = hpMax();
     track.death = {s:0, f:0};
     track.temp = 0;   // temporary hit points last until a long rest
+    // Magic on you has run out by now, and a long rest lowers Exhaustion by 1 (2014 rules)
+    const st = statusState();
+    STATUS_DEFS.filter(d=>d.group==='magic').forEach(d=>{ delete st.on[d.key]; });
+    if(st.exh > 0) st.exh -= 1;
   }
   else Object.keys(track.used).forEach(id=>{ if(shortIds.has(id)) delete track.used[id]; });
   // A short rest is when you spend Hit Dice, so it opens the Spend panel (a long rest closes it)
@@ -4641,7 +4847,7 @@ function takeRest(kind){
   // Arcane Recovery is used when you finish a short rest (once a day)
   if(kind==='short' && hasFeature('Arcane Recovery') && remaining('feat:Arcane Recovery') > 0)
     hdText += ' You can also use Arcane Recovery now (its Roll link in Class Features shows how many slot levels).';
-  saveTrack(); renderResources();
+  saveTrack(); renderResources(); renderStatus();
   const what = kind==='long' ? 'Long rest: hit points, spell slots and all features restored.'
     : shortIds.size ? 'Short rest: short-rest features restored (e.g. Channel Divinity).' : 'Short rest taken (none of your features recharge on a short rest yet).';
   const msg = document.getElementById('restMsg');
@@ -4652,8 +4858,8 @@ function takeRest(kind){
   }
   document.getElementById('restUndo').onclick = ()=>{
     const s = JSON.parse(restUndo); track.hp = s.hp; track.used = s.used; track.fx = s.fx || [];
-    track.death = s.death || {s:0, f:0}; track.combat = s.combat || null; track.temp = s.temp || 0; restUndo = null;
-    saveTrack(); renderResources(); msg.textContent = 'Rest undone.';
+    track.death = s.death || {s:0, f:0}; track.combat = s.combat || null; track.temp = s.temp || 0; track.status = s.status || {on:{}, exh:0, bi:6}; restUndo = null;
+    saveTrack(); renderResources(); renderStatus(); msg.textContent = 'Rest undone.';
   };
 }
 document.getElementById('shortRestBtn').addEventListener('click', ()=>takeRest('short'));
