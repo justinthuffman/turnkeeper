@@ -234,13 +234,15 @@ button.ghost:hover{color:var(--ink); border-color:var(--sea-dim);}
 .field label{font-size:0.68rem; text-transform:uppercase; letter-spacing:0.06em; color:var(--ink-dim);}
 .field input{background:var(--panel2); border:1px solid var(--border); color:var(--ink); padding:7px 8px; border-radius:4px; font-size:0.95rem; width:100%;}
 .field input[readonly]{cursor:default; opacity:0.92;}
-.field.wide{grid-column:span 3;}
+.field.wide{grid-column:1 / -1;}   /* the whole row, however many columns fit */
 .field.name input{font-family:var(--font-display); font-size:1.2rem; color:var(--sea);}
 
-.stats-row{display:grid; grid-template-columns:repeat(6,1fr); gap:10px; margin-top:14px;}
+/* minmax(0,1fr) so the columns can shrink below the inputs' width; two rows of three on phones */
+.stats-row{display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:10px; margin-top:14px;}
+@media (max-width:520px){ .stats-row{grid-template-columns:repeat(3,minmax(0,1fr));} }
 .stat-box{background:var(--panel2); border:1px solid var(--border); border-radius:6px; text-align:center; padding:8px 4px;}
 .stat-box .abbr{font-size:0.72rem; color:var(--ink-dim); letter-spacing:0.05em;}
-.stat-box input{width:44px; background:transparent; border:none; color:var(--ink); text-align:center; font-size:1.1rem; font-family:var(--font-display);}
+.stat-box input{width:100%; max-width:44px; background:transparent; border:none; color:var(--ink); text-align:center; font-size:1.1rem; font-family:var(--font-display);}
 .stat-box input[readonly]{cursor:default;}
 .stat-box.stat-boosted{border-color:var(--orange);}
 .stat-box.stat-boosted input{color:var(--orange-bright);}

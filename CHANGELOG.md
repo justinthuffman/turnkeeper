@@ -3,6 +3,13 @@
 What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest first.
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
+## 2026-09-27 — Character Summary on phones
+
+### Fixed
+- **Character Summary fits on phones.** The six ability boxes wrap to two rows of three, and
+  the summary fields stay inside the screen. Before, Charisma and the right-hand column ran
+  off the edge.
+
 ## 2026-09-27 — Active effects and target toggles
 
 ### Added
