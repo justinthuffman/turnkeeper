@@ -3,6 +3,22 @@
 What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest first.
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
+## 2026-09-27 — Reactions
+
+### Added
+- **Reactions** in the Combat Menu's Anytime row, beside Checks & Saves. It lists whatever your
+  character can do with a reaction, from their own sheet and choices, so it works for any class:
+  - **Opportunity Attack** with any melee weapon on your sheet, through the same popup as
+    Attack (crits, Divine Smite, Sneak Attack, Great Weapon Master and so on).
+  - **Reaction features and feats**, e.g. Uncanny Dodge, Cutting Words, Sentinel, War Caster,
+    and the Protection fighting style if you picked it.
+  - **Reaction spells** you can cast, e.g. Shield or a tiefling's Hellish Rebuke. Casting one
+    uses the slot or racial use, just like Cast Prepared Spell.
+
+### Changed
+- Reaction spells are no longer dimmed in Cast Prepared Spell. They're in Reactions now, like
+  bonus action spells are in Bonus Action Options.
+
 ## 2026-09-26 — Checks & Saves and a Subclass box
 
 ### Added

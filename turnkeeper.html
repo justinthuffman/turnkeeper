@@ -718,7 +718,7 @@ applyTheme(savedTheme || DEFAULT_THEME);
   <div class="free-note">4. Free action &mdash; opening a door, drawing/sheathing a weapon, dropping an item, and similar don't cost an action, bonus action, or reaction.</div>
 
   <div class="action-row-label">Anytime</div>
-  <div class="action-grid"><button data-act="checks">Checks &amp; Saves</button></div>
+  <div class="action-grid"><button data-act="reactions">Reactions</button><button data-act="checks">Checks &amp; Saves</button></div>
 
   <div class="slide" id="actionDetailWrap"><div class="detail" id="actionDetail"></div></div>
 </div>
@@ -1759,13 +1759,15 @@ document.querySelector('.action-grid button[data-act="bonus"]').addEventListener
   renderBonusDetail();
   e.currentTarget.classList.add('active');
 });
-// Checks & Saves isn't part of your turn, so like Bonus Action Options it leaves Dash on
-document.querySelector('.action-grid button[data-act="checks"]').addEventListener('click', e=>{
-  if(detailOpenFor('checks')){ closeDetail(); return; }
-  document.querySelectorAll('.action-grid button').forEach(b=>b.classList.remove('active'));
-  openAct = 'checks';
-  renderChecksDetail();
-  e.currentTarget.classList.add('active');
+// The Anytime row isn't part of your turn, so like Bonus Action Options it leaves Dash on
+[['reactions', ()=>renderReactionsDetail()], ['checks', ()=>renderChecksDetail()]].forEach(([act, render])=>{
+  document.querySelector(`.action-grid button[data-act="${act}"]`).addEventListener('click', e=>{
+    if(detailOpenFor(act)){ closeDetail(); return; }
+    document.querySelectorAll('.action-grid button').forEach(b=>b.classList.remove('active'));
+    openAct = act;
+    render();
+    e.currentTarget.classList.add('active');
+  });
 });
 
 /* ---------- Attack flow (V2): Attack → weapon/maneuver → roll mode → Roll → popup ----------
@@ -2290,11 +2292,19 @@ function fallbackCopy(text){
 }
 
 // Class features usable right now with the given action type ('action' | 'bonus')
+// Also the picked option of a "choose one" feature when that option has a type (Fighting Style:
+// Protection is a reaction), and racial traits with a type (level 1 unless they say otherwise)
 function usableFeatures(type){
-  return [...classFeatureItems(), ...featItems()].filter(t=>t.type===type && charLevel() >= t.level);
+  const lvl = charLevel();
+  const chosen = classFeatureItems().filter(t=>t.choose && lvl >= t.level).map(t=>{
+    const tier = (t.tiers||[]).find(x=>x.name===getChoice(t.name));
+    return tier && tier.type ? {level:t.level, name:tier.name, type:tier.type, desc:tier.text, fromChoice:t.name} : null;
+  }).filter(Boolean);
+  const race = traitsForRace(rt.raceKey).map(t=>({level:1, racial:true, ...t}));
+  return [...classFeatureItems(), ...chosen, ...featItems(), ...race].filter(t=>t.type===type && lvl >= t.level);
 }
 function featureMeta(t){
-  return `${t.feat ? 'Feat' : `Class feature (level ${t.level})`}${TYPE_LABELS[t.type] ? ' &middot; ' + TYPE_LABELS[t.type] : ''}`;
+  return `${t.feat ? 'Feat' : t.racial ? 'Racial trait' : `Class feature (level ${t.level})`}${TYPE_LABELS[t.type] ? ' &middot; ' + TYPE_LABELS[t.type] : ''}`;
 }
 function showFeatureTooltip(e, t){
   tooltip.innerHTML = `<b>${t.name}</b><div class="meta">${featureMeta(t)}</div><div class="meta" style="margin-top:6px; color:var(--ink);">${t.desc}</div>`;
@@ -2410,8 +2420,8 @@ function wireSpellStep(entry, rerender){
     SPELL_ROLLS[entry.sp.name] && SPELL_ROLLS[entry.sp.name].attack ? castFlow.mode : 'normal'));
 }
 function renderCastDetail(){
-  // Bonus action spells are cast from Bonus Action Options, not with your Action
-  const entries = castableSpells().filter(e=>!isBonusSpell(e.sp));
+  // Bonus action and reaction spells are cast from Bonus Action Options and Reactions, not with your Action
+  const entries = castableSpells().filter(e=>!isBonusSpell(e.sp) && !isReactionSpell(e.sp));
   if(!entries.some(e=>e.sp.name===castFlow.name)) castFlow.name = null;
   const sel = entries.find(e=>e.sp.name===castFlow.name);
   let html = `<h4>Cast Prepared Spell</h4>`;
@@ -2423,10 +2433,9 @@ function renderCastDetail(){
     html += entries.map(e=>{
       const head = e.sp.level !== lastLevel ? `${lastLevel>=0?'</div>':''}<div class="flow-label">${LEVEL_NAMES[e.sp.level]}</div><div class="flow-grid">` : '';
       lastLevel = e.sp.level;
-      const dim = /Reaction/i.test(e.sp.time) ? ' flow-dim' : '';
-      return head + `<button type="button" class="flow-btn${e===sel?' active':''}${dim}" data-cast="${escapeHtml(e.sp.name)}">${e.sp.name}${e.source ? sourceTag(e.source) : ''}</button>`;
+      return head + `<button type="button" class="flow-btn${e===sel?' active':''}" data-cast="${escapeHtml(e.sp.name)}">${e.sp.name}${e.source ? sourceTag(e.source) : ''}</button>`;
     }).join('') + `</div>`;
-    if(entries.some(e=>/Reaction/i.test(e.sp.time))) html += `<p class="empty-note" style="margin-top:8px; font-size:0.72rem;">Dimmed spells are cast as a Reaction (on someone else's turn), not with your Action. Bonus action spells are in Bonus Action Options.</p>`;
+    html += `<p class="empty-note" style="margin-top:8px; font-size:0.72rem;">Bonus action spells are in Bonus Action Options, and reaction spells are in Reactions.</p>`;
   }
   if(sel) html += spellStepHtml(sel);
   showDetail(html);
@@ -2537,6 +2546,81 @@ function wireCunningStep(){
   actionDetail.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click', ()=>{ bonusFlow.cmode = b.dataset.mode; renderBonusDetail(); }));
   const go = document.getElementById('flowRoll');
   if(go) go.addEventListener('click', ()=>openRollPopup({kind:'check', label:'Hide (Cunning Action)', type:'skill', key:'Stealth'}, bonusFlow.cmode));
+}
+
+/* ---------- Reactions flow (Anytime): same path as Bonus Action Options ----------
+   Nothing here is per character: an opportunity attack with any melee weapon on the sheet,
+   every class feature, feat, racial trait or picked option with type 'reaction', and every
+   castable spell whose casting time is 1 Reaction. */
+const reactFlow = {pick:null, weapon:null, mode:'normal', power:false};
+const isReactionSpell = sp=>/Reaction/i.test(sp.time);
+const OPPORTUNITY_TEXT = 'When a hostile creature you can see moves out of your reach, make one melee attack against it. It doesn’t provoke one if it Disengages, teleports, or is moved without using its own movement or action.';
+function meleeWeapons(){
+  return state.attacks.map((a,i)=>({a, i, p:parseWeaponDamage(a.damage)})).filter(x=>x.p && /melee/i.test(x.p.props));
+}
+function renderReactionsDetail(){
+  const feats = usableFeatures('reaction');
+  const spells = castableSpells().filter(e=>isReactionSpell(e.sp));
+  const picks = ['oa', ...feats.map(t=>'f:'+t.name), ...spells.map(e=>'s:'+e.sp.name)];
+  if(!picks.includes(reactFlow.pick)) reactFlow.pick = null;
+  const btn = (key, label, extra='')=>`<button type="button" class="flow-btn${reactFlow.pick===key?' active':''}" data-react="${escapeHtml(key)}">${label}${extra}</button>`;
+  let html = `<h4>Reactions</h4><div class="flow-summary" style="margin-top:0;">One reaction per round, usually on someone else’s turn. You get it back at the start of your turn.</div>`
+    + `<div class="flow-label">Attack</div><div class="flow-grid">${btn('oa','Opportunity Attack')}</div>`;
+  if(feats.length) html += `<div class="flow-label">${featsLabel(feats)}</div><div class="flow-grid">${feats.map(t=>btn('f:'+t.name, t.name)).join('')}</div>`;
+  if(spells.length) html += `<div class="flow-label">Spells</div><div class="flow-grid">${spells.map(e=>btn('s:'+e.sp.name, e.sp.name, e.source ? sourceTag(e.source) : '')).join('')}</div>`;
+
+  const pick = reactFlow.pick;
+  let sel = null;
+  if(pick==='oa'){
+    const weapons = meleeWeapons();
+    html += `<div class="flow-summary">${OPPORTUNITY_TEXT}</div>`;
+    if(!weapons.length){
+      html += `<p class="empty-note" style="margin-top:8px;">No melee weapons on your sheet.</p>`;
+    } else {
+      if(!weapons.some(w=>w.i===reactFlow.weapon)) reactFlow.weapon = weapons.length===1 ? weapons[0].i : null;
+      html += `<div class="flow-label">Weapon</div><div class="flow-grid">`
+        + weapons.map(w=>`<button type="button" class="flow-btn${reactFlow.weapon===w.i?' active':''}" data-react-weapon="${w.i}">${escapeHtml(w.a.name)}</button>`).join('') + `</div>`;
+      sel = reactFlow.weapon !== null ? state.attacks[reactFlow.weapon] : null;
+      if(sel){
+        const power = powerAttackFeat(sel);
+        html += `<div class="flow-summary">${escapeHtml(sel.bonus||'—')} to hit &middot; ${escapeHtml(sel.damage||'—')}</div>`
+          + `<div class="flow-label">Roll with</div><div class="flow-grid">`
+          + ROLL_MODES.map(([k,l])=>`<button type="button" class="flow-btn${reactFlow.mode===k?' active':''}" data-mode="${k}">${l}</button>`).join('') + `</div>`
+          + (power ? `<div class="flow-label">${power} (before you roll)</div><div class="flow-grid">${toggleBtn('data-power','1','−5 to hit / +10 damage',reactFlow.power)}</div>` : '')
+          + `<div class="flow-go"><button type="button" id="flowRoll">Roll</button></div>`;
+      }
+    }
+  } else if(pick && pick.startsWith('f:')){
+    html += featureStepHtml(feats.find(t=>'f:'+t.name===pick));
+  } else if(pick && pick.startsWith('s:')){
+    html += spellStepHtml(spells.find(e=>'s:'+e.sp.name===pick));
+  }
+  showDetail(html);
+
+  actionDetail.querySelectorAll('[data-react]').forEach(b=>{
+    const key = b.dataset.react;
+    if(key.startsWith('s:')) wireSpellTooltip(b, spells.find(e=>'s:'+e.sp.name===key).sp);
+    if(key.startsWith('f:')){ const t = feats.find(f=>'f:'+f.name===key); b.addEventListener('mouseenter', e=>showFeatureTooltip(e, t)); b.addEventListener('mousemove', moveTooltip); b.addEventListener('mouseleave', hideTooltip); }
+    b.addEventListener('click', ()=>{
+      hideTooltip();
+      if(reactFlow.pick !== key){ reactFlow.pick = key; reactFlow.mode = 'normal'; reactFlow.power = false; castFlow.name = key.slice(2); castFlow.slot = null; castFlow.mode = 'normal'; }
+      renderReactionsDetail();
+    });
+  });
+  if(pick==='oa'){
+    actionDetail.querySelectorAll('[data-react-weapon]').forEach(b=>b.addEventListener('click', ()=>{ if(reactFlow.weapon !== +b.dataset.reactWeapon) reactFlow.power = false; reactFlow.weapon = +b.dataset.reactWeapon; renderReactionsDetail(); }));
+    actionDetail.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click', ()=>{ reactFlow.mode = b.dataset.mode; renderReactionsDetail(); }));
+    actionDetail.querySelectorAll('[data-power]').forEach(b=>b.addEventListener('click', ()=>{ reactFlow.power = !reactFlow.power; renderReactionsDetail(); }));
+    const go = document.getElementById('flowRoll');
+    if(go) go.addEventListener('click', ()=>{
+      const power = reactFlow.power ? powerAttackFeat(sel) : null;
+      openRollPopup({kind:'weapon', label:`${sel.name} (opportunity attack)`, attack:sel, ...(power ? {power} : {})}, reactFlow.mode);
+    });
+  } else if(pick && pick.startsWith('f:')){
+    wireFeatureStep(feats.find(t=>'f:'+t.name===pick));
+  } else if(pick && pick.startsWith('s:')){
+    wireSpellStep(spells.find(e=>'s:'+e.sp.name===pick), renderReactionsDetail);
+  }
 }
 
 
@@ -2907,6 +2991,7 @@ async function runImport(){
     attackFlow.choice = null; attackFlow.mode = 'normal'; attackFlow.power = false;
     checkFlow.act = null;
     checksFlow.type = null; checksFlow.key = null; checksFlow.mode = 'normal';
+    Object.assign(reactFlow, {pick:null, weapon:null, mode:'normal', power:false});
     castFlow.name = null; featureFlow.name = null;
     bonusFlow.pick = null; bonusFlow.weapon = null; bonusFlow.mode = 'normal'; bonusFlow.cunning = null; bonusFlow.cmode = 'normal';
     bonusDashActive = false;
@@ -3031,7 +3116,7 @@ const CLASS_FEATURES = {
         tiers:[{level:2, name:'Defense', text:'+1 AC while wearing armor.'},
                {level:2, name:'Dueling', text:'+2 damage with a melee weapon in one hand and no other weapons.'},
                {level:2, name:'Great Weapon Fighting', text:'Reroll 1s and 2s on damage dice with a two-handed or versatile melee weapon held in two hands.'},
-               {level:2, name:'Protection', text:'With a shield, use your reaction to give disadvantage to an attack on an ally within 5 ft.'}]},
+               {level:2, name:'Protection', type:'reaction', text:'With a shield, use your reaction to give disadvantage to an attack on an ally within 5 ft.'}]},
       {level:2, name:'Spellcasting', desc:'Cast paladin spells using Charisma. Prepare Charisma modifier + half your paladin level (minimum 1) each long rest.'},
       {level:2, name:'Divine Smite', desc:'When you hit with a melee weapon attack, spend a spell slot for +2d8 radiant damage (+1d8 per slot level above 1st, max 5d8; +1d8 more against undead or fiends).'},
       {level:3, name:'Divine Health', desc:'You are immune to disease.'},
