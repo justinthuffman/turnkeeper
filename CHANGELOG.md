@@ -3,6 +3,21 @@
 What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest first.
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
+## Unreleased
+
+### Added
+- **Concentration.** Casting any concentration spell (e.g. Bless, Hunter's Mark, Faerie Fire)
+  shows "Concentrating: Bless" with your active effects, with an **End** button. With the round
+  counter running it shows how many rounds are left, and it ends when the time's up.
+  - Casting another concentration spell ends the first, and says so. Undo on the spell slot
+    brings the first one back.
+  - **Taking damage** while concentrating opens a **Concentration save** box in Resources: the
+    DC (10, or half the damage if that's higher), the `!tk` Constitution save command with
+    War Caster's advantage and any statuses (e.g. Bless), and **Kept it** / **Lost it**.
+    Damage your temporary hit points absorb still counts.
+  - Dropping to 0 HP, or becoming Incapacitated, Paralyzed, Petrified, Stunned or Unconscious,
+    ends concentration. So does a rest.
+
 ## 2026-09-27 — Statuses named beside roll commands
 
 ### Changed

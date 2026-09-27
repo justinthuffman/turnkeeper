@@ -419,6 +419,10 @@ button.build-tag:hover{background:var(--panel2); border-color:var(--sea);}
 .hd-count button.flow-btn{padding:3px 10px; font-size:0.85rem;}
 /* Death saves at 0 HP */
 .death-box{margin:10px 0 4px; padding:10px 12px; border:1px solid var(--danger); background:var(--orange-wash); border-radius:6px; font-size:0.85rem; display:flex; flex-direction:column; gap:8px;}
+/* Concentration save prompt after taking damage */
+.conc-box{margin:10px 0 4px; padding:10px 12px; border:1px solid var(--sea-dim); background:var(--panel2); border-radius:6px; font-size:0.85rem; display:flex; flex-direction:column; gap:8px;}
+.conc-box[hidden]{display:none;}
+.fx-chip.conc-chip{border-color:var(--orange);}
 .death-box[hidden]{display:none;}
 .ds-head{display:flex; flex-wrap:wrap; align-items:center; gap:6px 16px;}
 .ds-state{color:var(--danger); font-family:var(--font-display); font-size:1.05rem;}
@@ -728,6 +732,7 @@ applyTheme(savedTheme || DEFAULT_THEME);
       <button type="button" class="sel-toggle" id="hpReset" title="Set hit points back to the value on your sheet">Reset to sheet</button>
     </div>
   </div>
+  <div class="conc-box" id="concBox" hidden></div>
   <div class="death-box" id="deathBox" hidden></div>
   <div id="resRows"><p class="empty-note">Import a sheet to track resources.</p></div>
   <div class="racial collapsible backup" id="backupBar" hidden>
@@ -2058,6 +2063,15 @@ function startOfTurn(){
       ended.push(`${e.name} (${e.until})`); return false;
     });
   }
+  // Concentration counts down the same way (skipping a spell that just ended as an effect above)
+  const k = track.conc;
+  if(c.started && k && typeof k.rounds === 'number'){
+    k.rounds -= 1;
+    if(k.rounds <= 0){
+      if(!ended.some(x=>x.startsWith(k.name + ' '))) ended.push(`${k.name} (${k.duration || 'concentration'})`);
+      endConcentration();
+    }
+  }
   c.started = true;
   c.msg = `Round ${c.round}: your turn.` + (ended.length ? ` Ended: ${ended.join(', ')}.` : '');
   // A new turn: Dash from last turn is over
@@ -2244,20 +2258,74 @@ function featureFx(t){
 function fxWhen(e){ return e.until==='hit' ? `your next ${e.weapon==='melee' ? 'melee ' : ''}weapon hit` : `${e.until}${e.conc ? ', concentration' : ''}`; }
 function fxWhat(e){ return [e.toHit && `+${e.toHit} to hit`, e.dice && `+${e.dice}`, e.adv && 'advantage'].filter(Boolean).join(', '); }
 // Casting a concentration spell ends the one you were concentrating on
+// Ends whatever you're concentrating on (the tracked spell, and any effect of it). Returns the names.
 function endConcentration(){
   const ended = track.fx.filter(x=>x.conc).map(x=>x.name);
+  if(track.conc && !ended.includes(track.conc.name)) ended.push(track.conc.name);
   track.fx = track.fx.filter(x=>!x.conc);
+  track.conc = null;
+  if(typeof concUi !== 'undefined') concUi.check = null;
   return ended;
 }
 function startFx(e){ if(e.rounds === undefined) e.rounds = fxRounds(e.until); track.fx = track.fx.filter(x=>x.id!==e.id); track.fx.push(e); saveTrack(); renderActiveFx(); }
-function endFx(id){ track.fx = track.fx.filter(x=>x.id!==id); saveTrack(); renderActiveFx(); }
-function renderActiveFx(){
-  const box = document.getElementById('activeFx'), list = track.fx || [];
-  box.hidden = !list.length;
-  box.innerHTML = list.length ? `<span>Active effects:</span>` + list.map(e=>`<span class="fx-chip">${escapeHtml(e.name)} <small>${escapeHtml(fxWhat(e))}${fxWhat(e) ? ' &middot; ' : ''}${escapeHtml(fxWhen(e))}${track.combat && typeof e.rounds==='number' ? ` &middot; ${e.rounds} round${e.rounds===1 ? '' : 's'} left` : ''}</small>`
-    + `<button type="button" class="sel-toggle" data-fx-end="${escapeHtml(e.id)}" aria-label="End ${escapeHtml(e.name)}">End</button></span>`).join('') : '';
+function endFx(id){
+  const e = (track.fx || []).find(x=>x.id===id);
+  if(e && e.conc && track.conc && track.conc.name===e.name){ track.conc = null; concUi.check = null; renderConc(); }   // ending the effect ends concentration on it
+  track.fx = track.fx.filter(x=>x.id!==id); saveTrack(); renderActiveFx();
 }
-document.getElementById('activeFx').addEventListener('click', e=>{ const b = e.target.closest('[data-fx-end]'); if(b) endFx(b.dataset.fxEnd); });
+function roundsLeft(r){ return track.combat && typeof r==='number' ? ` &middot; ${r} round${r===1 ? '' : 's'} left` : ''; }
+function renderActiveFx(){
+  const box = document.getElementById('activeFx'), list = track.fx || [], k = track.conc;
+  // Concentration shows as its own chip unless one of the effects is that spell (it already says "concentration")
+  const concChip = k && !list.some(e=>e.conc && e.name===k.name);
+  box.hidden = !list.length && !concChip;
+  box.innerHTML = (list.length || concChip ? `<span>Active effects:</span>` : '')
+    + (concChip ? `<span class="fx-chip conc-chip">Concentrating: ${escapeHtml(k.name)} <small>${escapeHtml(k.duration || '')}${roundsLeft(k.rounds)}</small><button type="button" class="sel-toggle" data-conc-end="1" aria-label="End concentration on ${escapeHtml(k.name)}">End</button></span>` : '')
+    + list.map(e=>`<span class="fx-chip">${escapeHtml(e.name)} <small>${escapeHtml(fxWhat(e))}${fxWhat(e) ? ' &middot; ' : ''}${escapeHtml(fxWhen(e))}${roundsLeft(e.rounds)}</small>`
+    + `<button type="button" class="sel-toggle" data-fx-end="${escapeHtml(e.id)}" aria-label="End ${escapeHtml(e.name)}">End</button></span>`).join('');
+}
+document.getElementById('activeFx').addEventListener('click', e=>{
+  const b = e.target.closest('[data-fx-end]'); if(b){ endFx(b.dataset.fxEnd); return; }
+  if(e.target.closest('[data-conc-end]')){ endConcentration(); saveTrack(); renderActiveFx(); renderConc(); }
+});
+
+/* ---------- Concentration saves (2014 rules) ----------
+   When you take damage while concentrating: a Constitution save, DC 10 or half the damage
+   (whichever is higher); War Caster gives advantage, and statuses (Bless, Bane…) apply. Kept it /
+   Lost it; losing ends the spell. Dropping to 0 HP or an incapacitating condition ends it
+   outright. Damage absorbed by temporary hit points still counts. */
+const concUi = {check:null};   // {dc, dmg} while a save is waiting
+const INCAP_KEYS = ['incapacitated', 'paralyzed', 'petrified', 'stunned', 'unconscious'];
+function concDamaged(dmg){
+  if(!track.conc || !(dmg > 0)) return;
+  concUi.check = {dc:Math.max(10, Math.floor(dmg / 2)), dmg};
+  renderConc();
+}
+function concEndedBy(why){
+  if(!track.conc) return;
+  const names = endConcentration();
+  saveTrack(); renderActiveFx(); renderConc();
+  document.getElementById('restMsg').textContent = `${why}: concentration on ${names.join(' and ')} ended.`;
+}
+function renderConc(){
+  const box = document.getElementById('concBox'), c = concUi.check, k = track.conc;
+  box.hidden = !c || !k;
+  if(box.hidden){ box.innerHTML = ''; return; }
+  const st = statusFor('save', 'con'), info = checkInfo('save', 'con'), warCaster = hasFeat('War Caster');
+  const mode = combineMode(warCaster ? 'adv' : 'normal', st);
+  const cmd = d20Cmd(mode, info.bonus + st.flat, false, statusDiceStr(st));
+  const parts = [...(warCaster ? ['advantage from War Caster'] : []), ...statusDescParts(st)];
+  box.innerHTML = `<div><b>Concentration save</b> to keep <b>${escapeHtml(k.name)}</b>: DC ${c.dc} Constitution save (${c.dc > 10 ? `half of ${c.dmg} damage` : `10, or half the damage if that's higher`}).</div>`
+    + `<div class="roll-cmd-row"><code class="roll-cmd">${escapeHtml(cmd)}</code><button type="button" class="copy-btn" data-copy="${escapeHtml(cmd)}">Copy</button><span class="roll-cmd-desc">${escapeHtml(withParts('Constitution save', parts))}</span></div>`
+    + (st.fail.length ? `<div class="status-warn">${st.fail.join(', ')}: you automatically fail this save.</div>` : '')
+    + `<div class="ds-btns"><button type="button" class="flow-btn" data-conc="kept">Kept it (${c.dc} or higher)</button><button type="button" class="flow-btn" data-conc="lost">Lost it</button></div>`;
+}
+document.getElementById('concBox').addEventListener('click', e=>{
+  const copy = e.target.closest('[data-copy]'); if(copy){ copyText(copy.dataset.copy, copy); return; }
+  const b = e.target.closest('[data-conc]'); if(!b) return;
+  if(b.dataset.conc === 'lost') concEndedBy('Failed the save');
+  else { concUi.check = null; renderConc(); document.getElementById('restMsg').textContent = `You keep concentrating on ${track.conc ? track.conc.name : 'your spell'}.`; }
+});
 // Effects tied to one creature that this character has prepared or can use
 function targetFxOptions(){
   const spells = castableSpells().map(e=>spellFx(e, e.sp.level));
@@ -2435,7 +2503,11 @@ function renderStatus(){
 }
 const EXHAUSTION_TEXT = ['No exhaustion.', '1: disadvantage on ability checks.', '2: speed halved (plus level 1).', '3: disadvantage on attack rolls and saves (plus 1–2).',
   '4: hit point maximum halved (plus 1–3).', '5: speed reduced to 0 (plus 1–4).', '6: death.'];
-function setStatusOn(key, on){ const s = statusState(); if(on) s.on[key] = true; else delete s.on[key]; saveTrack(); renderStatus(); renderResources(); }
+function setStatusOn(key, on){
+  const s = statusState(); if(on) s.on[key] = true; else delete s.on[key];
+  saveTrack(); renderStatus(); renderResources();
+  if(on && INCAP_KEYS.includes(key) && track.conc) concEndedBy(STATUS_BY_KEY[key].name);   // incapacitated: concentration ends
+}
 document.getElementById('statusPanel').addEventListener('click', e=>{
   const b = e.target.closest('button'); if(!b) return;
   const s = statusState();
@@ -2477,7 +2549,14 @@ function openRollPopup(sel, mode){
   // Undo (spell slot / use) puts effects back as they were.
   if(sel.kind==='spell' || sel.kind==='feature'){
     rollState.fxBefore = (track.fx || []).map(e=>({...e}));
-    if(sel.kind==='spell' && /Concentration/i.test(sel.entry.sp.duration)) rollState.concEnded = endConcentration().filter(n=>n!==sel.entry.sp.name);
+    rollState.concBefore = track.conc ? {...track.conc} : null;
+    if(sel.kind==='spell' && /Concentration/i.test(sel.entry.sp.duration)){
+      // The last concentration spell ends; this one is remembered (Undo on the slot puts it back)
+      rollState.concEnded = endConcentration().filter(n=>n!==sel.entry.sp.name);
+      track.conc = {name:sel.entry.sp.name, rounds:fxRounds(sel.entry.sp.duration), duration:sel.entry.sp.duration.replace(/^Concentration,\s*/i, '')};
+      concUi.check = null;
+      saveTrack(); renderActiveFx(); renderConc();
+    }
     const f = sel.kind==='spell' ? spellFx(sel.entry, sel.slot) : featureFx(sel.feature);
     if(f && !f.target){ startFx(f); rollState.fxStarted = f; }
     else if(rollState.concEnded.length){ saveTrack(); renderActiveFx(); }
@@ -2805,7 +2884,7 @@ rollPopup.addEventListener('click', e=>{
   }
   else if(t.dataset.undoSpend){
     const s = rollState.spendInfo; spend(s.id, -1); s.state = 'undone';
-    if(rollState.fxBefore){ track.fx = rollState.fxBefore; rollState.fxStarted = null; rollState.concEnded = []; saveTrack(); renderActiveFx(); }
+    if(rollState.fxBefore){ track.conc = rollState.concBefore || null; track.fx = rollState.fxBefore; rollState.fxStarted = null; rollState.concEnded = []; saveTrack(); renderActiveFx(); }
     renderRollPopup();
   }
   else if(t.dataset.loh){
@@ -3581,6 +3660,7 @@ async function runImport(){
     loadTrack();
     renderResources();
     renderStatus();
+    concUi.check = null; renderConc();   // no save waiting for a freshly loaded character
     document.getElementById('restMsg').textContent = '';
     document.getElementById('backupMsg').textContent = '';
     closeClipPanel(); clipBox.value = ''; restoreConfirm = null;
@@ -4800,8 +4880,9 @@ function loadTrack(){
   track.combat = saved && saved.combat ? saved.combat : null;      // {round, started, msg} while in combat
   track.temp = saved && typeof saved.temp==='number' ? saved.temp : 0;   // temporary hit points
   track.status = saved && saved.status ? saved.status : {on:{}, exh:0, bi:6};   // conditions and magic on you
+  track.conc = saved && saved.conc ? saved.conc : null;   // the spell you're concentrating on: {name, rounds}
 }
-function saveTrack(){ if(currentCharId) storageSet(trackKey(), JSON.stringify({hp:track.hp, temp:track.temp, used:track.used, fx:track.fx, death:track.death, combat:track.combat, status:track.status})); }
+function saveTrack(){ if(currentCharId) storageSet(trackKey(), JSON.stringify({hp:track.hp, temp:track.temp, used:track.used, fx:track.fx, death:track.death, combat:track.combat, status:track.status, conc:track.conc})); }
 function maxFor(id){
   if(id === 'hitDice') return hitDie() ? Math.min(20, Math.max(1, charLevel())) : 0;   // one Hit Die per level
   const s = slotTable().find(x=>x.id===id); if(s) return s.max;
@@ -4830,13 +4911,16 @@ function setHp(v){
   // Any healing above 0 ends dying; dropping to 0 starts death saves fresh
   if(track.hp > 0 || (was !== 0 && track.hp === 0)) track.death = {s:0, f:0};
   saveTrack(); renderResources();
+  if(track.hp === 0 && was !== 0 && track.conc) concEndedBy('Dropped to 0 hit points');
 }
 
 // Rests, with a one-step Undo in case of a mis-click
 let restUndo = null;
 function takeRest(kind){
-  restUndo = JSON.stringify({hp:track.hp, temp:track.temp, used:track.used, fx:track.fx, death:track.death, combat:track.combat, status:track.status});
+  restUndo = JSON.stringify({hp:track.hp, temp:track.temp, used:track.used, fx:track.fx, death:track.death, combat:track.combat, status:track.status, conc:track.conc});
   track.fx = [];   // anything lasting a minute or an hour is over after a rest
+  track.conc = null;   // so is concentration
+  if(typeof concUi !== 'undefined') concUi.check = null;
   track.combat = null;   // and combat is over
   const shortIds = new Set([...slotTable(), ...trackedResources()].filter(r=>r.recharge==='short').map(r=>r.id));
   if(kind==='long'){
@@ -4875,7 +4959,7 @@ function takeRest(kind){
   }
   document.getElementById('restUndo').onclick = ()=>{
     const s = JSON.parse(restUndo); track.hp = s.hp; track.used = s.used; track.fx = s.fx || [];
-    track.death = s.death || {s:0, f:0}; track.combat = s.combat || null; track.temp = s.temp || 0; track.status = s.status || {on:{}, exh:0, bi:6}; restUndo = null;
+    track.death = s.death || {s:0, f:0}; track.combat = s.combat || null; track.temp = s.temp || 0; track.status = s.status || {on:{}, exh:0, bi:6}; track.conc = s.conc || null; restUndo = null;
     saveTrack(); renderResources(); renderStatus(); msg.textContent = 'Rest undone.';
   };
 }
@@ -4889,9 +4973,10 @@ function takeDamage(n){
   if(hpNow() === null || !(n > 0)) return;
   const absorbed = Math.min(track.temp || 0, n);
   track.temp = (track.temp || 0) - absorbed;
-  if(n - absorbed > 0) setHp(hpNow() - (n - absorbed));
-  else { saveTrack(); renderResources(); }
   document.getElementById('restMsg').textContent = absorbed ? `Temporary hit points took ${absorbed} of the ${n} damage.` : '';
+  if(n - absorbed > 0) setHp(hpNow() - (n - absorbed));   // dropping to 0 HP ends concentration (setHp)
+  else { saveTrack(); renderResources(); }
+  if(hpNow() > 0) concDamaged(n);   // still concentrating? then a Constitution save (temp HP damage counts)
 }
 // Temporary hit points don't stack: gaining more keeps whichever is higher (2014 rules)
 function gainTemp(n){
