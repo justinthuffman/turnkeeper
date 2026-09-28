@@ -76,6 +76,26 @@ button.sel-toggle:hover{background:none; color:var(--ink);}
 .pc-links{display:flex; gap:14px; font-size:0.8rem; margin-top:auto;}
 .pc-links a{color:var(--sea);}
 .pc-card.loading{opacity:0.6;}
+/* What the player is tracking right now (live from their Turnkeeper) */
+.pc-live{border:1px solid var(--border); border-radius:6px; background:var(--panel); padding:8px; display:flex; flex-direction:column; gap:5px;}
+.pc-live.none{font-size:0.78rem; color:var(--ink-dim); font-style:italic;}
+.pc-live .hp-text b{font-family:var(--font-display); font-size:1.15rem; font-weight:normal;}
+.pc-live .hp-bar{height:7px;}
+.pc-live .chips{display:flex; flex-wrap:wrap; gap:4px;}
+.live-chip{font-size:0.72rem; border:1px solid var(--border); border-radius:999px; padding:1px 8px;}
+.live-chip.cond{border-color:var(--danger); color:var(--danger);}
+.live-chip.magic{border-color:var(--sea-dim); color:var(--sea);}
+.live-chip.conc{border-color:var(--racial); color:var(--racial);}
+.live-chip.insp{border-color:var(--orange); color:var(--orange-bright);}
+.live-chip.down{background:var(--danger); border-color:var(--danger); color:var(--on-accent);}
+.pc-live .res{font-size:0.74rem; color:var(--ink-dim);}
+.pc-live .res b{color:var(--ink); font-weight:600;}
+.pc-live .when{font-size:0.7rem; color:var(--ink-dim);}
+.pc-live .when .dot{color:var(--green);}
+.live-state{font-size:0.78rem; color:var(--ink-dim);}
+.live-state.on{color:var(--green);}
+.cond-chip.live{border-color:var(--sea-dim); padding-right:8px;}
+.cbt-sub.player-hp{font-style:italic;}
 .pc-err{font-size:0.8rem; color:var(--danger);}
 .passive-check{display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:14px; font-size:0.85rem;}
 .passive-check input{width:4.5em;}
@@ -266,8 +286,8 @@ applyTheme(savedTheme || DEFAULT_THEME);
 
 <!-- PARTY -->
 <section class="panel" id="partyPanel">
-  <div class="panel-head"><h2>Party</h2><button type="button" class="ghost" id="partyRefresh">Reload sheets</button></div>
-  <p class="panel-note">From each character’s Google Sheet. What players track in their own Turnkeeper (hit points, slots, conditions) stays on their device for now, so it doesn’t show here.</p>
+  <div class="panel-head"><h2>Party</h2><span class="live-state" id="liveState">Connecting to live updates…</span><button type="button" class="ghost" id="partyRefresh">Reload sheets</button></div>
+  <p class="panel-note">Stats come from each character’s Google Sheet. The live box shows what the player is tracking in Turnkeeper (hit points, conditions, magic, concentration, slots), updated as it changes.</p>
   <div class="party-grid" id="partyGrid"></div>
   <div class="passive-check">
     <span>Passive</span>
@@ -470,6 +490,67 @@ async function loadPC(pc){
   p.extras = raceExtras(p.race);
   return p;
 }
+/* ---------- Live: what players are tracking in their Turnkeeper ----------
+   The module script at the end fills `live` (sheet ID -> shared state) from Firebase. */
+let live = {};
+const ORD = ['', '1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th', '9th'];
+const arr = x => Array.isArray(x) ? x : Object.values(x || {});
+function ago(t){
+  if(!t) return '';
+  const s = Math.max(0, Math.round((Date.now() - t) / 1000));
+  return s < 10 ? 'just now' : s < 60 ? `${s} s ago` : s < 3600 ? `${Math.floor(s/60)} min ago` : s < 86400 ? `${Math.floor(s/3600)} h ago` : new Date(t).toLocaleDateString();
+}
+function liveHtml(pc){
+  const L = live[pc.sheet];
+  if(!L) return `<div class="pc-live none">Nothing shared yet: it shows up once ${esc(pc.name)}’s player opens Turnkeeper.</div>`;
+  const hp = L.hp || {}, cur = hp.cur ?? null, max = hp.max ?? null;
+  const pct = cur !== null && max ? Math.max(0, Math.min(100, Math.round(cur / max * 100))) : 0;
+  const chips = [];
+  if(cur === 0) chips.push(`<span class="live-chip down">Down: ${L.death ? `${L.death.s || 0} ✓ ${L.death.f || 0} ✗` : 'death saves'}</span>`);
+  arr(L.status).forEach(s=>chips.push(`<span class="live-chip ${s.group === 'cond' ? 'cond' : 'magic'}">${esc(s.name)}${s.rounds ? ` (${s.rounds})` : ''}</span>`));
+  if(L.exh) chips.push(`<span class="live-chip cond">Exhaustion ${L.exh}</span>`);
+  if(L.conc) chips.push(`<span class="live-chip conc">Concentrating: ${esc(L.conc.name)}${L.conc.rounds ? ` (${L.conc.rounds})` : ''}</span>`);
+  if(L.insp) chips.push(`<span class="live-chip insp">✧ Inspiration</span>`);
+  const slots = arr(L.slots).map(s=>`${ORD[s.level] || s.level} <b>${s.left}</b>/${s.max}`).join(' · ');
+  const res = arr(L.res).map(r=>`${esc(r.label)} <b>${r.left}</b>/${r.max}`).join(' · ');
+  return `<div class="pc-live">
+    <div class="hp-text"><span>HP <b>${cur ?? '—'}</b> / ${max ?? '—'}</span>${hp.temp ? `<span class="tmp">+${hp.temp} temp</span>` : ''}</div>
+    <div class="hp-bar"><i class="${pct <= 25 ? 'low' : pct <= 50 ? 'mid' : ''}" style="width:${pct}%"></i></div>
+    ${chips.length ? `<div class="chips">${chips.join('')}</div>` : ''}
+    ${slots ? `<div class="res">Slots: ${slots}</div>` : ''}
+    ${res ? `<div class="res">${res}</div>` : ''}
+    <div class="when">${L.online ? '<span class="dot">●</span> Turnkeeper open' : '○ Turnkeeper closed'}${L.round ? ` · round ${L.round}` : ''} · updated <span data-t="${L.t || 0}">${ago(L.t)}</span></div>
+  </div>`;
+}
+// Keep "updated … ago" current without redrawing the cards
+setInterval(()=>document.querySelectorAll('[data-t]').forEach(el=>{ el.textContent = ago(+el.dataset.t); }), 15000);
+// Called by the module script
+window.dmCampaignKey = ()=>campaign.key;
+window.dmLiveUpdate = (key, data)=>{
+  if(key !== campaign.key) return;
+  live = data || {};
+  syncLiveToInit();
+  renderParty(); renderInit();
+};
+window.dmLiveStatus = (state, detail)=>{
+  const el = $('liveState');
+  el.className = 'live-state ' + (state === 'on' ? 'on' : '');
+  el.textContent = state === 'on' ? '● Live' : 'Live updates unavailable';
+  el.title = state === 'on' ? 'Updates from the players’ Turnkeeper arrive as they happen' : (detail || '');
+};
+// Characters in Initiative follow their player's hit points
+function liveFor(c){ const pc = c.kind === 'pc' && campaign.party.find(p=>p.name === c.name); return pc ? live[pc.sheet] : null; }
+function syncLiveToInit(){
+  let changed = false;
+  combat.list.forEach(c=>{
+    const L = liveFor(c); if(!L || !L.hp) return;
+    if(L.hp.max !== undefined && L.hp.max !== null){ c.max = L.hp.max; }
+    if(L.hp.cur !== undefined && L.hp.cur !== null){ c.hp = L.hp.cur; }
+    c.temp = L.hp.temp || 0; changed = true;
+  });
+  if(changed) saveCombat();
+}
+
 function pcCard(pc){
   const p = party[pc.name];
   const link = `turnkeeper.html?sheet=${encodeURIComponent(`https://docs.google.com/spreadsheets/d/${pc.sheet}/edit?gid=${SHEET_GID}#gid=${SHEET_GID}`)}&name=${encodeURIComponent(pc.name)}`;
@@ -483,6 +564,7 @@ function pcCard(pc){
   }).join('');
   const stat = (dt, dd, title) => `<div title="${esc(title||'')}"><dt>${dt}</dt><dd>${dd ?? '—'}</dd></div>`;
   return `<article class="pc-card">${top(`Level ${p.level} ${esc(p.race)} ${esc(p.cls)}`)}
+    ${liveHtml(pc)}
     <dl class="pc-stats">${stat('AC', p.ac)}${stat('HP', p.hpMax, 'Maximum hit points on the sheet')}${stat('Init', fmtMod(p.init))}${stat('Speed', esc(String(p.speed).replace(/\s*ft\.?/i,'')), 'Feet')}${stat('Spell DC', p.spellDc, 'Spell save DC')}</dl>
     <div class="pc-line">Passive <b>Perception ${p.passive.perception}</b> · Investigation ${p.passive.investigation} · Insight ${p.passive.insight}</div>
     <div class="pc-saves" aria-label="Saving throws">${saves}</div>
@@ -577,6 +659,7 @@ function addParty(){
       ac:p ? p.ac : null, max:p ? p.hpMax : null, hp:p ? (p.hpCur ?? p.hpMax) : null}));
     added++;
   });
+  syncLiveToInit();
   setInitMsg(added ? 'Party added. Type each player’s initiative (from their roll) in the box on the left.' : 'The whole party is already in the list.');
   saveCombat(); renderInit(); renderEncounter();
 }
@@ -785,6 +868,8 @@ function combatantHtml(c, i, list){
   const chips = [
     ...(down ? [`<span class="cond-chip state">${c.kind === 'monster' ? 'Defeated' : 'Down: death saves'}</span>`] : []),
     ...(c.conc ? [`<span class="cond-chip conc" title="Concentrating">Concentrating: ${esc(c.conc)}<button type="button" data-act="conc-end" aria-label="End concentration">×</button></span>`] : []),
+    ...(liveFor(c) ? [...arr(liveFor(c).status).map(s=>`<span class="cond-chip live" title="From ${esc(c.name)}’s Turnkeeper">${esc(s.name)}${s.rounds ? ` (${s.rounds})` : ''}</span>`),
+      ...(liveFor(c).conc ? [`<span class="cond-chip live conc" title="From ${esc(c.name)}’s Turnkeeper">Concentrating: ${esc(liveFor(c).conc.name)}</span>`] : [])] : []),
     ...c.conds.map((k, j)=>`<span class="cond-chip">${esc(k.name)}${k.rounds ? ` (${k.rounds})` : ''}<button type="button" data-act="cond-x" data-j="${j}" aria-label="Remove ${esc(k.name)}">×</button></span>`),
   ].join('');
   const sub = c.kind === 'pc' ? (party[c.name] && !party[c.name].error ? `Init ${fmtMod(c.initMod)} · Passive Perception ${party[c.name].passive.perception}` : '')
@@ -812,7 +897,8 @@ function combatantHtml(c, i, list){
         ${sub ? `<div class="cbt-sub">${sub}</div>` : ''}<div class="cbt-chips">${chips}</div></div>
       <div class="cbt-ac">${c.ac ?? '—'}<small>AC</small></div>
       <div class="hp-box">${hpBar(c)}
-        <div class="hp-ctrl"><input type="number" min="0" data-field="amt" aria-label="Amount" placeholder="#"><button type="button" class="chip-btn" data-act="dmg">Damage</button><button type="button" class="chip-btn" data-act="heal">Heal</button></div></div>
+        ${liveFor(c) ? `<div class="cbt-sub player-hp">Tracked in ${esc(c.name)}’s Turnkeeper</div></div>`
+          : `<div class="hp-ctrl"><input type="number" min="0" data-field="amt" aria-label="Amount" placeholder="#"><button type="button" class="chip-btn" data-act="dmg">Damage</button><button type="button" class="chip-btn" data-act="heal">Heal</button></div></div>`}
       <div class="cbt-actions">
         ${c.srd ? `<button type="button" class="chip-btn" data-act="stat" title="Stat block">Stats</button>` : ''}
         <button type="button" class="chip-btn${openRow === c.id ? ' on' : ''}" data-act="more" aria-expanded="${openRow === c.id}" title="Conditions, concentration, temp HP, notes">More</button>
@@ -1067,7 +1153,9 @@ function setCampaign(key){
   try{ localStorage.setItem('dndTracker:dm:campaign', campaign.key); }catch(e){}
   $('campaignSelect').value = campaign.key;
   combat = loadJSON(storeKey('combat'), null) || {list:[], round:0, turn:null, log:[], nextId:1};
+  live = {};
   loadNotes(); renderInit(); renderEncounter(); loadParty();
+  if(window.dmLiveWatch) window.dmLiveWatch(campaign.key);
 }
 $('campaignSelect').addEventListener('change', e=>setCampaign(e.target.value));
 
@@ -1105,6 +1193,37 @@ window.addEventListener('storage', e=>{ if(e.key === 'dndTracker:theme'){ applyT
 let savedCampaign = null;
 try{ savedCampaign = localStorage.getItem('dndTracker:dm:campaign'); }catch(e){}
 setCampaign(savedCampaign || CAMPAIGNS[0].key);
+</script>
+<script type="module">
+/* ---------- Live: listening (Firebase Realtime Database) ----------
+   Signs in invisibly and follows campaigns/<campaign>/live, handing each change to
+   dmLiveUpdate. Same config as turnkeeper.html. */
+const FIREBASE_CONFIG = {
+  apiKey: 'AIzaSyAuTuvMgF52vRQRyR0psfeyiIv31_svy-Y',
+  authDomain: 'turnkeeper-7b835.firebaseapp.com',
+  databaseURL: 'https://turnkeeper-7b835-default-rtdb.firebaseio.com',
+  projectId: 'turnkeeper-7b835',
+  appId: '1:866334063897:web:feaaa8b817f9b80ee69988',
+};
+const FB = 'https://www.gstatic.com/firebasejs/12.19.0/';
+try{
+  const [{initializeApp}, {getAuth, signInAnonymously}, {getDatabase, ref, onValue}] =
+    await Promise.all(['firebase-app.js', 'firebase-auth.js', 'firebase-database.js'].map(f=>import(FB + f)));
+  const app = initializeApp(FIREBASE_CONFIG);
+  await signInAnonymously(getAuth(app));
+  const db = getDatabase(app);
+  let stop = null;
+  window.dmLiveWatch = key=>{
+    if(stop) stop();
+    stop = onValue(ref(db, `campaigns/${key}/live`),
+      snap=>{ window.dmLiveStatus('on'); window.dmLiveUpdate(key, snap.val()); },
+      err=>{ console.warn('Live updates:', err); window.dmLiveStatus('err', err.message); });
+  };
+  window.dmLiveWatch(window.dmCampaignKey());
+}catch(err){
+  console.warn('Live updates unavailable:', err);
+  window.dmLiveStatus('err', err.message);
+}
 </script>
 </body>
 </html>

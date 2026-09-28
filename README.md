@@ -11,7 +11,8 @@ what that player needs at the table. It follows the 2014 rules, so it knows what
 can do on their turn and hands them the dice command to paste into Discord, where
 [Avrae](https://avrae.io) rolls it.
 
-It's a static web page. There's no server, install, or login, and no API keys.
+It's a set of static web pages, with nothing to install and no login. The only outside service is a
+free Firebase database that carries players' live hit points and conditions to the DM Screen.
 
 ![Krunk, a level 2 Half-Orc Paladin, loaded into the tracker](docs/tracker.jpg)
 

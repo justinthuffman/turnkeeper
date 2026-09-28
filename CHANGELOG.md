@@ -38,6 +38,18 @@ Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wi
   - Everything is saved in the DM's browser, per campaign. It uses the same theme as the
     tracker and hub.
 - **Campaign box** in Character Summary, showing the campaign the character plays in.
+- **Live party updates.** When a player changes something in Turnkeeper, it shows on the DM
+  Screen within a second or two. That covers hit points and temp HP, conditions and magic
+  (Bless, Poisoned…), exhaustion, concentration, death saves, Inspiration, spell slots, Hit
+  Dice and class features.
+  - Each Party card has a live box with an HP bar and chips for each condition, and it says
+    whether that player's Turnkeeper is open and when it last changed.
+  - Characters in Initiative follow their player's hit points and show their conditions.
+  - In the tracker, the Campaign box says "● Live with the DM" while it's sharing.
+  - It uses a free Firebase database. Players don't need an account; the page signs in by
+    itself, invisibly. Only the campaign's own characters can be written.
+  - If a player opens their character on a device with an older copy, that device waits
+    until they change something before sharing, so it doesn't overwrite newer numbers.
 
 ### Changed
 - The color themes moved to `themes.css`, shared by the tracker and the DM Screen.
