@@ -1,0 +1,1110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DM Screen · Turnkeeper</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 40 40%27%3E%3Crect width=%2740%27 height=%2740%27 rx=%279%27 fill=%27%230c1b26%27/%3E%3Ccircle cx=%2720%27 cy=%2720%27 r=%2715%27 fill=%27none%27 stroke=%27%234fb8a6%27 stroke-width=%272.5%27/%3E%3Cpath d=%27M14 11H26M14 29H26M15 11Q15 18 20 20Q25 18 25 11M15 29Q15 22 20 20Q25 22 25 29%27 fill=%27none%27 stroke=%27%234fb8a6%27 stroke-width=%272.2%27 stroke-linejoin=%27round%27/%3E%3Cpath d=%27M17 27.5Q20 23.5 23 27.5Z%27 fill=%27%23d97b3f%27/%3E%3C/svg%3E">
+<link rel="stylesheet" href="themes.css">
+<style>
+*{box-sizing:border-box;}
+body{
+  margin:0; background:var(--bg); color:var(--ink); font-family:var(--font-body);
+  padding:24px 16px 80px; line-height:1.4;
+}
+h1,h2,h3{font-family:var(--font-display); font-weight:normal; margin:0;}
+.wrap{max-width:1100px; margin:0 auto;}
+header.top{display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px 16px; margin-bottom:12px; border-bottom:1px solid var(--border); padding-bottom:14px;}
+header.top h1{font-size:1.7rem; letter-spacing:0.02em; color:var(--sea); display:flex; align-items:center; gap:10px;}
+a.brand-link{display:flex; align-items:center; gap:10px; color:inherit; text-decoration:none; border-radius:4px; transition:filter .15s ease;}
+a.brand-link:hover{filter:brightness(1.2);}
+a.brand-link:focus-visible{outline:2px solid var(--sea); outline-offset:4px;}
+.brand-mark{width:1.5em; height:1.5em; flex:0 0 auto;}
+.page-name{color:var(--ink-dim); font-size:0.75em;}
+.campaign-pick{display:flex; align-items:center; gap:8px; font-size:0.8rem; color:var(--ink-dim);}
+select, input[type=text], input[type=number], textarea{
+  background:var(--panel2); border:1px solid var(--border); color:var(--ink); border-radius:4px;
+  padding:6px 8px; font-size:0.9rem; font-family:var(--font-body);
+}
+input[type=number]{-moz-appearance:textfield;}
+input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none; margin:0;}
+nav.jump{display:flex; flex-wrap:wrap; gap:4px 16px; font-size:0.82rem; margin-bottom:16px;}
+nav.jump a{color:var(--sea); text-decoration:none;}
+nav.jump a:hover{text-decoration:underline;}
+
+.panel{background:var(--panel); border:1px solid var(--border); border-radius:6px; padding:16px 18px; margin-bottom:18px; scroll-margin-top:12px;}
+.panel h2{font-size:1.1rem; color:var(--sea); letter-spacing:0.02em;}
+.panel-head{display:flex; align-items:baseline; justify-content:space-between; flex-wrap:wrap; gap:6px 12px; margin-bottom:10px;}
+.panel-note{font-size:0.8rem; color:var(--ink-dim); margin:0 0 12px;}
+.subhead{font-size:0.72rem; text-transform:uppercase; letter-spacing:0.06em; color:var(--sea-dim); margin:14px 0 6px;}
+
+button{
+  background:var(--orange); color:var(--on-accent); border:1px solid var(--orange-bright);
+  padding:8px 13px; border-radius:4px; cursor:pointer; font-size:0.86rem; font-family:var(--font-body);
+}
+button:hover{background:var(--orange-bright);}
+button:disabled{opacity:0.45; cursor:default;}
+button.ghost{background:transparent; border:1px solid var(--border); color:var(--ink-dim);}
+button.ghost:hover:not(:disabled){color:var(--ink); border-color:var(--sea-dim);}
+/* Small text-like buttons inside rows (the themes leave .chip-btn and .sel-toggle plain) */
+button.chip-btn{background:var(--panel2); border:1px solid var(--border); color:var(--ink); padding:4px 8px; font-size:0.78rem; border-radius:4px; line-height:1.2;}
+button.chip-btn:hover:not(:disabled){border-color:var(--sea-dim); background:var(--panel2);}
+button.chip-btn.on{border-color:var(--orange); background:var(--orange-tint);}
+button.sel-toggle{background:none; border:none; padding:0; color:var(--sea); font-size:0.78rem; cursor:pointer; text-decoration:underline; text-underline-offset:2px; white-space:nowrap;}
+button.sel-toggle:hover{background:none; color:var(--ink);}
+.msg{font-size:0.8rem; color:var(--ink-dim); min-height:1em; margin-top:6px;}
+.msg.err{color:var(--danger);}
+.msg.ok{color:var(--green);}
+
+/* ---------- Party ---------- */
+.party-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:12px;}
+.pc-card{background:var(--panel2); border:1px solid var(--border); border-radius:6px; padding:12px; display:flex; flex-direction:column; gap:8px; min-width:0;}
+.pc-top{display:flex; gap:10px; align-items:center;}
+.pc-portrait{width:52px; height:52px; border-radius:50%; object-fit:cover; object-position:top; border:1px solid var(--border); flex:0 0 auto; background:var(--bg);}
+.pc-card h3{font-size:1.15rem; color:var(--sea);}
+.pc-sub{font-size:0.78rem; color:var(--ink-dim);}
+.pc-stats{display:grid; grid-template-columns:repeat(5, minmax(0,1fr)); gap:4px; margin:0;}
+.pc-stats div{background:var(--panel); border:1px solid var(--border); border-radius:4px; text-align:center; padding:4px 2px;}
+.pc-stats dt{font-size:0.62rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--ink-dim);}
+.pc-stats dd{margin:0; font-family:var(--font-display); font-size:1.05rem;}
+.pc-line{font-size:0.8rem; color:var(--ink-dim);}
+.pc-line b{color:var(--ink); font-weight:600;}
+.pc-saves{display:grid; grid-template-columns:repeat(6, minmax(0,1fr)); gap:3px; font-size:0.74rem; text-align:center;}
+.pc-saves span{border:1px solid var(--border); border-radius:4px; padding:2px 0; color:var(--ink-dim);}
+.pc-saves span.prof{border-color:var(--sea-dim); color:var(--ink);}
+.pc-saves small{display:block; font-size:0.6rem; letter-spacing:0.05em;}
+.pc-links{display:flex; gap:14px; font-size:0.8rem; margin-top:auto;}
+.pc-links a{color:var(--sea);}
+.pc-card.loading{opacity:0.6;}
+.pc-err{font-size:0.8rem; color:var(--danger);}
+.passive-check{display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:14px; font-size:0.85rem;}
+.passive-check input{width:4.5em;}
+.pass-result{display:flex; flex-wrap:wrap; gap:6px;}
+.pass-chip{border:1px solid var(--border); border-radius:999px; padding:2px 10px; font-size:0.78rem;}
+.pass-chip.yes{border-color:var(--green); color:var(--green);}
+.pass-chip.no{opacity:0.55;}
+
+/* ---------- Initiative ---------- */
+.toolbar{display:flex; flex-wrap:wrap; gap:8px; align-items:center;}
+.toolbar .sep{flex:1 1 auto;}
+.round-info{font-size:0.9rem; color:var(--ink-dim);}
+.round-info b{color:var(--orange-bright); font-family:var(--font-display); font-size:1.1rem; font-weight:normal;}
+.add-form{background:var(--panel2); border:1px solid var(--border); border-radius:6px; padding:12px; margin-top:12px;}
+.add-form[hidden]{display:none;}
+.form-grid{display:grid; grid-template-columns:2.2fr repeat(5, minmax(0,1fr)); gap:8px 10px; align-items:end;}
+.form-grid label{display:flex; flex-direction:column; gap:3px; font-size:0.68rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--ink-dim); min-width:0;}
+.form-grid input, .form-grid select{width:100%;}
+.form-row{display:flex; flex-wrap:wrap; gap:8px 18px; align-items:center; margin-top:10px; font-size:0.84rem;}
+.form-row label{display:flex; align-items:center; gap:5px;}
+.srd-tag{font-size:0.75rem; color:var(--green);}
+@media (max-width:700px){ .form-grid{grid-template-columns:repeat(3, minmax(0,1fr));} .form-grid .span-all{grid-column:1 / -1;} }
+
+.init-list{margin-top:14px; display:flex; flex-direction:column; gap:6px;}
+.init-empty{font-size:0.85rem; color:var(--ink-dim); font-style:italic; padding:10px 0;}
+.cbt{border:1px solid var(--border); border-radius:6px; background:var(--panel2); transition:border-color .15s ease, box-shadow .15s ease;}
+.cbt-main{display:grid; grid-template-columns:auto 3.6rem minmax(0,1fr) 3.4rem minmax(150px,210px) auto; gap:10px; align-items:center; padding:8px 10px;}
+.cbt.turn{border-color:var(--orange); box-shadow:0 0 0 1px var(--orange), 0 0 14px var(--orange-tint);}
+.cbt.turn .turn-mark{visibility:visible;}
+.turn-mark{visibility:hidden; color:var(--orange-bright); font-size:0.9rem; width:0.9rem;}
+.cbt.down{opacity:0.5;}
+.cbt.lair{background:transparent; border-style:dashed;}
+.cbt-init{width:100%; text-align:center; font-family:var(--font-display); font-size:1.15rem; padding:4px;}
+.cbt-name{min-width:0;}
+.cbt-name .nm{font-size:1rem; overflow-wrap:anywhere;}
+.cbt-name .nm .kind{font-size:0.66rem; text-transform:uppercase; letter-spacing:0.06em; border:1px solid var(--border); border-radius:3px; padding:0 4px; margin-left:6px; color:var(--ink-dim); vertical-align:2px;}
+.cbt-name .nm .kind.pc{border-color:var(--sea-dim); color:var(--sea);}
+.cbt-sub{font-size:0.74rem; color:var(--ink-dim);}
+.cbt-chips{display:flex; flex-wrap:wrap; gap:4px; margin-top:4px;}
+.cond-chip{display:inline-flex; align-items:center; gap:4px; font-size:0.72rem; border:1px solid var(--border); border-radius:999px; padding:1px 4px 1px 8px; background:var(--panel);}
+.cond-chip.conc{border-color:var(--racial);}
+.cond-chip.state{border-color:var(--danger); color:var(--danger); padding-right:8px;}
+.cond-chip button{background:none; border:none; color:var(--ink-dim); padding:0 3px; font-size:0.85rem; line-height:1; cursor:pointer;}
+.cond-chip button:hover{background:none; color:var(--danger);}
+.cbt-ac{text-align:center; font-family:var(--font-display); font-size:1.1rem;}
+.cbt-ac small{display:block; font-family:var(--font-body); font-size:0.6rem; text-transform:uppercase; letter-spacing:0.06em; color:var(--ink-dim);}
+.hp-box{display:flex; flex-direction:column; gap:4px; min-width:0;}
+.hp-text{font-size:0.82rem; display:flex; justify-content:space-between; gap:6px;}
+.hp-text .tmp{color:var(--racial);}
+.hp-bar{height:6px; border-radius:3px; background:var(--bg); overflow:hidden;}
+.hp-bar i{display:block; height:100%; background:var(--green); transition:width .2s ease;}
+.hp-bar i.mid{background:var(--act-bonus);}
+.hp-bar i.low{background:var(--danger);}
+.hp-ctrl{display:flex; gap:4px;}
+.hp-ctrl input{width:3.6em; padding:3px 5px; font-size:0.85rem;}
+.hp-ctrl button{flex:1;}
+.cbt-actions{display:flex; gap:4px; align-items:center;}
+.cbt-actions .order{display:flex; flex-direction:column; gap:2px;}
+.cbt-actions .order button{padding:0 5px; font-size:0.6rem;}
+.cbt-alert{margin:0 10px 8px; padding:6px 10px; border-radius:4px; border:1px solid var(--racial); font-size:0.82rem; display:flex; flex-wrap:wrap; gap:6px 10px; align-items:center;}
+.cbt-alert code{font-family:ui-monospace, Consolas, monospace; background:var(--bg); border:1px solid var(--border); border-radius:3px; padding:1px 6px;}
+.cbt-more{border-top:1px solid var(--border); padding:10px; display:grid; grid-template-columns:repeat(auto-fit, minmax(230px, 1fr)); gap:10px 18px; font-size:0.84rem;}
+.cbt-more[hidden]{display:none;}
+.cbt-more .grp{display:flex; flex-direction:column; gap:5px;}
+.cbt-more .lbl{font-size:0.68rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--ink-dim);}
+.cbt-more .row{display:flex; flex-wrap:wrap; gap:5px; align-items:center;}
+.cbt-more input[type=number]{width:4.5em;}
+.cbt-more input[type=text]{flex:1; min-width:8em;}
+.cbt-more textarea{width:100%; min-height:3.2em; resize:vertical;}
+@media (max-width:700px){
+  .cbt-main{grid-template-columns:auto 3.2rem minmax(0,1fr) 3rem; }
+  .hp-box{grid-column:2 / -1;}
+  .cbt-actions{grid-column:2 / -1; justify-content:flex-end;}
+}
+.log{margin-top:14px; font-size:0.8rem;}
+.log summary{cursor:pointer; color:var(--ink-dim);}
+.log ol{margin:6px 0 0; padding-left:0; list-style:none; max-height:220px; overflow:auto;}
+.log li{padding:2px 0; border-bottom:1px dotted var(--border); color:var(--ink-dim);}
+.log li b{color:var(--ink); font-weight:600;}
+
+/* ---------- Encounter ---------- */
+.enc-grid{display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:8px;}
+.enc-cell{border:1px solid var(--border); border-radius:6px; padding:8px; text-align:center; background:var(--panel2);}
+.enc-cell .lbl{font-size:0.66rem; text-transform:uppercase; letter-spacing:0.06em; color:var(--ink-dim);}
+.enc-cell .val{font-family:var(--font-display); font-size:1.2rem;}
+.enc-cell.hit{border-color:var(--orange); box-shadow:0 0 0 1px var(--orange);}
+.enc-result{margin-top:12px; font-size:0.9rem; line-height:1.6;}
+.enc-result .rating{font-family:var(--font-display); font-size:1.3rem; color:var(--orange-bright);}
+.enc-table{width:100%; border-collapse:collapse; font-size:0.82rem; margin-top:10px;}
+.enc-table th, .enc-table td{text-align:left; padding:4px 6px; border-bottom:1px solid var(--border);}
+.enc-table th{font-weight:normal; color:var(--ink-dim); font-size:0.7rem; text-transform:uppercase; letter-spacing:0.05em;}
+.enc-table td.num, .enc-table th.num{text-align:right;}
+@media (max-width:520px){ .enc-grid{grid-template-columns:repeat(2, minmax(0,1fr));} }
+
+/* ---------- Reference ---------- */
+.ref{border-top:1px solid var(--border);}
+.ref:first-of-type{border-top:none;}
+.ref summary{cursor:pointer; padding:8px 0; font-family:var(--font-display); color:var(--ink); font-size:1rem;}
+.ref summary:hover{color:var(--sea);}
+.ref-body{font-size:0.85rem; padding:0 0 12px; color:var(--ink);}
+.ref-body dl{margin:0; display:grid; grid-template-columns:max-content 1fr; gap:4px 14px;}
+.ref-body dt{font-weight:600; color:var(--sea);}
+.ref-body dd{margin:0; color:var(--ink-dim);}
+.ref-body p{margin:0 0 6px; color:var(--ink-dim);}
+.ref-body p b{color:var(--ink);}
+@media (max-width:520px){ .ref-body dl{grid-template-columns:1fr;} .ref-body dd{margin-bottom:6px;} }
+
+/* ---------- Notes ---------- */
+#notesBox{width:100%; min-height:200px; resize:vertical; line-height:1.45;}
+
+/* ---------- Stat block popup (same look as the tracker's roll popups) ---------- */
+.roll-backdrop{position:fixed; inset:0; z-index:60; background:var(--backdrop); display:flex; align-items:center; justify-content:center; padding:16px; opacity:0; transition:opacity .2s ease;}
+.roll-backdrop[hidden]{display:none;}
+.roll-backdrop.open{opacity:1;}
+.roll-popup{background:var(--panel); border:1px solid var(--border); border-radius:8px; width:min(620px,100%); max-height:90vh; overflow:auto; padding:14px 16px 16px; box-shadow:0 12px 40px rgba(0,0,0,0.45); transform:translateY(8px); transition:transform .2s ease;}
+.roll-backdrop.open .roll-popup{transform:none;}
+.roll-head{display:flex; justify-content:space-between; align-items:center; gap:12px;}
+.roll-head h4{font-family:var(--font-display); color:var(--sea); font-size:1.25rem; margin:0; font-weight:normal;}
+button.roll-close{background:none; border:none; color:var(--ink-dim); font-size:1.5rem; line-height:1; padding:0 4px;}
+button.roll-close:hover{background:none; color:var(--ink);}
+.sb-sub{font-size:0.8rem; color:var(--ink-dim); font-style:italic; margin-bottom:8px;}
+.sb-line{font-size:0.85rem; margin:2px 0;}
+.sb-line b{color:var(--sea);}
+.sb-abil{display:grid; grid-template-columns:repeat(6, minmax(0,1fr)); gap:4px; margin:10px 0; text-align:center; font-size:0.82rem;}
+.sb-abil div{background:var(--panel2); border:1px solid var(--border); border-radius:4px; padding:4px 0;}
+.sb-abil small{display:block; font-size:0.64rem; color:var(--ink-dim); letter-spacing:0.05em;}
+.sb-sec{font-family:var(--font-display); color:var(--sea); font-size:1rem; border-bottom:1px solid var(--border); margin:12px 0 6px; padding-bottom:2px;}
+.sb-feat{font-size:0.85rem; margin:0 0 8px;}
+.sb-feat > b{color:var(--ink);}
+.sb-feat p{margin:2px 0; color:var(--ink-dim);}
+.roll-cmd-row{display:flex; flex-wrap:wrap; gap:6px 8px; align-items:center; margin-top:4px;}
+.roll-cmd{font-family:ui-monospace, Consolas, monospace; font-size:0.85rem; color:var(--ink); background:var(--bg); border:1px solid var(--border); border-radius:4px; padding:4px 8px; overflow-wrap:anywhere; user-select:all;}
+.roll-cmd-desc{font-size:0.78rem; color:var(--ink-dim);}
+button.copy-btn{padding:4px 10px; font-size:0.78rem; white-space:nowrap;}
+
+/* Theme button (same as the tracker and hub) */
+.theme-picker{position:relative; display:flex; justify-content:center; margin-top:14px;}
+button.theme-toggle{display:inline-flex; align-items:center; gap:5px; background:none; border:none; padding:4px 6px; border-radius:4px; color:var(--ink-dim); opacity:0.6; font-size:0.72rem; font-family:var(--font-body); cursor:pointer; box-shadow:none; text-shadow:none;}
+button.theme-toggle:hover, button.theme-toggle[aria-expanded="true"]{background:none; opacity:1; color:var(--ink);}
+button.theme-toggle svg{width:13px; height:13px;}
+.theme-menu{
+  position:absolute; bottom:calc(100% + 6px); left:50%; transform:translateX(-50%); z-index:50;
+  display:grid; grid-template-columns:repeat(2, auto); gap:4px 12px; padding:10px 12px;
+  background:var(--panel); border:1px solid var(--border); border-radius:8px; box-shadow:0 8px 24px rgba(0,0,0,0.45);
+}
+.theme-menu[hidden]{display:none;}
+button.theme-option{display:flex; align-items:center; gap:8px; background:none; border:none; padding:4px 6px; border-radius:4px; color:var(--ink); font-size:0.78rem; font-family:var(--font-body); white-space:nowrap; cursor:pointer; box-shadow:none; text-shadow:none;}
+button.theme-option:hover{background:var(--panel2);}
+.theme-dot{width:16px; height:16px; border-radius:50%; border:1.5px solid var(--border); flex:0 0 auto;}
+button.theme-option[aria-pressed="true"]{font-weight:600;}
+button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box-shadow:0 0 0 2px var(--panel), 0 0 0 3px var(--ink);}
+@media (prefers-reduced-motion: reduce){
+  .roll-backdrop, .roll-popup, .hp-bar i, .cbt{transition:none;}
+}
+</style>
+<script>
+// Apply the saved color theme before the page draws (the same pick as the tracker and hub)
+const THEME_FONTS = {
+  tome: 'https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap',
+  keep: 'https://fonts.googleapis.com/css2?family=MedievalSharp&display=swap',
+  inferno: 'https://fonts.googleapis.com/css2?family=Pirata+One&display=swap',
+};
+function applyTheme(key){
+  const root = document.documentElement;
+  if(key && key !== 'harbor') root.setAttribute('data-theme', key); else root.removeAttribute('data-theme');
+  if(THEME_FONTS[key] && !document.getElementById('font-'+key)){
+    const l = document.createElement('link');
+    l.id = 'font-'+key; l.rel = 'stylesheet'; l.href = THEME_FONTS[key];
+    document.head.appendChild(l);
+  }
+}
+const DEFAULT_THEME = 'keep';
+let savedTheme = null;
+try{ savedTheme = localStorage.getItem('dndTracker:theme'); }catch(e){}
+applyTheme(savedTheme || DEFAULT_THEME);
+</script>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <h1><a class="brand-link" href="index.html" title="Back to all characters"><svg class="brand-mark" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="16" fill="none" stroke="var(--sea)" stroke-width="2"/><path d="M14 11 H26 M14 29 H26 M15 11 Q15 18 20 20 Q25 18 25 11 M15 29 Q15 22 20 20 Q25 22 25 29" fill="none" stroke="var(--sea)" stroke-width="1.8" stroke-linejoin="round"/><path d="M17.5 27 Q20 24 22.5 27 Z" fill="var(--orange)"/></svg>Turnkeeper</a><span class="page-name">DM Screen</span></h1>
+  <label class="campaign-pick">Campaign <select id="campaignSelect"></select></label>
+</header>
+<nav class="jump" aria-label="Sections">
+  <a href="#partyPanel">Party</a><a href="#initPanel">Initiative</a><a href="#encPanel">Encounter difficulty</a><a href="#refPanel">Rules reference</a><a href="#notesPanel">Session notes</a>
+</nav>
+
+<!-- PARTY -->
+<section class="panel" id="partyPanel">
+  <div class="panel-head"><h2>Party</h2><button type="button" class="ghost" id="partyRefresh">Reload sheets</button></div>
+  <p class="panel-note">From each character’s Google Sheet. What players track in their own Turnkeeper (hit points, slots, conditions) stays on their device for now, so it doesn’t show here.</p>
+  <div class="party-grid" id="partyGrid"></div>
+  <div class="passive-check">
+    <span>Passive</span>
+    <select id="passSkill"><option value="perception">Perception</option><option value="investigation">Investigation</option><option value="insight">Insight</option></select>
+    <span>against DC</span>
+    <input type="number" id="passDc" value="15" min="1" max="40" aria-label="DC">
+    <div class="pass-result" id="passResult" aria-live="polite"></div>
+  </div>
+</section>
+
+<!-- INITIATIVE -->
+<section class="panel" id="initPanel">
+  <div class="panel-head"><h2>Initiative</h2><span class="round-info" id="roundInfo"></span></div>
+  <div class="toolbar">
+    <button type="button" class="ghost" id="addPartyBtn">Add the party</button>
+    <button type="button" class="ghost" id="addMonsterBtn" aria-expanded="false" aria-controls="addForm">Add monsters</button>
+    <button type="button" class="ghost" id="addLairBtn" title="Lair actions happen on initiative 20, after anyone else on 20">Add lair action</button>
+    <span class="sep"></span>
+    <button type="button" class="ghost" id="prevBtn" title="Back to the previous turn">Previous</button>
+    <button type="button" id="nextBtn">Start combat</button>
+    <button type="button" class="ghost" id="endBtn">End combat</button>
+  </div>
+  <form class="add-form" id="addForm" hidden autocomplete="off">
+    <div class="form-grid">
+      <label class="span-all">Monster <input type="text" id="mName" list="srdList" placeholder="Search the SRD, or type any name" required></label>
+      <label>How many <input type="number" id="mCount" value="1" min="1" max="30"></label>
+      <label>AC <input type="number" id="mAc" min="0" max="40"></label>
+      <label>HP <input type="text" id="mHp" placeholder="7 or 2d6"></label>
+      <label>Init bonus <input type="number" id="mInit" value="0" min="-10" max="20"></label>
+      <label>CR <select id="mCr"></select></label>
+    </div>
+    <datalist id="srdList"></datalist>
+    <div class="form-row">
+      <span class="srd-tag" id="srdTag"></span>
+      <label title="Average: the stat block's number. Rolled: each monster rolls its hit dice."><input type="checkbox" id="mRollHp"> Roll hit points</label>
+      <label title="The DMG lets you roll once for a group of identical monsters"><input type="checkbox" id="mGroup" checked> One initiative for the group</label>
+      <span class="sep" style="flex:1"></span>
+      <button type="button" class="ghost" id="mCancel">Close</button>
+      <button type="submit">Add</button>
+    </div>
+    <div class="msg" id="addMsg"></div>
+  </form>
+  <div class="init-list" id="initList"></div>
+  <div class="msg" id="initMsg" aria-live="polite"></div>
+  <div class="toolbar" style="margin-top:10px;">
+    <button type="button" class="sel-toggle" id="rollMissingBtn">Roll initiative for monsters without one</button>
+    <span class="sep"></span>
+    <button type="button" class="sel-toggle" id="clearDownBtn">Remove defeated monsters</button>
+    <button type="button" class="sel-toggle" id="clearAllBtn">Clear the list</button>
+  </div>
+  <details class="log" id="logBox"><summary>Combat log</summary><ol id="logList"></ol></details>
+</section>
+
+<!-- ENCOUNTER -->
+<section class="panel" id="encPanel">
+  <div class="panel-head"><h2>Encounter difficulty</h2></div>
+  <p class="panel-note">From the monsters in Initiative and the party’s levels, using the 2014 Dungeon Master’s Guide. Add monsters before rolling to plan a fight.</p>
+  <div id="encBody"></div>
+</section>
+
+<!-- REFERENCE -->
+<section class="panel" id="refPanel">
+  <div class="panel-head"><h2>Rules reference</h2></div>
+  <div id="refBody"></div>
+</section>
+
+<!-- NOTES -->
+<section class="panel" id="notesPanel">
+  <div class="panel-head"><h2>Session notes</h2><span class="msg" id="notesMsg" style="margin:0"></span></div>
+  <textarea id="notesBox" placeholder="NPCs, clues, loot, what happened this session…"></textarea>
+  <p class="panel-note" style="margin:6px 0 0;">Saved in this browser as you type.</p>
+</section>
+
+<div class="theme-picker" id="themePicker">
+  <button type="button" class="theme-toggle" id="themeToggle" aria-expanded="false" aria-controls="themeMenu" title="Change the color theme"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 3a9 9 0 0 0 0 18c1.1 0 1.8-.8 1.8-1.7 0-.5-.2-.9-.5-1.2-.3-.3-.5-.7-.5-1.2 0-.9.8-1.7 1.7-1.7H16a5 5 0 0 0 5-5C21 6.4 17 3 12 3zm-5.5 9a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm3-4a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm3 4a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg><span>Theme</span></button>
+  <div class="theme-menu" id="themeMenu" role="group" aria-label="Color theme" hidden></div>
+</div>
+</div>
+
+<div class="roll-backdrop" id="sbBackdrop" hidden>
+  <div class="roll-popup" role="dialog" aria-modal="true" aria-labelledby="sbTitle">
+    <div class="roll-head"><h4 id="sbTitle"></h4><button type="button" class="roll-close" id="sbClose" aria-label="Close">&times;</button></div>
+    <div id="sbBody"></div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   DM Screen. One page for the DM: the campaign's party (read from their sheets), an
+   initiative tracker, 2014 DMG encounter difficulty, a rules reference and session notes.
+   Everything the DM enters is saved in this browser, per campaign.
+   ============================================================ */
+const ROLL = '!tk';   // the server's Avrae alias, as in the tracker
+const SHEET_GID = '359784640';
+// Campaigns and their party. Hard-coded for now (Justin, 2026-09-28): later, players join from
+// their account or the DM's invite link. turnkeeper.html keeps the same list of sheets.
+const CAMPAIGNS = [
+  {key:'waterdeep', name:'Crisis in Waterdeep', party:[
+    {name:'Bel', sheet:'14TFj-bb1ixAUl9bw_tNdcIpWtnYxeV8JW5f2kIbiW_Q', portrait:'portraits/bel.webp'},
+    {name:'Ezlo', sheet:'1GqXXArCfLC42oVTF9XVrbNeKbw868HF1ih2S7VpX8jk', portrait:'portraits/ezlo.webp'},
+    {name:'Krunk', sheet:'1vIvEke6E12m7il5voB2n5rJAqwgJeWf_2BZYJSKpYgU', portrait:'portraits/krunk.jpg'},
+    {name:'Venthor', sheet:'1mS5Z2jgmi4U-bdEPP0JvZIkI-7puhWGjwlF8i6JIYbo', portrait:'portraits/venthor.webp'},
+  ]},
+];
+let campaign = CAMPAIGNS[0];
+
+/* ---------- Small helpers ---------- */
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmtMod = n => (n >= 0 ? '+' : '') + n;
+const abilMod = s => Math.floor((Number(s) - 10) / 2);
+const profFor = lvl => 2 + Math.floor((Math.max(1, lvl) - 1) / 4);
+const toNum = v => { const n = parseInt(String(v ?? '').replace(/[^\d-]/g, ''), 10); return isNaN(n) ? null : n; };
+const d20 = () => 1 + Math.floor(Math.random() * 20);
+const ABILS = ['str','dex','con','int','wis','cha'];
+const ABIL_NAME = {str:'Strength', dex:'Dexterity', con:'Constitution', int:'Intelligence', wis:'Wisdom', cha:'Charisma'};
+const storeKey = k => `dndTracker:dm:${campaign.key}:${k}`;
+function loadJSON(k, def){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : def; }catch(e){ return def; } }
+function saveJSON(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+// "2d6+2", "1d8 - 1", "7": rolled total, or null if it isn't dice or a number
+function rollExpr(expr){
+  const s = String(expr ?? '').replace(/\s/g, '');
+  const m = s.match(/^(\d*)d(\d+)([+-]\d+)?$/i);
+  if(!m){ return /^-?\d+$/.test(s) ? parseInt(s, 10) : null; }
+  let t = 0;
+  for(let i = 0; i < (+m[1] || 1); i++) t += 1 + Math.floor(Math.random() * +m[2]);
+  return t + (m[3] ? +m[3] : 0);
+}
+async function copyText(text, btn){
+  try{ await navigator.clipboard.writeText(text); }
+  catch(e){ const t = document.createElement('textarea'); t.value = text; document.body.appendChild(t); t.select(); try{ document.execCommand('copy'); }catch(_){} t.remove(); }
+  if(btn){ const was = btn.textContent; btn.textContent = 'Copied'; setTimeout(()=>{ btn.textContent = was; }, 1200); }
+}
+const cmdRow = (cmd, desc) => `<div class="roll-cmd-row"><code class="roll-cmd">${esc(cmd)}</code><button type="button" class="copy-btn" data-copy="${esc(cmd)}">Copy</button>${desc ? `<span class="roll-cmd-desc">${esc(desc)}</span>` : ''}</div>`;
+document.addEventListener('click', e=>{ const b = e.target.closest('[data-copy]'); if(b) copyText(b.dataset.copy, b); });
+
+/* ---------- Reading the party's sheets (the same cells as the tracker) ---------- */
+const RANGES = {level:'AL2:AL2', race:'T3:T3', class:'T1:T1', ac:'R7:R7', init:'V7:V7', speed:'Z7:Z7', hpmax:'U11:U11', hpcur:'R12:R12',
+  str:'C10:C10', dex:'C15:C15', con:'C20:C20', int:'C25:C25', wis:'C30:C30', cha:'C35:C35'};
+function colToIdx(letters){ let idx = 0; for(const ch of letters) idx = idx*26 + (ch.charCodeAt(0)-64); return idx-1; }
+function cellAt(table, ref){ const m = ref.match(/^([A-Z]+)(\d+)/); const row = table[+m[2]-1]; const v = row ? row[colToIdx(m[1])] : null; return v === null || v === undefined ? '' : String(v).trim(); }
+// Saves (rows 12-17) and skills (rows 20-37): proficiency flag in H, modifier in I, name in J
+function flagRows(table, r1, r2){
+  const out = [];
+  for(let r = r1-1; r <= r2-1; r++){
+    const row = table[r]; if(!row || !row[9]) continue;
+    out.push({name:String(row[9]).trim(), prof:String(row[7]).trim()==='1', mod:row[8]===null || row[8]==='' ? null : Number(row[8])});
+  }
+  return out;
+}
+function loadSheetJSONP(sheetId, gid, range){
+  return new Promise((resolve, reject)=>{
+    const cb = 'gvizCb_' + Math.random().toString(36).slice(2);
+    const script = document.createElement('script');
+    const done = ()=>{ delete window[cb]; script.remove(); clearTimeout(timer); };
+    const timer = setTimeout(()=>{ done(); reject(new Error('Timed out loading the sheet.')); }, 12000);
+    window[cb] = data=>{ done(); resolve(data); };
+    script.src = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json;responseHandler:${cb}&gid=${gid}&range=${range}`;
+    script.onerror = ()=>{ done(); reject(new Error('Could not load the sheet.')); };
+    document.body.appendChild(script);
+  });
+}
+// Senses and resistances the sheet doesn't list, from the PHB race
+function raceExtras(race){
+  const r = race.toLowerCase(), out = [];
+  if(r.includes('drow')) out.push('Superior darkvision 120 ft');
+  else if(/elf|dwarf|gnome|orc|tiefling/.test(r)) out.push('Darkvision 60 ft');
+  if(r.includes('tiefling')) out.push('Resists fire');
+  if(r.includes('dwarf')) out.push('Resists poison');
+  if(r.includes('stout')) out.push('Resists poison');
+  if(r.includes('drow') || r.includes('elf')) out.push('Advantage vs. charm, can’t be magically slept');
+  return out;
+}
+// Class spellcasting ability and the level it starts (2014 PHB)
+function castingFor(cls){
+  const c = cls.toLowerCase();
+  if(/wizard/.test(c)) return {ab:'int', from:1};
+  if(/bard|sorcerer|warlock/.test(c)) return {ab:'cha', from:1};
+  if(/cleric|druid/.test(c)) return {ab:'wis', from:1};
+  if(/paladin/.test(c)) return {ab:'cha', from:2};
+  if(/ranger/.test(c)) return {ab:'wis', from:2};
+  if(/arcane trickster|eldritch knight/.test(c)) return {ab:'int', from:3};
+  return null;
+}
+const party = {};   // name -> what the sheet says, once loaded
+async function loadPC(pc){
+  const data = await loadSheetJSONP(pc.sheet, SHEET_GID, 'A1:BZ120');
+  if(!data.table || !data.table.rows) throw new Error('No data: is the sheet shared as “Anyone with the link can view”?');
+  const table = data.table.rows.map(row => (row.c||[]).map(cell => cell ? (cell.v !== null && cell.v !== undefined ? cell.v : cell.f) : null));
+  const g = k => cellAt(table, RANGES[k]);
+  const p = {name:pc.name, level:toNum(g('level')) || 1, race:g('race'), cls:g('class'), ac:toNum(g('ac')), init:toNum(g('init')) ?? 0,
+    speed:g('speed'), hpMax:toNum(g('hpmax')), hpCur:toNum(g('hpcur')), scores:{}};
+  ABILS.forEach(a=>{ p.scores[a] = toNum(g(a)) ?? 10; });
+  p.saves = flagRows(table, 12, 17);
+  const skills = flagRows(table, 20, 37);
+  const passive = n => { const s = skills.find(x=>x.name.toLowerCase()===n); return s && s.mod !== null ? 10 + s.mod : 10 + abilMod(p.scores[{perception:'wis', insight:'wis', investigation:'int'}[n]]); };
+  p.passive = {perception:passive('perception'), investigation:passive('investigation'), insight:passive('insight')};
+  const cast = castingFor(p.cls);
+  if(cast && p.level >= cast.from) p.spellDc = 8 + profFor(p.level) + abilMod(p.scores[cast.ab]);
+  p.extras = raceExtras(p.race);
+  return p;
+}
+function pcCard(pc){
+  const p = party[pc.name];
+  const link = `turnkeeper.html?sheet=${encodeURIComponent(`https://docs.google.com/spreadsheets/d/${pc.sheet}/edit?gid=${SHEET_GID}#gid=${SHEET_GID}`)}&name=${encodeURIComponent(pc.name)}`;
+  const links = `<div class="pc-links"><a href="${link}" target="_blank" rel="noopener">Open in Turnkeeper</a><a href="https://docs.google.com/spreadsheets/d/${pc.sheet}/edit?gid=${SHEET_GID}" target="_blank" rel="noopener">Google Sheet</a></div>`;
+  const top = sub => `<div class="pc-top"><img class="pc-portrait" src="${pc.portrait}" alt=""><div><h3>${esc(pc.name)}</h3><div class="pc-sub">${sub}</div></div></div>`;
+  if(!p || p.error) return `<article class="pc-card${p ? '' : ' loading'}">${top(p ? '' : 'Loading…')}${p ? `<div class="pc-err">${esc(p.error)}</div>` : ''}${links}</article>`;
+  const saves = ABILS.map(a=>{
+    const s = p.saves.find(x=>x.name.toLowerCase().startsWith(ABIL_NAME[a].toLowerCase().slice(0,3)));
+    const mod = s && s.mod !== null ? s.mod : abilMod(p.scores[a]);
+    return `<span class="${s && s.prof ? 'prof' : ''}" title="${ABIL_NAME[a]} save${s && s.prof ? ' (proficient)' : ''}"><small>${a.toUpperCase()}</small>${fmtMod(mod)}</span>`;
+  }).join('');
+  const stat = (dt, dd, title) => `<div title="${esc(title||'')}"><dt>${dt}</dt><dd>${dd ?? '—'}</dd></div>`;
+  return `<article class="pc-card">${top(`Level ${p.level} ${esc(p.race)} ${esc(p.cls)}`)}
+    <dl class="pc-stats">${stat('AC', p.ac)}${stat('HP', p.hpMax, 'Maximum hit points on the sheet')}${stat('Init', fmtMod(p.init))}${stat('Speed', esc(String(p.speed).replace(/\s*ft\.?/i,'')), 'Feet')}${stat('Spell DC', p.spellDc, 'Spell save DC')}</dl>
+    <div class="pc-line">Passive <b>Perception ${p.passive.perception}</b> · Investigation ${p.passive.investigation} · Insight ${p.passive.insight}</div>
+    <div class="pc-saves" aria-label="Saving throws">${saves}</div>
+    ${p.extras.length ? `<div class="pc-line">${p.extras.map(esc).join(' · ')}</div>` : ''}
+    ${links}</article>`;
+}
+function renderParty(){
+  $('partyGrid').innerHTML = campaign.party.map(pcCard).join('');
+  renderPassive();
+}
+async function loadParty(){
+  campaign.party.forEach(pc=>{ delete party[pc.name]; });
+  renderParty();
+  await Promise.all(campaign.party.map(async pc=>{
+    try{ party[pc.name] = await loadPC(pc); }
+    catch(err){ party[pc.name] = {error:err.message}; }
+    renderParty();
+  }));
+  // Characters already in Initiative pick up their AC, hit points and bonus from the sheet
+  let changed = false;
+  combat.list.forEach(c=>{
+    const p = c.kind === 'pc' && party[c.name];
+    if(p && !p.error){
+      if(c.max === null && p.hpMax){ c.max = p.hpMax; c.hp = p.hpCur ?? p.hpMax; }
+      c.ac = p.ac; c.initMod = p.init; c.dex = abilMod(p.scores.dex); changed = true;
+    }
+  });
+  if(changed) saveCombat();
+  renderInit(); renderEncounter();
+}
+function renderPassive(){
+  const skill = $('passSkill').value, dc = toNum($('passDc').value);
+  $('passResult').innerHTML = dc === null ? '' : campaign.party.map(pc=>{
+    const p = party[pc.name];
+    if(!p || p.error) return '';
+    const v = p.passive[skill], ok = v >= dc;
+    return `<span class="pass-chip ${ok ? 'yes' : 'no'}" title="Passive ${skill} ${v}">${ok ? '✓' : '✗'} ${esc(pc.name)} ${v}</span>`;
+  }).join('');
+}
+$('passSkill').addEventListener('change', renderPassive);
+$('passDc').addEventListener('input', renderPassive);
+$('partyRefresh').addEventListener('click', loadParty);
+
+/* ---------- SRD monsters (2014 rules, from the free D&D 5e SRD API) ---------- */
+const SRD = 'https://www.dnd5eapi.co';
+let srdIndex = null;           // [{index, name}]
+const srdCache = {};           // index -> full monster
+async function loadSrdIndex(){
+  if(srdIndex) return srdIndex;
+  try{
+    const r = await fetch(`${SRD}/api/2014/monsters`);
+    srdIndex = (await r.json()).results || [];
+    $('srdList').innerHTML = srdIndex.map(m=>`<option value="${esc(m.name)}">`).join('');
+  }catch(e){ srdIndex = null; $('addMsg').textContent = 'Couldn’t reach the SRD monster list; custom monsters still work.'; }
+  return srdIndex || [];
+}
+async function srdMonster(index){
+  if(srdCache[index]) return srdCache[index];
+  const r = await fetch(`${SRD}/api/2014/monsters/${index}`);
+  if(!r.ok) throw new Error('Not found');
+  return (srdCache[index] = await r.json());
+}
+const CR_XP = {'0':10, '1/8':25, '1/4':50, '1/2':100, '1':200, '2':450, '3':700, '4':1100, '5':1800, '6':2300, '7':2900, '8':3900, '9':5000, '10':5900,
+  '11':7200, '12':8400, '13':10000, '14':11500, '15':13000, '16':15000, '17':18000, '18':20000, '19':22000, '20':25000,
+  '21':33000, '22':41000, '23':50000, '24':62000, '25':75000, '26':90000, '27':105000, '28':120000, '29':135000, '30':155000};
+const crText = n => n === 0.125 ? '1/8' : n === 0.25 ? '1/4' : n === 0.5 ? '1/2' : String(n);
+$('mCr').innerHTML = '<option value="">—</option>' + Object.keys(CR_XP).map(k=>`<option value="${k}">${k}</option>`).join('');
+
+/* ---------- Initiative ----------
+   Each combatant: {id, kind:'pc'|'monster'|'lair', name, init, initMod, dex, tie, ac, hp, max, temp,
+   conds:[{name, rounds}], conc, srd, cr, note}. `turn` is the id whose turn it is; round 0 = not started.
+   Order: initiative high to low; ties by the DM's ▲▼ order, then Dexterity; lair actions lose ties. */
+let combat = loadJSON(storeKey('combat'), null) || {list:[], round:0, turn:null, log:[], nextId:1};
+let openRow = null;         // the combatant whose details are open
+const concAlerts = {};      // id -> DC of the concentration save waiting after damage
+function saveCombat(){ saveJSON(storeKey('combat'), combat); }
+function logLine(text){ combat.log.unshift({round:combat.round, text}); combat.log = combat.log.slice(0, 80); }
+function ordered(){
+  return [...combat.list].sort((a,b)=>
+    (b.init ?? -99) - (a.init ?? -99) || (a.kind==='lair') - (b.kind==='lair') || (a.tie ?? 0) - (b.tie ?? 0) || (b.dex ?? 0) - (a.dex ?? 0) || a.id - b.id);
+}
+const byId = id => combat.list.find(c=>c.id === id);
+const isDown = c => c.kind === 'monster' && c.max !== null && c.hp <= 0;
+function newCombatant(fields){ return {id:combat.nextId++, init:null, initMod:0, dex:0, tie:0, ac:null, hp:null, max:null, temp:0, conds:[], conc:'', srd:null, cr:null, note:'', ...fields}; }
+
+function addParty(){
+  let added = 0;
+  campaign.party.forEach(pc=>{
+    if(combat.list.some(c=>c.kind==='pc' && c.name===pc.name)) return;
+    const p = party[pc.name] && !party[pc.name].error ? party[pc.name] : null;
+    combat.list.push(newCombatant({kind:'pc', name:pc.name, initMod:p ? p.init : 0, dex:p ? abilMod(p.scores.dex) : 0,
+      ac:p ? p.ac : null, max:p ? p.hpMax : null, hp:p ? (p.hpCur ?? p.hpMax) : null}));
+    added++;
+  });
+  setInitMsg(added ? 'Party added. Type each player’s initiative (from their roll) in the box on the left.' : 'The whole party is already in the list.');
+  saveCombat(); renderInit(); renderEncounter();
+}
+function addLair(){
+  combat.list.push(newCombatant({kind:'lair', name:'Lair action', init:20}));
+  saveCombat(); renderInit();
+}
+function setInitMsg(text, cls){ const m = $('initMsg'); m.textContent = text || ''; m.className = 'msg ' + (cls || ''); }
+
+// Add monsters form
+let formSrd = null;   // the SRD monster the form was filled from
+function showAddForm(open){
+  $('addForm').hidden = !open;
+  $('addMonsterBtn').setAttribute('aria-expanded', String(open));
+  if(open){ loadSrdIndex(); $('mName').focus(); }
+}
+async function fillFromSrd(){
+  const name = $('mName').value.trim().toLowerCase();
+  const hit = (srdIndex || []).find(m=>m.name.toLowerCase() === name);
+  if(!hit){ formSrd = null; $('srdTag').textContent = ''; return; }
+  $('srdTag').textContent = 'Loading stat block…';
+  try{
+    const m = await srdMonster(hit.index);
+    formSrd = m;
+    $('mAc').value = (m.armor_class && m.armor_class[0] ? m.armor_class[0].value : '');
+    $('mHp').value = m.hit_points;
+    $('mInit').value = abilMod(m.dexterity);
+    $('mCr').value = crText(m.challenge_rating);
+    $('srdTag').textContent = `SRD: ${m.size} ${m.type}, CR ${crText(m.challenge_rating)} (${m.xp} XP), HP ${m.hit_points} (${m.hit_points_roll || m.hit_dice})`;
+  }catch(e){ formSrd = null; $('srdTag').textContent = 'Couldn’t load that stat block.'; }
+}
+function nextNumber(base){
+  const re = new RegExp('^' + base.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ' (\\d+)$');
+  return combat.list.reduce((n, c)=>{ const m = c.name.match(re); return m ? Math.max(n, +m[1]) : n; }, 0);
+}
+function addMonsters(e){
+  e.preventDefault();
+  const base = $('mName').value.trim();
+  if(!base) return;
+  const count = Math.max(1, Math.min(30, toNum($('mCount').value) || 1));
+  const initMod = toNum($('mInit').value) ?? 0, ac = toNum($('mAc').value), cr = $('mCr').value || null;
+  const hpField = $('mHp').value.trim();
+  const rollHp = $('mRollHp').checked;
+  const srd = formSrd && formSrd.name.toLowerCase() === base.toLowerCase() ? formSrd : null;
+  const groupInit = $('mGroup').checked ? d20() + initMod : null;
+  const start = nextNumber(base);
+  const single = count === 1 && start === 0 && !combat.list.some(c=>c.name === base);
+  for(let i = 1; i <= count; i++){
+    let hp;
+    if(srd && rollHp) hp = rollExpr(srd.hit_points_roll || srd.hit_dice) ?? srd.hit_points;
+    else if(/d/i.test(hpField)) hp = rollExpr(hpField);    // custom dice: each rolls
+    else hp = toNum(hpField);
+    combat.list.push(newCombatant({kind:'monster', name:single ? base : `${base} ${start + i}`, initMod, dex:initMod,
+      init:groupInit ?? (d20() + initMod), ac, hp, max:hp, srd:srd ? srd.index : null, cr}));
+  }
+  logLine(`Added ${count} × ${base}`);
+  setInitMsg(`Added ${count} ${base}${count > 1 ? 's' : ''} with initiative rolled. Change any number by typing over it.`);
+  $('mName').value = ''; $('mCount').value = 1; $('mAc').value = ''; $('mHp').value = ''; $('mInit').value = 0; $('mCr').value = '';
+  formSrd = null; $('srdTag').textContent = '';
+  saveCombat(); renderInit(); renderEncounter();
+  $('mName').focus();
+}
+$('addForm').addEventListener('submit', addMonsters);
+$('mName').addEventListener('change', fillFromSrd);
+$('mCancel').addEventListener('click', ()=>showAddForm(false));
+$('addMonsterBtn').addEventListener('click', ()=>showAddForm($('addForm').hidden));
+$('addPartyBtn').addEventListener('click', addParty);
+$('addLairBtn').addEventListener('click', addLair);
+
+// Turns
+function rollMissing(){
+  let n = 0;
+  combat.list.forEach(c=>{
+    if(c.kind !== 'monster' || c.init !== null) return;
+    c.init = d20() + (c.initMod || 0); n++;
+  });
+  if(n){ saveCombat(); renderInit(); }
+  return n;
+}
+function startCombat(){
+  rollMissing();
+  const missing = combat.list.filter(c=>c.kind==='pc' && c.init === null).map(c=>c.name);
+  if(!combat.list.length){ setInitMsg('Add the party or some monsters first.', 'err'); return; }
+  if(missing.length){ setInitMsg(`Initiative still needed for ${missing.join(', ')}.`, 'err'); return; }
+  combat.round = 1;
+  const first = ordered().find(c=>!isDown(c));
+  combat.turn = first ? first.id : null;
+  logLine('Combat started: round 1');
+  if(first) logLine(`${first.name}’s turn`);
+  setInitMsg('');
+  saveCombat(); renderInit();
+}
+// Timed effects count down when the creature they're on ends its turn
+function endTurnOf(c){
+  if(!c) return;
+  c.conds = c.conds.filter(k=>{
+    if(k.rounds === null || k.rounds === undefined) return true;
+    k.rounds -= 1;
+    if(k.rounds <= 0){ logLine(`${k.name} ended on ${c.name}`); return false; }
+    return true;
+  });
+}
+function nextTurn(){
+  if(!combat.round){ startCombat(); return; }
+  const list = ordered();
+  endTurnOf(byId(combat.turn));
+  let i = list.findIndex(c=>c.id === combat.turn);
+  for(let step = 0; step < list.length; step++){
+    i++;
+    if(i >= list.length){ i = 0; combat.round++; logLine(`Round ${combat.round}`); }
+    if(!isDown(list[i])) break;
+  }
+  combat.turn = list[i] ? list[i].id : null;
+  if(list[i]) logLine(`${list[i].name}’s turn`);
+  saveCombat(); renderInit();
+  const row = document.querySelector('.cbt.turn');
+  if(row && row.getBoundingClientRect().top > window.innerHeight - 80) row.scrollIntoView({block:'center', behavior:'smooth'});
+}
+function prevTurn(){
+  if(!combat.round) return;
+  const list = ordered();
+  let i = list.findIndex(c=>c.id === combat.turn);
+  for(let step = 0; step < list.length; step++){
+    i--;
+    if(i < 0){ if(combat.round === 1){ i = 0; break; } i = list.length - 1; combat.round--; }
+    if(!isDown(list[i])) break;
+  }
+  combat.turn = list[i] ? list[i].id : null;
+  saveCombat(); renderInit();
+}
+function endCombat(){
+  if(!combat.round) return;
+  logLine(`Combat ended after ${combat.round} round${combat.round === 1 ? '' : 's'}`);
+  combat.round = 0; combat.turn = null;
+  combat.list.forEach(c=>{ if(c.kind === 'pc') c.init = null; });
+  saveCombat(); renderInit();
+  setInitMsg('Combat over. Player initiative is cleared for next time; monsters are still listed.');
+}
+$('nextBtn').addEventListener('click', nextTurn);
+$('prevBtn').addEventListener('click', prevTurn);
+$('endBtn').addEventListener('click', endCombat);
+$('rollMissingBtn').addEventListener('click', ()=>{ const n = rollMissing(); setInitMsg(n ? `Rolled for ${n} monster${n>1?'s':''}.` : 'Every monster already has initiative.'); });
+$('clearDownBtn').addEventListener('click', ()=>{
+  const gone = combat.list.filter(isDown);
+  if(!gone.length){ setInitMsg('No defeated monsters.'); return; }
+  combat.list = combat.list.filter(c=>!isDown(c));
+  if(gone.some(c=>c.id === combat.turn)) combat.turn = null;
+  saveCombat(); renderInit(); renderEncounter();
+});
+let clearArmed = false;
+$('clearAllBtn').addEventListener('click', e=>{
+  if(!clearArmed){ clearArmed = true; e.target.textContent = 'Click again to clear everything'; setTimeout(()=>{ clearArmed = false; e.target.textContent = 'Clear the list'; }, 3000); return; }
+  clearArmed = false; e.target.textContent = 'Clear the list';
+  combat = {list:[], round:0, turn:null, log:combat.log, nextId:combat.nextId};
+  logLine('List cleared');
+  saveCombat(); renderInit(); renderEncounter(); setInitMsg('');
+});
+
+// Hit points: damage comes off temporary HP first; monsters at 0 are defeated, characters are dying
+function applyDamage(c, amt){
+  if(c.max === null && c.hp === null){ c.hp = 0; c.max = 0; }
+  const fromTemp = Math.min(c.temp || 0, amt);
+  c.temp = (c.temp || 0) - fromTemp;
+  c.hp = Math.max(0, c.hp - (amt - fromTemp));
+  logLine(`${c.name} took ${amt} damage (${c.hp}/${c.max})`);
+  if(c.hp === 0){
+    if(c.kind === 'monster'){ logLine(`${c.name} is defeated`); if(c.conc){ logLine(`${c.name} lost concentration on ${c.conc}`); c.conc = ''; } }
+    else logLine(`${c.name} is down: death saves`);
+  } else if(c.conc){
+    concAlerts[c.id] = Math.max(10, Math.floor(amt / 2));
+  }
+}
+function applyHeal(c, amt){
+  if(c.max === null) return;
+  c.hp = Math.min(c.max, c.hp + amt);
+  logLine(`${c.name} healed ${amt} (${c.hp}/${c.max})`);
+}
+function conSaveMod(c){
+  if(c.kind === 'pc'){ const p = party[c.name]; if(!p || p.error) return null; const s = p.saves.find(x=>/^con/i.test(x.name)); return s && s.mod !== null ? s.mod : abilMod(p.scores.con); }
+  const m = c.srd && srdCache[c.srd];
+  if(!m) return null;
+  const prof = (m.proficiencies || []).find(x=>x.proficiency.name === 'Saving Throw: CON');
+  return prof ? prof.value : abilMod(m.constitution);
+}
+
+const CONDITIONS = ['Blinded','Charmed','Deafened','Frightened','Grappled','Incapacitated','Invisible','Paralyzed','Petrified','Poisoned','Prone','Restrained','Stunned','Unconscious'];
+const EFFECTS = ['Bane','Bless','Dodging','Faerie Fire','Hasted','Hexed','Hidden','Hunter’s Mark','Marked (Vow of Enmity)','On fire','Raging','Slowed','Turned'];
+function hpBar(c){
+  if(c.max === null || c.max === undefined) return `<div class="hp-text"><span>HP —</span></div>`;
+  const pct = c.max ? Math.max(0, Math.min(100, Math.round(c.hp / c.max * 100))) : 0;
+  return `<div class="hp-text"><span>HP <b>${c.hp}</b> / ${c.max}</span>${c.temp ? `<span class="tmp">+${c.temp} temp</span>` : ''}</div>
+    <div class="hp-bar"><i class="${pct <= 25 ? 'low' : pct <= 50 ? 'mid' : ''}" style="width:${pct}%"></i></div>`;
+}
+function combatantHtml(c, i, list){
+  const isTurn = combat.round && c.id === combat.turn;
+  const sameAbove = i > 0 && list[i-1].init === c.init, sameBelow = i < list.length-1 && list[i+1].init === c.init;
+  if(c.kind === 'lair'){
+    return `<div class="cbt lair${isTurn ? ' turn' : ''}" data-id="${c.id}"><div class="cbt-main">
+      <span class="turn-mark" aria-hidden="true">▶</span>
+      <input class="cbt-init" type="number" value="${c.init ?? ''}" data-act="init" aria-label="Initiative">
+      <div class="cbt-name"><div class="nm">Lair action</div><div class="cbt-sub">Initiative 20, after anyone else on 20</div></div>
+      <span></span><span></span>
+      <div class="cbt-actions"><button type="button" class="chip-btn" data-act="remove" title="Remove">✕</button></div></div></div>`;
+  }
+  const down = c.max !== null && c.hp <= 0;
+  const chips = [
+    ...(down ? [`<span class="cond-chip state">${c.kind === 'monster' ? 'Defeated' : 'Down: death saves'}</span>`] : []),
+    ...(c.conc ? [`<span class="cond-chip conc" title="Concentrating">Concentrating: ${esc(c.conc)}<button type="button" data-act="conc-end" aria-label="End concentration">×</button></span>`] : []),
+    ...c.conds.map((k, j)=>`<span class="cond-chip">${esc(k.name)}${k.rounds ? ` (${k.rounds})` : ''}<button type="button" data-act="cond-x" data-j="${j}" aria-label="Remove ${esc(k.name)}">×</button></span>`),
+  ].join('');
+  const sub = c.kind === 'pc' ? (party[c.name] && !party[c.name].error ? `Init ${fmtMod(c.initMod)} · Passive Perception ${party[c.name].passive.perception}` : '')
+    : [c.cr ? `CR ${c.cr}` : '', `Init ${fmtMod(c.initMod || 0)}`].filter(Boolean).join(' · ');
+  const alert = concAlerts[c.id] ? (()=>{ const mod = conSaveMod(c); return `<div class="cbt-alert">Concentration save: Constitution DC <b>${concAlerts[c.id]}</b>${mod !== null && c.kind !== 'pc' ? ` <code>${ROLL} 1d20${fmtMod(mod)}</code><button type="button" class="copy-btn" data-copy="${ROLL} 1d20${fmtMod(mod)}">Copy</button>` : ''}
+      <button type="button" class="chip-btn" data-act="conc-kept">Kept it</button><button type="button" class="chip-btn" data-act="conc-lost">Lost it</button></div>`; })() : '';
+  const more = openRow === c.id ? `<div class="cbt-more">
+      <div class="grp"><span class="lbl">Condition or effect</span>
+        <div class="row"><select data-field="condPick"><optgroup label="Conditions">${CONDITIONS.map(n=>`<option>${n}</option>`).join('')}</optgroup><optgroup label="Effects">${EFFECTS.map(n=>`<option>${n}</option>`).join('')}</optgroup><option value="__other">Other…</option></select>
+        <input type="number" min="1" max="999" placeholder="rounds" data-field="condRounds" title="Rounds it lasts (counts down at the end of this creature’s turns). Blank: until removed. 1 minute = 10 rounds.">
+        <button type="button" class="chip-btn" data-act="cond-add">Add</button></div></div>
+      <div class="grp"><span class="lbl">Concentrating on</span>
+        <div class="row"><input type="text" data-field="concName" value="${esc(c.conc)}" placeholder="Spell name"><button type="button" class="chip-btn" data-act="conc-set">Set</button></div></div>
+      <div class="grp"><span class="lbl">Temporary HP, AC, max HP</span>
+        <div class="row"><input type="number" min="0" data-field="temp" value="${c.temp || ''}" placeholder="temp" aria-label="Temporary HP"><input type="number" min="0" data-field="ac" value="${c.ac ?? ''}" placeholder="AC" aria-label="AC"><input type="number" min="0" data-field="max" value="${c.max ?? ''}" placeholder="max" aria-label="Max HP"><button type="button" class="chip-btn" data-act="stats-set">Set</button></div></div>
+      <div class="grp"><span class="lbl">Name and note</span>
+        <div class="row"><input type="text" data-field="name" value="${esc(c.name)}" aria-label="Name"><button type="button" class="chip-btn" data-act="rename">Rename</button></div>
+        <textarea data-field="note" placeholder="Anything to remember about this one">${esc(c.note)}</textarea></div>
+    </div>` : '';
+  return `<div class="cbt${isTurn ? ' turn' : ''}${down && c.kind === 'monster' ? ' down' : ''}" data-id="${c.id}">
+    <div class="cbt-main">
+      <span class="turn-mark" aria-hidden="true">▶</span>
+      <input class="cbt-init" type="number" value="${c.init ?? ''}" placeholder="—" data-act="init" aria-label="Initiative for ${esc(c.name)}" title="Initiative">
+      <div class="cbt-name"><div class="nm">${esc(c.name)}<span class="kind ${c.kind}">${c.kind === 'pc' ? 'PC' : 'Monster'}</span></div>
+        ${sub ? `<div class="cbt-sub">${sub}</div>` : ''}<div class="cbt-chips">${chips}</div></div>
+      <div class="cbt-ac">${c.ac ?? '—'}<small>AC</small></div>
+      <div class="hp-box">${hpBar(c)}
+        <div class="hp-ctrl"><input type="number" min="0" data-field="amt" aria-label="Amount" placeholder="#"><button type="button" class="chip-btn" data-act="dmg">Damage</button><button type="button" class="chip-btn" data-act="heal">Heal</button></div></div>
+      <div class="cbt-actions">
+        ${c.srd ? `<button type="button" class="chip-btn" data-act="stat" title="Stat block">Stats</button>` : ''}
+        <button type="button" class="chip-btn${openRow === c.id ? ' on' : ''}" data-act="more" aria-expanded="${openRow === c.id}" title="Conditions, concentration, temp HP, notes">More</button>
+        <button type="button" class="chip-btn" data-act="roll" title="Roll initiative (d20 ${fmtMod(c.initMod || 0)})">🎲</button>
+        <span class="order"><button type="button" class="chip-btn" data-act="up" ${sameAbove ? '' : 'disabled'} title="Tied: go before">▲</button><button type="button" class="chip-btn" data-act="down" ${sameBelow ? '' : 'disabled'} title="Tied: go after">▼</button></span>
+        <button type="button" class="chip-btn" data-act="remove" title="Remove">✕</button>
+      </div>
+    </div>${alert}${more}</div>`;
+}
+function renderInit(){
+  const list = ordered();
+  $('initList').innerHTML = list.length ? list.map(combatantHtml).join('')
+    : '<div class="init-empty">No one yet. Add the party, then monsters; initiative sorts itself.</div>';
+  const started = combat.round > 0;
+  $('nextBtn').textContent = started ? 'Next turn' : 'Start combat';
+  $('prevBtn').disabled = !started; $('endBtn').disabled = !started;
+  const cur = byId(combat.turn);
+  $('roundInfo').innerHTML = started ? `Round <b>${combat.round}</b> · ${(combat.round - 1) * 6} seconds in${cur ? ` · ${esc(cur.name)}’s turn` : ''}` : 'Not in combat';
+  $('logList').innerHTML = combat.log.map(l=>`<li>${l.round ? `<b>R${l.round}</b> ` : ''}${esc(l.text)}</li>`).join('') || '<li>Nothing yet.</li>';
+}
+// Row buttons and fields
+$('initList').addEventListener('click', e=>{
+  const btn = e.target.closest('[data-act]'); if(!btn || btn.tagName === 'INPUT') return;
+  const row = btn.closest('.cbt'), c = byId(+row.dataset.id); if(!c) return;
+  const field = f => row.querySelector(`[data-field="${f}"]`);
+  const act = btn.dataset.act;
+  if(act === 'dmg' || act === 'heal'){
+    const amt = toNum(field('amt').value);
+    if(!amt || amt < 0){ field('amt').focus(); return; }
+    act === 'dmg' ? applyDamage(c, amt) : applyHeal(c, amt);
+    renderEncounter();
+  }
+  else if(act === 'remove'){ combat.list = combat.list.filter(x=>x !== c); if(combat.turn === c.id) combat.turn = null; delete concAlerts[c.id]; renderEncounter(); }
+  else if(act === 'more'){ openRow = openRow === c.id ? null : c.id; }
+  else if(act === 'roll'){ c.init = d20() + (c.initMod || 0); c.tie = 0; logLine(`${c.name} rolled ${c.init} for initiative`); }
+  else if(act === 'up' || act === 'down'){
+    const tied = ordered().filter(x=>x.init === c.init);
+    tied.forEach((x, k)=>{ x.tie = k; });
+    const k = tied.indexOf(c), other = tied[act === 'up' ? k-1 : k+1];
+    if(other){ [c.tie, other.tie] = [other.tie, c.tie]; }
+  }
+  else if(act === 'stat'){ showStatBlock(c); return; }
+  else if(act === 'cond-x'){ const k = c.conds.splice(+btn.dataset.j, 1)[0]; if(k) logLine(`${k.name} removed from ${c.name}`); }
+  else if(act === 'cond-add'){
+    let name = field('condPick').value;
+    if(name === '__other'){ name = (prompt('Condition or effect name') || '').trim(); if(!name) return; }
+    const rounds = toNum(field('condRounds').value);
+    c.conds.push({name, rounds:rounds && rounds > 0 ? rounds : null});
+    logLine(`${c.name}: ${name}${rounds ? ` for ${rounds} round${rounds > 1 ? 's' : ''}` : ''}`);
+  }
+  else if(act === 'conc-set'){ const s = field('concName').value.trim(); c.conc = s; delete concAlerts[c.id]; if(s) logLine(`${c.name} is concentrating on ${s}`); }
+  else if(act === 'conc-end' || act === 'conc-lost'){ if(c.conc) logLine(`${c.name} ${act === 'conc-lost' ? 'lost' : 'ended'} concentration on ${c.conc}`); c.conc = ''; delete concAlerts[c.id]; }
+  else if(act === 'conc-kept'){ delete concAlerts[c.id]; }
+  else if(act === 'stats-set'){
+    const temp = toNum(field('temp').value), ac = toNum(field('ac').value), max = toNum(field('max').value);
+    c.temp = temp && temp > 0 ? temp : 0;
+    c.ac = ac;
+    if(max !== null && max !== c.max){ c.hp = c.max === null ? max : Math.min(c.hp, max); c.max = max; }
+  }
+  else if(act === 'rename'){ const s = field('name').value.trim(); if(s) c.name = s; }
+  saveCombat(); renderInit();
+  // Put the cursor back in the amount box after Damage/Heal, for the next hit
+  if(act === 'dmg' || act === 'heal'){ const r = document.querySelector(`.cbt[data-id="${c.id}"] [data-field="amt"]`); if(r) r.focus(); }
+});
+$('initList').addEventListener('change', e=>{
+  const el = e.target, row = el.closest('.cbt'); if(!row) return;
+  const c = byId(+row.dataset.id); if(!c) return;
+  if(el.dataset.act === 'init'){ c.init = toNum(el.value); c.tie = 0; saveCombat(); renderInit(); }
+  else if(el.dataset.field === 'note'){ c.note = el.value; saveCombat(); }
+});
+// Enter in the amount box counts as Damage
+$('initList').addEventListener('keydown', e=>{
+  if(e.key === 'Enter' && e.target.dataset.field === 'amt'){ e.preventDefault(); e.target.closest('.hp-ctrl').querySelector('[data-act="dmg"]').click(); }
+  if(e.key === 'Enter' && e.target.dataset.act === 'init'){ e.target.blur(); }
+});
+
+/* ---------- Stat block popup ---------- */
+function speedText(s){ return Object.entries(s || {}).map(([k,v])=>k === 'walk' ? v : k === 'hover' ? (v ? 'hover' : '') : `${k} ${v}`).filter(Boolean).join(', '); }
+function actionHtml(a){
+  const cmds = [];
+  if(a.attack_bonus !== undefined) cmds.push(cmdRow(`${ROLL} 1d20${fmtMod(a.attack_bonus)}`, 'to hit'));
+  (a.damage || []).forEach(d=>{ if(d.damage_dice) cmds.push(cmdRow(`${ROLL} ${d.damage_dice.replace(/\s/g,'')}`, `${d.damage_type ? d.damage_type.name.toLowerCase() : ''} damage`)); });
+  const usage = a.usage ? ` (${a.usage.type === 'recharge on roll' ? `Recharge ${a.usage.min_value}–6` : a.usage.type === 'per day' ? `${a.usage.times}/Day` : a.usage.type})` : '';
+  return `<div class="sb-feat"><b>${esc(a.name)}${esc(usage)}.</b><p>${esc(a.desc)}</p>${cmds.join('')}</div>`;
+}
+async function showStatBlock(c){
+  $('sbTitle').textContent = c.name;
+  $('sbBody').innerHTML = '<p class="sb-sub">Loading…</p>';
+  openStatBlock();
+  let m;
+  try{ m = await srdMonster(c.srd); }catch(e){ $('sbBody').innerHTML = '<p class="msg err">Couldn’t load the stat block.</p>'; return; }
+  const profs = (m.proficiencies || []);
+  const saves = profs.filter(p=>p.proficiency.name.startsWith('Saving Throw')).map(p=>`${p.proficiency.name.replace('Saving Throw: ','')} ${fmtMod(p.value)}`);
+  const skills = profs.filter(p=>p.proficiency.name.startsWith('Skill')).map(p=>`${p.proficiency.name.replace('Skill: ','')} ${fmtMod(p.value)}`);
+  const list = arr => (arr || []).map(x=>typeof x === 'string' ? x : x.name).join(', ');
+  const senses = Object.entries(m.senses || {}).map(([k,v])=>`${k.replace(/_/g,' ')} ${v}`).join(', ');
+  const line = (label, val) => val ? `<div class="sb-line"><b>${label}</b> ${esc(val)}</div>` : '';
+  const ac = (m.armor_class || []).map(a=>`${a.value}${a.type && a.type !== 'dex' ? ` (${a.type})` : ''}`).join(', ');
+  $('sbBody').innerHTML = `<div class="sb-sub">${esc(m.size)} ${esc(m.type)}${m.subtype ? ` (${esc(m.subtype)})` : ''}, ${esc(m.alignment)} · SRD stat block: “${esc(m.name)}”</div>
+    ${line('Armor Class', ac)}${line('Hit Points', `${m.hit_points} (${m.hit_points_roll || m.hit_dice})`)}${line('Speed', speedText(m.speed))}
+    <div class="sb-abil">${ABILS.map(a=>{ const s = m[ABIL_NAME[a].toLowerCase()]; return `<div><small>${a.toUpperCase()}</small>${s} (${fmtMod(abilMod(s))})</div>`; }).join('')}</div>
+    ${line('Saving Throws', saves.join(', '))}${line('Skills', skills.join(', '))}
+    ${line('Damage Vulnerabilities', list(m.damage_vulnerabilities))}${line('Damage Resistances', list(m.damage_resistances))}
+    ${line('Damage Immunities', list(m.damage_immunities))}${line('Condition Immunities', list(m.condition_immunities))}
+    ${line('Senses', senses)}${line('Languages', m.languages || '—')}${line('Challenge', `${crText(m.challenge_rating)} (${m.xp} XP)`)}
+    ${(m.special_abilities || []).length ? `<div class="sb-sec">Traits</div>${m.special_abilities.map(actionHtml).join('')}` : ''}
+    ${(m.actions || []).length ? `<div class="sb-sec">Actions</div>${m.actions.map(actionHtml).join('')}` : ''}
+    ${(m.reactions || []).length ? `<div class="sb-sec">Reactions</div>${m.reactions.map(actionHtml).join('')}` : ''}
+    ${(m.legendary_actions || []).length ? `<div class="sb-sec">Legendary Actions</div>${m.legendary_actions.map(actionHtml).join('')}` : ''}`;
+}
+let sbReturnFocus = null;
+function openStatBlock(){
+  sbReturnFocus = document.activeElement;
+  const bd = $('sbBackdrop'); bd.hidden = false;
+  requestAnimationFrame(()=>bd.classList.add('open'));
+  $('sbClose').focus();
+}
+function closeStatBlock(){
+  const bd = $('sbBackdrop'); bd.classList.remove('open');
+  setTimeout(()=>{ bd.hidden = true; }, 200);
+  if(sbReturnFocus && sbReturnFocus.isConnected) sbReturnFocus.focus();
+}
+$('sbClose').addEventListener('click', closeStatBlock);
+$('sbBackdrop').addEventListener('click', e=>{ if(e.target === $('sbBackdrop')) closeStatBlock(); });
+document.addEventListener('keydown', e=>{ if(e.key === 'Escape' && !$('sbBackdrop').hidden) closeStatBlock(); });
+
+/* ---------- Encounter difficulty (2014 DMG, "Creating a Combat Encounter") ---------- */
+// XP thresholds by character level: easy, medium, hard, deadly
+const THRESHOLDS = [null, [25,50,75,100], [50,100,150,200], [75,150,225,400], [125,250,375,500], [250,500,750,1100],
+  [300,600,900,1400], [350,750,1100,1700], [450,900,1400,2100], [550,1100,1600,2400], [600,1200,1900,2800],
+  [800,1600,2400,3600], [1000,2000,3000,4500], [1100,2200,3400,5100], [1250,2500,3800,5700], [1400,2800,4300,6400],
+  [1600,3200,4800,7200], [2000,3900,5900,8800], [2100,4200,6300,9500], [2400,4900,7300,10900], [2800,5700,8500,12700]];
+// Adventuring day XP per character, by level
+const DAY_XP = [0, 300, 600, 1200, 1700, 3500, 4000, 5000, 6000, 7500, 9000, 10500, 11500, 13500, 15000, 18000, 20000, 25000, 27000, 30000, 40000];
+const MULTS = [0.5, 1, 1.5, 2, 2.5, 3, 4, 5];
+function multiplierIndex(n){ return n <= 1 ? 1 : n === 2 ? 2 : n <= 6 ? 3 : n <= 10 ? 4 : n <= 14 ? 5 : 6; }
+function renderEncounter(){
+  // The party: characters in Initiative if any are, otherwise the whole campaign party
+  const inInit = combat.list.filter(c=>c.kind === 'pc').map(c=>c.name);
+  const names = inInit.length ? inInit : campaign.party.map(p=>p.name);
+  const levels = names.map(n=>party[n] && !party[n].error ? party[n].level : null);
+  if(levels.some(l=>l === null)){ $('encBody').innerHTML = '<p class="panel-note">Waiting for the party’s sheets…</p>'; return; }
+  const th = [0,1,2,3].map(k=>levels.reduce((s, l)=>s + THRESHOLDS[Math.min(20, Math.max(1, l))][k], 0));
+  const monsters = combat.list.filter(c=>c.kind === 'monster');
+  const counted = monsters.filter(c=>c.cr !== null && CR_XP[c.cr] !== undefined);
+  const total = counted.reduce((s, c)=>s + CR_XP[c.cr], 0);
+  let mi = multiplierIndex(monsters.length);
+  if(names.length < 3) mi += 1; else if(names.length >= 6) mi -= 1;
+  const mult = monsters.length ? MULTS[Math.max(0, Math.min(MULTS.length - 1, mi))] : 1;
+  const adjusted = Math.round(total * mult);
+  const rating = !monsters.length ? '' : adjusted >= th[3] ? 'Deadly' : adjusted >= th[2] ? 'Hard' : adjusted >= th[1] ? 'Medium' : adjusted >= th[0] ? 'Easy' : 'Trivial (below Easy)';
+  const hitIdx = adjusted >= th[3] ? 3 : adjusted >= th[2] ? 2 : adjusted >= th[1] ? 1 : adjusted >= th[0] ? 0 : -1;
+  const groups = {};
+  monsters.forEach(c=>{ const base = c.name.replace(/ \d+$/, ''); const g = groups[base] || (groups[base] = {n:0, cr:c.cr, down:0}); g.n++; if(isDown(c)) g.down++; });
+  const noCr = monsters.length - counted.length;
+  $('encBody').innerHTML = `
+    <div class="subhead" style="margin-top:0">Party thresholds (${names.length} character${names.length === 1 ? '' : 's'}: ${names.map((n, i)=>`${esc(n)} ${levels[i]}`).join(', ')})</div>
+    <div class="enc-grid">${['Easy','Medium','Hard','Deadly'].map((l, k)=>`<div class="enc-cell${monsters.length && k === hitIdx ? ' hit' : ''}"><div class="lbl">${l}</div><div class="val">${th[k].toLocaleString()}</div></div>`).join('')}</div>
+    ${monsters.length ? `
+      <table class="enc-table"><thead><tr><th>Monster</th><th class="num">Count</th><th class="num">CR</th><th class="num">XP</th></tr></thead><tbody>
+      ${Object.entries(groups).map(([n, g])=>`<tr><td>${esc(n)}${g.down ? ` <span class="pc-line">(${g.down} defeated)</span>` : ''}</td><td class="num">${g.n}</td><td class="num">${g.cr ?? '—'}</td><td class="num">${g.cr !== null && CR_XP[g.cr] !== undefined ? (CR_XP[g.cr] * g.n).toLocaleString() : '?'}</td></tr>`).join('')}
+      </tbody></table>
+      <div class="enc-result">
+        <div><span class="rating">${rating}</span></div>
+        Monster XP ${total.toLocaleString()} × ${mult} for ${monsters.length} monster${monsters.length === 1 ? '' : 's'}${names.length < 3 ? ' (small party: one step up)' : names.length >= 6 ? ' (big party: one step down)' : ''} = <b>${adjusted.toLocaleString()}</b> adjusted XP.<br>
+        XP to award if they win: ${total.toLocaleString()} ÷ ${names.length} = <b>${Math.floor(total / names.length).toLocaleString()} each</b> (the multiplier is only for difficulty).
+        ${noCr ? `<br><span class="msg err">${noCr} monster${noCr === 1 ? ' has' : 's have'} no CR, so ${noCr === 1 ? 'it isn’t' : 'they aren’t'} counted in XP. Set a CR when adding.</span>` : ''}
+      </div>`
+    : '<p class="panel-note" style="margin-top:10px">No monsters in Initiative yet.</p>'}
+    <p class="panel-note" style="margin:10px 0 0">Adventuring day budget: about <b>${levels.reduce((s, l)=>s + DAY_XP[Math.min(20, l)], 0).toLocaleString()} adjusted XP</b> of fights between long rests, usually 6–8 medium or hard encounters with two short rests.</p>`;
+}
+
+/* ---------- Rules reference (2014 PHB and DMG, paraphrased) ---------- */
+const REFERENCE = [
+  {title:'Conditions', html:`<dl>
+    <dt>Blinded</dt><dd>Can’t see; fails checks that need sight. Its attacks have disadvantage; attacks against it have advantage.</dd>
+    <dt>Charmed</dt><dd>Can’t attack or target the charmer with harmful effects. The charmer has advantage on social checks with it.</dd>
+    <dt>Deafened</dt><dd>Can’t hear; fails checks that need hearing.</dd>
+    <dt>Frightened</dt><dd>Disadvantage on checks and attacks while the source is in sight; can’t willingly move closer to it.</dd>
+    <dt>Grappled</dt><dd>Speed 0. Ends if the grappler is incapacitated or it’s moved out of reach. Escape: Athletics or Acrobatics vs. the grappler’s Athletics.</dd>
+    <dt>Incapacitated</dt><dd>No actions or reactions.</dd>
+    <dt>Invisible</dt><dd>Heavily obscured for hiding. Its attacks have advantage; attacks against it have disadvantage.</dd>
+    <dt>Paralyzed</dt><dd>Incapacitated, can’t move or speak. Fails Str and Dex saves. Attacks against it have advantage; hits from within 5 ft are crits.</dd>
+    <dt>Petrified</dt><dd>Stone: incapacitated, unaware, fails Str and Dex saves, resists all damage, immune to poison and disease. Attacks against it have advantage.</dd>
+    <dt>Poisoned</dt><dd>Disadvantage on attack rolls and ability checks.</dd>
+    <dt>Prone</dt><dd>Crawl only (double cost); standing costs half speed. Its attacks have disadvantage. Attacks within 5 ft have advantage, farther ones disadvantage.</dd>
+    <dt>Restrained</dt><dd>Speed 0. Its attacks and Dex saves have disadvantage; attacks against it have advantage.</dd>
+    <dt>Stunned</dt><dd>Incapacitated, can’t move, speaks falteringly. Fails Str and Dex saves. Attacks against it have advantage.</dd>
+    <dt>Unconscious</dt><dd>Incapacitated, drops what it holds, falls prone. Fails Str and Dex saves. Attacks have advantage; hits from within 5 ft are crits.</dd></dl>`},
+  {title:'Exhaustion', html:`<dl>
+    <dt>1</dt><dd>Disadvantage on ability checks</dd><dt>2</dt><dd>Speed halved</dd><dt>3</dt><dd>Disadvantage on attack rolls and saving throws</dd>
+    <dt>4</dt><dd>Hit point maximum halved</dd><dt>5</dt><dd>Speed 0</dd><dt>6</dt><dd>Death</dd></dl>
+    <p>Effects add up. A long rest with food and water removes one level.</p>`},
+  {title:'Setting a DC', html:`<dl><dt>5</dt><dd>Very easy</dd><dt>10</dt><dd>Easy</dd><dt>15</dt><dd>Medium</dd><dt>20</dt><dd>Hard</dd><dt>25</dt><dd>Very hard</dd><dt>30</dt><dd>Nearly impossible</dd></dl>
+    <p><b>Group checks:</b> everyone rolls; the group succeeds if at least half succeed. <b>Contests:</b> both roll; a tie leaves things as they were.</p>`},
+  {title:'Actions in combat', html:`<dl>
+    <dt>Attack</dt><dd>One weapon attack (more with Extra Attack), or a grapple or shove in place of one attack.</dd>
+    <dt>Cast a Spell</dt><dd>Using its casting time. A bonus-action spell means only cantrips with a 1-action casting time the same turn.</dd>
+    <dt>Dash</dt><dd>Extra movement equal to speed.</dd>
+    <dt>Disengage</dt><dd>Movement doesn’t provoke opportunity attacks this turn.</dd>
+    <dt>Dodge</dt><dd>Attacks against it have disadvantage (if it can see the attacker), Dex saves with advantage, until its next turn.</dd>
+    <dt>Help</dt><dd>An ally gets advantage on its next check, or its next attack against a creature within 5 ft of the helper.</dd>
+    <dt>Hide</dt><dd>Dexterity (Stealth) check, while unseen.</dd>
+    <dt>Ready</dt><dd>Pick a trigger and an action; it uses the reaction. A readied spell needs concentration.</dd>
+    <dt>Search</dt><dd>Wisdom (Perception) or Intelligence (Investigation) check.</dd>
+    <dt>Use an Object</dt><dd>For a second object interaction, or an object that takes an action.</dd>
+    <dt>Opportunity attack</dt><dd>Reaction: one melee attack when a hostile creature it can see leaves its reach.</dd>
+    <dt>Grapple</dt><dd>Athletics vs. the target’s Athletics or Acrobatics; target no more than one size larger.</dd>
+    <dt>Shove</dt><dd>Same contest: knock prone or push 5 ft.</dd>
+    <dt>Two-weapon fighting</dt><dd>Bonus action attack with another light weapon; no ability modifier to its damage unless negative.</dd></dl>`},
+  {title:'Cover, vision and light', html:`<dl>
+    <dt>Half cover</dt><dd>+2 AC and Dex saves</dd><dt>Three-quarters</dt><dd>+5 AC and Dex saves</dd><dt>Total cover</dt><dd>Can’t be targeted directly</dd>
+    <dt>Lightly obscured</dt><dd>Dim light, patchy fog, moderate foliage: disadvantage on Perception checks that rely on sight.</dd>
+    <dt>Heavily obscured</dt><dd>Darkness, opaque fog, dense foliage: effectively blinded.</dd>
+    <dt>Darkvision</dt><dd>Dim light counts as bright, darkness as dim (no color).</dd>
+    <dt>Unseen attacker</dt><dd>Advantage on attacks against a creature that can’t see it; attacking a creature you can’t see has disadvantage.</dd></dl>`},
+  {title:'Dropping to 0 HP', html:`<p><b>Instant death:</b> if the damage left over after reaching 0 equals or exceeds the hit point maximum.</p>
+    <p><b>Death saves:</b> a d20 at the start of each turn. 10 or more is a success, less is a failure; three of either ends it. A 1 counts as two failures; a 20 means it regains 1 hit point.</p>
+    <p><b>Damage at 0 HP:</b> one failure, two if it’s a critical hit. Healing of any amount brings it back conscious.</p>
+    <p><b>Stabilizing:</b> DC 10 Wisdom (Medicine) check as an action. A stable creature regains 1 HP after 1d4 hours.</p>
+    <p><b>Knocking out:</b> a melee attacker can leave a creature at 0 HP unconscious and stable instead of dying.</p>
+    <p><b>Monsters</b> usually just die at 0 HP.</p>`},
+  {title:'Environment', html:`<dl>
+    <dt>Falling</dt><dd>1d6 bludgeoning per 10 ft (max 20d6), and it lands prone.</dd>
+    <dt>Suffocating</dt><dd>Holds breath for 1 + Con modifier minutes (at least 30 seconds). Then it survives Con modifier rounds (at least 1), then drops to 0 HP.</dd>
+    <dt>Extreme cold</dt><dd>Below 0 °F without cold gear: DC 10 Con save each hour or a level of exhaustion.</dd>
+    <dt>Extreme heat</dt><dd>Above 100 °F without water: Con save each hour (DC 5, +1 per hour) or a level of exhaustion. Disadvantage in medium or heavy armor or heavy clothing.</dd>
+    <dt>Food and water</dt><dd>Without food: 3 + Con modifier days, then a level of exhaustion each day. Water: 1 gallon a day; half means a DC 15 Con save.</dd>
+    <dt>Underwater</dt><dd>Without a swim speed, melee attacks have disadvantage unless with a dagger, javelin, shortsword, spear or trident. Ranged attacks past normal range miss; within it, disadvantage unless a crossbow, net or thrown weapon. Resists fire.</dd></dl>`},
+  {title:'Travel and rest', html:`<dl>
+    <dt>Fast</dt><dd>400 ft a minute, 4 miles an hour, 30 a day. −5 to passive Perception.</dd>
+    <dt>Normal</dt><dd>300 ft a minute, 3 miles an hour, 24 a day.</dd>
+    <dt>Slow</dt><dd>200 ft a minute, 2 miles an hour, 18 a day. Can use Stealth.</dd>
+    <dt>Forced march</dt><dd>Past 8 hours: Con save each hour, DC 10 + 1 per extra hour, or a level of exhaustion.</dd>
+    <dt>Short rest</dt><dd>At least 1 hour. Spend Hit Dice to heal.</dd>
+    <dt>Long rest</dt><dd>At least 8 hours, once a day. All hit points back and half the total Hit Dice (at least 1). Needs at least 1 HP to benefit.</dd></dl>`},
+];
+$('refBody').innerHTML = REFERENCE.map(r=>`<details class="ref"><summary>${r.title}</summary><div class="ref-body">${r.html}</div></details>`).join('');
+
+/* ---------- Session notes ---------- */
+let notesTimer = null;
+function loadNotes(){ let v = ''; try{ v = localStorage.getItem(storeKey('notes')) || ''; }catch(e){} $('notesBox').value = v; $('notesMsg').textContent = ''; }
+$('notesBox').addEventListener('input', ()=>{
+  clearTimeout(notesTimer);
+  notesTimer = setTimeout(()=>{ try{ localStorage.setItem(storeKey('notes'), $('notesBox').value); $('notesMsg').textContent = 'Saved'; }catch(e){ $('notesMsg').textContent = 'Couldn’t save in this browser'; } }, 400);
+});
+
+/* ---------- Campaign ---------- */
+$('campaignSelect').innerHTML = CAMPAIGNS.map(c=>`<option value="${c.key}">${esc(c.name)}</option>`).join('');
+function setCampaign(key){
+  campaign = CAMPAIGNS.find(c=>c.key === key) || CAMPAIGNS[0];
+  try{ localStorage.setItem('dndTracker:dm:campaign', campaign.key); }catch(e){}
+  $('campaignSelect').value = campaign.key;
+  combat = loadJSON(storeKey('combat'), null) || {list:[], round:0, turn:null, log:[], nextId:1};
+  loadNotes(); renderInit(); renderEncounter(); loadParty();
+}
+$('campaignSelect').addEventListener('change', e=>setCampaign(e.target.value));
+
+/* ---------- Theme (shared with the tracker and hub) ---------- */
+const THEMES = [
+  {key:'harbor', name:'Harbor', bg:'#13293d', accent:'#4fb8a6'},
+  {key:'midnight', name:'Midnight', bg:'#1a1730', accent:'#c9962f'},
+  {key:'grove', name:'Grove', bg:'#16241c', accent:'#9ccf6f'},
+  {key:'ember', name:'Ember', bg:'#221a1b', accent:'#b8433a'},
+  {key:'daylight', name:'Daylight', bg:'#ffffff', accent:'#1d7a6e'},
+  {key:'tome', name:'Tome', bg:'#f2e7cc', accent:'#7d1a16'},
+  {key:'keep', name:'Keep', bg:'#3a2515', accent:'#d9ad56'},
+  {key:'inferno', name:'Inferno', bg:'#170c0b', accent:'#d42a12'},
+];
+function setTheme(key){
+  const t = THEMES.find(x=>x.key===key) || THEMES[0];
+  applyTheme(t.key);
+  try{ localStorage.setItem('dndTracker:theme', t.key); }catch(e){}
+  renderThemeBar();
+}
+function renderThemeBar(){
+  const menu = $('themeMenu');
+  const cur = document.documentElement.getAttribute('data-theme') || 'harbor';
+  menu.innerHTML = THEMES.map(x=>
+    `<button type="button" class="theme-option" data-theme-pick="${x.key}" aria-pressed="${x.key===cur}"><span class="theme-dot" style="background:linear-gradient(135deg, ${x.bg} 50%, ${x.accent} 50%);"></span>${x.name}</button>`).join('');
+  menu.querySelectorAll('[data-theme-pick]').forEach(b=>b.addEventListener('click', ()=>setTheme(b.dataset.themePick)));
+}
+function showThemeMenu(open){ $('themeMenu').hidden = !open; $('themeToggle').setAttribute('aria-expanded', String(open)); }
+$('themeToggle').addEventListener('click', ()=>showThemeMenu($('themeMenu').hidden));
+document.addEventListener('click', e=>{ if(!e.composedPath().includes($('themePicker'))) showThemeMenu(false); });
+document.addEventListener('keydown', e=>{ if(e.key === 'Escape') showThemeMenu(false); });
+renderThemeBar();
+window.addEventListener('storage', e=>{ if(e.key === 'dndTracker:theme'){ applyTheme(e.newValue || DEFAULT_THEME); renderThemeBar(); } });
+
+let savedCampaign = null;
+try{ savedCampaign = localStorage.getItem('dndTracker:dm:campaign'); }catch(e){}
+setCampaign(savedCampaign || CAMPAIGNS[0].key);
+</script>
+</body>
+</html>

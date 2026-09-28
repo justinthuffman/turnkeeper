@@ -40,6 +40,9 @@ It's a static web page. There's no server, install, or login, and no API keys.
   [turnkeeper.html](https://justinthuffman.github.io/turnkeeper/turnkeeper.html), expand
   **Import from Google Sheet** at the bottom, and paste your sheet's link. You can also link
   to it directly with `turnkeeper.html?sheet=<sheet link>&name=<character name>`.
+- **The DM:** the [DM Screen](https://justinthuffman.github.io/turnkeeper/dm.html), linked under
+  the hub's cards, shows the campaign's party, runs initiative with SRD monster stat blocks,
+  rates encounter difficulty, and keeps a rules reference and session notes.
 
 Roll commands start with `!tk`, our Discord server's Avrae alias.
 
@@ -48,7 +51,9 @@ Roll commands start with `!tk`, our Discord server's Avrae alias.
 | File | What it is |
 | --- | --- |
 | `index.html` | The campaign hub |
-| `turnkeeper.html` | The tracker, in one self-contained file |
+| `turnkeeper.html` | The tracker |
+| `dm.html` | The DM Screen |
+| `themes.css` | The color themes, shared by the tracker and DM Screen |
 | `portraits/` | Character art for the hub cards |
 | `CHANGELOG.md` | Every change, newest first |
 | `docs/` | Screenshots for this README |

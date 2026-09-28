@@ -5,196 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Turnkeeper</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 40 40%27%3E%3Crect width=%2740%27 height=%2740%27 rx=%279%27 fill=%27%230c1b26%27/%3E%3Ccircle cx=%2720%27 cy=%2720%27 r=%2715%27 fill=%27none%27 stroke=%27%234fb8a6%27 stroke-width=%272.5%27/%3E%3Cpath d=%27M14 11H26M14 29H26M15 11Q15 18 20 20Q25 18 25 11M15 29Q15 22 20 20Q25 22 25 29%27 fill=%27none%27 stroke=%27%234fb8a6%27 stroke-width=%272.2%27 stroke-linejoin=%27round%27/%3E%3Cpath d=%27M17 27.5Q20 23.5 23 27.5Z%27 fill=%27%23d97b3f%27/%3E%3C/svg%3E">
+<link rel="stylesheet" href="themes.css">
 <style>
-:root{
-  --bg:#0c1b26; --panel:#13293d; --panel2:#1b3750; --border:#2b4d68;
-  --ink:#e4edf2; --ink-dim:#8fa6b8; --sea:#4fb8a6; --sea-dim:#2f7d70;
-  --orange:#d97b3f; --orange-bright:#ea9257; --green:#6fbf8a;
-  --act-action:#d9654f; --act-bonus:#d9b34f; --act-ritual:#9b7fc4; --racial:#6aa6e0;
-  --danger:#e0574f; --on-accent:#e4edf2; --tooltip-bg:#081420; --backdrop:rgba(4,10,16,0.65);
-  --orange-tint:rgba(217,123,63,0.22); --orange-wash:rgba(217,123,63,0.09);
-  --font-display: Georgia, 'Iowan Old Style', 'Palatino Linotype', serif;
-  --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-}
-/* Color themes, picked with the swatches at the bottom of the page (saved per browser).
-   The :root colors above are the default look, "Harbor". Each theme only swaps variables,
-   except Tome, which also adds parchment texture, book fonts and a ruled panel border. */
-html[data-theme="midnight"]{
-  --bg:#0f0d1a; --panel:#1a1730; --panel2:#252142; --border:#3b3563;
-  --ink:#ece8f7; --ink-dim:#a49dc4; --sea:#b7a0f2; --sea-dim:#9a84dc;
-  --orange:#c9962f; --orange-bright:#ddab45; --green:#7fcf9a;
-  --act-action:#ef7a6a; --act-bonus:#e8c45a; --act-ritual:#c49cf0; --racial:#7fb4f2;
-  --danger:#f06a6a; --on-accent:#16121f; --tooltip-bg:#0a0914; --backdrop:rgba(6,4,14,0.7);
-  --orange-tint:rgba(201,150,47,0.22); --orange-wash:rgba(201,150,47,0.09);
-}
-html[data-theme="grove"]{
-  --bg:#0e1712; --panel:#16241c; --panel2:#1f3327; --border:#30503c;
-  --ink:#e8f0e3; --ink-dim:#9fb5a1; --sea:#9ccf6f; --sea-dim:#557f3d;
-  --orange:#c47a35; --orange-bright:#d8914b; --green:#6fc0a0;
-  --act-action:#e0765a; --act-bonus:#e2bf55; --act-ritual:#b096d6; --racial:#7fb2d9;
-  --danger:#e8634f; --on-accent:#f1f5ee; --tooltip-bg:#09110c; --backdrop:rgba(4,10,6,0.7);
-  --orange-tint:rgba(196,122,53,0.22); --orange-wash:rgba(196,122,53,0.09);
-}
-html[data-theme="ember"]{
-  --bg:#151011; --panel:#221a1b; --panel2:#2f2425; --border:#4b3638;
-  --ink:#f3eae7; --ink-dim:#b9a4a1; --sea:#d9a955; --sea-dim:#8a6630;
-  --orange:#b8433a; --orange-bright:#cf5a4f; --green:#8ec98a;
-  --act-action:#ef8062; --act-bonus:#e6c35c; --act-ritual:#c19be0; --racial:#86b6e6;
-  --danger:#ff6b5e; --on-accent:#f7eeeb; --tooltip-bg:#0e0a0b; --backdrop:rgba(10,4,4,0.7);
-  --orange-tint:rgba(184,67,58,0.25); --orange-wash:rgba(184,67,58,0.1);
-}
-html[data-theme="daylight"]{
-  --bg:#eef2f5; --panel:#ffffff; --panel2:#e7edf2; --border:#c3d0da;
-  --ink:#1b2a36; --ink-dim:#5a6e7e; --sea:#1d7a6e; --sea-dim:#4aa597;
-  --orange:#dd7d3e; --orange-bright:#e9935a; --green:#2e8b57;
-  --act-action:#c0462f; --act-bonus:#9a7408; --act-ritual:#6f4fae; --racial:#2c6fb3;
-  --danger:#c83a30; --on-accent:#1b2a36; --tooltip-bg:#ffffff; --backdrop:rgba(20,32,44,0.45);
-  --orange-tint:rgba(221,125,62,0.2); --orange-wash:rgba(221,125,62,0.08);
-}
-/* Tome: an old adventurer's book. Parchment pages, deep red ink, a leather-brown accent. */
-html[data-theme="tome"]{
-  --bg:#d8c39a; --panel:#f2e7cc; --panel2:#e7d7b2; --border:#b39b6d;
-  --ink:#2b1c11; --ink-dim:#6b5237; --sea:#7d1a16; --sea-dim:#8a5a2b;
-  --orange:#8e2a1e; --orange-bright:#a8392a; --green:#3f6a2e;
-  --act-action:#a8341f; --act-bonus:#85600c; --act-ritual:#5a3a8a; --racial:#2c5a86;
-  --danger:#a3201a; --on-accent:#f7ecd2; --tooltip-bg:#f8efd9; --backdrop:rgba(43,28,17,0.55);
-  --orange-tint:rgba(142,42,30,0.16); --orange-wash:rgba(142,42,30,0.07);
-  --font-display: 'Cinzel', 'Trajan Pro', 'Book Antiqua', Georgia, serif;
-  --font-body: 'EB Garamond', 'Palatino Linotype', 'Book Antiqua', Georgia, serif;
-  font-size:106%;
-}
-html[data-theme="tome"] body{
-  background-image:radial-gradient(ellipse at 50% 0%, rgba(255,247,222,0.6), transparent 65%),
-    radial-gradient(ellipse at 50% 100%, rgba(110,70,25,0.22), transparent 70%);
-  background-attachment:fixed;
-}
-html[data-theme="tome"] .panel{border-color:#8f7447; box-shadow:inset 0 0 0 3px var(--panel), inset 0 0 0 4px rgba(125,26,22,0.35), 0 2px 10px rgba(60,35,10,0.25);}
-html[data-theme="tome"] .panel h2, html[data-theme="tome"] header.top h1{font-variant:small-caps; letter-spacing:0.08em; font-weight:600;}
-html[data-theme="tome"] header.top{border-bottom:3px double #8f7447;}
-html[data-theme="tome"] input, html[data-theme="tome"] select, html[data-theme="tome"] textarea{font-family:var(--font-body);}
-html[data-theme="tome"] .field input{font-size:1.02rem;}
-html[data-theme="tome"] .roll-popup{box-shadow:inset 0 0 0 3px var(--panel), inset 0 0 0 4px rgba(125,26,22,0.35), 0 12px 40px rgba(40,24,10,0.45);}
-/* Keep: a medieval hall. Walnut planks behind, oak panels in riveted iron frames,
-   brass headings and copper buttons. All drawn with CSS gradients (no images). */
-html[data-theme="keep"]{
-  --bg:#1e140c; --panel:#3a2515; --panel2:#26180e; --border:#56565c;
-  --ink:#f0e4ca; --ink-dim:#bda98a; --sea:#d9ad56; --sea-dim:#8f6a2a;
-  --orange:#a9572a; --orange-bright:#c26a36; --green:#93c46c;
-  --act-action:#ec8362; --act-bonus:#ecc663; --act-ritual:#c9a6e6; --racial:#91bde6;
-  --danger:#ff6b55; --on-accent:#f7ebd3; --tooltip-bg:#1b120a; --backdrop:rgba(10,6,3,0.72);
-  --orange-tint:rgba(169,87,42,0.3); --orange-wash:rgba(169,87,42,0.13);
-  --font-display: 'MedievalSharp', 'Cinzel', 'Book Antiqua', Georgia, serif;
-}
-html[data-theme="keep"] body{
-  background-image:radial-gradient(ellipse at 50% 35%, transparent 35%, rgba(0,0,0,0.6) 100%),
-    repeating-linear-gradient(90deg, rgba(0,0,0,0.45) 0 2px, rgba(255,210,150,0.04) 2px 3px, transparent 3px 170px),
-    repeating-linear-gradient(0deg, rgba(255,215,160,0.03) 0 1px, transparent 1px 6px),
-    linear-gradient(90deg, #21150c, #2b1b0f 50%, #21150c);
-  background-attachment:fixed;
-}
-/* Panels: oak boards (grain + plank seams) in an iron frame with a rivet in each corner */
-html[data-theme="keep"] .panel, html[data-theme="keep"] .roll-popup{
-  border:3px solid #4d4e54; border-radius:3px;
-  background-image:
-    radial-gradient(circle at 9px 9px, #e2ddd0 0 1.4px, #77746d 2.2px, #2b2a28 3.4px, transparent 4px),
-    radial-gradient(circle at calc(100% - 9px) 9px, #e2ddd0 0 1.4px, #77746d 2.2px, #2b2a28 3.4px, transparent 4px),
-    radial-gradient(circle at 9px calc(100% - 9px), #e2ddd0 0 1.4px, #77746d 2.2px, #2b2a28 3.4px, transparent 4px),
-    radial-gradient(circle at calc(100% - 9px) calc(100% - 9px), #e2ddd0 0 1.4px, #77746d 2.2px, #2b2a28 3.4px, transparent 4px),
-    repeating-linear-gradient(0deg, rgba(0,0,0,0.28) 0 2px, transparent 2px 96px),
-    repeating-linear-gradient(0deg, rgba(255,215,160,0.035) 0 1px, transparent 1px 5px),
-    linear-gradient(90deg, rgba(0,0,0,0.12), transparent 30%, transparent 70%, rgba(0,0,0,0.12));
-  box-shadow:inset 0 0 0 1px #8d8e94, inset 0 0 22px rgba(0,0,0,0.55), 0 5px 16px rgba(0,0,0,0.65);
-}
-html[data-theme="keep"] .panel h2, html[data-theme="keep"] header.top h1, html[data-theme="keep"] .roll-head h4, html[data-theme="keep"] .detail h4{
-  text-shadow:0 1px 0 rgba(0,0,0,0.85), 0 0 8px rgba(217,173,86,0.18); letter-spacing:0.04em;
-}
-html[data-theme="keep"] header.top{border-bottom:none; box-shadow:0 3px 0 #4d4e54, 0 4px 0 #8d8e94, 0 7px 8px rgba(0,0,0,0.5);}
-/* Recessed boxes (inputs, stat blocks, commands) sit into the wood */
-html[data-theme="keep"] .field input, html[data-theme="keep"] .stat-box, html[data-theme="keep"] .roll-cmd, html[data-theme="keep"] .roll-box{
-  box-shadow:inset 0 2px 5px rgba(0,0,0,0.55);
-}
-/* Main buttons: hammered copper plates with a highlight and a dark lower edge */
-html[data-theme="keep"] button:not(.sel-toggle):not(.pip):not(.ds-mark):not(.status-chip):not(.theme-toggle):not(.theme-option):not(.roll-close):not(.feat-opt):not(.chip-btn):not(.build-tag):not(.ghost){
-  background-image:linear-gradient(180deg, rgba(255,235,200,0.22), rgba(255,235,200,0.04) 45%, rgba(0,0,0,0.22));
-  border-color:#2e1a0e; box-shadow:inset 0 1px 0 rgba(255,240,210,0.35), 0 2px 0 rgba(0,0,0,0.5);
-  text-shadow:0 1px 0 rgba(0,0,0,0.55);
-}
-html[data-theme="keep"] button.pip{border-color:var(--sea); box-shadow:inset 0 1px 2px rgba(0,0,0,0.5);}
-/* Inferno: fire and brimstone. Lava glow and drifting embers behind charred-stone panels,
-   blood dripping from each panel's top edge, a skull on every heading, blood-drop charges.
-   The skull and drips are small inline SVGs; the embers stop if the device reduces motion. */
-html[data-theme="inferno"]{
-  --bg:#0a0505; --panel:#170c0b; --panel2:#231110; --border:#4d1812;
-  --ink:#f0dfd3; --ink-dim:#ad8d82; --sea:#ff6a2a; --sea-dim:#a8360f;
-  --orange:#8f1510; --orange-bright:#b3211a; --green:#9fc46a;
-  --act-action:#ff7a52; --act-bonus:#f0c050; --act-ritual:#d49cf0; --racial:#8fb8e8;
-  --danger:#ff4a3a; --on-accent:#f7e3d6; --tooltip-bg:#120707; --backdrop:rgba(8,0,0,0.75);
-  --orange-tint:rgba(179,33,26,0.3); --orange-wash:rgba(179,33,26,0.12);
-  --font-display: 'Pirata One', 'UnifrakturCook', 'Book Antiqua', Georgia, serif;
-}
-html[data-theme="inferno"] body{
-  background-image:linear-gradient(to top, rgba(255,72,0,0.28), rgba(160,20,0,0.1) 30%, transparent 55%),
-    radial-gradient(ellipse at 20% 110%, rgba(255,110,20,0.35), transparent 45%),
-    radial-gradient(ellipse at 80% 115%, rgba(255,60,0,0.3), transparent 45%),
-    radial-gradient(ellipse at 50% 0%, rgba(90,0,0,0.35), transparent 60%);
-  background-attachment:fixed;
-}
-/* Embers: two layers of glowing specks that rise and loop behind the panels */
-html[data-theme="inferno"] body::before{
-  content:''; position:fixed; inset:0; z-index:-1; pointer-events:none;
-  background-image:
-    radial-gradient(circle at 20px 40px, rgba(255,170,60,0.9) 0 1.2px, transparent 2.5px),
-    radial-gradient(circle at 150px 190px, rgba(255,110,30,0.8) 0 1.5px, transparent 3px),
-    radial-gradient(circle at 240px 90px, rgba(255,200,90,0.7) 0 1px, transparent 2px),
-    radial-gradient(circle at 90px 250px, rgba(255,90,20,0.8) 0 1.3px, transparent 2.6px),
-    radial-gradient(circle at 60px 120px, rgba(255,140,40,0.6) 0 1px, transparent 2px),
-    radial-gradient(circle at 200px 280px, rgba(255,180,70,0.6) 0 1px, transparent 2px);
-  background-size:300px 300px, 300px 300px, 300px 300px, 420px 420px, 420px 420px, 420px 420px;
-  animation:embersRise 18s linear infinite;
-  opacity:0.75;
-}
-@keyframes embersRise{
-  from{background-position:0 0, 0 0, 0 0, 0 0, 0 0, 0 0;}
-  to{background-position:30px -300px, -20px -300px, 10px -300px, -40px -420px, 25px -420px, -15px -420px;}
-}
-@media (prefers-reduced-motion: reduce){ html[data-theme="inferno"] body::before{animation:none;} }
-/* Panels: charred stone with a red-hot edge and blood dripping from the top */
-html[data-theme="inferno"] .panel, html[data-theme="inferno"] .roll-popup{
-  border:1px solid #5a1a12; padding-top:24px;
-  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 22' preserveAspectRatio='none'%3E%3Cpath fill='%237a0b08' d='M0 0H120V4C113 4 112 6 111 10C110 16 106 16 105 10C104 6 101 4 93 4C85 4 84 5 83 7C82 10 79 10 78 7C77 5 75 4 61 4C51 4 50 6 49 12C48 20 43 20 42 12C41 6 39 4 29 4C21 4 20 5 19 8C18 12 15 12 14 8C13 5 11 4 0 4Z'/%3E%3Ccircle cx='45.5' cy='20.5' r='1.4' fill='%237a0b08'/%3E%3C/svg%3E"),
-    radial-gradient(ellipse at 50% 120%, rgba(255,70,10,0.14), transparent 60%),
-    repeating-linear-gradient(115deg, rgba(0,0,0,0.18) 0 2px, transparent 2px 23px),
-    repeating-linear-gradient(35deg, rgba(255,80,40,0.025) 0 1px, transparent 1px 17px);
-  background-size:180px 16px, auto, auto, auto;
-  background-repeat:repeat-x, no-repeat, repeat, repeat;
-  background-position:0 0, 0 0, 0 0, 0 0;
-  box-shadow:0 0 0 1px #1c0605, 0 0 22px rgba(255,60,10,0.16), inset 0 0 34px rgba(0,0,0,0.75);
-}
-html[data-theme="inferno"] .roll-popup{padding-top:22px;}
-/* A skull with ember eyes before each panel heading */
-html[data-theme="inferno"] .panel h2::before, html[data-theme="inferno"] .panel-head h2::before{
-  content:''; display:inline-block; width:0.95em; height:0.95em; margin-right:0.35em; vertical-align:-0.1em;
-  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23e2d3bd' d='M12 2C6.6 2 3 5.8 3 10.6c0 2.8 1.3 4.6 3 5.6V19a1 1 0 0 0 1 1h1.6v-2.2h1.6V20h3.6v-2.2h1.6V20H17a1 1 0 0 0 1-1v-2.8c1.7-1 3-2.8 3-5.6C21 5.8 17.4 2 12 2z'/%3E%3Ccircle cx='8.4' cy='11' r='2.4' fill='%23140404'/%3E%3Ccircle cx='15.6' cy='11' r='2.4' fill='%23140404'/%3E%3Ccircle cx='8.4' cy='11.2' r='0.9' fill='%23ff4a1a'/%3E%3Ccircle cx='15.6' cy='11.2' r='0.9' fill='%23ff4a1a'/%3E%3Cpath d='M12 13.4l-1.4 2.7h2.8z' fill='%23140404'/%3E%3C/svg%3E") center/contain no-repeat;
-  filter:drop-shadow(0 0 4px rgba(255,70,20,0.45));
-}
-html[data-theme="inferno"] .panel h2, html[data-theme="inferno"] header.top h1, html[data-theme="inferno"] .roll-head h4, html[data-theme="inferno"] .detail h4{
-  color:#ff6a2a; letter-spacing:0.03em;
-  text-shadow:0 0 6px rgba(255,90,20,0.55), 0 0 18px rgba(200,20,0,0.35), 0 1px 0 #000;
-}
-html[data-theme="inferno"] .panel h2, html[data-theme="inferno"] header.top h1{font-size:1.3rem;}
-html[data-theme="inferno"] header.top h1{font-size:2rem;}
-/* The title sits on a line of fire */
-html[data-theme="inferno"] header.top{border-bottom:2px solid transparent; border-image:linear-gradient(90deg, transparent, #ff7a1a 20%, #b30f00 50%, #ff7a1a 80%, transparent) 1; box-shadow:0 8px 14px -8px rgba(255,80,0,0.5);}
-/* Buttons: blood red with a dark lower edge and a hot glow on hover */
-html[data-theme="inferno"] button:not(.sel-toggle):not(.pip):not(.ds-mark):not(.status-chip):not(.theme-toggle):not(.theme-option):not(.roll-close):not(.feat-opt):not(.chip-btn):not(.build-tag):not(.ghost){
-  background-image:linear-gradient(180deg, rgba(255,120,80,0.18), transparent 50%, rgba(0,0,0,0.3));
-  border-color:#3a0705; box-shadow:inset 0 1px 0 rgba(255,150,110,0.25), 0 2px 0 rgba(0,0,0,0.6);
-}
-html[data-theme="inferno"] button:not(.sel-toggle):not(.pip):not(.ds-mark):not(.status-chip):not(.theme-toggle):not(.theme-option):not(.roll-close):not(.feat-opt):not(.chip-btn):not(.build-tag):not(.ghost):hover{box-shadow:inset 0 1px 0 rgba(255,150,110,0.3), 0 0 12px rgba(255,60,10,0.55);}
-/* Charges (spell slots, uses) are blood drops: full drops are left, hollow ones are spent */
-html[data-theme="inferno"] button.pip{border-radius:0 50% 50% 50%; transform:rotate(45deg); border-color:#c0180f;}
-html[data-theme="inferno"] button.pip.on{background:radial-gradient(circle at 35% 35%, #e0301f, #8a0905 70%); box-shadow:0 0 6px rgba(200,20,10,0.6);}
-html[data-theme="inferno"] .field input, html[data-theme="inferno"] .stat-box, html[data-theme="inferno"] .roll-cmd{box-shadow:inset 0 2px 6px rgba(0,0,0,0.7);}
 *{box-sizing:border-box;}
 body{
   margin:0; background:var(--bg); color:var(--ink); font-family:var(--font-body);
@@ -229,7 +41,7 @@ button.ghost:hover{color:var(--ink); border-color:var(--sea-dim);}
 .status.ok{color:var(--green);}
 
 /* Character summary */
-.summary-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(110px,1fr)); gap:10px 14px;}
+.summary-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(110px,1fr)); gap:10px 14px; grid-auto-flow:row dense;}   /* dense: a box moves up to fill the gap a two-wide Campaign box leaves */
 .field{display:flex; flex-direction:column; gap:3px; min-width:0;}
 /* Inputs sit on the bottom of their row, so a label that wraps to two lines doesn't push its box out of line */
 .field input{margin-top:auto;}
@@ -237,6 +49,7 @@ button.ghost:hover{color:var(--ink); border-color:var(--sea-dim);}
 .field input{background:var(--panel2); border:1px solid var(--border); color:var(--ink); padding:7px 8px; border-radius:4px; font-size:0.95rem; width:100%;}
 .field input[readonly]{cursor:default; opacity:0.92;}
 .field.wide{grid-column:1 / -1;}   /* the whole row, until fitNameField() sizes it */
+.field.span2{grid-column:span 2;}   /* Campaign: room for the whole name */
 .field.name input{font-family:var(--font-display); font-size:1.2rem; color:var(--sea);}
 /* One height for every summary box, whatever the theme's font or the name's bigger text, so rows line up */
 .summary-grid .field input{box-sizing:border-box; height:36px; padding-top:0; padding-bottom:0;}
@@ -663,6 +476,7 @@ applyTheme(savedTheme || DEFAULT_THEME);
     <div class="field"><label>Race</label><input id="f_race" type="text" readonly></div>
     <div class="field"><label>Class</label><input id="f_class" type="text" readonly></div>
     <div class="field"><label>Subclass</label><input id="f_subclass" type="text" readonly></div>
+    <div class="field span2"><label>Campaign</label><input id="f_campaign" type="text" readonly title="The campaign this character plays in. Its DM sees the character on the DM Screen."></div>
     <div class="field"><label>AC</label><input id="f_ac" type="text" readonly></div>
     <div class="field"><label>HP (current/max)</label><input id="f_hp" type="text" readonly></div>
     <div class="field"><label>Initiative</label><input id="f_init" type="text" readonly></div>
@@ -1789,7 +1603,9 @@ const summaryGrid = document.querySelector('.summary-grid');
 function fitNameField(){
   const name = summaryGrid.querySelector('.field.name');
   const cols = getComputedStyle(summaryGrid).gridTemplateColumns.split(' ').filter(Boolean).length || 1;
-  const others = [...summaryGrid.children].filter(el=>el!==name && !el.hidden && getComputedStyle(el).display!=='none').length;
+  // Boxes after the name fill cells; .span2 boxes take two
+  const others = [...summaryGrid.children].filter(el=>el!==name && !el.hidden && getComputedStyle(el).display!=='none')
+    .reduce((n, el)=>n + (el.classList.contains('span2') ? 2 : 1), 0);
   const span = (cols - others % cols) % cols || cols;
   name.style.gridColumn = `span ${span}`;
 }
@@ -3754,6 +3570,17 @@ function extractAttacks(table, range){
   return out;
 }
 
+// Campaigns and their characters' sheets. Hard-coded for now (Justin, 2026-09-28): later, players
+// join a campaign from their account or a DM's invite link. dm.html keeps the same list.
+const CAMPAIGNS = [
+  {key:'waterdeep', name:'Crisis in Waterdeep', sheets:[
+    '14TFj-bb1ixAUl9bw_tNdcIpWtnYxeV8JW5f2kIbiW_Q',   // Bel
+    '1GqXXArCfLC42oVTF9XVrbNeKbw868HF1ih2S7VpX8jk',   // Ezlo
+    '1vIvEke6E12m7il5voB2n5rJAqwgJeWf_2BZYJSKpYgU',   // Krunk
+    '1mS5Z2jgmi4U-bdEPP0JvZIkI-7puhWGjwlF8i6JIYbo',   // Venthor
+  ]},
+];
+function campaignFor(sheetId){ const c = CAMPAIGNS.find(c=>c.sheets.includes(sheetId)); return c ? c.name : 'None'; }
 const RANGES = {
   insp:'H6:H6',   // the Inspiration box: 1 (shown as ✧) when you have it
   name:'BZ61:BZ61', level:'AL2:AL2', race:'T3:T3', class:'T1:T1',
@@ -3862,6 +3689,7 @@ async function runImport(){
     document.getElementById('f_race').value = getFirstValue(table, RANGES.race);
     const cls = getFirstValue(table, RANGES.class);
     document.getElementById('f_class').value = cls;
+    document.getElementById('f_campaign').value = campaignFor(sheetId);
     document.getElementById('f_ac').value = getFirstValue(table, RANGES.ac);
     statusBaseAC = document.getElementById('f_ac').value;   // Status (Haste, Shield of Faith…) adjusts from this
     document.getElementById('f_init').value = getFirstValue(table, RANGES.init);

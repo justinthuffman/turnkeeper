@@ -213,6 +213,10 @@ h1{
   .card-fx{display:none;}
 }
 footer{margin-top:56px; font-size:0.75rem; color:var(--ink-dim); text-align:center;}
+/* The DM's way in: quiet, under the footer */
+.dm-link{margin-top:10px; font-size:0.75rem; text-align:center;}
+.dm-link a{color:var(--ink-dim); text-decoration:underline; text-underline-offset:2px;}
+.dm-link a:hover{color:var(--sea);}
 /* Theme picker: a small, quiet "Theme" button that opens a menu of the themes
    (the same on the tracker and the hub; keep the two in step) */
 .theme-picker{position:relative; display:flex; justify-content:center; margin-top:14px;}
@@ -342,6 +346,7 @@ window.addEventListener('storage', e=>{ if(e.key === 'dndTracker:theme'){ applyT
 </div>
 
 <footer>Click a character to open their sheet.</footer>
+<div class="dm-link"><a href="dm.html">DM Screen</a></div>
 <div class="theme-picker" id="themePicker">
   <button type="button" class="theme-toggle" id="themeToggle" aria-expanded="false" aria-controls="themeMenu" title="Change the color theme"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 3a9 9 0 0 0 0 18c1.1 0 1.8-.8 1.8-1.7 0-.5-.2-.9-.5-1.2-.3-.3-.5-.7-.5-1.2 0-.9.8-1.7 1.7-1.7H16a5 5 0 0 0 5-5C21 6.4 17 3 12 3zm-5.5 9a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm3-4a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm3 4a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg><span>Theme</span></button>
   <div class="theme-menu" id="themeMenu" role="group" aria-label="Color theme" hidden></div>

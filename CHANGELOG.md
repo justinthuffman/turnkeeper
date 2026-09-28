@@ -3,6 +3,45 @@
 What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest first.
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
+## Unreleased — DM Screen
+
+### Added
+- **DM Screen** (`dm.html`), linked quietly under the character cards on the hub. Pick the
+  campaign at the top (for now only Crisis in Waterdeep) and it shows:
+  - **Party:** every character in the campaign, read from their Google Sheet. It shows AC,
+    max HP, initiative, speed, spell save DC, passive Perception, Investigation and Insight,
+    saving throws (proficient ones outlined), darkvision and resistances. Each card links to
+    the character's Turnkeeper and sheet.
+  - **Passive check:** pick Perception, Investigation or Insight and a DC to see who passes.
+  - **Initiative:**
+    - **Add the party**, then type in each player's roll.
+    - **Add monsters:** search the 2014 SRD (334 monsters) to fill in AC, HP, initiative bonus
+      and CR, or type any name and numbers. Add several at once ("Goblin 1–3"), with average
+      or rolled hit points and one initiative for the group if you like.
+    - **Lair actions** go on initiative 20, after anyone else on 20.
+    - Initiative sorts itself; ▲▼ settle ties.
+    - **Start combat / Next turn / Previous** move the turn and count rounds and time. Defeated
+      monsters are skipped.
+    - Each row tracks hit points (damage takes temporary HP first) and conditions or effects
+      with a number of rounds, which count down at the end of that creature's turns. It also
+      tracks concentration: damage brings up the Con save DC (and the monster's `!tk` roll),
+      with Kept it / Lost it.
+    - **Stats** opens an SRD monster's full stat block, with `!tk` commands for each attack's
+      to-hit and damage.
+    - A combat log keeps what happened.
+  - **Encounter difficulty:** the 2014 DMG method. Party XP thresholds, the monster
+    multiplier (adjusted for party size), the rating from Easy to Deadly, XP to award each
+    character and the adventuring day budget. It updates as you add monsters.
+  - **Rules reference:** conditions, exhaustion, DCs, actions in combat, cover and light,
+    dropping to 0 HP, environment, travel and rest.
+  - **Session notes**, saved as you type.
+  - Everything is saved in the DM's browser, per campaign. It uses the same theme as the
+    tracker and hub.
+- **Campaign box** in Character Summary, showing the campaign the character plays in.
+
+### Changed
+- The color themes moved to `themes.css`, shared by the tracker and the DM Screen.
+
 ## 2026-09-27 — Spell limits and the wizard's spellbook
 
 ### Added
