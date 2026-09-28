@@ -3,7 +3,7 @@
 What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest first.
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
-## Unreleased — DM Screen
+## 2026-09-28 — DM Screen and live party updates
 
 ### Added
 - **DM Screen** (`dm.html`), linked quietly under the character cards on the hub. Pick the
