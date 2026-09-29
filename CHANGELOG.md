@@ -4,7 +4,7 @@ What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest firs
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
 
-## Unreleased — Passives on the DM Screen
+## 2026-09-29 — Passives on the DM Screen
 
 ### Changed
 - **DM Screen Party cards show passive Perception, Insight and Investigation as boxes**, taken
