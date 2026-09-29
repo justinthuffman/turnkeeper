@@ -280,6 +280,8 @@ button.ds-mark:hover{border-color:var(--ink);}
 .ichip.fx{border-color:var(--racial); color:var(--racial);}
 .ichip.mine{border-color:var(--orange); color:var(--orange-bright);}
 .fx-chip.cast-chip{border-color:var(--racial);}
+.combat-banner button.cb-end{background:rgba(0,0,0,0.18); border:1px solid #fff; color:#fff; padding:3px 12px; font-size:0.82rem; font-family:var(--font-body); letter-spacing:0;}
+.combat-banner button.cb-end:hover{background:rgba(0,0,0,0.3);}
 .combat-msg{flex-basis:100%; color:var(--ink-dim); font-size:0.8rem;}
 /* What's used this turn / round: reaction, Attack action attacks, once-per-turn features */
 .turn-chip{border:1px solid var(--border); border-radius:999px; padding:1px 9px; font-size:0.78rem; color:var(--ink); background:var(--panel2);}
@@ -2002,7 +2004,7 @@ document.getElementById('combatBar').addEventListener('click', e=>{
   const c = track.combat, k = b.dataset.combat;
   if(k === 'end'){ track.combat = null; saveTrack(); renderCombat(); renderActiveFx(); return; }
   if(k === 'turn') startOfTurn();
-  else if(k === 'endturn') endOfTurn();
+  else if(k === 'endturn'){ endOfTurn(); sendTurnEnd(); }
   else {
     if(k === 'reaction') c.reaction = !c.reaction;
     else if(k === 'attacks') c.attacks = 0;
@@ -2484,7 +2486,7 @@ const ORDINAL = ['','1st','2nd','3rd','4th','5th'];
 function openRollPopup(sel, mode){
   hideTooltip();
   Object.assign(rollState, {sel, mode, crit:false, smite:0, undead:false, alt:false, sneak:false, savage:false, spendInfo:null, smiteSpent:null,
-    fxList:[], fxOn:{}, fxStarted:null, concEnded:[], fxBefore:null, fxUsed:false, healed:null, healBefore:null, tempMsg:'', selfCast:null, statusBefore:null, target:null, castBefore:null,
+    fxList:[], fxOn:{}, fxStarted:null, concEnded:[], fxBefore:null, fxUsed:false, healed:null, healBefore:null, tempMsg:'', selfCast:null, statusBefore:null, target:null, castBefore:null, aim:null,
     insp:false, reactionMarked:false, reactionWasUsed:false, attackNo:0, attackCounted:false});
   // In combat: a reaction is marked used when its popup opens (Undo on the slot gives it back);
   // an attack from the Attack action is counted when you copy its to-hit command
@@ -2780,7 +2782,8 @@ function renderTable(){
   const c = table.combat, order = arrOf(c.order), cur = order.find(o=>o.id === c.turn);
   const mine = !!(cur && cur.sheet === currentCharId);
   banner.className = 'combat-banner' + (mine ? ' mine' : '');
-  banner.innerHTML = `<span class="cb-title">⚔ In combat</span><span>Round ${c.round}</span><span>${mine ? '<b>Your turn!</b>' : cur ? `${escapeHtml(cur.name)}’s turn` : ''}</span>`;
+  banner.innerHTML = `<span class="cb-title">⚔ In combat</span><span>Round ${c.round}</span><span>${mine ? '<b>Your turn!</b>' : cur ? `${escapeHtml(cur.name)}’s turn` : ''}</span>`
+    + (mine && track.combat && track.combat.onTurn ? `<button type="button" class="ghost cb-end" data-banner-end="1">End my turn</button>` : '');
   document.getElementById('tableRound').textContent = `Round ${c.round} · ${(c.round - 1) * 6} seconds in`;
   const effs = allEffects(), live = table.live || {};
   document.getElementById('itable').innerHTML = order.map(o=>{
@@ -2798,7 +2801,10 @@ function renderTable(){
       + `<div><div class="iname">${escapeHtml(o.name)}${me ? ' (you)' : ''}${o.kind === 'lair' ? ' <small>(lair)</small>' : ''}</div>${chips.length ? `<div class="ichips">${chips.join('')}</div>` : ''}</div></div>`;
   }).join('');
 }
-document.getElementById('combatBanner').addEventListener('click', ()=>document.getElementById('tablePanel').scrollIntoView({behavior:'smooth', block:'start'}));
+document.getElementById('combatBanner').addEventListener('click', e=>{
+  if(e.target.closest('[data-banner-end]')){ if(track.combat && track.combat.onTurn) endOfTurn(); sendTurnEnd(); renderTable(); return; }
+  document.getElementById('tablePanel').scrollIntoView({behavior:'smooth', block:'start'});
+});
 document.getElementById('combatBanner').addEventListener('keydown', e=>{ if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); e.currentTarget.click(); } });
 // Who a spell or feature can be cast on: the turn order in combat, else the party
 function targetedInfo(sel){
@@ -2852,6 +2858,45 @@ function endCast(id){
   if(cast.conc && track.conc && track.conc.name === cast.name){ endConcentration(); renderConc(); }
   saveTrack(); applyIncoming(); renderActiveFx(); renderTable();
 }
+/* Who you're attacking, or aiming a spell at, in shared combat. The Attack popup and spell
+   popups list the turn order; a pick tells the DM Screen ("Krunk → Goblin 2 · Greatsword")
+   through acts/<sheet>/last. On a weapon attack, a mark you've put on that creature (Hunter's
+   Mark, Vow of Enmity) is ticked for you, and marks on others are unticked. */
+function aimMax(sel){
+  if(sel.kind === 'weapon') return 1;
+  if(sel.kind !== 'spell') return 0;
+  const r = SPELL_ROLLS[sel.entry.sp.name]; if(!r) return 0;
+  const up = sel.entry.sp.level ? Math.max(0, (sel.slot || sel.entry.sp.level) - sel.entry.sp.level) : 0;
+  if(r.darts) return r.darts.n + up;
+  return r.attack || r.heal ? 1 : r.save ? 12 : 0;
+}
+function aimHtml(){
+  const sel = rollState.sel, max = aimMax(sel);
+  if(!max || !tableActive() || rollState.target) return '';
+  const picked = new Set(rollState.aim || []);
+  return `<div class="roll-box target-pick"><div class="roll-box-label">${sel.kind === 'weapon' ? 'Attacking' : 'Target'}${max > 1 ? ` (up to ${max})` : ''}</div><div class="roll-toggles">`
+    + targetCandidates().map(c=>{ const on = picked.has(c.key);
+        return `<button type="button" class="flow-btn${on ? ' active' : ''}" data-aim="${escapeHtml(c.key)}" aria-pressed="${on}"${!on && picked.size >= max ? ' disabled' : ''}>${escapeHtml(c.name)}${c.sheet === currentCharId ? ' <small>(you)</small>' : ''}</button>`; }).join('')
+    + `</div><div class="roll-after">Your DM sees who you picked.</div></div>`;
+}
+function aimClick(key){
+  const sel = rollState.sel, max = aimMax(sel), was = rollState.aim || [];
+  const list = was.includes(key) ? was.filter(k=>k !== key) : max === 1 ? [key] : was.length < max ? [...was, key] : was;
+  rollState.aim = list;
+  if(sel.kind === 'weapon') (rollState.fxList || []).filter(e=>e.target).forEach(e=>{
+    rollState.fxOn[e.id] = (track.cast || []).some(x=>x.name === e.name && arrOf(x.targets).some(t=>list.includes(targetKey(t))));
+  });
+  const cands = targetCandidates();
+  const targets = list.map(k=>cands.find(c=>c.key === k)).filter(Boolean).map(c=>({id:c.id, name:c.name, sheet:c.sheet}));
+  if(targets.length && window.tkSendAct) window.tkSendAct('last', {what:sel.label, targets});
+  renderRollPopup();
+}
+// End my turn here moves the DM's turn order on (the DM Screen checks it's still your turn)
+function sendTurnEnd(){
+  if(!tableActive() || !window.tkSendAct) return;
+  const c = table.combat, me = arrOf(c.order).find(o=>o.sheet === currentCharId);
+  if(me && c.turn === me.id) window.tkSendAct('turnEnd', {turn:me.id, round:c.round});
+}
 
 /* ---------- Casting a helpful spell on yourself ----------
    Spells that match a "Magic on you" status ask "Casting it on yourself?". Yes ticks it in
@@ -2884,7 +2929,7 @@ function spellPopupHtml(){
   const {sel, mode, crit} = rollState, e = sel.entry, sp = e.sp, r = SPELL_ROLLS[sp.name];
   const s = spellStats(e.ability), up = sp.level ? Math.max(0, sel.slot - sp.level) : 0, cantrip = !!(r && r.cantrip);
   const abil = ABILITY_FULL[e.ability];
-  const selfBox = rollState.target ? targetPickHtml() : selfCastHtml(sp);
+  const selfBox = rollState.target ? targetPickHtml() : (aimHtml() || selfCastHtml(sp));
   let html = selfBox + `<p class="roll-intro">${sp.level ? (e.fixedLevel ? `Cast at ${ORDINAL[sel.slot]} level (no spell slot).` : `Uses a ${ORDINAL[sel.slot]}-level spell slot.`) : 'Cantrip.'} ${abil} is your spellcasting ability for it.</p>`;
   if(!r){
     return html + (NO_ROLL_SPELLS.has(sp.name)
@@ -2991,7 +3036,7 @@ function renderRollPopup(){
     document.getElementById('rollBody').innerHTML = spendLineHtml() + turnLineHtml() + fxLineHtml() + (sel.kind==='spell' ? spellPopupHtml() : featurePopupHtml());
     return;
   }
-  let html = `<p class="roll-intro">Copy a command and paste it into Discord.</p>` + turnLineHtml() + inspToggleHtml();
+  let html = `<p class="roll-intro">Copy a command and paste it into Discord.</p>` + turnLineHtml() + aimHtml() + inspToggleHtml();
   if(rollState.fxList.length){
     const self = rollState.fxList.filter(e=>!e.target), target = rollState.fxList.filter(e=>e.target);
     html += `<div class="roll-after">Effects${self.length ? ' (untick one that doesn’t apply to this attack)' : ''}:</div><div class="roll-toggles">`
@@ -3062,6 +3107,7 @@ rollPopup.addEventListener('click', e=>{
     renderRollPopup();
   }
   else if(t.dataset.target) targetClick(t.dataset.target);
+  else if(t.dataset.aim) aimClick(t.dataset.aim);
   else if(t.dataset.selfCast) selfCastClick(t.dataset.selfCast);
   else if(t.dataset.statusUsed){ setStatusOn(t.dataset.statusUsed, false); t.closest('li').innerHTML = `${STATUS_BY_KEY[t.dataset.statusUsed].name} removed from Status.`; }
   else if(t.dataset.tempMe) tempFromPopup(parseInt(document.getElementById('tempAmt').value,10) || 0);
@@ -5271,7 +5317,7 @@ function showLive(state){
   const el = document.getElementById('campaignLive');
   el.hidden = !state;
   el.className = 'live-tag ' + (state === 'on' ? 'on' : 'off');
-  el.textContent = {on:'● Live with the DM', err:'○ Not connected', newer:'○ Paused'}[state] || '';
+  el.textContent = ({on:'● Live with the DM', err:'○ Not connected', newer:'○ Paused'}[state] || '') + (state && new URLSearchParams(location.search).has('test') ? ' (test)' : '');
   el.title = {on:'Your hit points, conditions, slots and features show on the DM Screen as they change.',
     err:'Couldn’t reach the live service, so the DM Screen isn’t getting updates. Tracking still works.',
     newer:'This character was changed more recently on another device. This one shares again once you change something here.'}[state] || '';
@@ -5688,6 +5734,10 @@ const FIREBASE_CONFIG = {
   appId: '1:866334063897:web:feaaa8b817f9b80ee69988',
 };
 const FB = 'https://www.gstatic.com/firebasejs/12.19.0/';
+// Test mode (?test=1 on the address): everything goes to a separate 'test' campaign in the
+// database, so testing never touches the real game
+const TEST_MODE = new URLSearchParams(location.search).has('test');
+const FBK = key=>TEST_MODE ? 'test' : key;
 try{
   const [{initializeApp}, {getAuth, signInAnonymously}, {getDatabase, ref, get, set, onValue, onDisconnect, serverTimestamp}] =
     await Promise.all(['firebase-app.js', 'firebase-auth.js', 'firebase-database.js'].map(f=>import(FB + f)));
@@ -5699,14 +5749,14 @@ try{
   const following = new Set();
   function follow(key){
     if(following.has(key)) return; following.add(key);
-    ['combat', 'effects', 'live'].forEach(part=>onValue(ref(db, `campaigns/${key}/${part}`),
+    ['combat', 'effects', 'live'].forEach(part=>onValue(ref(db, `campaigns/${FBK(key)}/${part}`),
       s=>window.tkTableUpdate(part, s.val()), err=>console.warn('Following the table:', err)));
   }
   async function push(){
     const snap = liveSnapshot();
     if(!snap){ showLive(null); return; }
     follow(snap.campaign);
-    const node = ref(db, `campaigns/${snap.campaign}/live/${snap.sheet}`);
+    const node = ref(db, `campaigns/${FBK(snap.campaign)}/live/${snap.sheet}`);
     if(!compared.has(snap.sheet)){
       compared.add(snap.sheet);
       const remote = (await get(node)).val();
@@ -5714,12 +5764,18 @@ try{
     }
     await set(node, {...snap.data, online:true, t:serverTimestamp()});
     // What you've cast on others (Hunter's Mark on Goblin 2, Bless on Venthor)
-    await set(ref(db, `campaigns/${snap.campaign}/effects/${snap.sheet}`), Object.keys(snap.effects).length ? snap.effects : null);
+    await set(ref(db, `campaigns/${FBK(snap.campaign)}/effects/${snap.sheet}`), Object.keys(snap.effects).length ? snap.effects : null);
     // Closing the page marks it closed (after the first write, so the record exists); t stays the last change
     if(!watched.has(snap.sheet)){ watched.add(snap.sheet); await onDisconnect(node).update({online:false}); }
     showLive('on');
   }
   let queue = Promise.resolve();
+  // Tell the DM Screen something happened here: 'last' (who you're attacking) or 'turnEnd'
+  window.tkSendAct = (kind, data)=>{
+    const snap = liveSnapshot(); if(!snap) return;
+    set(ref(db, `campaigns/${FBK(snap.campaign)}/acts/${snap.sheet}/${kind}`), {...data, t:serverTimestamp()})
+      .catch(err=>console.warn('Telling the DM:', err));
+  };
   window.tkLive = {connected:true, push(){ queue = queue.then(push).catch(err=>{ console.warn('Live sharing:', err); showLive('err'); }); }};
   window.tkLive.push();   // share the character that's already open
 }catch(err){

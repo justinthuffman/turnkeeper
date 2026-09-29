@@ -125,6 +125,11 @@ button.sel-toggle:hover{background:none; color:var(--ink);}
 .cbt{border:1px solid var(--border); border-radius:6px; background:var(--panel2); transition:border-color .15s ease, box-shadow .15s ease;}
 .cbt-main{display:grid; grid-template-columns:auto 3.6rem minmax(0,1fr) 3.4rem minmax(150px,210px) auto; gap:10px; align-items:center; padding:8px 10px;}
 .cbt.turn{border-color:var(--orange); box-shadow:0 0 0 1px var(--orange), 0 0 14px var(--orange-tint);}
+.cbt.aimed{outline:2px dashed var(--racial); outline-offset:2px;}
+.last-act{margin-top:12px; padding:6px 10px; border:1px solid var(--racial); border-radius:6px; font-size:0.85rem;}
+.last-act[hidden]{display:none;}
+.last-act b{color:var(--racial);}
+.last-act span{color:var(--ink-dim); font-size:0.78rem;}
 .cbt.turn .turn-mark{visibility:visible;}
 .turn-mark{visibility:hidden; color:var(--orange-bright); font-size:0.9rem; width:0.9rem;}
 .cbt.down{opacity:0.5;}
@@ -331,6 +336,7 @@ applyTheme(savedTheme || DEFAULT_THEME);
     </div>
     <div class="msg" id="addMsg"></div>
   </form>
+  <div class="last-act" id="lastAct" aria-live="polite" hidden></div>
   <div class="init-list" id="initList"></div>
   <div class="msg" id="initMsg" aria-live="polite"></div>
   <div class="toolbar" style="margin-top:10px;">
@@ -529,7 +535,51 @@ setInterval(()=>document.querySelectorAll('[data-t]').forEach(el=>{ el.textConte
 window.dmCampaignKey = ()=>campaign.key;
 window.dmPublishNow = ()=>publishCombat();
 let effects = {};   // caster sheet -> {id: {name, caster, targets, status, conc, rounds}}
-window.dmEffectsUpdate = (key, data)=>{ if(key !== campaign.key) return; effects = data || {}; renderInit(); };
+const effectsSeen = new Set(); let effectsReady = false;
+window.dmEffectsUpdate = (key, data)=>{
+  if(key !== campaign.key) return;
+  effects = data || {};
+  // New ones go in the combat log ("Bel: Bane on Goblin 1")
+  Object.entries(effects).forEach(([sheet, list])=>Object.entries(list || {}).forEach(([id, e])=>{
+    if(effectsSeen.has(sheet + id)) return;
+    effectsSeen.add(sheet + id);
+    if(effectsReady) logLine(`${e.caster}: ${e.name} on ${arr(e.targets).map(t=>t.name).join(', ')}`);
+  }));
+  effectsReady = true;
+  renderInit();
+};
+/* What players do (campaigns/<key>/acts/<sheet>): 'last' = who they're attacking or aiming a
+   spell at; 'turnEnd' = they clicked End my turn, which moves the order on if it's still their
+   turn. Only what happens after this page opened is acted on. */
+const actsSeen = {}; let actsReady = false, lastAct = null;
+window.dmActsUpdate = (key, data)=>{
+  if(key !== campaign.key) return;
+  Object.entries(data || {}).forEach(([sheet, acts])=>{
+    const pc = campaign.party.find(p=>p.sheet === sheet), name = pc ? pc.name : 'A player';
+    Object.entries(acts || {}).forEach(([kind, a])=>{
+      const k = sheet + '/' + kind;
+      if(!a || (actsSeen[k] || 0) >= a.t) return;
+      actsSeen[k] = a.t;
+      if(!actsReady) return;
+      if(kind === 'turnEnd'){
+        const cur = byId(combat.turn);
+        if(combat.round && cur && cur.id === a.turn && cur.kind === 'pc' && cur.name === name){ logLine(`${name} ended their turn`); nextTurn(); }
+      } else if(kind === 'last'){
+        const targets = arr(a.targets), names = targets.map(t=>t.name).join(', ');
+        lastAct = {text:`${name} → ${names} · ${a.what}`, t:a.t, keys:targets.map(t=>t.sheet ? 's:' + t.sheet : 'c:' + t.id)};
+        logLine(`${name}: ${a.what} → ${names}`);
+        saveCombat(); renderInit();
+      }
+    });
+  });
+  actsReady = true;
+};
+// The row a player just picked is outlined for a minute
+function aimedAt(c){
+  if(!lastAct || Date.now() - lastAct.t > 60000) return false;
+  const pc = c.kind === 'pc' ? campaign.party.find(p=>p.name === c.name) : null;
+  return lastAct.keys.includes(pc ? 's:' + pc.sheet : 'c:' + c.id);
+}
 // Effects a player has put on this combatant (Hunter's Mark on Goblin 2, Bless on Venthor)
 function effectsOn(c){
   const pc = c.kind === 'pc' ? campaign.party.find(p=>p.name === c.name) : null;
@@ -545,7 +595,7 @@ window.dmLiveUpdate = (key, data)=>{
 window.dmLiveStatus = (state, detail)=>{
   const el = $('liveState');
   el.className = 'live-state ' + (state === 'on' ? 'on' : '');
-  el.textContent = state === 'on' ? '● Live' : 'Live updates unavailable';
+  el.textContent = (state === 'on' ? '● Live' : 'Live updates unavailable') + (new URLSearchParams(location.search).has('test') ? ' (test mode)' : '');
   el.title = state === 'on' ? 'Updates from the players’ Turnkeeper arrive as they happen' : (detail || '');
 };
 // Characters in Initiative follow their player's hit points
@@ -914,7 +964,7 @@ function combatantHtml(c, i, list){
         <div class="row"><input type="text" data-field="name" value="${esc(c.name)}" aria-label="Name"><button type="button" class="chip-btn" data-act="rename">Rename</button></div>
         <textarea data-field="note" placeholder="Anything to remember about this one">${esc(c.note)}</textarea></div>
     </div>` : '';
-  return `<div class="cbt${isTurn ? ' turn' : ''}${down && c.kind === 'monster' ? ' down' : ''}" data-id="${c.id}">
+  return `<div class="cbt${isTurn ? ' turn' : ''}${down && c.kind === 'monster' ? ' down' : ''}${aimedAt(c) ? ' aimed' : ''}" data-id="${c.id}">
     <div class="cbt-main">
       <span class="turn-mark" aria-hidden="true">▶</span>
       <input class="cbt-init" type="number" value="${c.init ?? ''}" placeholder="—" data-act="init" aria-label="Initiative for ${esc(c.name)}" title="Initiative">
@@ -942,6 +992,9 @@ function renderInit(){
   $('prevBtn').disabled = !started; $('endBtn').disabled = !started;
   const cur = byId(combat.turn);
   $('roundInfo').innerHTML = started ? `Round <b>${combat.round}</b> · ${(combat.round - 1) * 6} seconds in${cur ? ` · ${esc(cur.name)}’s turn` : ''}` : 'Not in combat';
+  const la = lastAct && Date.now() - lastAct.t < 10 * 60000 ? lastAct : null;
+  $('lastAct').hidden = !la || !started;
+  $('lastAct').innerHTML = la ? `<b>Last:</b> ${esc(la.text)} <span data-t="${la.t}">${ago(la.t)}</span>` : '';
   $('logList').innerHTML = combat.log.map(l=>`<li>${l.round ? `<b>R${l.round}</b> ` : ''}${esc(l.text)}</li>`).join('') || '<li>Nothing yet.</li>';
 }
 // Row buttons and fields
@@ -1231,6 +1284,10 @@ const FIREBASE_CONFIG = {
   appId: '1:866334063897:web:feaaa8b817f9b80ee69988',
 };
 const FB = 'https://www.gstatic.com/firebasejs/12.19.0/';
+// Test mode (?test=1 on the address): everything goes to a separate 'test' campaign in the
+// database, so testing never touches the real game
+const TEST_MODE = new URLSearchParams(location.search).has('test');
+const FBK = key=>TEST_MODE ? 'test' : key;
 try{
   const [{initializeApp}, {getAuth, signInAnonymously}, {getDatabase, ref, onValue, set, serverTimestamp}] =
     await Promise.all(['firebase-app.js', 'firebase-auth.js', 'firebase-database.js'].map(f=>import(FB + f)));
@@ -1241,11 +1298,12 @@ try{
   window.dmLiveWatch = key=>{
     stops.forEach(f=>f()); stops = [];
     const fail = err=>{ console.warn('Live updates:', err); window.dmLiveStatus('err', err.message); };
-    stops.push(onValue(ref(db, `campaigns/${key}/live`), snap=>{ window.dmLiveStatus('on'); window.dmLiveUpdate(key, snap.val()); }, fail));
-    stops.push(onValue(ref(db, `campaigns/${key}/effects`), snap=>window.dmEffectsUpdate(key, snap.val()), fail));
+    stops.push(onValue(ref(db, `campaigns/${FBK(key)}/live`), snap=>{ window.dmLiveStatus('on'); window.dmLiveUpdate(key, snap.val()); }, fail));
+    stops.push(onValue(ref(db, `campaigns/${FBK(key)}/effects`), snap=>window.dmEffectsUpdate(key, snap.val()), fail));
+    stops.push(onValue(ref(db, `campaigns/${FBK(key)}/acts`), snap=>window.dmActsUpdate(key, snap.val()), fail));
   };
   // The players' view of combat (see combatView: no HP, AC or notes)
-  window.dmPublishCombat = (key, view)=>set(ref(db, `campaigns/${key}/combat`), {...view, t:serverTimestamp()})
+  window.dmPublishCombat = (key, view)=>set(ref(db, `campaigns/${FBK(key)}/combat`), {...view, t:serverTimestamp()})
     .catch(err=>console.warn('Publishing combat:', err));
   window.dmLiveWatch(window.dmCampaignKey());
   window.dmPublishNow();

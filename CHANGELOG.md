@@ -3,6 +3,25 @@
 What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest first.
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
+## Unreleased — Pick your target, and End my turn moves everyone on
+
+### Added
+- **Pick who you're attacking.** In combat, the Attack popup has an **Attacking** row listing
+  the turn order. So does every spell that attacks, heals or makes a creature save: one target
+  for attack spells, up to 3 (more with a higher slot) for Magic Missile, and several for area
+  spells.
+  - The DM Screen shows it straight away ("Last: Krunk → Goblin 2 · Greatsword"), outlines
+    that creature's row for a minute, and adds it to the combat log.
+  - If you've marked that creature with Hunter's Mark or Vow of Enmity, the bonus is ticked
+    for you, and marks on other creatures are unticked.
+- **End my turn moves the initiative on.** Clicking End my turn (in the combat bar, or on the
+  orange "Your turn!" banner, which now has the button) moves the DM Screen to the next
+  creature, and everyone's turn order follows. It only counts while it's still your turn, so
+  a late or double click can't skip anyone. The DM Screen needs to be open.
+- **DM Screen:** spells and features players cast on creatures are added to the combat log.
+- **Test mode:** add `?test=1` to either page's address to use a separate test campaign, so
+  trying things out never touches the real game.
+
 ## 2026-09-28 — Shared combat and targets
 
 ### Added
