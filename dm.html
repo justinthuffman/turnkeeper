@@ -92,8 +92,10 @@ button.sel-toggle:hover{background:none; color:var(--ink);}
 .live-chip.down{background:var(--danger); border-color:var(--danger); color:var(--on-accent);}
 .pc-live .res{font-size:0.74rem; color:var(--ink-dim);}
 .pc-live .res b{color:var(--ink); font-weight:600;}
-.pc-live .when{font-size:0.7rem; color:var(--ink-dim);}
-.pc-live .when .dot{color:var(--green);}
+.pc-top{align-items:flex-start;}
+.pc-top > div{align-self:center;}
+.pc-when{margin-left:auto; flex:0 0 auto; font-size:0.72rem; color:var(--ink-dim); white-space:nowrap;}
+.pc-when.on{color:var(--green);}
 .live-state{font-size:0.78rem; color:var(--ink-dim);}
 .live-state.on{color:var(--green);}
 .cond-chip.live{border-color:var(--sea-dim); padding-right:8px;}
@@ -499,6 +501,18 @@ function ago(t){
   const s = Math.max(0, Math.round((Date.now() - t) / 1000));
   return s < 10 ? 'just now' : s < 60 ? `${s} s ago` : s < 3600 ? `${Math.floor(s/60)} min ago` : s < 86400 ? `${Math.floor(s/3600)} h ago` : new Date(t).toLocaleDateString();
 }
+// Short form for the Party cards' corner: "now", "40s", "5m", "3h", then the date
+function agoShort(t){
+  if(!t) return '';
+  const s = Math.max(0, Math.round((Date.now() - t) / 1000));
+  return s < 10 ? 'now' : s < 60 ? `${s}s` : s < 3600 ? `${Math.floor(s/60)}m` : s < 86400 ? `${Math.floor(s/3600)}h` : new Date(t).toLocaleDateString(undefined, {month:'short', day:'numeric'});
+}
+// Top right of a Party card: "● Live · 5m" while their Turnkeeper is open, "○ Offline · 3h" after
+function liveCornerHtml(pc){
+  const L = live[pc.sheet]; if(!L) return '';
+  const when = `<span data-t="${L.t || 0}" data-short="1">${agoShort(L.t)}</span>`;
+  return `<span class="pc-when${L.online ? ' on' : ''}" title="${L.online ? 'Their Turnkeeper is open' : 'Their Turnkeeper is closed'}; last change ${esc(ago(L.t))}">${L.online ? '● Live' : '○ Offline'} · ${when}</span>`;
+}
 function liveHtml(pc){
   const L = live[pc.sheet];
   if(!L) return `<div class="pc-live none">Nothing shared yet: it shows up once ${esc(pc.name)}’s player opens Turnkeeper.</div>`;
@@ -518,11 +532,10 @@ function liveHtml(pc){
     ${chips.length ? `<div class="chips">${chips.join('')}</div>` : ''}
     ${slots ? `<div class="res">Slots: ${slots}</div>` : ''}
     ${res ? `<div class="res">${res}</div>` : ''}
-    <div class="when">${L.online ? '<span class="dot">●</span> Turnkeeper open' : '○ Turnkeeper closed'}${L.round ? ` · round ${L.round}` : ''} · updated <span data-t="${L.t || 0}">${ago(L.t)}</span></div>
   </div>`;
 }
 // Keep "updated … ago" current without redrawing the cards
-setInterval(()=>document.querySelectorAll('[data-t]').forEach(el=>{ el.textContent = ago(+el.dataset.t); }), 15000);
+setInterval(()=>document.querySelectorAll('[data-t]').forEach(el=>{ el.textContent = el.dataset.short ? agoShort(+el.dataset.t) : ago(+el.dataset.t); }), 15000);
 // Called by the module script
 window.dmCampaignKey = ()=>campaign.key;
 window.dmPublishNow = ()=>publishCombat();
@@ -607,7 +620,7 @@ function pcCard(pc){
   const p = party[pc.name];
   const link = `turnkeeper.html?sheet=${encodeURIComponent(`https://docs.google.com/spreadsheets/d/${pc.sheet}/edit?gid=${SHEET_GID}#gid=${SHEET_GID}`)}&name=${encodeURIComponent(pc.name)}`;
   const links = `<div class="pc-links"><a href="${link}" target="_blank" rel="noopener">Open in Turnkeeper</a><a href="https://docs.google.com/spreadsheets/d/${pc.sheet}/edit?gid=${SHEET_GID}" target="_blank" rel="noopener">Google Sheet</a></div>`;
-  const top = sub => `<div class="pc-top"><img class="pc-portrait" src="${pc.portrait}" alt=""><div><h3>${esc(pc.name)}</h3><div class="pc-sub">${sub}</div></div></div>`;
+  const top = sub => `<div class="pc-top"><img class="pc-portrait" src="${pc.portrait}" alt=""><div><h3>${esc(pc.name)}</h3><div class="pc-sub">${sub}</div></div>${liveCornerHtml(pc)}</div>`;
   if(!p || p.error) return `<article class="pc-card${p ? '' : ' loading'}">${top(p ? '' : 'Loading…')}${p ? `<div class="pc-err">${esc(p.error)}</div>` : ''}${links}</article>`;
   const saves = ABILS.map(a=>{
     const s = p.saves.find(x=>x.name.toLowerCase().startsWith(ABIL_NAME[a].toLowerCase().slice(0,3)));
