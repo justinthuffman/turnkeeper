@@ -3,7 +3,7 @@
 What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest first.
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
-## Unreleased — Pick your target, and End my turn moves everyone on
+## 2026-09-28 — Pick your target, and End my turn moves everyone on
 
 ### Added
 - **Pick who you're attacking.** In combat, the Attack popup has an **Attacking** row listing
@@ -21,6 +21,11 @@ Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wi
 - **DM Screen:** spells and features players cast on creatures are added to the combat log.
 - **Test mode:** add `?test=1` to either page's address to use a separate test campaign, so
   trying things out never touches the real game.
+
+### Security
+- Everything the tracker and DM Screen read from the shared database is cleaned first: characters
+  that could make code are stripped and long text is cut. Planted code shows as plain text
+  instead of running. What they write is trimmed to fit the database's limits.
 
 ## 2026-09-28 — Shared combat and targets
 
