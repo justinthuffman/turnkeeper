@@ -4,7 +4,7 @@ What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest firs
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
 
-## Unreleased — Live status in the corner
+## 2026-09-29 — Live status in the corner
 
 ### Changed
 - **DM Screen Party cards:** whether a player's Turnkeeper is open now sits in the card's top
