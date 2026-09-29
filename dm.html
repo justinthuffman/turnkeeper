@@ -67,6 +67,8 @@ button.sel-toggle:hover{background:none; color:var(--ink);}
 .pc-stats div{background:var(--panel); border:1px solid var(--border); border-radius:4px; text-align:center; padding:4px 2px;}
 .pc-stats dt{font-size:0.62rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--ink-dim);}
 .pc-stats dd{margin:0; font-family:var(--font-display); font-size:1.05rem;}
+.pc-passives{grid-template-columns:repeat(3, minmax(0,1fr));}
+.pc-sublbl{font-size:0.62rem; text-transform:uppercase; letter-spacing:0.06em; color:var(--sea-dim); margin-bottom:-4px;}
 .pc-line{font-size:0.8rem; color:var(--ink-dim);}
 .pc-line b{color:var(--ink); font-weight:600;}
 .pc-saves{display:grid; grid-template-columns:repeat(6, minmax(0,1fr)); gap:3px; font-size:0.74rem; text-align:center;}
@@ -459,17 +461,6 @@ function loadSheetJSONP(sheetId, gid, range){
     document.body.appendChild(script);
   });
 }
-// Senses and resistances the sheet doesn't list, from the PHB race
-function raceExtras(race){
-  const r = race.toLowerCase(), out = [];
-  if(r.includes('drow')) out.push('Superior darkvision 120 ft');
-  else if(/elf|dwarf|gnome|orc|tiefling/.test(r)) out.push('Darkvision 60 ft');
-  if(r.includes('tiefling')) out.push('Resists fire');
-  if(r.includes('dwarf')) out.push('Resists poison');
-  if(r.includes('stout')) out.push('Resists poison');
-  if(r.includes('drow') || r.includes('elf')) out.push('Advantage vs. charm, can’t be magically slept');
-  return out;
-}
 // Class spellcasting ability and the level it starts (2014 PHB)
 function castingFor(cls){
   const c = cls.toLowerCase();
@@ -496,7 +487,6 @@ async function loadPC(pc){
   p.passive = {perception:passive('perception'), investigation:passive('investigation'), insight:passive('insight')};
   const cast = castingFor(p.cls);
   if(cast && p.level >= cast.from) p.spellDc = 8 + profFor(p.level) + abilMod(p.scores[cast.ab]);
-  p.extras = raceExtras(p.race);
   return p;
 }
 /* ---------- Live: what players are tracking in their Turnkeeper ----------
@@ -625,13 +615,22 @@ function pcCard(pc){
     return `<span class="${s && s.prof ? 'prof' : ''}" title="${ABIL_NAME[a]} save${s && s.prof ? ' (proficient)' : ''}"><small>${a.toUpperCase()}</small>${fmtMod(mod)}</span>`;
   }).join('');
   const stat = (dt, dd, title) => `<div title="${esc(title||'')}"><dt>${dt}</dt><dd>${dd ?? '—'}</dd></div>`;
+  const ps = passivesOf(pc);
   return `<article class="pc-card">${top(`Level ${p.level} ${esc(p.race)} ${esc(p.cls)}`)}
     ${liveHtml(pc)}
     <dl class="pc-stats">${stat('AC', p.ac)}${stat('HP', p.hpMax, 'Maximum hit points on the sheet')}${stat('Init', fmtMod(p.init))}${stat('Speed', esc(String(p.speed).replace(/\s*ft\.?/i,'')), 'Feet')}${stat('Spell DC', p.spellDc, 'Spell save DC')}</dl>
-    <div class="pc-line">Passive <b>Perception ${p.passive.perception}</b> · Investigation ${p.passive.investigation} · Insight ${p.passive.insight}</div>
+    <div class="pc-sublbl">Passive</div>
+    <dl class="pc-stats pc-passives">${['perception', 'insight', 'investigation'].map(k=>stat(k.charAt(0).toUpperCase() + k.slice(1), ps[k], `Passive ${k}${ps.live ? ', from their Turnkeeper' : ', from the sheet'}`)).join('')}</dl>
     <div class="pc-saves" aria-label="Saving throws">${saves}</div>
-    ${p.extras.length ? `<div class="pc-line">${p.extras.map(esc).join(' · ')}</div>` : ''}
     ${links}</article>`;
+}
+// Passive scores: from the player's live Turnkeeper (Observant and ability increases
+// included) once they've shared, otherwise worked out from the sheet
+function passivesOf(pc){
+  const p = party[pc.name], sheet = p && !p.error ? p.passive : {}, lp = (live[pc.sheet] || {}).passive || {};
+  const pick = (liveVal, sheetVal)=>typeof liveVal === 'number' ? liveVal : sheetVal;
+  return {perception:pick(lp.per, sheet.perception), insight:pick(lp.ins, sheet.insight), investigation:pick(lp.inv, sheet.investigation),
+    live:typeof lp.per === 'number'};
 }
 function renderParty(){
   $('partyGrid').innerHTML = campaign.party.map(pcCard).join('');
@@ -662,7 +661,7 @@ function renderPassive(){
   $('passResult').innerHTML = dc === null ? '' : campaign.party.map(pc=>{
     const p = party[pc.name];
     if(!p || p.error) return '';
-    const v = p.passive[skill], ok = v >= dc;
+    const v = passivesOf(pc)[skill], ok = v >= dc;
     return `<span class="pass-chip ${ok ? 'yes' : 'no'}" title="Passive ${skill} ${v}">${ok ? '✓' : '✗'} ${esc(pc.name)} ${v}</span>`;
   }).join('');
 }
@@ -951,7 +950,7 @@ function combatantHtml(c, i, list){
       ...(liveFor(c).conc ? [`<span class="cond-chip live conc" title="From ${esc(c.name)}’s Turnkeeper">Concentrating: ${esc(liveFor(c).conc.name)}</span>`] : [])] : []),
     ...c.conds.map((k, j)=>`<span class="cond-chip">${esc(k.name)}${k.rounds ? ` (${k.rounds})` : ''}<button type="button" data-act="cond-x" data-j="${j}" aria-label="Remove ${esc(k.name)}">×</button></span>`),
   ].join('');
-  const sub = c.kind === 'pc' ? (party[c.name] && !party[c.name].error ? `Init ${fmtMod(c.initMod)} · Passive Perception ${party[c.name].passive.perception}` : '')
+  const sub = c.kind === 'pc' ? (party[c.name] && !party[c.name].error ? `Init ${fmtMod(c.initMod)} · Passive Perception ${passivesOf(campaign.party.find(p=>p.name === c.name)).perception}` : '')
     : [c.cr ? `CR ${c.cr}` : '', `Init ${fmtMod(c.initMod || 0)}`].filter(Boolean).join(' · ');
   const alert = concAlerts[c.id] ? (()=>{ const mod = conSaveMod(c); return `<div class="cbt-alert">Concentration save: Constitution DC <b>${concAlerts[c.id]}</b>${mod !== null && c.kind !== 'pc' ? ` <code>${ROLL} 1d20${fmtMod(mod)}</code><button type="button" class="copy-btn" data-copy="${ROLL} 1d20${fmtMod(mod)}">Copy</button>` : ''}
       <button type="button" class="chip-btn" data-act="conc-kept">Kept it</button><button type="button" class="chip-btn" data-act="conc-lost">Lost it</button></div>`; })() : '';

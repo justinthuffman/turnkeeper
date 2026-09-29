@@ -4,6 +4,15 @@ What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest firs
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
 
+## Unreleased — Passives on the DM Screen
+
+### Changed
+- **DM Screen Party cards show passive Perception, Insight and Investigation as boxes**, taken
+  from each player's Turnkeeper (so Observant and ability increases count), or from the sheet
+  until the player has opened it. The Passive check and the Initiative list use the same numbers.
+- **Removed the race line** (darkvision, resistances, Fey Ancestry) from the Party cards. That's
+  the player's to track, and it was only a partial list.
+
 ## 2026-09-28 — Passive Insight and Investigation
 
 ### Added

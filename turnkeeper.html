@@ -5314,6 +5314,10 @@ function liveSnapshot(){
     conc:track.conc ? {name:track.conc.name, rounds:track.conc.rounds || 0} : null,
     death:cur === 0 ? {s:track.death.s || 0, f:track.death.f || 0} : null,
     insp:!!track.insp,
+    // The Summary's passive boxes (Observant and ability increases included), for the DM Screen
+    passive:(()=>{ const n = id=>parseInt(document.getElementById(id).value, 10);
+      const v = {per:n('f_senses'), ins:n('f_pinsight'), inv:n('f_pinvest')};
+      return Object.values(v).every(Number.isFinite) ? v : null; })(),
     slots:slotTable().filter(s=>s.max > 0).map(s=>({level:s.level, left:remaining(s.id), max:s.max})),
     res:[...(hitDie() ? [{label:'Hit Dice', left:remaining('hitDice'), max:maxFor('hitDice')}] : []),
          ...trackedResources().map(r=>({label:r.label.slice(0, 60), left:remaining(r.id), max:r.max}))],
