@@ -95,6 +95,7 @@ button.sel-toggle:hover{background:none; color:var(--ink);}
 .live-state{font-size:0.78rem; color:var(--ink-dim);}
 .live-state.on{color:var(--green);}
 .cond-chip.live{border-color:var(--sea-dim); padding-right:8px;}
+.cond-chip.fx{border-color:var(--racial);}
 .cbt-sub.player-hp{font-style:italic;}
 .pc-err{font-size:0.8rem; color:var(--danger);}
 .passive-check{display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:14px; font-size:0.85rem;}
@@ -507,7 +508,7 @@ function liveHtml(pc){
   const pct = cur !== null && max ? Math.max(0, Math.min(100, Math.round(cur / max * 100))) : 0;
   const chips = [];
   if(cur === 0) chips.push(`<span class="live-chip down">Down: ${L.death ? `${L.death.s || 0} ✓ ${L.death.f || 0} ✗` : 'death saves'}</span>`);
-  arr(L.status).forEach(s=>chips.push(`<span class="live-chip ${s.group === 'cond' ? 'cond' : 'magic'}">${esc(s.name)}${s.rounds ? ` (${s.rounds})` : ''}</span>`));
+  arr(L.status).forEach(s=>chips.push(`<span class="live-chip ${s.group === 'cond' ? 'cond' : 'magic'}"${s.from ? ` title="${esc(s.from)}"` : ''}>${esc(s.name)}${s.rounds ? ` (${s.rounds})` : ''}</span>`));
   if(L.exh) chips.push(`<span class="live-chip cond">Exhaustion ${L.exh}</span>`);
   if(L.conc) chips.push(`<span class="live-chip conc">Concentrating: ${esc(L.conc.name)}${L.conc.rounds ? ` (${L.conc.rounds})` : ''}</span>`);
   if(L.insp) chips.push(`<span class="live-chip insp">✧ Inspiration</span>`);
@@ -526,6 +527,15 @@ function liveHtml(pc){
 setInterval(()=>document.querySelectorAll('[data-t]').forEach(el=>{ el.textContent = ago(+el.dataset.t); }), 15000);
 // Called by the module script
 window.dmCampaignKey = ()=>campaign.key;
+window.dmPublishNow = ()=>publishCombat();
+let effects = {};   // caster sheet -> {id: {name, caster, targets, status, conc, rounds}}
+window.dmEffectsUpdate = (key, data)=>{ if(key !== campaign.key) return; effects = data || {}; renderInit(); };
+// Effects a player has put on this combatant (Hunter's Mark on Goblin 2, Bless on Venthor)
+function effectsOn(c){
+  const pc = c.kind === 'pc' ? campaign.party.find(p=>p.name === c.name) : null;
+  return Object.values(effects).flatMap(list=>Object.values(list || {}))
+    .filter(e=>arr(e.targets).some(t=>(pc && t.sheet === pc.sheet) || (!t.sheet && t.id === c.id)));
+}
 window.dmLiveUpdate = (key, data)=>{
   if(key !== campaign.key) return;
   live = data || {};
@@ -640,7 +650,21 @@ $('mCr').innerHTML = '<option value="">—</option>' + Object.keys(CR_XP).map(k=
 let combat = loadJSON(storeKey('combat'), null) || {list:[], round:0, turn:null, log:[], nextId:1};
 let openRow = null;         // the combatant whose details are open
 const concAlerts = {};      // id -> DC of the concentration save waiting after damage
-function saveCombat(){ saveJSON(storeKey('combat'), combat); }
+function saveCombat(){ saveJSON(storeKey('combat'), combat); publishCombat(); }
+/* What players see (campaigns/<key>/combat): turn order, whose turn, conditions and who's
+   defeated. Never hit points, AC, CR, concentration or notes: those stay on this screen. */
+let publishTimer = null;
+function combatView(){
+  if(!combat.round) return {active:false};
+  return {active:true, round:combat.round, turn:combat.turn, order:ordered().map(c=>{
+    const pc = c.kind === 'pc' ? campaign.party.find(p=>p.name === c.name) : null;
+    return {id:c.id, kind:c.kind, name:c.name, sheet:pc ? pc.sheet : null, init:c.init, down:isDown(c), conds:c.conds.map(k=>({name:k.name, rounds:k.rounds || 0}))};
+  })};
+}
+function publishCombat(){
+  clearTimeout(publishTimer);
+  publishTimer = setTimeout(()=>{ if(window.dmPublishCombat) window.dmPublishCombat(campaign.key, combatView()); }, 300);
+}
 function logLine(text){ combat.log.unshift({round:combat.round, text}); combat.log = combat.log.slice(0, 80); }
 function ordered(){
   return [...combat.list].sort((a,b)=>
@@ -868,7 +892,8 @@ function combatantHtml(c, i, list){
   const chips = [
     ...(down ? [`<span class="cond-chip state">${c.kind === 'monster' ? 'Defeated' : 'Down: death saves'}</span>`] : []),
     ...(c.conc ? [`<span class="cond-chip conc" title="Concentrating">Concentrating: ${esc(c.conc)}<button type="button" data-act="conc-end" aria-label="End concentration">×</button></span>`] : []),
-    ...(liveFor(c) ? [...arr(liveFor(c).status).map(s=>`<span class="cond-chip live" title="From ${esc(c.name)}’s Turnkeeper">${esc(s.name)}${s.rounds ? ` (${s.rounds})` : ''}</span>`),
+    ...effectsOn(c).map(e=>`<span class="cond-chip live fx" title="Cast by ${esc(e.caster)}">${esc(e.name)} · ${esc(e.caster)}${e.rounds ? ` (${e.rounds})` : ''}</span>`),
+    ...(liveFor(c) ? [...arr(liveFor(c).status).filter(s=>!s.from).map(s=>`<span class="cond-chip live" title="From ${esc(c.name)}’s Turnkeeper">${esc(s.name)}${s.rounds ? ` (${s.rounds})` : ''}</span>`),
       ...(liveFor(c).conc ? [`<span class="cond-chip live conc" title="From ${esc(c.name)}’s Turnkeeper">Concentrating: ${esc(liveFor(c).conc.name)}</span>`] : [])] : []),
     ...c.conds.map((k, j)=>`<span class="cond-chip">${esc(k.name)}${k.rounds ? ` (${k.rounds})` : ''}<button type="button" data-act="cond-x" data-j="${j}" aria-label="Remove ${esc(k.name)}">×</button></span>`),
   ].join('');
@@ -1207,19 +1232,23 @@ const FIREBASE_CONFIG = {
 };
 const FB = 'https://www.gstatic.com/firebasejs/12.19.0/';
 try{
-  const [{initializeApp}, {getAuth, signInAnonymously}, {getDatabase, ref, onValue}] =
+  const [{initializeApp}, {getAuth, signInAnonymously}, {getDatabase, ref, onValue, set, serverTimestamp}] =
     await Promise.all(['firebase-app.js', 'firebase-auth.js', 'firebase-database.js'].map(f=>import(FB + f)));
   const app = initializeApp(FIREBASE_CONFIG);
   await signInAnonymously(getAuth(app));
   const db = getDatabase(app);
-  let stop = null;
+  let stops = [];
   window.dmLiveWatch = key=>{
-    if(stop) stop();
-    stop = onValue(ref(db, `campaigns/${key}/live`),
-      snap=>{ window.dmLiveStatus('on'); window.dmLiveUpdate(key, snap.val()); },
-      err=>{ console.warn('Live updates:', err); window.dmLiveStatus('err', err.message); });
+    stops.forEach(f=>f()); stops = [];
+    const fail = err=>{ console.warn('Live updates:', err); window.dmLiveStatus('err', err.message); };
+    stops.push(onValue(ref(db, `campaigns/${key}/live`), snap=>{ window.dmLiveStatus('on'); window.dmLiveUpdate(key, snap.val()); }, fail));
+    stops.push(onValue(ref(db, `campaigns/${key}/effects`), snap=>window.dmEffectsUpdate(key, snap.val()), fail));
   };
+  // The players' view of combat (see combatView: no HP, AC or notes)
+  window.dmPublishCombat = (key, view)=>set(ref(db, `campaigns/${key}/combat`), {...view, t:serverTimestamp()})
+    .catch(err=>console.warn('Publishing combat:', err));
   window.dmLiveWatch(window.dmCampaignKey());
+  window.dmPublishNow();
 }catch(err){
   console.warn('Live updates unavailable:', err);
   window.dmLiveStatus('err', err.message);

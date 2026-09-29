@@ -257,6 +257,29 @@ button.ds-mark:hover{border-color:var(--ink);}
 .combat-bar[hidden]{display:none;}
 .combat-round{font-family:var(--font-display); color:var(--danger); font-size:1rem;}
 .combat-bar button.flow-btn{padding:5px 12px; font-size:0.82rem;}
+/* Shared combat: the DM started it on the DM Screen */
+.combat-banner{position:sticky; top:0; z-index:45; display:flex; flex-wrap:wrap; justify-content:center; align-items:baseline; gap:4px 14px; margin:0 0 14px; padding:8px 14px; border-radius:6px; background:var(--danger); color:#fff; font-family:var(--font-display); letter-spacing:0.04em; cursor:pointer; box-shadow:0 4px 14px rgba(0,0,0,0.4);}
+.combat-banner[hidden]{display:none;}
+.combat-banner .cb-title{font-size:1.1rem; text-transform:uppercase; letter-spacing:0.1em;}
+.combat-banner.mine{background:var(--orange); animation:bannerPulse 1.6s ease-in-out infinite;}
+@keyframes bannerPulse{50%{box-shadow:0 0 22px var(--orange-bright);}}
+@media (prefers-reduced-motion: reduce){ .combat-banner.mine{animation:none;} }
+.table-round{font-size:0.85rem; color:var(--ink-dim);}
+.itable{display:flex; flex-direction:column; gap:4px;}
+.irow{display:grid; grid-template-columns:1rem 2.4rem minmax(0,1fr); gap:8px; align-items:center; padding:6px 10px; border:1px solid var(--border); border-radius:6px; background:var(--panel2);}
+.irow .imark{visibility:hidden; color:var(--orange-bright);}
+.irow.turn{border-color:var(--orange); box-shadow:0 0 0 1px var(--orange);}
+.irow.turn .imark{visibility:visible;}
+.irow.me .iname{color:var(--sea); font-weight:600;}
+.irow.down{opacity:0.5;}
+.irow .iinit{font-family:var(--font-display); font-size:1.05rem; text-align:center;}
+.irow .iname{overflow-wrap:anywhere;}
+.irow .ichips{display:flex; flex-wrap:wrap; gap:4px; margin-top:3px;}
+.ichip{font-size:0.72rem; border:1px solid var(--border); border-radius:999px; padding:0 8px; color:var(--ink-dim);}
+.ichip.cond{border-color:var(--danger); color:var(--danger);}
+.ichip.fx{border-color:var(--racial); color:var(--racial);}
+.ichip.mine{border-color:var(--orange); color:var(--orange-bright);}
+.fx-chip.cast-chip{border-color:var(--racial);}
 .combat-msg{flex-basis:100%; color:var(--ink-dim); font-size:0.8rem;}
 /* What's used this turn / round: reaction, Attack action attacks, once-per-turn features */
 .turn-chip{border:1px solid var(--border); border-radius:999px; padding:1px 9px; font-size:0.78rem; color:var(--ink); background:var(--panel2);}
@@ -462,6 +485,14 @@ applyTheme(savedTheme || DEFAULT_THEME);
 <header class="top">
   <h1 class="brand"><a class="brand-link" href="index.html" title="Back to all characters"><svg class="brand-mark" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="16" fill="none" stroke="var(--sea)" stroke-width="2"/><path d="M14 11 H26 M14 29 H26 M15 11 Q15 18 20 20 Q25 18 25 11 M15 29 Q15 22 20 20 Q25 22 25 29" fill="none" stroke="var(--sea)" stroke-width="1.8" stroke-linejoin="round"/><path d="M17.5 27 Q20 24 22.5 27 Z" fill="var(--orange)"/></svg>Turnkeeper</a></h1>
 </header>
+
+<div class="combat-banner" id="combatBanner" role="button" tabindex="0" title="Show the turn order" hidden></div>
+<!-- INITIATIVE (the DM's, while the DM Screen is in combat) -->
+<div class="panel" id="tablePanel" hidden>
+  <div class="panel-head"><h2>Initiative</h2><span class="table-round" id="tableRound"></span></div>
+  <div class="itable" id="itable"></div>
+  <p class="rt-note" style="margin:8px 0 0;"><span>Your DM runs this from the DM Screen. Your turn starts and ends with it.</span></p>
+</div>
 
 <!-- CHARACTER SUMMARY -->
 <div class="panel">
@@ -1945,6 +1976,13 @@ function endOfTurn(){
       endConcentration();
     }
   }
+  // Spells and features you cast on others that aren't concentration count down the same way
+  track.cast = (track.cast || []).filter(x=>{
+    if(x.conc || typeof x.rounds !== 'number') return true;
+    x.rounds -= 1;
+    if(x.rounds > 0) return true;
+    ended.push(`${x.name} on ${arrOf(x.targets).map(t=>t.name).join(', ')}`); return false;
+  });
   // Magic on you with a length (Bless from an ally, Haste…): the caster's timing may differ from
   // yours by up to a turn, so the chip can also be unticked by hand
   const st = statusState(), timers = st.rounds || {};
@@ -1954,7 +1992,7 @@ function endOfTurn(){
     if(timers[key] <= 0){ ended.push(`${STATUS_BY_KEY[key].name} (${STATUS_BY_KEY[key].lasts})`); setStatusOn(key, false); }
   });
   Object.assign(c, {onTurn:false, once:{}});
-  c.msg = `Turn ended (round ${c.round}).` + (ended.length ? ` Ended: ${ended.join(', ')}.` : '') + ' Click “Start of my turn” when it comes around again.';
+  c.msg = `Turn ended (round ${c.round}).` + (ended.length ? ` Ended: ${ended.join(', ')}.` : '') + (tableActive() ? ' Your next turn starts here when the DM gets to you.' : ' Click “Start of my turn” when it comes around again.');
   dashActive = false; bonusDashActive = false;
   closeDetail();
   saveTrack(); renderActiveFx(); renderCombat(); updateMoveLine(); renderStatus();
@@ -2151,6 +2189,7 @@ function endConcentration(){
   const ended = track.fx.filter(x=>x.conc).map(x=>x.name);
   if(track.conc && !ended.includes(track.conc.name)) ended.push(track.conc.name);
   track.fx = track.fx.filter(x=>!x.conc);
+  track.cast = (track.cast || []).filter(x=>!x.conc);   // what you cast on others with it ends too
   track.conc = null;
   if(typeof concUi !== 'undefined') concUi.check = null;
   // Statuses you gave yourself with that spell (e.g. Bless cast on you) end with it
@@ -2171,15 +2210,19 @@ function roundsLeft(r){ return track.combat && typeof r==='number' ? ` &middot; 
 function renderActiveFx(){
   const box = document.getElementById('activeFx'), list = track.fx || [], k = track.conc;
   // Concentration shows as its own chip unless one of the effects is that spell (it already says "concentration")
-  const concChip = k && !list.some(e=>e.conc && e.name===k.name);
-  box.hidden = !list.length && !concChip;
-  box.innerHTML = (list.length || concChip ? `<span>Active effects:</span>` : '')
+  const casts = track.cast || [];
+  const concChip = k && !list.some(e=>e.conc && e.name===k.name) && !casts.some(x=>x.conc && x.name===k.name);
+  box.hidden = !list.length && !concChip && !casts.length;
+  box.innerHTML = (list.length || concChip || casts.length ? `<span>Active effects:</span>` : '')
     + (concChip ? `<span class="fx-chip conc-chip">Concentrating: ${escapeHtml(k.name)} <small>${escapeHtml(k.duration || '')}${roundsLeft(k.rounds)}</small><button type="button" class="sel-toggle" data-conc-end="1" aria-label="End concentration on ${escapeHtml(k.name)}">End</button></span>` : '')
     + list.map(e=>`<span class="fx-chip">${escapeHtml(e.name)} <small>${escapeHtml(fxWhat(e))}${fxWhat(e) ? ' &middot; ' : ''}${escapeHtml(fxWhen(e))}${roundsLeft(e.rounds)}</small>`
-    + `<button type="button" class="sel-toggle" data-fx-end="${escapeHtml(e.id)}" aria-label="End ${escapeHtml(e.name)}">End</button></span>`).join('');
+    + `<button type="button" class="sel-toggle" data-fx-end="${escapeHtml(e.id)}" aria-label="End ${escapeHtml(e.name)}">End</button></span>`).join('')
+    + casts.map(x=>`<span class="fx-chip cast-chip">${escapeHtml(x.name)} <small>on ${escapeHtml(arrOf(x.targets).map(t=>t.name).join(', '))}${x.conc ? ' &middot; concentration' : ''}${x.conc ? '' : roundsLeft(x.rounds)}</small>`
+    + `<button type="button" class="sel-toggle" data-cast-end="${escapeHtml(x.id)}" aria-label="End ${escapeHtml(x.name)}">End</button></span>`).join('');
 }
 document.getElementById('activeFx').addEventListener('click', e=>{
   const b = e.target.closest('[data-fx-end]'); if(b){ endFx(b.dataset.fxEnd); return; }
+  const cb = e.target.closest('[data-cast-end]'); if(cb){ endCast(cb.dataset.castEnd); return; }
   if(e.target.closest('[data-conc-end]')){ endConcentration(); saveTrack(); renderActiveFx(); renderConc(); }
 });
 
@@ -2391,7 +2434,8 @@ function renderStatus(){
   const s = statusState(), on = statusActive(), x = exhaustion();
   const left = d=>s.on[d.key] && inCombat() && s.rounds && s.rounds[d.key] ? ` <small>· ${s.rounds[d.key]} turn${s.rounds[d.key]===1 ? '' : 's'} left</small>` : '';
   const chip = d=>`<button type="button" class="status-chip${s.on[d.key] ? ' on' : ''}" data-status="${d.key}" aria-pressed="${!!s.on[d.key]}" title="${escapeHtml(d.desc)}${d.lasts ? ` Lasts up to ${d.lasts}: Turnkeeper counts it down each time you end your turn.` : ''}">${d.name}${left(d)}</button>`;
-  const activeNames = on.map(d=>d.key==='bardic' ? `Bardic Inspiration (d${s.bi || 6})` : d.name).concat(x ? [`Exhaustion ${x}`] : []);
+  const fromWho = k=>s.ext && s.ext[k] && s.ext[k] !== 'you' ? ` (from ${s.ext[k]})` : '';
+  const activeNames = on.map(d=>(d.key==='bardic' ? `Bardic Inspiration (d${s.bi || 6})` : d.name) + fromWho(d.key)).concat(x ? [`Exhaustion ${x}`] : []);
   let html = `<div class="status-now">${activeNames.length ? `<b>Now:</b> ${activeNames.join(', ')}` : 'No conditions or effects on you.'}`
     + ` <button type="button" class="sel-toggle" data-status-ui="toggle">${statusUi.open ? 'Done' : 'Change'}</button>`
     + (activeNames.length ? ` <button type="button" class="sel-toggle" data-status-ui="clear">Clear all</button>` : '') + `</div>`;
@@ -2440,7 +2484,7 @@ const ORDINAL = ['','1st','2nd','3rd','4th','5th'];
 function openRollPopup(sel, mode){
   hideTooltip();
   Object.assign(rollState, {sel, mode, crit:false, smite:0, undead:false, alt:false, sneak:false, savage:false, spendInfo:null, smiteSpent:null,
-    fxList:[], fxOn:{}, fxStarted:null, concEnded:[], fxBefore:null, fxUsed:false, healed:null, healBefore:null, tempMsg:'', selfCast:null, statusBefore:null,
+    fxList:[], fxOn:{}, fxStarted:null, concEnded:[], fxBefore:null, fxUsed:false, healed:null, healBefore:null, tempMsg:'', selfCast:null, statusBefore:null, target:null, castBefore:null,
     insp:false, reactionMarked:false, reactionWasUsed:false, attackNo:0, attackCounted:false});
   // In combat: a reaction is marked used when its popup opens (Undo on the slot gives it back);
   // an attack from the Attack action is counted when you copy its to-hit command
@@ -2469,6 +2513,8 @@ function openRollPopup(sel, mode){
   // Undo (spell slot / use) puts effects back as they were.
   if(sel.kind==='spell' || sel.kind==='feature'){
     rollState.fxBefore = (track.fx || []).map(e=>({...e}));
+    rollState.castBefore = JSON.parse(JSON.stringify(track.cast || []));
+    rollState.target = tkConnected() ? targetedInfo(sel) : null;   // "Cast on": pick targets from the turn order or party
     rollState.concBefore = track.conc ? {...track.conc} : null;
     rollState.statusBefore = JSON.parse(JSON.stringify(statusState()));
     if(sel.kind==='spell' && /Concentration/i.test(sel.entry.sp.duration)){
@@ -2638,6 +2684,175 @@ function saveLine(dc, ability, onSave, effect){
 }
 const critToggle = ()=>`<div class="roll-after">After you see the attack roll:</div><div class="roll-toggles">${toggleBtn('data-crit','1','Crit',rollState.crit)}</div>`;
 
+/* ---------- Shared combat and targets ----------
+   When the DM starts combat on the DM Screen, campaigns/<key>/combat holds the players' view:
+   turn order, whose turn, conditions and who's defeated (never monster HP or AC). The module
+   script at the end follows it, the campaign's effects and everyone's live state, and calls
+   tkTableUpdate.
+   - The banner and the Initiative panel show it. When the DM starts combat, Turnkeeper's own
+     round counter starts too. When the turn comes to you it runs Start of my turn, and when
+     it moves on from you, End my turn (so durations count down). The DM's round wins.
+   - Spells and features that affect creatures (TARGETED) ask who they're cast on, from the
+     turn order (or the party outside combat). The picks are kept in track.cast
+     [{id, name, status, conc, rounds, targets:[{id, name, sheet}]}] and shared as
+     effects/<sheet>. They end with your concentration, their duration (counted on your
+     End my turn), a rest or their End button.
+   - A status on a player (Bless on Venthor) is ticked in their own Status and changes their
+     rolls: status.ext = {statusKey: caster name} marks it, and it comes off when the
+     caster's effect ends. */
+const TARGETED = {
+  'Bless':{status:'bless', max:3, up:1}, 'Bane':{status:'bane', max:3, up:1, save:true},
+  'Guidance':{status:'guidance'}, 'Resistance':{status:'resistance'},
+  'Heroism':{status:'heroism', up:1}, 'Shield of Faith':{status:'shieldOfFaith'},
+  'Haste':{status:'haste'}, 'Slow':{status:'slow', max:6, save:true},
+  'Faerie Fire':{status:'faerieFire', max:12, save:true}, 'Enlarge/Reduce':{status:'enlarge'},
+  "Hunter's Mark":{}, 'Hex':{},
+  'Hold Person':{status:'paralyzed', up:1, save:true}, 'Hold Monster':{status:'paralyzed', up:1, save:true},
+  "Tasha's Hideous Laughter":{status:['prone', 'incapacitated'], save:true},
+  'Charm Person':{status:'charmed', up:1, save:true}, 'Crown of Madness':{status:'charmed', save:true},
+  'Sleep':{status:'unconscious', max:12}, 'Blindness/Deafness':{status:'blinded', up:1, save:true},
+  'Command':{up:1, save:true}, 'Invisibility':{status:'invisible', up:1}, 'Greater Invisibility':{status:'invisible'},
+  'Protection from Evil and Good':{}, 'Longstrider':{up:1}, 'Aid':{max:3}, 'Magic Weapon':{},
+  'Channel Divinity: Vow of Enmity':{name:'Vow of Enmity', lasts:'1 minute'},
+  'Channel Divinity: Abjure Enemy':{name:'Abjure Enemy', status:'frightened', lasts:'1 minute', save:true},
+  'Bardic Inspiration':{status:'bardic', notSelf:true, lasts:'10 minutes'},
+};
+const table = {combat:null, effects:{}, live:{}};
+const tableWas = {active:null, myTurn:null};
+const arrOf = x=>Array.isArray(x) ? x : Object.values(x || {});
+function myCampaignKey(){ const c = CAMPAIGNS.find(c=>c.sheets.includes(currentCharId)); return c ? c.key : null; }
+function tableActive(){ return !!(currentCharId && myCampaignKey() && table.combat && table.combat.active); }
+function myName(){ return document.getElementById('f_name').value || 'You'; }
+const tkConnected = ()=>!!(window.tkLive && window.tkLive.connected && myCampaignKey());
+window.tkTableUpdate = (part, data)=>{
+  table[part] = part === 'combat' ? (data || null) : (data || {});
+  if(part === 'combat') followDmCombat();
+  if(part === 'effects') applyIncoming();
+  renderTable();
+};
+// Turnkeeper's own round counter and turn cycle follow the DM's combat
+function followDmCombat(){
+  if(!currentCharId || !myCampaignKey()) return;
+  const c = table.combat, active = !!(c && c.active);
+  const me = active ? arrOf(c.order).find(o=>o.sheet === currentCharId) : null;
+  const myTurn = !!(me && c.turn === me.id);
+  let changed = false;
+  if(active && !track.combat){ track.combat = newCombat(); track.combat.msg = 'Your DM started combat. Your turn starts here when it comes up.'; changed = true; }
+  if(!active && tableWas.active && track.combat){ track.combat = null; changed = true; document.getElementById('restMsg').textContent = 'Your DM ended combat.'; }
+  if(active && track.combat.round !== c.round){ track.combat.round = c.round; changed = true; }
+  if(changed){ saveTrack(); renderCombat(); renderActiveFx(); }
+  if(active && myTurn && !track.combat.onTurn && tableWas.myTurn !== true){
+    startOfTurn();
+    track.combat.round = c.round; track.combat.msg = `Round ${c.round}: your turn. Your reaction is back.`;
+    saveTrack(); renderCombat();
+  } else if(active && !myTurn && tableWas.myTurn === true && track.combat.onTurn) endOfTurn();
+  tableWas.active = active; tableWas.myTurn = active ? myTurn : null;
+}
+// Every effect in the campaign: others' as shared, yours from track.cast (the freshest)
+function allEffects(){
+  const others = Object.entries(table.effects || {}).filter(([s])=>s !== currentCharId)
+    .flatMap(([s, list])=>Object.values(list || {}).map(e=>({...e, casterSheet:s})));
+  return [...others, ...(track.cast || []).map(e=>({...e, caster:myName(), casterSheet:currentCharId}))];
+}
+const targetKey = t=>t.sheet ? 's:' + t.sheet : 'c:' + t.id;
+// Statuses others (or you) have put on this character: {statusKey: caster name}
+function incomingStatuses(){
+  const out = {};
+  allEffects().forEach(e=>{
+    if(!e.status || !arrOf(e.targets).some(t=>t.sheet === currentCharId)) return;
+    [].concat(e.status).forEach(k=>{ if(STATUS_BY_KEY[k]) out[k] = e.casterSheet === currentCharId ? 'you' : e.caster; });
+  });
+  return out;
+}
+function applyIncoming(){
+  if(!currentCharId) return;
+  const st = statusState(); st.ext = st.ext || {};
+  const inc = incomingStatuses(); let changed = false;
+  Object.keys(inc).forEach(k=>{ if(!st.ext[k]){ st.ext[k] = inc[k]; st.on[k] = true; changed = true; } });
+  Object.keys(st.ext).forEach(k=>{ if(!inc[k]){ delete st.ext[k]; delete st.on[k]; changed = true; } });
+  if(changed){ saveTrack(); renderStatus(); renderResources(); }
+}
+function renderTable(){
+  const panel = document.getElementById('tablePanel'), banner = document.getElementById('combatBanner');
+  const on = tableActive();
+  panel.hidden = banner.hidden = !on;
+  if(!on){ document.getElementById('itable').innerHTML = ''; return; }
+  const c = table.combat, order = arrOf(c.order), cur = order.find(o=>o.id === c.turn);
+  const mine = !!(cur && cur.sheet === currentCharId);
+  banner.className = 'combat-banner' + (mine ? ' mine' : '');
+  banner.innerHTML = `<span class="cb-title">⚔ In combat</span><span>Round ${c.round}</span><span>${mine ? '<b>Your turn!</b>' : cur ? `${escapeHtml(cur.name)}’s turn` : ''}</span>`;
+  document.getElementById('tableRound').textContent = `Round ${c.round} · ${(c.round - 1) * 6} seconds in`;
+  const effs = allEffects(), live = table.live || {};
+  document.getElementById('itable').innerHTML = order.map(o=>{
+    const L = o.sheet ? live[o.sheet] : null, me = o.sheet === currentCharId, chips = [];
+    if(o.down) chips.push(`<span class="ichip cond">Defeated</span>`);
+    if(L && L.hp && L.hp.cur === 0) chips.push(`<span class="ichip cond">Down</span>`);
+    arrOf(o.conds).forEach(k=>chips.push(`<span class="ichip cond">${escapeHtml(k.name)}${k.rounds ? ` (${k.rounds})` : ''}</span>`));
+    if(L) arrOf(L.status).filter(s=>!s.from).forEach(s=>chips.push(`<span class="ichip ${s.group === 'cond' ? 'cond' : 'fx'}">${escapeHtml(s.name)}</span>`));
+    if(L && L.conc) chips.push(`<span class="ichip fx">Concentrating: ${escapeHtml(L.conc.name)}</span>`);
+    effs.filter(e=>arrOf(e.targets).some(t=>o.sheet ? t.sheet === o.sheet : (!t.sheet && t.id === o.id))).forEach(e=>{
+      const yours = e.casterSheet === currentCharId;
+      chips.push(`<span class="ichip ${yours ? 'mine' : 'fx'}" title="Cast by ${escapeHtml(yours ? 'you' : e.caster)}">${escapeHtml(e.name)} · ${escapeHtml(yours ? 'you' : e.caster)}</span>`);
+    });
+    return `<div class="irow${o.id === c.turn ? ' turn' : ''}${me ? ' me' : ''}${o.down ? ' down' : ''}"><span class="imark" aria-hidden="true">▶</span><span class="iinit">${o.init ?? '—'}</span>`
+      + `<div><div class="iname">${escapeHtml(o.name)}${me ? ' (you)' : ''}${o.kind === 'lair' ? ' <small>(lair)</small>' : ''}</div>${chips.length ? `<div class="ichips">${chips.join('')}</div>` : ''}</div></div>`;
+  }).join('');
+}
+document.getElementById('combatBanner').addEventListener('click', ()=>document.getElementById('tablePanel').scrollIntoView({behavior:'smooth', block:'start'}));
+document.getElementById('combatBanner').addEventListener('keydown', e=>{ if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); e.currentTarget.click(); } });
+// Who a spell or feature can be cast on: the turn order in combat, else the party
+function targetedInfo(sel){
+  const name = sel.kind === 'spell' ? sel.entry.sp.name : sel.kind === 'feature' ? sel.feature.name : null;
+  const t = name && TARGETED[name]; if(!t) return null;
+  const up = sel.kind === 'spell' && sel.entry.sp.level ? Math.max(0, (sel.slot || sel.entry.sp.level) - sel.entry.sp.level) : 0;
+  const dur = sel.kind === 'spell' ? sel.entry.sp.duration : (t.lasts || '');
+  return {id:'c' + Date.now(), name:t.name || name, status:t.status || null, max:(t.max || 1) + (t.up || 0) * up,
+    notSelf:!!t.notSelf, save:!!t.save, conc:/Concentration/i.test(dur), rounds:fxRounds(dur)};
+}
+function targetCandidates(){
+  if(tableActive()) return arrOf(table.combat.order).filter(o=>o.kind !== 'lair' && !o.down)
+    .map(o=>({key:o.sheet ? 's:' + o.sheet : 'c:' + o.id, id:o.id, name:o.name, sheet:o.sheet || null}));
+  const party = Object.entries(table.live || {}).map(([s, L])=>({key:'s:' + s, id:null, name:L.name || 'Party member', sheet:s}));
+  if(!party.some(p=>p.sheet === currentCharId)) party.unshift({key:'s:' + currentCharId, id:null, name:myName(), sheet:currentCharId});
+  return party;
+}
+function targetPickHtml(){
+  const info = rollState.target; if(!info) return '';
+  const cast = (track.cast || []).find(x=>x.id === info.id);
+  const picked = new Set((cast ? arrOf(cast.targets) : []).map(targetKey));
+  const cands = targetCandidates().filter(c=>!(info.notSelf && c.sheet === currentCharId));
+  const full = picked.size >= info.max;
+  return `<div class="roll-box target-pick"><div class="roll-box-label">Cast on${info.max > 1 ? ` (up to ${info.max})` : ''}</div>`
+    + (cands.length ? `<div class="roll-toggles">${cands.map(c=>{ const on = picked.has(c.key);
+        return `<button type="button" class="flow-btn${on ? ' active' : ''}" data-target="${escapeHtml(c.key)}" aria-pressed="${on}"${!on && full ? ' disabled' : ''}>${escapeHtml(c.name)}${c.sheet === currentCharId ? ' <small>(you)</small>' : ''}</button>`; }).join('')}</div>`
+      : `<p class="empty-note">No one to pick yet.</p>`)
+    + `<div class="roll-after">${info.save ? 'Pick only the creatures that failed the save. ' : ''}${tableActive() ? 'It shows in everyone’s Initiative list' : 'Your party and DM see it'}${info.status ? '; on a player it’s ticked in their Status and changes their rolls' : ''}${info.conc ? ', until your concentration ends' : ''}.</div></div>`;
+}
+function targetClick(key){
+  const info = rollState.target; if(!info) return;
+  const cand = targetCandidates().find(c=>c.key === key); if(!cand) return;
+  track.cast = track.cast || [];
+  let cast = track.cast.find(x=>x.id === info.id);
+  if(!cast){ cast = {id:info.id, name:info.name, status:info.status, conc:info.conc, rounds:info.rounds, targets:[]}; track.cast.push(cast); }
+  const list = arrOf(cast.targets), at = list.findIndex(t=>targetKey(t) === key);
+  if(at >= 0) list.splice(at, 1);
+  else if(list.length < info.max) list.push({id:cand.id, name:cand.name, sheet:cand.sheet});
+  cast.targets = list;
+  if(!list.length) track.cast = track.cast.filter(x=>x !== cast);
+  saveTrack(); applyIncoming(); renderActiveFx(); renderTable(); renderRollPopup();
+}
+// "Hunter's Mark target (Goblin 2)" in the Attack popup
+function castTargetsText(name){
+  const c = (track.cast || []).filter(x=>x.name === name).flatMap(x=>arrOf(x.targets).map(t=>t.name));
+  return c.length ? ` (${c.join(', ')})` : '';
+}
+function endCast(id){
+  const cast = (track.cast || []).find(x=>x.id === id); if(!cast) return;
+  track.cast = track.cast.filter(x=>x !== cast);
+  if(cast.conc && track.conc && track.conc.name === cast.name){ endConcentration(); renderConc(); }
+  saveTrack(); applyIncoming(); renderActiveFx(); renderTable();
+}
+
 /* ---------- Casting a helpful spell on yourself ----------
    Spells that match a "Magic on you" status ask "Casting it on yourself?". Yes ticks it in
    Status (with Undo). If it's a concentration spell, the status is linked to it
@@ -2669,7 +2884,7 @@ function spellPopupHtml(){
   const {sel, mode, crit} = rollState, e = sel.entry, sp = e.sp, r = SPELL_ROLLS[sp.name];
   const s = spellStats(e.ability), up = sp.level ? Math.max(0, sel.slot - sp.level) : 0, cantrip = !!(r && r.cantrip);
   const abil = ABILITY_FULL[e.ability];
-  const selfBox = selfCastHtml(sp);
+  const selfBox = rollState.target ? targetPickHtml() : selfCastHtml(sp);
   let html = selfBox + `<p class="roll-intro">${sp.level ? (e.fixedLevel ? `Cast at ${ORDINAL[sel.slot]} level (no spell slot).` : `Uses a ${ORDINAL[sel.slot]}-level spell slot.`) : 'Cantrip.'} ${abil} is your spellcasting ability for it.</p>`;
   if(!r){
     return html + (NO_ROLL_SPELLS.has(sp.name)
@@ -2739,7 +2954,7 @@ function featurePopupHtml(){
   const t = rollState.sel.feature;
   const casting = castingFor();
   const dc = casting ? spellStats(casting.ability).dc : null;
-  let html = `<p class="roll-intro">${t.desc}</p>`;
+  let html = targetPickHtml() + `<p class="roll-intro">${t.desc}</p>`;
   if(/^Channel Divinity/.test(t.name)) html += `<p class="roll-intro">Uses your Channel Divinity (once per short or long rest).</p>`;
   // Dice a feature rolls (Bardic Inspiration, Portent, Song of Rest…) or a worked-out number
   featureRolls(t).forEach(r=>{
@@ -2780,7 +2995,7 @@ function renderRollPopup(){
   if(rollState.fxList.length){
     const self = rollState.fxList.filter(e=>!e.target), target = rollState.fxList.filter(e=>e.target);
     html += `<div class="roll-after">Effects${self.length ? ' (untick one that doesn’t apply to this attack)' : ''}:</div><div class="roll-toggles">`
-      + rollState.fxList.map(e=>toggleBtn('data-fx', escapeHtml(e.id), escapeHtml(e.target ? `${e.name} target` : `${e.name} (${fxWhat(e)})`), !!rollState.fxOn[e.id])).join('') + `</div>`;
+      + rollState.fxList.map(e=>toggleBtn('data-fx', escapeHtml(e.id), escapeHtml(e.target ? `${e.name} target${castTargetsText(e.name)}` : `${e.name} (${fxWhat(e)})`), !!rollState.fxOn[e.id])).join('') + `</div>`;
     if(target.length) html += `<div class="roll-after">Tick a target only if you’re attacking the creature it’s on.</div>`;
   }
   html += cmdBox(sel.kind==='weapon' ? 'To hit' : sel.kind==='check' ? checkInfo(sel.type, sel.key).name : 'Athletics check', {...toHitCommand(), countAttack: !!rollState.attackNo});
@@ -2837,6 +3052,7 @@ rollPopup.addEventListener('click', e=>{
     if(rollState.fxBefore){ track.conc = rollState.concBefore || null; track.fx = rollState.fxBefore; rollState.fxStarted = null; rollState.concEnded = []; saveTrack(); renderActiveFx(); }
     // Status goes back to how it was before the cast (a self-cast buff comes off, a linked one returns)
     if(rollState.statusBefore){ track.status = rollState.statusBefore; rollState.selfCast = null; saveTrack(); renderStatus(); renderResources(); }
+    if(rollState.castBefore){ track.cast = rollState.castBefore; saveTrack(); applyIncoming(); renderActiveFx(); renderTable(); }
     renderRollPopup();
   }
   else if(t.dataset.loh){
@@ -2845,6 +3061,7 @@ rollPopup.addEventListener('click', e=>{
     if(t.dataset.loh==='self' && healSelf(spent)) rollState.healBefore.lohSpent = spent;   // Heal myself: the points spent go to your HP
     renderRollPopup();
   }
+  else if(t.dataset.target) targetClick(t.dataset.target);
   else if(t.dataset.selfCast) selfCastClick(t.dataset.selfCast);
   else if(t.dataset.statusUsed){ setStatusOn(t.dataset.statusUsed, false); t.closest('li').innerHTML = `${STATUS_BY_KEY[t.dataset.statusUsed].name} removed from Status.`; }
   else if(t.dataset.tempMe) tempFromPopup(parseInt(document.getElementById('tempAmt').value,10) || 0);
@@ -3776,6 +3993,7 @@ async function runImport(){
 
     setStatus('Imported.', 'ok');
     livePush();
+    tableWas.active = tableWas.myTurn = null; followDmCombat(); applyIncoming(); renderTable();   // a new character: follow the DM's combat afresh
   }catch(err){
     setStatus('Import failed: ' + err.message, 'err');
   }
@@ -5013,11 +5231,12 @@ function loadTrack(){
   track.insp = saved && typeof saved.insp==='boolean' ? saved.insp : null;   // Inspiration (see syncInspiration)
   track.inspSheet = saved && typeof saved.inspSheet==='boolean' ? saved.inspSheet : null;
   track.changedAt = saved && typeof saved.changedAt==='number' ? saved.changedAt : 0;   // when this browser last changed it (live sharing)
+  track.cast = saved && Array.isArray(saved.cast) ? saved.cast : [];   // spells and features you cast on others (shared combat)
 }
 function saveTrack(){
   if(!currentCharId) return;
   track.changedAt = Date.now();
-  storageSet(trackKey(), JSON.stringify({hp:track.hp, temp:track.temp, used:track.used, fx:track.fx, death:track.death, combat:track.combat, status:track.status, conc:track.conc, insp:track.insp, inspSheet:track.inspSheet, changedAt:track.changedAt}));
+  storageSet(trackKey(), JSON.stringify({hp:track.hp, temp:track.temp, used:track.used, fx:track.fx, death:track.death, combat:track.combat, status:track.status, conc:track.conc, insp:track.insp, inspSheet:track.inspSheet, changedAt:track.changedAt, cast:track.cast || []}));
   livePush();
 }
 
@@ -5026,16 +5245,17 @@ function saveTrack(){
    saves, Inspiration, slots and features) with the campaign's DM Screen, through Firebase. The
    module script at the end of the page does the sending; this builds what it sends. */
 let liveTimer = null;
-function livePush(){ clearTimeout(liveTimer); liveTimer = setTimeout(()=>{ if(window.tkLive) window.tkLive.push(); }, 400); }
+function livePush(){ clearTimeout(liveTimer); liveTimer = setTimeout(()=>{ applyIncoming(); if(window.tkLive) window.tkLive.push(); }, 400); }
 function liveSnapshot(){
   const camp = CAMPAIGNS.find(c=>c.sheets.includes(currentCharId));
   if(!currentCharId || !camp) return null;
   const st = statusState(), rounds = st.rounds || {};
   const cur = hpNow(), max = hpMax();
-  return {campaign:camp.key, sheet:currentCharId, data:{
+  return {campaign:camp.key, sheet:currentCharId, effects:Object.fromEntries((track.cast || []).map(x=>[x.id, {name:x.name, caster:document.getElementById('f_name').value || '', targets:arrOf(x.targets), status:x.status || null, conc:!!x.conc, rounds:x.rounds || 0}])),
+    data:{
     name:document.getElementById('f_name').value || '', level:charLevel(), cls:document.getElementById('f_class').value || '',
     hp:{cur, max, temp:track.temp || 0},
-    status:Object.keys(st.on).filter(k=>st.on[k] && STATUS_BY_KEY[k]).map(k=>({name:STATUS_BY_KEY[k].name, group:STATUS_BY_KEY[k].group, rounds:rounds[k] || 0})),
+    status:Object.keys(st.on).filter(k=>st.on[k] && STATUS_BY_KEY[k]).map(k=>({name:STATUS_BY_KEY[k].name, group:STATUS_BY_KEY[k].group, rounds:rounds[k] || 0, from:(st.ext && st.ext[k]) || null})),
     exh:st.exh || 0,
     conc:track.conc ? {name:track.conc.name, rounds:track.conc.rounds || 0} : null,
     death:cur === 0 ? {s:track.death.s || 0, f:track.death.f || 0} : null,
@@ -5090,9 +5310,10 @@ function setHp(v){
 // Rests, with a one-step Undo in case of a mis-click
 let restUndo = null;
 function takeRest(kind){
-  restUndo = JSON.stringify({hp:track.hp, temp:track.temp, used:track.used, fx:track.fx, death:track.death, combat:track.combat, status:track.status, conc:track.conc});
+  restUndo = JSON.stringify({hp:track.hp, temp:track.temp, used:track.used, fx:track.fx, death:track.death, combat:track.combat, status:track.status, conc:track.conc, cast:track.cast});
   track.fx = [];   // anything lasting a minute or an hour is over after a rest
   track.conc = null;   // so is concentration
+  track.cast = [];   // and what you cast on others
   if(typeof concUi !== 'undefined') concUi.check = null;
   track.combat = null;   // and combat is over
   const shortIds = new Set([...slotTable(), ...trackedResources()].filter(r=>r.recharge==='short').map(r=>r.id));
@@ -5132,7 +5353,7 @@ function takeRest(kind){
   }
   document.getElementById('restUndo').onclick = ()=>{
     const s = JSON.parse(restUndo); track.hp = s.hp; track.used = s.used; track.fx = s.fx || [];
-    track.death = s.death || {s:0, f:0}; track.combat = s.combat || null; track.temp = s.temp || 0; track.status = s.status || {on:{}, exh:0, bi:6}; track.conc = s.conc || null; restUndo = null;
+    track.death = s.death || {s:0, f:0}; track.combat = s.combat || null; track.temp = s.temp || 0; track.status = s.status || {on:{}, exh:0, bi:6}; track.conc = s.conc || null; track.cast = s.cast || []; restUndo = null;
     saveTrack(); renderResources(); renderStatus(); msg.textContent = 'Rest undone.';
   };
 }
@@ -5468,15 +5689,23 @@ const FIREBASE_CONFIG = {
 };
 const FB = 'https://www.gstatic.com/firebasejs/12.19.0/';
 try{
-  const [{initializeApp}, {getAuth, signInAnonymously}, {getDatabase, ref, get, set, onDisconnect, serverTimestamp}] =
+  const [{initializeApp}, {getAuth, signInAnonymously}, {getDatabase, ref, get, set, onValue, onDisconnect, serverTimestamp}] =
     await Promise.all(['firebase-app.js', 'firebase-auth.js', 'firebase-database.js'].map(f=>import(FB + f)));
   const app = initializeApp(FIREBASE_CONFIG);
   await signInAnonymously(getAuth(app));
   const db = getDatabase(app);
   const compared = new Set(), watched = new Set();
+  // Follow the campaign: the DM's combat, everyone's effects and live state (tkTableUpdate)
+  const following = new Set();
+  function follow(key){
+    if(following.has(key)) return; following.add(key);
+    ['combat', 'effects', 'live'].forEach(part=>onValue(ref(db, `campaigns/${key}/${part}`),
+      s=>window.tkTableUpdate(part, s.val()), err=>console.warn('Following the table:', err)));
+  }
   async function push(){
     const snap = liveSnapshot();
     if(!snap){ showLive(null); return; }
+    follow(snap.campaign);
     const node = ref(db, `campaigns/${snap.campaign}/live/${snap.sheet}`);
     if(!compared.has(snap.sheet)){
       compared.add(snap.sheet);
@@ -5484,12 +5713,14 @@ try{
       if(remote && (remote.changedAt || 0) > (snap.data.changedAt || 0)){ showLive('newer'); return; }
     }
     await set(node, {...snap.data, online:true, t:serverTimestamp()});
+    // What you've cast on others (Hunter's Mark on Goblin 2, Bless on Venthor)
+    await set(ref(db, `campaigns/${snap.campaign}/effects/${snap.sheet}`), Object.keys(snap.effects).length ? snap.effects : null);
     // Closing the page marks it closed (after the first write, so the record exists); t stays the last change
     if(!watched.has(snap.sheet)){ watched.add(snap.sheet); await onDisconnect(node).update({online:false}); }
     showLive('on');
   }
   let queue = Promise.resolve();
-  window.tkLive = {push(){ queue = queue.then(push).catch(err=>{ console.warn('Live sharing:', err); showLive('err'); }); }};
+  window.tkLive = {connected:true, push(){ queue = queue.then(push).catch(err=>{ console.warn('Live sharing:', err); showLive('err'); }); }};
   window.tkLive.push();   // share the character that's already open
 }catch(err){
   console.warn('Live sharing unavailable:', err);

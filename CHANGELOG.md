@@ -3,6 +3,33 @@
 What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest first.
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
+## Unreleased — Shared combat and targets
+
+### Added
+- **In combat together.** When the DM clicks Start combat on the DM Screen, every player's
+  Turnkeeper shows it:
+  - An **⚔ IN COMBAT** banner stays at the top of the page, with the round and whose turn it
+    is. It turns orange with **Your turn!** when it's yours.
+  - An **Initiative** panel shows the turn order and everyone's conditions and effects.
+    Players never see monster hit points, AC or the DM's notes, which aren't even sent to
+    them. Defeated monsters are marked.
+  - Turnkeeper's own round counter starts with the DM's combat and ends with it. **Start of my
+    turn** and **End my turn** happen by themselves as the DM moves through the order, so
+    durations count down on their own.
+- **Cast on…** Spells and features that affect creatures ask who they're cast on, from the
+  turn order (or the party outside combat), up to the spell's number of targets.
+  - Covers Bless, Bane, Hunter's Mark, Vow of Enmity, Abjure Enemy, Bardic Inspiration, Hold
+    Person, Faerie Fire, Sleep, Heroism, Haste, Slow, Invisibility and more.
+  - For spells with a saving throw, pick only the creatures that failed it.
+  - Everyone sees it on that creature in their Initiative list (e.g. "Hunter's Mark ·
+    Krunk"), and so does the DM.
+  - **On another player,** it's ticked in their own Status and changes their rolls, marked
+    "from Bel". Bardic Inspiration from Bel is ready for Ezlo to use.
+  - It ends when the caster loses concentration, when its time runs out, on a rest, or with
+    its End button under Active effects. The Attack popup names the target
+    ("Hunter's Mark target (Goblin 2)").
+- **DM Screen:** effects players cast show on the right rows of the Initiative list.
+
 ## 2026-09-28 — DM Screen and live party updates
 
 ### Added
