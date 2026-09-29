@@ -3,7 +3,7 @@
 What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest first.
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
-## Unreleased — End turn on the DM Screen
+## 2026-09-28 — End turn on the DM Screen
 
 ### Added
 - **End turn ▸** on the DM Screen's Initiative list: the row whose turn it is gets an orange
