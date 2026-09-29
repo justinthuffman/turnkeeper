@@ -3,6 +3,13 @@
 What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest first.
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
+## Unreleased — End turn on the DM Screen
+
+### Added
+- **End turn ▸** on the DM Screen's Initiative list: the row whose turn it is gets an orange
+  End turn button, so the DM can end a monster's or lair action's turn (or a player's, if they
+  forget) right where they're looking. It does the same as Next turn at the top.
+
 ## 2026-09-28 — Pick your target, and End my turn moves everyone on
 
 ### Added

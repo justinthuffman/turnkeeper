@@ -125,6 +125,8 @@ button.sel-toggle:hover{background:none; color:var(--ink);}
 .cbt{border:1px solid var(--border); border-radius:6px; background:var(--panel2); transition:border-color .15s ease, box-shadow .15s ease;}
 .cbt-main{display:grid; grid-template-columns:auto 3.6rem minmax(0,1fr) 3.4rem minmax(150px,210px) auto; gap:10px; align-items:center; padding:8px 10px;}
 .cbt.turn{border-color:var(--orange); box-shadow:0 0 0 1px var(--orange), 0 0 14px var(--orange-tint);}
+button.chip-btn.end-turn{background:var(--orange); border-color:var(--orange-bright); color:var(--on-accent); font-weight:600;}
+button.chip-btn.end-turn:hover{background:var(--orange-bright);}
 .cbt.aimed{outline:2px dashed var(--racial); outline-offset:2px;}
 .last-act{margin-top:12px; padding:6px 10px; border:1px solid var(--racial); border-radius:6px; font-size:0.85rem;}
 .last-act[hidden]{display:none;}
@@ -927,6 +929,8 @@ function hpBar(c){
   return `<div class="hp-text"><span>HP <b>${c.hp}</b> / ${c.max}</span>${c.temp ? `<span class="tmp">+${c.temp} temp</span>` : ''}</div>
     <div class="hp-bar"><i class="${pct <= 25 ? 'low' : pct <= 50 ? 'mid' : ''}" style="width:${pct}%"></i></div>`;
 }
+// On the row whose turn it is: ends that turn (same as Next turn)
+const endTurnBtn = `<button type="button" class="chip-btn end-turn" data-act="endturn" title="End this turn and move to the next">End turn ▸</button>`;
 function combatantHtml(c, i, list){
   const isTurn = combat.round && c.id === combat.turn;
   const sameAbove = i > 0 && list[i-1].init === c.init, sameBelow = i < list.length-1 && list[i+1].init === c.init;
@@ -936,7 +940,7 @@ function combatantHtml(c, i, list){
       <input class="cbt-init" type="number" value="${c.init ?? ''}" data-act="init" aria-label="Initiative">
       <div class="cbt-name"><div class="nm">Lair action</div><div class="cbt-sub">Initiative 20, after anyone else on 20</div></div>
       <span></span><span></span>
-      <div class="cbt-actions"><button type="button" class="chip-btn" data-act="remove" title="Remove">✕</button></div></div></div>`;
+      <div class="cbt-actions">${isTurn ? endTurnBtn : ''}<button type="button" class="chip-btn" data-act="remove" title="Remove">✕</button></div></div></div>`;
   }
   const down = c.max !== null && c.hp <= 0;
   const chips = [
@@ -975,6 +979,7 @@ function combatantHtml(c, i, list){
         ${liveFor(c) ? `<div class="cbt-sub player-hp">Tracked in ${esc(c.name)}’s Turnkeeper</div></div>`
           : `<div class="hp-ctrl"><input type="number" min="0" data-field="amt" aria-label="Amount" placeholder="#"><button type="button" class="chip-btn" data-act="dmg">Damage</button><button type="button" class="chip-btn" data-act="heal">Heal</button></div></div>`}
       <div class="cbt-actions">
+        ${isTurn ? endTurnBtn : ''}
         ${c.srd ? `<button type="button" class="chip-btn" data-act="stat" title="Stat block">Stats</button>` : ''}
         <button type="button" class="chip-btn${openRow === c.id ? ' on' : ''}" data-act="more" aria-expanded="${openRow === c.id}" title="Conditions, concentration, temp HP, notes">More</button>
         <button type="button" class="chip-btn" data-act="roll" title="Roll initiative (d20 ${fmtMod(c.initMod || 0)})">🎲</button>
@@ -1019,6 +1024,7 @@ $('initList').addEventListener('click', e=>{
     if(other){ [c.tie, other.tie] = [other.tie, c.tie]; }
   }
   else if(act === 'stat'){ showStatBlock(c); return; }
+  else if(act === 'endturn'){ if(combat.round && combat.turn === c.id) nextTurn(); return; }
   else if(act === 'cond-x'){ const k = c.conds.splice(+btn.dataset.j, 1)[0]; if(k) logLine(`${k.name} removed from ${c.name}`); }
   else if(act === 'cond-add'){
     let name = field('condPick').value;
