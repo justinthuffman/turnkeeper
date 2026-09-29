@@ -2888,7 +2888,7 @@ function aimClick(key){
   });
   const cands = targetCandidates();
   const targets = list.map(k=>cands.find(c=>c.key === k)).filter(Boolean).map(c=>({id:c.id, name:c.name, sheet:c.sheet}));
-  if(targets.length && window.tkSendAct) window.tkSendAct('last', {what:sel.label, targets});
+  if(targets.length && window.tkSendAct) window.tkSendAct('last', {what:sel.label.slice(0, 80), targets});
   renderRollPopup();
 }
 // End my turn here moves the DM's turn order on (the DM Screen checks it's still your turn)
@@ -5297,9 +5297,9 @@ function liveSnapshot(){
   if(!currentCharId || !camp) return null;
   const st = statusState(), rounds = st.rounds || {};
   const cur = hpNow(), max = hpMax();
-  return {campaign:camp.key, sheet:currentCharId, effects:Object.fromEntries((track.cast || []).map(x=>[x.id, {name:x.name, caster:document.getElementById('f_name').value || '', targets:arrOf(x.targets), status:x.status || null, conc:!!x.conc, rounds:x.rounds || 0}])),
+  return {campaign:camp.key, sheet:currentCharId, effects:Object.fromEntries((track.cast || []).map(x=>[x.id, {name:x.name, caster:(document.getElementById('f_name').value || '').slice(0, 60), targets:arrOf(x.targets), status:x.status || null, conc:!!x.conc, rounds:x.rounds || 0}])),
     data:{
-    name:document.getElementById('f_name').value || '', level:charLevel(), cls:document.getElementById('f_class').value || '',
+    name:(document.getElementById('f_name').value || '').slice(0, 60), level:charLevel(), cls:(document.getElementById('f_class').value || '').slice(0, 60),   // lengths fit the database rules
     hp:{cur, max, temp:track.temp || 0},
     status:Object.keys(st.on).filter(k=>st.on[k] && STATUS_BY_KEY[k]).map(k=>({name:STATUS_BY_KEY[k].name, group:STATUS_BY_KEY[k].group, rounds:rounds[k] || 0, from:(st.ext && st.ext[k]) || null})),
     exh:st.exh || 0,
@@ -5308,7 +5308,7 @@ function liveSnapshot(){
     insp:!!track.insp,
     slots:slotTable().filter(s=>s.max > 0).map(s=>({level:s.level, left:remaining(s.id), max:s.max})),
     res:[...(hitDie() ? [{label:'Hit Dice', left:remaining('hitDice'), max:maxFor('hitDice')}] : []),
-         ...trackedResources().map(r=>({label:r.label, left:remaining(r.id), max:r.max}))],
+         ...trackedResources().map(r=>({label:r.label.slice(0, 60), left:remaining(r.id), max:r.max}))],
     round:track.combat ? track.combat.round : null,
     changedAt:track.changedAt || 0,
   }};
@@ -5738,6 +5738,9 @@ const FB = 'https://www.gstatic.com/firebasejs/12.19.0/';
 // database, so testing never touches the real game
 const TEST_MODE = new URLSearchParams(location.search).has('test');
 const FBK = key=>TEST_MODE ? 'test' : key;
+// Shared data is untrusted: strip HTML characters from every key and string (same as dm.html)
+const clean = v=>typeof v === 'string' ? v.replace(/[<>"&`]/g, '').slice(0, 200) : Array.isArray(v) ? v.map(clean)
+  : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k, x])=>[k.replace(/[<>"&`]/g, ''), clean(x)])) : v;
 try{
   const [{initializeApp}, {getAuth, signInAnonymously}, {getDatabase, ref, get, set, onValue, onDisconnect, serverTimestamp}] =
     await Promise.all(['firebase-app.js', 'firebase-auth.js', 'firebase-database.js'].map(f=>import(FB + f)));
@@ -5750,7 +5753,7 @@ try{
   function follow(key){
     if(following.has(key)) return; following.add(key);
     ['combat', 'effects', 'live'].forEach(part=>onValue(ref(db, `campaigns/${FBK(key)}/${part}`),
-      s=>window.tkTableUpdate(part, s.val()), err=>console.warn('Following the table:', err)));
+      s=>window.tkTableUpdate(part, clean(s.val())), err=>console.warn('Following the table:', err)));
   }
   async function push(){
     const snap = liveSnapshot();
