@@ -3,7 +3,7 @@
 What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest first.
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
-## Unreleased — Shared combat and targets
+## 2026-09-28 — Shared combat and targets
 
 ### Added
 - **In combat together.** When the DM clicks Start combat on the DM Screen, every player's
