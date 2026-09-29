@@ -3,6 +3,14 @@
 What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest first.
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
+
+## 2026-09-28 — Passive Insight and Investigation
+
+### Added
+- **Passive Insight and Passive Investigation** in Character Summary, next to Passive
+  Perception: 10 + the skill, with ability score increases included. Observant adds 5 to
+  Passive Investigation, as it does to Passive Perception. Hover a box to see the sum.
+
 ## 2026-09-28 — End turn on the DM Screen
 
 ### Added

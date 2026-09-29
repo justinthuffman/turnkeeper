@@ -519,6 +519,8 @@ applyTheme(savedTheme || DEFAULT_THEME);
     <div class="field"><label>Initiative</label><input id="f_init" type="text" readonly></div>
     <div class="field"><label>Speed</label><input id="f_speed" type="text" readonly></div>
     <div class="field"><label>Passive Perception</label><input id="f_senses" type="text" readonly></div>
+    <div class="field"><label>Passive Insight</label><input id="f_pinsight" type="text" readonly></div>
+    <div class="field"><label>Passive Investigation</label><input id="f_pinvest" type="text" readonly></div>
     <div class="field"><label id="l_spelldc">Spell Save DC</label><input id="f_spelldc" type="text" readonly></div>
     <div class="field"><label id="l_spellatk">Spell Attack</label><input id="f_spellatk" type="text" readonly></div>
   </div>
@@ -5011,6 +5013,12 @@ function updateSenses(){
   const obs = hasFeat('Observant');
   el.value = String(basePassive + (obs ? 5 : 0));
   el.title = `10 + Perception ${fmtMod(basePassive - 10)}${obs ? ' + 5 (Observant)' : ''}`;
+  // Passive Insight and Investigation: 10 + the skill (ASI changes included); Observant adds 5 to Investigation
+  [['f_pinsight','Insight',0], ['f_pinvest','Investigation',obs ? 5 : 0]].forEach(([id, skill, bonus])=>{
+    const box = document.getElementById(id), m = skillMod(skill);
+    box.value = String(10 + m + bonus);
+    box.title = `10 + ${skill} ${fmtMod(m)}${bonus ? ' + 5 (Observant)' : ''}`;
+  });
 }
 
 /* ---------- ASI and feat effects on the sheet's numbers ----------
