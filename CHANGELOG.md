@@ -4,7 +4,7 @@ What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest firs
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
 
-## Unreleased — Bloodied monsters and even Party cards
+## 2026-09-30 — Bloodied monsters and even Party cards
 
 ### Added
 - **Bloodied monsters.** In combat, a monster at half its hit points or less gets a red glow
