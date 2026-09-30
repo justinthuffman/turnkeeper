@@ -4,7 +4,7 @@ What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest firs
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
 
-## Unreleased — The DM sees stat changes, and why
+## 2026-09-30 — The DM sees stat changes, and why
 
 ### Changed
 - **DM Screen Party cards show the numbers players are really using.** AC, max HP, initiative,
