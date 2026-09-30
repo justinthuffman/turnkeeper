@@ -272,6 +272,10 @@ button.ds-mark:hover{border-color:var(--ink);}
 .irow.turn .imark{visibility:visible;}
 .irow.me .iname{color:var(--sea); font-weight:600;}
 .irow.down{opacity:0.5;}
+/* Bloodied (the DM Screen says it's at half HP or less): a red glow around the row */
+.irow.bloodied{border-color:#b3130f; box-shadow:0 0 12px 1px rgba(190,20,10,0.55), inset 0 0 16px rgba(150,10,5,0.35);}
+.irow.turn.bloodied{box-shadow:0 0 0 1px var(--orange), 0 0 14px 2px rgba(190,20,10,0.6), inset 0 0 16px rgba(150,10,5,0.35);}
+.ichip.bloody{border-color:#b3130f; color:#e0574f;}
 .irow .iinit{font-family:var(--font-display); font-size:1.05rem; text-align:center;}
 .irow .iname{overflow-wrap:anywhere;}
 .irow .ichips{display:flex; flex-wrap:wrap; gap:4px; margin-top:3px;}
@@ -2791,6 +2795,7 @@ function renderTable(){
   document.getElementById('itable').innerHTML = order.map(o=>{
     const L = o.sheet ? live[o.sheet] : null, me = o.sheet === currentCharId, chips = [];
     if(o.down) chips.push(`<span class="ichip cond">Defeated</span>`);
+    if(o.bloodied === true) chips.push(`<span class="ichip bloody" title="Half its hit points or less">Bloodied</span>`);
     if(L && L.hp && L.hp.cur === 0) chips.push(`<span class="ichip cond">Down</span>`);
     arrOf(o.conds).forEach(k=>chips.push(`<span class="ichip cond">${escapeHtml(k.name)}${k.rounds ? ` (${k.rounds})` : ''}</span>`));
     if(L) arrOf(L.status).filter(s=>!s.from).forEach(s=>chips.push(`<span class="ichip ${s.group === 'cond' ? 'cond' : 'fx'}">${escapeHtml(s.name)}</span>`));
@@ -2799,7 +2804,7 @@ function renderTable(){
       const yours = e.casterSheet === currentCharId;
       chips.push(`<span class="ichip ${yours ? 'mine' : 'fx'}" title="Cast by ${escapeHtml(yours ? 'you' : e.caster)}">${escapeHtml(e.name)} · ${escapeHtml(yours ? 'you' : e.caster)}</span>`);
     });
-    return `<div class="irow${o.id === c.turn ? ' turn' : ''}${me ? ' me' : ''}${o.down ? ' down' : ''}"><span class="imark" aria-hidden="true">▶</span><span class="iinit">${o.init ?? '—'}</span>`
+    return `<div class="irow${o.id === c.turn ? ' turn' : ''}${me ? ' me' : ''}${o.down ? ' down' : ''}${o.bloodied === true ? ' bloodied' : ''}"><span class="imark" aria-hidden="true">▶</span><span class="iinit">${o.init ?? '—'}</span>`
       + `<div><div class="iname">${escapeHtml(o.name)}${me ? ' (you)' : ''}${o.kind === 'lair' ? ' <small>(lair)</small>' : ''}</div>${chips.length ? `<div class="ichips">${chips.join('')}</div>` : ''}</div></div>`;
   }).join('');
 }

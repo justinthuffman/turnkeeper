@@ -4,6 +4,17 @@ What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest firs
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
 
+## Unreleased — Bloodied monsters and even Party cards
+
+### Added
+- **Bloodied monsters.** In combat, a monster at half its hit points or less gets a red glow
+  around its row and a **Bloodied** tag, on the DM Screen and in every player's Initiative
+  panel. Players only learn that it's bloodied, never its hit points.
+
+### Changed
+- **DM Screen Party cards line up.** Each part of the cards (live box, stats, passives, saves,
+  links) sits on the same line across the characters, even when one card has less in it.
+
 ## 2026-09-29 — Live status in the corner
 
 ### Changed

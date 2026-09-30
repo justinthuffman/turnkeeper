@@ -58,7 +58,11 @@ button.sel-toggle:hover{background:none; color:var(--ink);}
 
 /* ---------- Party ---------- */
 .party-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:12px;}
-.pc-card{background:var(--panel2); border:1px solid var(--border); border-radius:6px; padding:12px; display:flex; flex-direction:column; gap:8px; min-width:0;}
+/* Each card's seven parts (name, live box, stats, "Passive", passives, saves, links) sit on rows
+   shared by every card in the line (subgrid), so the sections line up across characters even
+   when one has less in it. */
+.pc-card{background:var(--panel2); border:1px solid var(--border); border-radius:6px; padding:12px; display:grid; grid-template-rows:subgrid; grid-row:span 7; row-gap:8px; align-content:start; min-width:0;}
+.pc-card > .pc-sublbl{align-self:end;}
 .pc-top{display:flex; gap:10px; align-items:center;}
 .pc-portrait{width:52px; height:52px; border-radius:50%; object-fit:cover; object-position:top; border:1px solid var(--border); flex:0 0 auto; background:var(--bg);}
 .pc-card h3{font-size:1.15rem; color:var(--sea);}
@@ -68,14 +72,14 @@ button.sel-toggle:hover{background:none; color:var(--ink);}
 .pc-stats dt{font-size:0.62rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--ink-dim);}
 .pc-stats dd{margin:0; font-family:var(--font-display); font-size:1.05rem;}
 .pc-passives{grid-template-columns:repeat(3, minmax(0,1fr));}
-.pc-sublbl{font-size:0.62rem; text-transform:uppercase; letter-spacing:0.06em; color:var(--sea-dim); margin-bottom:-4px;}
+.pc-sublbl{font-size:0.62rem; text-transform:uppercase; letter-spacing:0.06em; color:var(--sea-dim); margin-bottom:-6px;}
 .pc-line{font-size:0.8rem; color:var(--ink-dim);}
 .pc-line b{color:var(--ink); font-weight:600;}
 .pc-saves{display:grid; grid-template-columns:repeat(6, minmax(0,1fr)); gap:3px; font-size:0.74rem; text-align:center;}
 .pc-saves span{border:1px solid var(--border); border-radius:4px; padding:2px 0; color:var(--ink-dim);}
 .pc-saves span.prof{border-color:var(--sea-dim); color:var(--ink);}
 .pc-saves small{display:block; font-size:0.6rem; letter-spacing:0.05em;}
-.pc-links{display:flex; gap:14px; font-size:0.8rem; margin-top:auto;}
+.pc-links{display:flex; gap:14px; font-size:0.8rem; align-self:end;}
 .pc-links a{color:var(--sea);}
 .pc-card.loading{opacity:0.6;}
 /* What the player is tracking right now (live from their Turnkeeper) */
@@ -139,6 +143,10 @@ button.chip-btn.end-turn:hover{background:var(--orange-bright);}
 .cbt.turn .turn-mark{visibility:visible;}
 .turn-mark{visibility:hidden; color:var(--orange-bright); font-size:0.9rem; width:0.9rem;}
 .cbt.down{opacity:0.5;}
+/* Bloodied (half HP or less): a red glow around the row; with the turn outline too when it's their turn */
+.cbt.bloodied{border-color:#b3130f; box-shadow:0 0 12px 1px rgba(190,20,10,0.55), inset 0 0 16px rgba(150,10,5,0.35);}
+.cbt.turn.bloodied{box-shadow:0 0 0 1px var(--orange), 0 0 14px 2px rgba(190,20,10,0.6), inset 0 0 16px rgba(150,10,5,0.35);}
+.cond-chip.bloody{border-color:#b3130f; color:#e0574f; padding-right:8px;}
 .cbt.lair{background:transparent; border-style:dashed;}
 .cbt-init{width:100%; text-align:center; font-family:var(--font-display); font-size:1.15rem; padding:4px;}
 .cbt-name{min-width:0;}
@@ -722,7 +730,7 @@ function combatView(){
   if(!combat.round) return {active:false};
   return {active:true, round:combat.round, turn:combat.turn, order:ordered().map(c=>{
     const pc = c.kind === 'pc' ? campaign.party.find(p=>p.name === c.name) : null;
-    return {id:c.id, kind:c.kind, name:c.name.slice(0, 100), sheet:pc ? pc.sheet : null, init:c.init, down:isDown(c), conds:c.conds.map(k=>({name:k.name.slice(0, 60), rounds:k.rounds || 0}))};   // lengths fit the database rules
+    return {id:c.id, kind:c.kind, name:c.name.slice(0, 100), sheet:pc ? pc.sheet : null, init:c.init, down:isDown(c), bloodied:isBloodied(c), conds:c.conds.map(k=>({name:k.name.slice(0, 60), rounds:k.rounds || 0}))};   // lengths fit the database rules
   })};
 }
 function publishCombat(){
@@ -736,6 +744,8 @@ function ordered(){
 }
 const byId = id => combat.list.find(c=>c.id === id);
 const isDown = c => c.kind === 'monster' && c.max !== null && c.hp <= 0;
+// A monster at half its hit points or less (still standing). Players get only this yes/no.
+const isBloodied = c => c.kind === 'monster' && c.max > 0 && c.hp > 0 && c.hp <= c.max / 2;
 function newCombatant(fields){ return {id:combat.nextId++, init:null, initMod:0, dex:0, tie:0, ac:null, hp:null, max:null, temp:0, conds:[], conc:'', srd:null, cr:null, note:'', ...fields}; }
 
 function addParty(){
@@ -957,6 +967,7 @@ function combatantHtml(c, i, list){
   const down = c.max !== null && c.hp <= 0;
   const chips = [
     ...(down ? [`<span class="cond-chip state">${c.kind === 'monster' ? 'Defeated' : 'Down: death saves'}</span>`] : []),
+    ...(isBloodied(c) ? [`<span class="cond-chip bloody" title="Half its hit points or less">Bloodied</span>`] : []),
     ...(c.conc ? [`<span class="cond-chip conc" title="Concentrating">Concentrating: ${esc(c.conc)}<button type="button" data-act="conc-end" aria-label="End concentration">×</button></span>`] : []),
     ...effectsOn(c).map(e=>`<span class="cond-chip live fx" title="Cast by ${esc(e.caster)}">${esc(e.name)} · ${esc(e.caster)}${e.rounds ? ` (${e.rounds})` : ''}</span>`),
     ...(liveFor(c) ? [...arr(liveFor(c).status).filter(s=>!s.from).map(s=>`<span class="cond-chip live" title="From ${esc(c.name)}’s Turnkeeper">${esc(s.name)}${s.rounds ? ` (${s.rounds})` : ''}</span>`),
@@ -980,7 +991,7 @@ function combatantHtml(c, i, list){
         <div class="row"><input type="text" data-field="name" value="${esc(c.name)}" aria-label="Name"><button type="button" class="chip-btn" data-act="rename">Rename</button></div>
         <textarea data-field="note" placeholder="Anything to remember about this one">${esc(c.note)}</textarea></div>
     </div>` : '';
-  return `<div class="cbt${isTurn ? ' turn' : ''}${down && c.kind === 'monster' ? ' down' : ''}${aimedAt(c) ? ' aimed' : ''}" data-id="${c.id}">
+  return `<div class="cbt${isTurn ? ' turn' : ''}${down && c.kind === 'monster' ? ' down' : ''}${isBloodied(c) ? ' bloodied' : ''}${aimedAt(c) ? ' aimed' : ''}" data-id="${c.id}">
     <div class="cbt-main">
       <span class="turn-mark" aria-hidden="true">▶</span>
       <input class="cbt-init" type="number" value="${c.init ?? ''}" placeholder="—" data-act="init" aria-label="Initiative for ${esc(c.name)}" title="Initiative">
