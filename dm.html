@@ -61,7 +61,11 @@ button.sel-toggle:hover{background:none; color:var(--ink);}
 /* Each card's seven parts (name, live box, stats, "Passive", passives, saves, links) sit on rows
    shared by every card in the line (subgrid), so the sections line up across characters even
    when one has less in it. */
-.pc-card{background:var(--panel2); border:1px solid var(--border); border-radius:6px; padding:12px; display:grid; grid-template-rows:subgrid; grid-row:span 7; row-gap:8px; align-content:start; min-width:0;}
+.pc-card{background:var(--panel2); border:1px solid var(--border); border-radius:6px; padding:12px; display:grid; grid-template-rows:subgrid; grid-row:span 8; row-gap:8px; align-content:start; min-width:0;}
+/* A number that differs from the sheet (Shield of Faith on AC, Haste on speed…), and the line saying why */
+.pc-stats div.changed{border-color:var(--racial);}
+.pc-stats div.changed dd{color:var(--racial);}
+.pc-mods{font-size:0.74rem; color:var(--racial); display:flex; flex-direction:column; gap:2px;}
 .pc-card > .pc-sublbl{align-self:end;}
 .pc-top{display:flex; gap:10px; align-items:center;}
 .pc-portrait{width:52px; height:52px; border-radius:50%; object-fit:cover; object-position:top; border:1px solid var(--border); flex:0 0 auto; background:var(--bg);}
@@ -69,7 +73,7 @@ button.sel-toggle:hover{background:none; color:var(--ink);}
 .pc-sub{font-size:0.78rem; color:var(--ink-dim);}
 .pc-stats{display:grid; grid-template-columns:repeat(5, minmax(0,1fr)); gap:4px; margin:0;}
 .pc-stats div{background:var(--panel); border:1px solid var(--border); border-radius:4px; text-align:center; padding:4px 2px;}
-.pc-stats dt{font-size:0.62rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--ink-dim);}
+.pc-stats dt{font-size:0.62rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--ink-dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; padding:0 2px;}   /* a label never spills out of its box */
 .pc-stats dd{margin:0; font-family:var(--font-display); font-size:1.05rem;}
 .pc-passives{grid-template-columns:repeat(3, minmax(0,1fr));}
 .pc-sublbl{font-size:0.62rem; text-transform:uppercase; letter-spacing:0.06em; color:var(--sea-dim); margin-bottom:-6px;}
@@ -620,10 +624,27 @@ function syncLiveToInit(){
     if(L.hp.max !== undefined && L.hp.max !== null){ c.max = L.hp.max; }
     if(L.hp.cur !== undefined && L.hp.cur !== null){ c.hp = L.hp.cur; }
     c.temp = L.hp.temp || 0; changed = true;
+    if(L.stats && typeof L.stats.ac === 'number') c.ac = L.stats.ac;   // Shield of Faith, Haste… count here too
   });
   if(changed) saveCombat();
 }
 
+/* The numbers a character is playing with right now: from their live Turnkeeper (statuses,
+   feats and ability increases included) once they've shared, else the sheet. `notes` says
+   what's changed and by how much ("AC +2: Shield of Faith +2 (from Krunk)"). */
+function statsOf(pc){
+  const p = party[pc.name], L = live[pc.sheet] || {}, s = L.stats || {}, num = v=>typeof v === 'number' ? v : null;
+  const speedSheet = toNum(p.speed);
+  const out = {ac:num(s.ac) ?? p.ac, init:num(s.init) ?? p.init, dc:num(s.dc) ?? p.spellDc ?? null,
+    speed:num(s.speed) ?? speedSheet, speedSheet, hpMax:L.hp && num(L.hp.max) !== null ? L.hp.max : p.hpMax, notes:[]};
+  out.acTitle = out.ac !== p.ac ? `${p.ac} on the sheet${s.acWhy ? `: ${s.acWhy}` : ''}` : '';
+  if(out.ac !== p.ac && p.ac !== null) out.notes.push(`AC ${fmtMod(out.ac - p.ac)}: ${s.acWhy || 'changed in their Turnkeeper'}`);
+  out.speedTitle = out.speed !== speedSheet ? `${speedSheet} ft on the sheet${s.speedWhy ? `: ${s.speedWhy}` : ''}` : 'Feet';
+  if(out.speed !== speedSheet && speedSheet !== null) out.notes.push(`Speed ${out.speed} ft (${speedSheet} on the sheet): ${s.speedWhy || 'changed in their Turnkeeper'}`);
+  out.hpTitle = out.hpMax !== p.hpMax ? `${p.hpMax} on the sheet${L.exh >= 4 ? `: Exhaustion ${L.exh} halves it` : ''}` : 'Maximum hit points on the sheet';
+  if(out.hpMax !== p.hpMax && p.hpMax !== null) out.notes.push(`Max HP ${out.hpMax} (${p.hpMax} on the sheet)${L.exh >= 4 ? `: Exhaustion ${L.exh}` : ''}`);
+  return out;
+}
 function pcCard(pc){
   const p = party[pc.name];
   const link = `turnkeeper.html?sheet=${encodeURIComponent(`https://docs.google.com/spreadsheets/d/${pc.sheet}/edit?gid=${SHEET_GID}#gid=${SHEET_GID}`)}&name=${encodeURIComponent(pc.name)}`;
@@ -635,13 +656,14 @@ function pcCard(pc){
     const mod = s && s.mod !== null ? s.mod : abilMod(p.scores[a]);
     return `<span class="${s && s.prof ? 'prof' : ''}" title="${ABIL_NAME[a]} save${s && s.prof ? ' (proficient)' : ''}"><small>${a.toUpperCase()}</small>${fmtMod(mod)}</span>`;
   }).join('');
-  const stat = (dt, dd, title) => `<div title="${esc(title||'')}"><dt>${dt}</dt><dd>${dd ?? '—'}</dd></div>`;
-  const ps = passivesOf(pc);
+  const stat = (dt, dd, title, changed) => `<div${changed ? ' class="changed"' : ''} title="${esc(title||'')}"><dt>${dt}</dt><dd>${dd ?? '—'}</dd></div>`;
+  const ps = passivesOf(pc), fx = statsOf(pc);
   return `<article class="pc-card">${top(`Level ${p.level} ${esc(p.race)} ${esc(p.cls)}`)}
     ${liveHtml(pc)}
-    <dl class="pc-stats">${stat('AC', p.ac)}${stat('HP', p.hpMax, 'Maximum hit points on the sheet')}${stat('Init', fmtMod(p.init))}${stat('Speed', esc(String(p.speed).replace(/\s*ft\.?/i,'')), 'Feet')}${stat('Spell DC', p.spellDc, 'Spell save DC')}</dl>
+    <dl class="pc-stats">${stat('AC', fx.ac, fx.acTitle, fx.ac !== p.ac)}${stat('HP', fx.hpMax, fx.hpTitle, fx.hpMax !== p.hpMax)}${stat('Init', fmtMod(fx.init), fx.init !== p.init ? `${fmtMod(p.init)} on the sheet` : '', fx.init !== p.init)}${stat('Speed', fx.speed, fx.speedTitle, fx.speed !== fx.speedSheet)}${stat('DC', fx.dc, 'Spell save DC',fx.dc !== (p.spellDc ?? null))}</dl>
+    <div class="pc-mods">${fx.notes.map(n=>`<div>${esc(n)}</div>`).join('')}</div>
     <div class="pc-sublbl">Passive</div>
-    <dl class="pc-stats pc-passives">${['perception', 'insight', 'investigation'].map(k=>stat(k.charAt(0).toUpperCase() + k.slice(1), ps[k], `Passive ${k}${ps.live ? ', from their Turnkeeper' : ', from the sheet'}`)).join('')}</dl>
+    <dl class="pc-stats pc-passives">${[['perception', 'Perception'], ['insight', 'Insight'], ['investigation', 'Invest.']].map(([k, label])=>stat(label, ps[k], `Passive ${k}${ps.live ? ', from their Turnkeeper' : ', from the sheet'}`)).join('')}</dl>
     <div class="pc-saves" aria-label="Saving throws">${saves}</div>
     ${links}</article>`;
 }
@@ -675,6 +697,7 @@ async function loadParty(){
     }
   });
   if(changed) saveCombat();
+  syncLiveToInit();   // then what players are tracking (AC with Shield of Faith, current HP…) wins over the sheet
   renderInit(); renderEncounter();
 }
 function renderPassive(){

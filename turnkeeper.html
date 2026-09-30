@@ -5320,6 +5320,15 @@ function liveSnapshot(){
     death:cur === 0 ? {s:track.death.s || 0, f:track.death.f || 0} : null,
     insp:!!track.insp,
     // The Summary's passive boxes (Observant and ability increases included), for the DM Screen
+    // Effective AC, speed, initiative and spell DC as this page shows them, with what's changing
+    // AC and speed (Shield of Faith +2 from Krunk, Haste…), for the DM Screen
+    stats:(()=>{ const num = id=>{ const n = parseInt(document.getElementById(id).value, 10); return Number.isFinite(n) ? n : null; };
+      const from = k=>st.ext && st.ext[k] && st.ext[k] !== 'you' ? ` (from ${st.ext[k]})` : '';
+      const acBase = parseInt(statusBaseAC, 10), ss = statusSpeed(), spBase = num('f_speed');
+      return {ac:num('f_ac'), acBase:Number.isFinite(acBase) ? acBase : null,
+        acWhy:statusActive().filter(d=>d.ac).map(d=>`${d.name} ${fmtMod(d.ac)}${from(d.key)}`).join(', ').slice(0, 200) || null,
+        speed:spBase === null ? null : Math.floor(spBase * ss.mult), speedBase:spBase, speedWhy:(ss.why || '').slice(0, 200) || null,
+        init:num('f_init'), dc:num('f_spelldc')}; })(),
     passive:(()=>{ const n = id=>parseInt(document.getElementById(id).value, 10);
       const v = {per:n('f_senses'), ins:n('f_pinsight'), inv:n('f_pinvest')};
       return Object.values(v).every(Number.isFinite) ? v : null; })(),

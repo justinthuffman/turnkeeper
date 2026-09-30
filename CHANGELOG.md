@@ -4,6 +4,17 @@ What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest firs
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
 
+## Unreleased — The DM sees stat changes, and why
+
+### Changed
+- **DM Screen Party cards show the numbers players are really using.** AC, max HP, initiative,
+  speed and spell DC come from each player's Turnkeeper, so statuses, feats and ability
+  increases count. A number that differs from the sheet is highlighted, and a line under the
+  stats says what changed it and by how much, e.g. "AC +2: Shield of Faith +2 (from Krunk)" or
+  "Speed 70 ft (35 on the sheet): Hasted: double". The Initiative list uses the same AC.
+- Party card labels no longer spill out of their boxes: Investigation is **Invest.** and Spell
+  DC is **DC** (the full names show on hover).
+
 ## 2026-09-30 — Bloodied monsters and even Party cards
 
 ### Added
