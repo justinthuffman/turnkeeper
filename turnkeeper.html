@@ -1770,13 +1770,24 @@ const MANEUVERS = {
 function parseWeaponDamage(text){
   const [first, ...rest] = String(text||'').split(' · ');
   const m = first.trim().match(/^(\d+)d(\d+)\s*([+-]\s*\d+)?\s*([a-z]+)?/i);
+  // Flat damage with no die (Unarmed Strike: "4 bludgeoning")
+  const flat = !m && first.trim().match(/^(-?\d+)\s*([a-z]+)?$/i);
+  if(flat) return {count:0, die:0, mod:parseInt(flat[1],10), type:(flat[2]||'').toLowerCase(), props:rest.join(' · ')};
   if(!m) return null;
   return {count:+m[1], die:+m[2], mod: m[3] ? parseInt(m[3].replace(/\s/g,''),10) : 0,
     type:(m[4]||'').toLowerCase(), props:rest.join(' · ')};
 }
+// Unarmed Strike (2014): everyone is proficient; Str modifier + proficiency to hit; 1 + Str
+// modifier bludgeoning damage, no die. It's a melee weapon attack (so Extra Attack, opportunity
+// attacks and Divine Smite work) but not a weapon (no Dueling, finesse or Great Weapon Fighting).
+function unarmedAttack(){
+  const str = abilityScoreMod('str');
+  return {name:'Unarmed Strike', unarmed:true, bonus:fmtMod(str + proficiencyBonus()), damage:`${1 + str} bludgeoning · Melee Weapon Attack. Punch, kick or headbutt`};
+}
 function attackChoices(){
   return [
     ...state.attacks.map((a,i)=>({key:'w'+i, label:a.name, kind:'weapon', attack:a})),
+    ...(currentCharId ? [{key:'unarmed', label:'Unarmed Strike', kind:'weapon', attack:unarmedAttack()}] : []),
     ...Object.entries(MANEUVERS).map(([k,m])=>({key:k, label:m.label, kind:k})),
   ];
 }
@@ -2348,7 +2359,7 @@ const STATUS_DEFS = [
   {key:'incapacitated', name:'Incapacitated', group:'cond', incap:true, desc:'You can’t take actions or reactions.'},
   {key:'invisible', name:'Invisible', group:'cond', attack:'adv', desc:'You can’t be seen without magic or special senses: your attacks have advantage and attacks against you have disadvantage.'},
   {key:'paralyzed', name:'Paralyzed', group:'cond', incap:true, speed:0, fail:['str','dex'], desc:'Incapacitated, can’t move or speak, automatically fail Strength and Dexterity saves; attacks against you have advantage, and hits from within 5 ft are critical hits.'},
-  {key:'petrified', name:'Petrified', group:'cond', incap:true, speed:0, fail:['str','dex'], desc:'Turned to stone: incapacitated, can’t move or speak, automatically fail Strength and Dexterity saves, resistance to all damage.'},
+  {key:'petrified', name:'Petrified', group:'cond', lasting:true, incap:true, speed:0, fail:['str','dex'], desc:'Turned to stone: incapacitated, can’t move or speak, automatically fail Strength and Dexterity saves, resistance to all damage.'},
   {key:'poisoned', name:'Poisoned', group:'cond', attack:'dis', check:'dis', desc:'Disadvantage on attack rolls and ability checks.'},
   {key:'prone', name:'Prone', group:'cond', attack:'dis', desc:'Your attacks have disadvantage. Melee attacks against you have advantage, ranged ones disadvantage. Crawling costs double; standing up costs half your speed.'},
   {key:'restrained', name:'Restrained', group:'cond', attack:'dis', save:{dex:'dis'}, speed:0, desc:'Speed 0, disadvantage on attacks and Dexterity saves, and attacks against you have advantage.'},
@@ -2601,11 +2612,12 @@ function damageCommand(){
   if(gwf) notes.push('Great Weapon Fighting: 1s and 2s on the weapon dice are rerolled once');
   // Dueling: +2 damage with a melee weapon in one hand and no other weapons (so never off-hand)
   const offhand = !!rollState.sel.offhand;
-  const dueling = style==='Dueling' && melee && !twoHanded && !offhand;
+  const dueling = style==='Dueling' && melee && !twoHanded && !offhand && !a.unarmed;
   if(dueling) notes.push('Dueling: +2 (one-handed, no other weapons)');
   let count = p.count * (rollState.crit ? 2 : 1);
   if(rollState.crit) notes.push('Crit: all damage dice doubled');
-  if(rollState.crit && melee && rt.raceKey==='halforc'){ count += 1; notes.push('Savage Attacks: one extra weapon die'); }
+  if(rollState.crit && !p.count) notes.push('No damage dice to double: the crit only doubles dice added by Divine Smite, Sneak Attack and so on');
+  if(rollState.crit && melee && rt.raceKey==='halforc' && p.die){ count += 1; notes.push('Savage Attacks: one extra weapon die'); }
   // Radiant: Divine Smite (2d8 + 1d8/slot above 1st, max 5d8; +1d8 vs undead/fiend) and Improved Divine Smite (+1d8)
   const critX = rollState.crit ? 2 : 1;
   let smiteDice = 0, improvedDice = 0;
@@ -2629,7 +2641,7 @@ function damageCommand(){
   if(power){ mod += 10; notes.push(`${power}: +10 damage (not doubled on a crit)`); }
   // Savage Attacker: once per turn, reroll the weapon's damage dice and use either total.
   // Avrae rolls the weapon dice twice and keeps the higher set; modifiers and extra dice are added once.
-  const savageOk = melee && hasFeat('Savage Attacker');
+  const savageOk = melee && hasFeat('Savage Attacker') && p.count > 0;
   const weaponDice = `${count}d${p.die}${gwf?'ro<3':''}`;
   const savage = savageOk && rollState.savage;
   if(savage) notes.push('Savage Attacker: weapon dice rolled twice, the higher total is kept. Once per turn.');
@@ -2644,13 +2656,14 @@ function damageCommand(){
     if(e.hitSave) notes.push(`${e.name}: the target makes a <b>DC ${e.dc} ${ABILITY_TEXT(e.hitSave.save)}</b> save or is ${e.hitSave.effect}.`);
     if(e.until==='hit' && !e.target) notes.push(`${e.name} ends when you copy this damage (it hit).`);
   });
-  const cmd = `${ROLL} ${savage ? `(${weaponDice},${weaponDice})kh1` : weaponDice}${mod ? fmtMod(mod) : ''}${sneak ? `+${sneak}d6` : ''}${radiant ? `+${radiant}d8` : ''}${fxDice.map(f=>'+'+f.dice).join('')}${stDice.map(x=>x.expr).join('')}`;
+  const base = !p.count ? String(mod) : `${savage ? `(${weaponDice},${weaponDice})kh1` : weaponDice}${mod ? fmtMod(mod) : ''}`;
+  const cmd = `${ROLL} ${base}${sneak ? `+${sneak}d6` : ''}${radiant ? `+${radiant}d8` : ''}${fxDice.map(f=>'+'+f.dice).join('')}${stDice.map(x=>x.expr).join('')}`;
   // Beside the command: the damage type, then everything the command adds or changes, e.g.
   // "Greatsword damage (slashing), +10 Great Weapon Master, +2d8 Divine Smite (radiant)"
   const extras = [
     gwf && 'Great Weapon Fighting rerolls 1s and 2s',
     savage && 'Savage Attacker (best of two)',
-    rollState.crit && melee && rt.raceKey==='halforc' && `+1d${p.die} Savage Attacks`,
+    rollState.crit && melee && rt.raceKey==='halforc' && p.die && `+1d${p.die} Savage Attacks`,
     dueling && '+2 Dueling',
     power && `+10 ${power}`,
     sneak && `+${sneak}d6 Sneak Attack`,
@@ -2766,8 +2779,11 @@ const targetKey = t=>t.sheet ? 's:' + t.sheet : 'c:' + t.id;
 // Statuses others (or you) have put on this character: {statusKey: caster name}
 function incomingStatuses(){
   const out = {};
+  const restAt = statusState().restAt || 0;
   allEffects().forEach(e=>{
     if(!e.status || !arrOf(e.targets).some(t=>t.sheet === currentCharId)) return;
+    const castAt = parseInt(String(e.id || '').replace(/^c/, ''), 10);
+    if(restAt && castAt && castAt < restAt) return;   // it ended during your rest
     [].concat(e.status).forEach(k=>{ if(STATUS_BY_KEY[k]) out[k] = e.casterSheet === currentCharId ? 'you' : e.caster; });
   });
   return out;
@@ -3433,7 +3449,8 @@ const reactFlow = {pick:null, weapon:null, mode:'normal', power:false};
 const isReactionSpell = sp=>/Reaction/i.test(sp.time);
 const OPPORTUNITY_TEXT = 'When a hostile creature you can see moves out of your reach, make one melee attack against it. It doesn’t provoke one if it Disengages, teleports, or is moved without using its own movement or action.';
 function meleeWeapons(){
-  return state.attacks.map((a,i)=>({a, i, p:parseWeaponDamage(a.damage)})).filter(x=>x.p && /melee/i.test(x.p.props));
+  const list = state.attacks.map((a,i)=>({a, i:String(i), p:parseWeaponDamage(a.damage)})).filter(x=>x.p && /melee/i.test(x.p.props));
+  return currentCharId ? [...list, {a:unarmedAttack(), i:'unarmed', p:parseWeaponDamage(unarmedAttack().damage)}] : list;
 }
 function renderReactionsDetail(){
   const feats = usableFeatures('reaction');
@@ -3458,7 +3475,7 @@ function renderReactionsDetail(){
       if(!weapons.some(w=>w.i===reactFlow.weapon)) reactFlow.weapon = weapons.length===1 ? weapons[0].i : null;
       html += `<div class="flow-label">Weapon</div><div class="flow-grid">`
         + weapons.map(w=>`<button type="button" class="flow-btn${reactFlow.weapon===w.i?' active':''}" data-react-weapon="${w.i}">${escapeHtml(w.a.name)}</button>`).join('') + `</div>`;
-      sel = reactFlow.weapon !== null ? state.attacks[reactFlow.weapon] : null;
+      sel = reactFlow.weapon !== null ? (weapons.find(w=>w.i===reactFlow.weapon) || {}).a || null : null;
       if(sel){
         const power = powerAttackFeat(sel);
         html += `<div class="flow-summary">${escapeHtml(sel.bonus||'—')} to hit &middot; ${escapeHtml(sel.damage||'—')}</div>`
@@ -3486,7 +3503,7 @@ function renderReactionsDetail(){
     });
   });
   if(pick==='oa'){
-    actionDetail.querySelectorAll('[data-react-weapon]').forEach(b=>b.addEventListener('click', ()=>{ if(reactFlow.weapon !== +b.dataset.reactWeapon) reactFlow.power = false; reactFlow.weapon = +b.dataset.reactWeapon; renderReactionsDetail(); }));
+    actionDetail.querySelectorAll('[data-react-weapon]').forEach(b=>b.addEventListener('click', ()=>{ if(reactFlow.weapon !== b.dataset.reactWeapon) reactFlow.power = false; reactFlow.weapon = b.dataset.reactWeapon; renderReactionsDetail(); }));
     actionDetail.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click', ()=>{ reactFlow.mode = b.dataset.mode; renderReactionsDetail(); }));
     actionDetail.querySelectorAll('[data-power]').forEach(b=>b.addEventListener('click', ()=>{ reactFlow.power = !reactFlow.power; renderReactionsDetail(); }));
     const go = document.getElementById('flowRoll');
@@ -5070,7 +5087,8 @@ function adjustAttack(atk, delta){
   if(!dm) return {...atk};
   const bonus = parseInt(String(atk.bonus||'').replace(/\s/g,''),10);
   const first = atk.damage.split(' · ')[0];
-  const newFirst = first.replace(/^(\d+d\d+)\s*([+-]\s*\d+)?/, (m, dice)=>dice + (p.mod + dm ? fmtMod(p.mod + dm) : ''));
+  const newFirst = !p.count ? first.replace(/^-?\d+/, String(p.mod + dm))   // flat damage, no die
+    : first.replace(/^(\d+d\d+)\s*([+-]\s*\d+)?/, (m, dice)=>dice + (p.mod + dm ? fmtMod(p.mod + dm) : ''));
   return {...atk, bonus: isNaN(bonus) ? atk.bonus : fmtMod(bonus + dm), damage: atk.damage.replace(first, newFirst)};
 }
 function applyFeatStats(){
@@ -5383,6 +5401,7 @@ function setHp(v){
 let restUndo = null;
 function takeRest(kind){
   restUndo = JSON.stringify({hp:track.hp, temp:track.temp, used:track.used, fx:track.fx, death:track.death, combat:track.combat, status:track.status, conc:track.conc, cast:track.cast});
+  const statusBefore = Object.keys(statusState().on).filter(k=>statusState().on[k] && STATUS_BY_KEY[k]);
   track.fx = [];   // anything lasting a minute or an hour is over after a rest
   track.conc = null;   // so is concentration
   track.cast = [];   // and what you cast on others
@@ -5397,12 +5416,22 @@ function takeRest(kind){
     if(hpMax() !== null) track.hp = hpMax();
     track.death = {s:0, f:0};
     track.temp = 0;   // temporary hit points last until a long rest
-    // Magic on you has run out by now, and a long rest lowers Exhaustion by 1 (2014 rules)
+    // 8 hours: every condition is over too, except ones that last until cured (`lasting`,
+    // e.g. Petrified; curses later). A long rest lowers Exhaustion by 1 (2014 rules)
     const st = statusState();
-    STATUS_DEFS.filter(d=>d.group==='magic').forEach(d=>{ delete st.on[d.key]; });
+    STATUS_DEFS.filter(d=>d.group==='cond' && !d.lasting).forEach(d=>{ delete st.on[d.key]; });
     if(st.exh > 0) st.exh -= 1;
   }
   else Object.keys(track.used).forEach(id=>{ if(shortIds.has(id)) delete track.used[id]; });
+  // Any rest is at least an hour, and magic on you lasts 10 minutes at most, so it's all over,
+  // including what others cast on you: effects cast before this rest aren't taken back on
+  // (applyIncoming skips them), even if the caster's Turnkeeper still lists them
+  {
+    const st = statusState();
+    STATUS_DEFS.filter(d=>d.group==='magic' && !d.lasting).forEach(d=>{ delete st.on[d.key]; if(st.rounds) delete st.rounds[d.key]; if(st.linked) delete st.linked[d.key]; });
+    Object.keys(st.ext || {}).forEach(k=>{ if(!(STATUS_BY_KEY[k] && STATUS_BY_KEY[k].lasting)){ delete st.ext[k]; delete st.on[k]; } });
+    st.restAt = Date.now();
+  }
   // A short rest is when you spend Hit Dice, so it opens the Spend panel (a long rest closes it)
   let hdText = '';
   if(kind==='short' && hitDie()){
@@ -5415,6 +5444,10 @@ function takeRest(kind){
   if(kind==='short' && hasFeature('Arcane Recovery') && remaining('feat:Arcane Recovery') > 0)
     hdText += ' You can also use Arcane Recovery now (its Roll link in Class Features shows how many slot levels).';
   saveTrack(); renderResources(); renderStatus();
+  // Name what the rest ended, and anything that lasts until cured
+  const nowOn = statusState().on, ended = statusBefore.filter(k=>!nowOn[k]).map(k=>STATUS_BY_KEY[k].name);
+  const kept = statusBefore.filter(k=>nowOn[k] && STATUS_BY_KEY[k].lasting).map(k=>STATUS_BY_KEY[k].name);
+  hdText = (ended.length ? ` Ended: ${ended.join(', ')}.` : '') + (kept.length ? ` Still ${kept.join(', ')}: that lasts until it’s cured.` : '') + hdText;
   const what = kind==='long' ? 'Long rest: hit points, spell slots and all features restored.'
     : shortIds.size ? 'Short rest: short-rest features restored (e.g. Channel Divinity).' : 'Short rest taken (none of your features recharge on a short rest yet).';
   const msg = document.getElementById('restMsg');

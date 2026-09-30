@@ -4,6 +4,22 @@ What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest firs
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
 
+
+## 2026-09-30 — Unarmed Strike and rests that clear what should end
+
+### Added
+- **Unarmed Strike** for every character, beside their weapons in Attack and in Reactions'
+  Opportunity Attack. It's +Strength modifier + proficiency to hit and 1 + Strength modifier
+  bludgeoning damage (no die), per the 2014 rules. It counts toward Extra Attack and works with
+  Divine Smite. It isn't a weapon, so Dueling, finesse and Great Weapon Fighting don't apply.
+  On a crit, only added dice (like Divine Smite's) are doubled.
+
+### Changed
+- **A long rest ends every condition** (Poisoned, Prone, Charmed…) except ones that last until
+  they're cured, like Petrified. The rest message lists what ended and what's still on you.
+- **Any rest ends the magic on you,** since it all lasts 10 minutes or less and a short rest
+  is an hour. That includes spells others cast on you: once you've rested, their old spell
+  isn't put back on you even if their Turnkeeper still shows it, but a new casting is.
 ## 2026-09-30 — Ember is the default theme
 
 ### Changed
