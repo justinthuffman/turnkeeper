@@ -1,6 +1,7 @@
 /* Turnkeeper color themes, shared by turnkeeper.html and dm.html (the hub keeps its own short copy).
-   The :root colors are the default look, "Harbor". Each theme swaps variables; Tome, Keep and
-   Inferno also add textures, fonts and borders. The pick is saved under dndTracker:theme. */
+   The :root colors are Harbor's (a page with no data-theme). Each other theme swaps variables;
+   Tome, Keep and Inferno also add textures, fonts and borders. The pick is saved under
+   dndTracker:theme; with no pick, each page applies DEFAULT_THEME (Ember since 2026-09-30). */
 :root{
   --bg:#0c1b26; --panel:#13293d; --panel2:#1b3750; --border:#2b4d68;
   --ink:#e4edf2; --ink-dim:#8fa6b8; --sea:#4fb8a6; --sea-dim:#2f7d70;
@@ -11,9 +12,8 @@
   --font-display: Georgia, 'Iowan Old Style', 'Palatino Linotype', serif;
   --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
-/* Color themes, picked with the swatches at the bottom of the page (saved per browser).
-   The :root colors above are the default look, "Harbor". Each theme only swaps variables,
-   except Tome, which also adds parchment texture, book fonts and a ruled panel border. */
+/* Color themes, picked from the Theme button at the bottom of each page (saved per browser).
+   The :root colors above are Harbor. */
 html[data-theme="midnight"]{
   --bg:#0f0d1a; --panel:#1a1730; --panel2:#252142; --border:#3b3563;
   --ink:#ece8f7; --ink-dim:#a49dc4; --sea:#b7a0f2; --sea-dim:#9a84dc;

@@ -291,7 +291,8 @@ function applyTheme(key){
     document.head.appendChild(l);
   }
 }
-const DEFAULT_THEME = 'keep';
+// Ember is the default look for anyone who hasn't picked a theme (Justin, 2026-09-30)
+const DEFAULT_THEME = 'ember';
 let savedTheme = null;
 try{ savedTheme = localStorage.getItem('dndTracker:theme'); }catch(e){}
 applyTheme(savedTheme || DEFAULT_THEME);

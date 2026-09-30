@@ -478,8 +478,8 @@ function applyTheme(key){
     document.head.appendChild(l);
   }
 }
-// Keep is the default look for anyone who hasn't picked a theme (Justin, 2026-09-24)
-const DEFAULT_THEME = 'keep';
+// Ember is the default look for anyone who hasn't picked a theme (Justin, 2026-09-30; Keep before that)
+const DEFAULT_THEME = 'ember';
 let savedTheme = null;
 try{ savedTheme = localStorage.getItem('dndTracker:theme'); }catch(e){}
 applyTheme(savedTheme || DEFAULT_THEME);
@@ -5693,9 +5693,10 @@ renderChips('savesChips', []); renderChips('skillsChips', []); renderAttacksList
 racialSection.render(); classSection.render(); featSection.render();
 if(spellBody.classList.contains('open')) renderSpellList();   // Spells was left open last time
 
-/* ---------- Color themes: swatches at the bottom of the page ----------
-   The saved theme is applied by the small script in <head> before the page draws; this
-   builds the swatches. Each swatch shows that theme's background and accent colors. */
+/* ---------- Color themes: the Theme button at the bottom of the page ----------
+   The saved theme (or DEFAULT_THEME, Ember) is applied by the small script in <head> before
+   the page draws; this builds the Theme menu. Each option's dot shows that theme's background
+   and accent colors. The same list is in index.html and dm.html. */
 const THEMES = [
   {key:'harbor', name:'Harbor', bg:'#13293d', accent:'#4fb8a6'},
   {key:'midnight', name:'Midnight', bg:'#1a1730', accent:'#c9962f'},
@@ -5709,7 +5710,7 @@ const THEMES = [
 function setTheme(key){
   const t = THEMES.find(x=>x.key===key) || THEMES[0];
   applyTheme(t.key);
-  storageSet('dndTracker:theme', t.key);   // saved even for Harbor, since Keep is the default
+  storageSet('dndTracker:theme', t.key);   // saved even for Harbor, since Ember is the default
   renderThemeBar();
 }
 function renderThemeBar(){

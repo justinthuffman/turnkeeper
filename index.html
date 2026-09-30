@@ -252,8 +252,8 @@ function applyTheme(key){
     document.head.appendChild(l);
   }
 }
-// Keep is the default look for anyone who hasn't picked a theme (Justin, 2026-09-24)
-const DEFAULT_THEME = 'keep';
+// Ember is the default look for anyone who hasn't picked a theme (Justin, 2026-09-30; Keep before that)
+const DEFAULT_THEME = 'ember';
 let savedTheme = null;
 try{ savedTheme = localStorage.getItem('dndTracker:theme'); }catch(e){}
 applyTheme(savedTheme || DEFAULT_THEME);
@@ -354,7 +354,7 @@ window.addEventListener('storage', e=>{ if(e.key === 'dndTracker:theme'){ applyT
 
 
 <script>
-// Theme swatches. The pick is saved under dndTracker:theme, which the tracker also uses, so
+// The Theme menu. The pick is saved under dndTracker:theme, which the tracker also uses, so
 // both pages always show the same theme (keep THEMES in step with turnkeeper.html).
 const THEMES = [
   {key:'harbor', name:'Harbor', bg:'#13293d', accent:'#4fb8a6'},
@@ -369,7 +369,7 @@ const THEMES = [
 function setTheme(key){
   const t = THEMES.find(x=>x.key===key) || THEMES[0];
   applyTheme(t.key);
-  try{ localStorage.setItem('dndTracker:theme', t.key); }catch(e){}   // saved even for Harbor, since Keep is the default
+  try{ localStorage.setItem('dndTracker:theme', t.key); }catch(e){}   // saved even for Harbor, since Ember is the default
   renderThemeBar();
 }
 function renderThemeBar(){
