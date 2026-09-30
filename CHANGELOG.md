@@ -4,7 +4,7 @@ What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest firs
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
 
-## Unreleased — Ember is the default theme
+## 2026-09-30 — Ember is the default theme
 
 ### Changed
 - **Ember is the default theme** for anyone who hasn't picked one, on the hub, the tracker and
