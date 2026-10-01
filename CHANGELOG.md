@@ -3,7 +3,7 @@
 What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest first.
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
-## Unreleased — Saved monsters and encounters
+## 2026-10-02 — Saved monsters and encounters
 
 ### Added
 - **Saved monsters on the DM Screen.** "Monsters & encounters" (under Initiative) keeps the DM's
