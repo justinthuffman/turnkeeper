@@ -287,7 +287,8 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
 /* Rolling: the DM clicks a card to let that player roll (gold while allowed) */
 .pc-card{cursor:pointer;}
 .pc-card.allowed{border-color:#f2c14e; box-shadow:0 0 0 1px #f2c14e;}
-.pc-allow{display:inline-block; margin-top:3px; font-size:0.7rem; font-weight:600; color:#1d1405; background:#f2c14e; border-radius:999px; padding:1px 8px; white-space:nowrap;}   /* one line: "Not rolling", "🎲 Allowed to roll" */
+.pc-allow{display:inline-block; margin-top:3px; font-size:0.7rem; font-weight:600; color:#1d1405; background:#f2c14e; border-radius:999px; padding:1px 8px; white-space:nowrap; max-width:100%; overflow:hidden; text-overflow:ellipsis; vertical-align:top;}   /* one line; trimmed with … rather than spilling out of the card */
+.pc-top > div{min-width:0;}   /* the name column may shrink, so nothing pushes past the card's edge */
 .pc-allow.off{background:none; color:var(--ink-dim); font-weight:normal; border:1px solid var(--border);}
 .pc-card.turn{border-color:#f2c14e;}
 /* Campaign settings (crit GIF pools), behind the password */
@@ -788,7 +789,7 @@ function pcCard(pc){
   // Rolling: in combat the player whose turn it is may roll; otherwise only those the DM clicked
   const may = !!allowed[pc.sheet], cur = combat.round ? byId(combat.turn) : null;
   const turnNow = !may && !!(cur && cur.kind === 'pc' && cur.name === pc.name);
-  const allowTag = `<span class="pc-allow${may || turnNow ? '' : ' off'}" title="${may ? `Click the card to stop ${esc(pc.name)} rolling` : turnNow ? `It's ${esc(pc.name)}'s turn, so they can roll. Clicking the card also lets them roll off their turn` : `Click the card to let ${esc(pc.name)} roll`}">${may ? '🎲 Allowed to roll' : turnNow ? '🎲 Their turn: can roll' : 'Not rolling'}</span>`;
+  const allowTag = `<span class="pc-allow${may || turnNow ? '' : ' off'}" title="${may ? `Click the card to stop ${esc(pc.name)} rolling` : turnNow ? `It's ${esc(pc.name)}'s turn, so they can roll. Clicking the card also lets them roll off their turn` : `Click the card to let ${esc(pc.name)} roll`}">${may ? '🎲 Can roll' : turnNow ? '🎲 Their turn' : 'Not rolling'}</span>`;
   // The same icon as the player's tracker (js/char-icons.js), or the plain portrait if there isn't one
   const icon = charIconHtml(pc.sheet, `${pc.name}’s icon`, 'pc-icon') || `<img class="pc-portrait" src="${pc.portrait}" alt="">`;
   const top = sub => `<div class="pc-top">${icon}<div><h3>${esc(pc.name)}</h3><div class="pc-sub">${sub}</div>${allowTag}</div>${liveCornerHtml(pc)}</div>`;

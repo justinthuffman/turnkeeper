@@ -12,7 +12,7 @@ Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wi
 - **Krunk's icon matches the others** now: his portrait, head and shoulders, in a gold paladin ring.
 
 ### Fixed
-- On the DM Screen's party cards, "Not rolling" and "Allowed to roll" wrapped onto two lines.
+- On the DM Screen's party cards, the rolling tag wrapped onto two lines, or pushed past the card when it was highlighted. It's shorter now ("🎲 Can roll", "🎲 Their turn", "Not rolling") and always fits.
 
 ## 2026-10-02 — Character icons
 
