@@ -3,7 +3,7 @@
 What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest first.
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
-## Unreleased — Panels in your own order
+## 2026-10-02 — Panels in your own order
 
 ### Added
 - **Arrange the panels.** On the tracker (Character Summary, Resources, Status, Combat Menu,
