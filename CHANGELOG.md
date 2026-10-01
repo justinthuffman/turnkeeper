@@ -3,7 +3,7 @@
 What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest first.
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
-## Unreleased
+## 2026-10-02 — Expertise skills
 
 ### Fixed
 - **Expertise skills.** The sheet marks Expertise with an "e" in a skill's box, but Turnkeeper
