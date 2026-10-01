@@ -1509,7 +1509,7 @@ function csWrite(path, value, add){
 }
 function csCell(row, side, title){
   const s = critSettings.gifs[row][side], id = `${row}-${side}`;
-  const links = s.links.map(l=>`<li>${isClip(l.v) ? `<video class="cs-thumb" src="${esc(l.v)}" muted preload="metadata"></video>` : `<img class="cs-thumb" src="${esc(l.v)}" alt="" loading="lazy">`}<span title="${esc(l.v)}">${esc(l.v)}</span><button type="button" class="chip-btn" data-cs-del="links/${esc(l.id)}" data-row="${row}" data-side="${side}" aria-label="Delete this link">✕</button></li>`).join('');
+  const links = s.links.map(l=>`<li>${isClip(l.v) ? `<video class="cs-thumb" src="${esc(l.v)}" muted preload="metadata"></video>` : `<img class="cs-thumb" src="${esc(l.v)}" alt="">`}<span title="${esc(l.v)}">${esc(l.v)}</span><button type="button" class="chip-btn" data-cs-del="links/${esc(l.id)}" data-row="${row}" data-side="${side}" aria-label="Delete this link">✕</button></li>`).join('');
   const flavor = s.flavor.map(f=>`<li><span title="${esc(f.v)}">${esc(f.v)}</span><button type="button" class="chip-btn" data-cs-del="flavor/${esc(f.id)}" data-row="${row}" data-side="${side}" aria-label="Delete this line">✕</button></li>`).join('');
   return `<div class="cs-cell ${side}"><h6><b>${title}</b></h6>
     <div class="cs-sub">GIFs and clips (${s.links.length})</div><ul class="cs-list">${links}</ul>
@@ -1517,6 +1517,19 @@ function csCell(row, side, title){
     <div class="cs-sub">Flavor text (${s.flavor.length})</div><ul class="cs-list">${flavor}</ul>
     <div class="cs-add"><input type="text" id="cs-${id}-flavor" maxlength="80" placeholder="e.g. {who} CRITS!" aria-label="${title} flavor text"><button type="button" class="ghost" data-cs-add="flavor" data-row="${row}" data-side="${side}">Add</button></div>
     ${s.links.length || s.flavor.length ? `<button type="button" class="ghost" data-cs-clear="1" data-row="${row}" data-side="${side}">Delete all</button>` : ''}</div>`;
+}
+const linkChecks = {};
+function checkLink(url){
+  if(!linkChecks[url]) linkChecks[url] = new Promise(ok=>{
+    const el = isClip(url) ? document.createElement('video') : new Image();
+    const done = v=>{ clearTimeout(timer); ok(v); };
+    const timer = setTimeout(()=>done(false), 15000);
+    if(isClip(url)){ el.preload = 'metadata'; el.muted = true; el.onloadedmetadata = ()=>done(true); }
+    else el.onload = ()=>done(el.naturalWidth > 0);
+    el.onerror = ()=>done(false);
+    el.src = url;
+  });
+  return linkChecks[url];
 }
 function renderSettings(){
   if(!csUnlocked()){
@@ -1537,9 +1550,10 @@ function renderSettings(){
       return `<div class="cs-row${g.useHit ? ' uses-hit' : ''}"><div class="cs-row-head"><h5>${name}</h5>${row === 'hit' ? '' : `<label><input type="checkbox" data-cs-usehit="${row}"${g.useHit ? ' checked' : ''}> Use the To Hit pool</label>`}</div>
         <div class="cs-cols">${csCell(row, 'success', yes)}${csCell(row, 'fail', no)}</div></div>`;
     }).join('')}`;
-  // Mark links that won't load
-  $('csBody').querySelectorAll('.cs-thumb').forEach(t=>t.addEventListener('error', ()=>{
-    const li = t.closest('li'); if(!li || li.classList.contains('bad')) return;
+  // Mark links that won't load: each is checked on its own (the thumbnails may not load
+  // while hidden), and the answer is remembered for this visit
+  $('csBody').querySelectorAll('.cs-thumb').forEach(t=>checkLink(t.getAttribute('src')).then(ok=>{
+    const li = t.closest('li'); if(ok || !li || li.classList.contains('bad')) return;
     li.classList.add('bad'); li.insertAdjacentHTML('beforeend', '<b class="cs-bad">bad link</b>');
   }));
   if(typing && $(typing.id)){ $(typing.id).value = typing.v; $(typing.id).focus(); }
