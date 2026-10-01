@@ -1488,8 +1488,15 @@ function navInPanelOrder(order){
   const nav = document.querySelector('nav.jump'); if(!nav) return;
   order.forEach(id=>{ const a = nav.querySelector(`a[href="#${id}"]`); if(a) nav.appendChild(a); });
 }
+// Which panels are collapsed, also kept in this browser
+const DM_FOLD_KEY = 'dndTracker:dm:collapsed';
+let dmFolded = []; try{ dmFolded = JSON.parse(localStorage.getItem(DM_FOLD_KEY) || '[]') || []; }catch(e){}
 const dmPanels = setupPanelOrder({container:'.wrap', onChange:navInPanelOrder,
-  save:o=>{ try{ localStorage.setItem(DM_PANEL_KEY, JSON.stringify(o)); }catch(e){} }});
+  save:o=>{ try{ localStorage.setItem(DM_PANEL_KEY, JSON.stringify(o)); }catch(e){} },
+  collapsible:true, collapsed:Array.isArray(dmFolded) ? dmFolded : [],
+  saveCollapsed:ids=>{ try{ localStorage.setItem(DM_FOLD_KEY, JSON.stringify(ids)); }catch(e){} }});
+// Jumping to a collapsed panel from the links at the top opens it
+document.querySelector('nav.jump').addEventListener('click', e=>{ const a = e.target.closest('a[href^="#"]'); if(a) dmPanels.expand(a.getAttribute('href').slice(1)); });
 try{ dmPanels.apply(JSON.parse(localStorage.getItem(DM_PANEL_KEY) || 'null')); }catch(e){}
 navInPanelOrder(dmPanels.order());
 $('panelReset').addEventListener('click', ()=>dmPanels.reset());

@@ -12,6 +12,9 @@ Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wi
   while you carry it, a dashed slot shows where it will land, and Esc puts it back. You can
   also focus the grip and use the up and down arrow keys. The order is remembered in this browser, and the DM Screen's links at the
   top follow it. "Reset panel order" at the bottom puts everything back.
+- **Collapse panels on the DM Screen.** Click ▾ (or the title) to fold a panel down to its
+  title bar, and ▸ to open it again. It's remembered in this browser, and jumping to a folded
+  panel from the links at the top opens it.
 
 ### Changed
 - The DM Screen's titles use title case ("Monsters & Encounters", "Encounter Difficulty",

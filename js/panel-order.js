@@ -120,5 +120,33 @@ function setupPanelOrder(opts){
     g.focus(); p.scrollIntoView({block:'nearest'});
     changed();
   });
-  return {apply, reset, order};
+  // Collapsing (opts.collapsible): a ▾/▸ toggle before each title, and the title itself, fold a
+  // panel down to its title bar. opts.saveCollapsed(ids) keeps which ones are folded.
+  function setCollapsed(id, on){
+    const p = document.getElementById(id), t = p && p.querySelector('.panel-fold'); if(!t) return;
+    p.classList.toggle('panel-collapsed', on);
+    t.textContent = on ? '▸' : '▾';
+    t.setAttribute('aria-expanded', String(!on));
+    t.setAttribute('aria-label', `${on ? 'Expand' : 'Collapse'} the ${title(p)} panel`);
+  }
+  const collapsed = ()=>all().filter(p=>p.classList.contains('panel-collapsed')).map(p=>p.id);
+  if(opts.collapsible){
+    all().forEach(p=>{
+      const h = p.querySelector('h2'); if(!h) return;
+      const t = document.createElement('button');
+      t.type = 'button'; t.className = 'panel-fold';
+      h.parentElement.insertBefore(t, h);
+      h.classList.add('panel-fold-title');
+      setCollapsed(p.id, false);
+    });
+    (opts.collapsed || []).forEach(id=>setCollapsed(id, true));
+    box.addEventListener('click', e=>{
+      const hit = e.target.closest('.panel-fold, .panel-fold-title'); if(!hit) return;
+      const p = hit.closest('.panel'); if(!p || p.parentElement !== box) return;
+      setCollapsed(p.id, !p.classList.contains('panel-collapsed'));
+      if(opts.saveCollapsed) opts.saveCollapsed(collapsed());
+    });
+  }
+  function expand(id){ if(document.getElementById(id) && document.getElementById(id).classList.contains('panel-collapsed')){ setCollapsed(id, false); if(opts.saveCollapsed) opts.saveCollapsed(collapsed()); } }
+  return {apply, reset, order, expand, collapsed};
 }
