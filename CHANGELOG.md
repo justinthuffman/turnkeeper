@@ -3,6 +3,24 @@
 What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest first.
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
+## Unreleased — Turnkeeper rolls its own dice
+
+### Added
+- **Roll buttons.** Every roll in Turnkeeper (attacks, damage, spells, saves, checks, hit dice,
+  death saves) has a Roll button beside it. You can change the dice in the box before you
+  roll. Copy is still there for Avrae while the table switches over.
+- **3D dice that everyone sees.** Your roll tumbles across your screen, every other player's
+  screen and the DM Screen at once, landing on the same numbers everywhere. A card shows who
+  rolled, what for, the total and each die. Advantage keeps the higher d20 and disadvantage
+  the lower, with the dropped one struck through.
+- **Natural 20s and natural 1s come from the die, never the total.** With disadvantage, a 20
+  and a 5 count as a 5.
+- **Your dice, your style.** "🎲 Your dice" at the bottom of the page picks a ready-made set
+  or your own colors, texture and material, saved with your character. Everyone sees your
+  rolls in your style. "Try them" makes a practice roll only you see.
+- **The DM decides who rolls.** On the DM Screen, click a character's card to let them roll
+  (it turns gold) and click it again to stop. "Allow everyone to roll" and "Stop all rolls"
+  do the whole party at once. Characters not in a campaign can always roll.
 
 
 ## 2026-10-01 — Every spell up to 9th level, and a clearer "Your turn!"

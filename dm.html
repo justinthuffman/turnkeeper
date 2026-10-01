@@ -274,6 +274,32 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
 @media (prefers-reduced-motion: reduce){
   .roll-backdrop, .roll-popup, .hp-bar i, .cbt{transition:none;}
 }
+/* Rolling: the DM clicks a card to let that player roll (gold while allowed) */
+.pc-card{cursor:pointer;}
+.pc-card.allowed{border-color:#f2c14e; box-shadow:0 0 0 1px #f2c14e;}
+.pc-allow{display:inline-block; margin-top:3px; font-size:0.7rem; font-weight:600; color:#1d1405; background:#f2c14e; border-radius:999px; padding:1px 8px;}
+.pc-allow.off{background:none; color:var(--ink-dim); font-weight:normal; border:1px solid var(--border);}
+/* Dice: everyone's rolls fall over the page; the result card sits at the bottom */
+#diceLayer{position:fixed; inset:0; z-index:400; pointer-events:none;}
+#diceLayer[hidden]{display:none;}
+#diceLayer canvas{display:block;}
+.dice-card{position:fixed; left:50%; bottom:18px; transform:translateX(-50%); z-index:401; width:min(460px, calc(100vw - 32px));
+  background:var(--panel); border:1px solid var(--sea); border-radius:8px; box-shadow:0 10px 30px rgba(0,0,0,0.5); padding:10px 14px 12px; pointer-events:auto;}
+.dice-card[hidden]{display:none;}
+.dice-card .dc-head{display:flex; align-items:baseline; gap:8px; padding-right:24px;}
+.dice-card .dc-who{color:var(--sea); font-weight:600;}
+.dice-card .dc-what{color:var(--ink-dim); font-size:0.85rem; overflow-wrap:anywhere;}
+.dice-card .dc-total{font-family:var(--font-display); font-size:2rem; color:var(--ink); line-height:1.1; margin-top:2px;}
+.dice-card .dc-total small{font-family:ui-monospace, Consolas, monospace; font-size:0.8rem; color:var(--ink-dim); margin-left:8px;}
+.dice-card .dc-dice{display:flex; flex-wrap:wrap; gap:4px; margin-top:6px;}
+.dice-card .dc-die{font-family:ui-monospace, Consolas, monospace; font-size:0.78rem; border:1px solid var(--border); border-radius:4px; padding:1px 6px; background:var(--panel2);}
+.dice-card .dc-die.x{opacity:0.45; text-decoration:line-through;}
+.dice-card .dc-die.n20{border-color:#f2c14e; color:#f2c14e;}
+.dice-card .dc-die.n1{border-color:var(--danger); color:var(--danger);}
+.dice-card .dc-nat{font-weight:700; margin-top:4px;}
+.dice-card .dc-nat.n20{color:#f2c14e;}
+.dice-card .dc-nat.n1{color:var(--danger);}
+.dice-card .dc-close{position:absolute; top:4px; right:6px; background:none; border:none; color:var(--ink-dim); font-size:1.4rem; line-height:1; padding:0 4px; box-shadow:none;}
 </style>
 <script>
 // Apply the saved color theme before the page draws (the same pick as the tracker and hub)
@@ -311,8 +337,8 @@ applyTheme(savedTheme || DEFAULT_THEME);
 
 <!-- PARTY -->
 <section class="panel" id="partyPanel">
-  <div class="panel-head"><h2>Party</h2><span class="live-state" id="liveState">Connecting to live updates…</span><button type="button" class="ghost" id="partyRefresh">Reload sheets</button></div>
-  <p class="panel-note">Stats come from each character’s Google Sheet. The live box shows what the player is tracking in Turnkeeper (hit points, conditions, magic, concentration, slots), updated as it changes.</p>
+  <div class="panel-head"><h2>Party</h2><span class="live-state" id="liveState">Connecting to live updates…</span><button type="button" class="ghost" id="allowAll">Allow everyone to roll</button><button type="button" class="ghost" id="allowNone">Stop all rolls</button><button type="button" class="ghost" id="partyRefresh">Reload sheets</button></div>
+  <p class="panel-note">Stats come from each character’s Google Sheet. The live box shows what the player is tracking in Turnkeeper (hit points, conditions, magic, concentration, slots), updated as it changes. <b>Click a card</b> to let that player roll their dice in Turnkeeper; click it again to stop.</p>
   <div class="party-grid" id="partyGrid"></div>
   <div class="passive-check">
     <span>Passive</span>
@@ -553,6 +579,7 @@ setInterval(()=>document.querySelectorAll('[data-t]').forEach(el=>{ el.textConte
 window.dmCampaignKey = ()=>campaign.key;
 window.dmPublishNow = ()=>publishCombat();
 let effects = {};   // caster sheet -> {id: {name, caster, targets, status, conc, rounds}}
+let allowed = {};   // sheet -> true while the DM lets that player roll (campaigns/<campaign>/allow)
 const effectsSeen = new Set(); let effectsReady = false;
 window.dmEffectsUpdate = (key, data)=>{
   if(key !== campaign.key) return;
@@ -650,8 +677,10 @@ function pcCard(pc){
   const p = party[pc.name];
   const link = `turnkeeper.html?sheet=${encodeURIComponent(`https://docs.google.com/spreadsheets/d/${pc.sheet}/edit?gid=${SHEET_GID}#gid=${SHEET_GID}`)}&name=${encodeURIComponent(pc.name)}`;
   const links = `<div class="pc-links"><a href="${link}" target="_blank" rel="noopener">Open in Turnkeeper</a><a href="https://docs.google.com/spreadsheets/d/${pc.sheet}/edit?gid=${SHEET_GID}" target="_blank" rel="noopener">Google Sheet</a></div>`;
-  const top = sub => `<div class="pc-top"><img class="pc-portrait" src="${pc.portrait}" alt=""><div><h3>${esc(pc.name)}</h3><div class="pc-sub">${sub}</div></div>${liveCornerHtml(pc)}</div>`;
-  if(!p || p.error) return `<article class="pc-card${p ? '' : ' loading'}">${top(p ? '' : 'Loading…')}${p ? `<div class="pc-err">${esc(p.error)}</div>` : ''}${links}</article>`;
+  const may = !!allowed[pc.sheet];
+  const allowTag = `<span class="pc-allow${may ? '' : ' off'}" title="Click the card to ${may ? 'stop ' + esc(pc.name) + ' rolling' : 'let ' + esc(pc.name) + ' roll'}">${may ? '🎲 Allowed to roll' : 'Not rolling'}</span>`;
+  const top = sub => `<div class="pc-top"><img class="pc-portrait" src="${pc.portrait}" alt=""><div><h3>${esc(pc.name)}</h3><div class="pc-sub">${sub}</div>${allowTag}</div>${liveCornerHtml(pc)}</div>`;
+  if(!p || p.error) return `<article class="pc-card${p ? '' : ' loading'}${may ? ' allowed' : ''}" data-sheet="${pc.sheet}">${top(p ? '' : 'Loading…')}${p ? `<div class="pc-err">${esc(p.error)}</div>` : ''}${links}</article>`;
   const saves = ABILS.map(a=>{
     const s = p.saves.find(x=>x.name.toLowerCase().startsWith(ABIL_NAME[a].toLowerCase().slice(0,3)));
     const mod = s && s.mod !== null ? s.mod : abilMod(p.scores[a]);
@@ -659,7 +688,7 @@ function pcCard(pc){
   }).join('');
   const stat = (dt, dd, title, changed) => `<div${changed ? ' class="changed"' : ''} title="${esc(title||'')}"><dt>${dt}</dt><dd>${dd ?? '—'}</dd></div>`;
   const ps = passivesOf(pc), fx = statsOf(pc);
-  return `<article class="pc-card">${top(`Level ${p.level} ${esc(p.race)} ${esc(p.cls)}`)}
+  return `<article class="pc-card${may ? ' allowed' : ''}" data-sheet="${pc.sheet}">${top(`Level ${p.level} ${esc(p.race)} ${esc(p.cls)}`)}
     ${liveHtml(pc)}
     <dl class="pc-stats">${stat('AC', fx.ac, fx.acTitle, fx.ac !== p.ac)}${stat('HP', fx.hpMax, fx.hpTitle, fx.hpMax !== p.hpMax)}${stat('Init', fmtMod(fx.init), fx.init !== p.init ? `${fmtMod(p.init)} on the sheet` : '', fx.init !== p.init)}${stat('Speed', fx.speed, fx.speedTitle, fx.speed !== fx.speedSheet)}${stat('DC', fx.dc, 'Spell save DC',fx.dc !== (p.spellDc ?? null))}</dl>
     <div class="pc-mods">${fx.notes.map(n=>`<div>${esc(n)}</div>`).join('')}</div>
@@ -1325,6 +1354,132 @@ let savedCampaign = null;
 try{ savedCampaign = localStorage.getItem('dndTracker:dm:campaign'); }catch(e){}
 setCampaign(savedCampaign || CAMPAIGNS[0].key);
 </script>
+<div id="diceLayer" hidden></div>
+<div class="dice-card" id="diceCard" role="status" aria-live="polite" hidden></div>
+<script>
+/* ---------- Dice (V4): allowing rolls, and showing everyone's ----------
+   Clicking a Party card lets that player roll in Turnkeeper (campaigns/<campaign>/allow/<sheet>);
+   clicking again stops it. Every roll a player makes plays here with 3D dice in their style,
+   landing on the faces they rolled (the same as on their screen). The dice code matches
+   turnkeeper.html's showing side; keep the two in step until the refactor shares it. */
+function setAllow(sheet, on){
+  if(!window.dmSetAllow){ $('liveState').textContent = 'Not connected: rolls can’t be allowed right now.'; return; }
+  allowed[sheet] = on; renderParty();   // shown now; the database confirms it a moment later
+  window.dmSetAllow(campaign.key, sheet, on);
+}
+$('partyGrid').addEventListener('click', e=>{
+  if(e.target.closest('a, button, input, select')) return;
+  const card = e.target.closest('.pc-card[data-sheet]'); if(!card) return;
+  setAllow(card.dataset.sheet, !allowed[card.dataset.sheet]);
+});
+$('allowAll').addEventListener('click', ()=>campaign.party.forEach(pc=>setAllow(pc.sheet, true)));
+$('allowNone').addEventListener('click', ()=>campaign.party.forEach(pc=>{ if(allowed[pc.sheet]) setAllow(pc.sheet, false); }));
+window.dmAllowUpdate = (key, data)=>{
+  if(key !== campaign.key) return;
+  allowed = {};
+  Object.entries(data || {}).forEach(([sheet, on])=>{ if(on === true) allowed[sheet] = true; });
+  renderParty();
+};
+
+const DICE_SIDES = [4, 6, 8, 10, 12, 20, 100];
+const SHOWN_SIDES = [4, 6, 8, 10, 12, 20];
+const DICE_PRESETS = ['bronze','bloodmoon','starynight','astralsea','dragons','glitterparty','inspired','pinkdreams','breebaby','rainbow','black','white',
+  'fire','ice','lightning','thunder','acid','poison','radiant','necrotic','psychic','force','water','earth','air'];
+const DICE_TEXTURES = ['none','marble','wood','stone','metal','cloudy','fire','water','ice','paper','speckles','glitter','stars','stainedglass','skulls','dragon','lizard','leopard','tiger','cheetah','astral','bronze01','bronze03'];
+const DICE_MATERIALS = ['glass','plastic','metal','wood','none'];
+const DEFAULT_DICE = {preset:'bronze', bg:'#8a1c12', fg:'#ffffff', tex:'none', mat:'glass'};
+function safeDiceStyle(s){
+  s = s && typeof s === 'object' ? s : {};
+  const hex = v=>typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v);
+  return {preset:DICE_PRESETS.includes(s.preset) ? s.preset : (s.preset === '' ? '' : DEFAULT_DICE.preset),
+    bg:hex(s.bg) ? s.bg : DEFAULT_DICE.bg, fg:hex(s.fg) ? s.fg : DEFAULT_DICE.fg,
+    tex:DICE_TEXTURES.includes(s.tex) ? s.tex : 'none', mat:DICE_MATERIALS.includes(s.mat) ? s.mat : 'glass'};
+}
+const DICE_LIB = 'https://cdn.jsdelivr.net/npm/@3d-dice/dice-box-threejs@0.0.12/';
+let diceBoxP = null, diceLook = '', diceHideTimer = null, dicePlaySeq = 0;
+function diceBox(){
+  if(!diceBoxP) diceBoxP = (async()=>{
+    const {default:DiceBox} = await import(DICE_LIB + '+esm');
+    $('diceLayer').hidden = false;
+    const box = new DiceBox('#diceLayer', {assetPath:DICE_LIB + 'public/', theme_surface:'green-felt', theme_colorset:'white', theme_material:'glass', sounds:false, baseScale:100});
+    await box.initialize();
+    return box;
+  })().catch(err=>{ console.warn('3D dice unavailable:', err); diceBoxP = null; return null; });
+  return diceBoxP;
+}
+// The library never frees what it draws; without this, memory climbs with every roll and look
+function freeDice(box){
+  box.diceList.forEach(die=>{
+    [].concat(die.material).forEach(m=>m && m.dispose());
+    if(die.geometry !== box.DiceFactory.geometries[die.notation.type]) die.geometry.dispose();
+  });
+}
+function freeLooks(box){
+  const f = box.DiceFactory;
+  Object.values(f.materials_cache).forEach(c=>{ if(c.composite) c.composite.dispose(); if(c.bump) c.bump.dispose(); });
+  f.materials_cache = {};
+  const sets = box.DiceColors.colorsets;
+  Object.keys(sets).forEach(k=>{ if(k.startsWith('custom ') && k !== (box.colorData && box.colorData.name)) delete sets[k]; });
+}
+async function setDiceLook(box, style){
+  const st = safeDiceStyle(style), key = JSON.stringify(st);
+  if(key === diceLook) return;
+  diceLook = key;
+  if(st.preset) await box.updateConfig({theme_customColorset:null, theme_colorset:st.preset, theme_material:st.mat});
+  else await box.updateConfig({theme_customColorset:{name:`custom ${st.bg} ${st.fg} ${st.tex} ${st.mat}`, background:st.bg, foreground:st.fg, texture:st.tex, material:st.mat}, theme_material:st.mat});
+  freeLooks(box);
+}
+async function play3d(roll){
+  if(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const shown = roll.dice.filter(d=>SHOWN_SIDES.includes(d.s)).slice(0, 24);
+  if(!shown.length) return;
+  const seq = ++dicePlaySeq, box = await diceBox();
+  if(!box || seq !== dicePlaySeq) return;
+  await setDiceLook(box, roll.style);
+  if(seq !== dicePlaySeq) return;
+  freeDice(box);
+  $('diceLayer').style.transition = 'none'; $('diceLayer').style.opacity = '1';
+  box.roll(shown.map(d=>'1d' + d.s).join('+') + '@' + shown.map(d=>d.v).join(',')).catch(err=>console.warn('3D dice:', err));
+}
+function clearDice(){
+  $('diceLayer').style.transition = 'opacity 0.6s'; $('diceLayer').style.opacity = '0';
+  const seq = dicePlaySeq;
+  setTimeout(async()=>{
+    if(seq !== dicePlaySeq || !diceBoxP) return;
+    const box = await diceBoxP;
+    if(box && seq === dicePlaySeq){ freeDice(box); box.clearDice(); }
+  }, 700);
+}
+function showRoll(roll){
+  const chips = roll.dice.map(d=>`<span class="dc-die${d.x ? ' x' : ''}${!d.x && d.s === 20 && (d.v === 20 || d.v === 1) ? ' n' + d.v : ''}" title="d${d.s}${d.x ? ', dropped' : ''}${d.c ? `, counts as ${d.c}` : ''}">${d.v}${d.c ? '→' + d.c : ''}<small> d${d.s}</small></span>`).join('');
+  $('diceCard').innerHTML = `<button type="button" class="dc-close" aria-label="Close">&times;</button>`
+    + `<div class="dc-head"><span class="dc-who">${esc(roll.name || 'Someone')}</span><span class="dc-what">${esc(roll.label || 'Roll')}</span></div>`
+    + `<div class="dc-total">${roll.total}<small>${esc(roll.notation)}</small></div>`
+    + (chips ? `<div class="dc-dice">${chips}</div>` : '')
+    + (roll.nat === 20 ? `<div class="dc-nat n20">Natural 20!</div>` : roll.nat === 1 ? `<div class="dc-nat n1">Natural 1!</div>` : '');
+  $('diceCard').hidden = false;
+  play3d(roll);
+  clearTimeout(diceHideTimer);
+  diceHideTimer = setTimeout(hideRoll, 12000);
+}
+function hideRoll(){ clearTimeout(diceHideTimer); $('diceCard').hidden = true; clearDice(); }
+$('diceCard').addEventListener('click', e=>{ if(e.target.closest('.dc-close')) hideRoll(); });
+function cleanRoll(r){
+  const dice = (Array.isArray(r.dice) ? r.dice : Object.values(r.dice || {})).slice(0, 60)
+    .filter(d=>d && DICE_SIDES.includes(d.s) && Number.isInteger(d.v) && d.v >= 1 && d.v <= d.s)
+    .map(d=>({s:d.s, v:d.v, ...(Number.isInteger(d.c) ? {c:d.c} : {}), ...(d.x === true ? {x:true} : {})}));
+  return {name:String(r.name || ''), label:String(r.label || ''), notation:String(r.notation || ''),
+    total:typeof r.total === 'number' && Number.isFinite(r.total) ? r.total : 0, dice, nat:r.nat === 20 || r.nat === 1 ? r.nat : 0, style:safeDiceStyle(r.style)};
+}
+// Rolls already there when the page opened (or the campaign changed) aren't replayed
+const rollsSeen = new Set(); let rollsKey = null;
+window.dmRollsUpdate = (key, data)=>{
+  if(key !== campaign.key) return;
+  const all = Object.values(data || {}).filter(r=>r && r.id);
+  if(rollsKey !== key){ rollsKey = key; all.forEach(r=>rollsSeen.add(String(r.id))); return; }
+  all.forEach(r=>{ if(rollsSeen.has(String(r.id))) return; rollsSeen.add(String(r.id)); showRoll(cleanRoll(r)); });
+};
+</script>
 <script type="module">
 /* ---------- Live: listening (Firebase Realtime Database) ----------
    Signs in invisibly and follows campaigns/<campaign>/live, handing each change to
@@ -1357,10 +1512,15 @@ try{
     stops.push(onValue(ref(db, `campaigns/${FBK(key)}/live`), snap=>{ window.dmLiveStatus('on'); window.dmLiveUpdate(key, clean(snap.val())); }, fail));
     stops.push(onValue(ref(db, `campaigns/${FBK(key)}/effects`), snap=>window.dmEffectsUpdate(key, clean(snap.val())), fail));
     stops.push(onValue(ref(db, `campaigns/${FBK(key)}/acts`), snap=>window.dmActsUpdate(key, clean(snap.val())), fail));
+    stops.push(onValue(ref(db, `campaigns/${FBK(key)}/allow`), snap=>window.dmAllowUpdate(key, clean(snap.val())), fail));
+    stops.push(onValue(ref(db, `campaigns/${FBK(key)}/rolls`), snap=>window.dmRollsUpdate(key, clean(snap.val())), fail));
   };
   // The players' view of combat (see combatView: no HP, AC or notes)
   window.dmPublishCombat = (key, view)=>set(ref(db, `campaigns/${FBK(key)}/combat`), {...view, t:serverTimestamp()})
     .catch(err=>console.warn('Publishing combat:', err));
+  // Let a player roll, or stop them (a click on their Party card)
+  window.dmSetAllow = (key, sheet, on)=>set(ref(db, `campaigns/${FBK(key)}/allow/${sheet}`), on ? true : null)
+    .catch(err=>{ console.warn('Allowing rolls:', err); window.dmLiveStatus('err', err.message); });
   window.dmLiveWatch(window.dmCampaignKey());
   window.dmPublishNow();
 }catch(err){
