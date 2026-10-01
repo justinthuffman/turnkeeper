@@ -6,21 +6,28 @@ Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wi
 ## Unreleased — Turnkeeper rolls its own dice
 
 ### Added
-- **Roll buttons.** Every roll in Turnkeeper (attacks, damage, spells, saves, checks, hit dice,
-  death saves) has a Roll button beside it. You can change the dice in the box before you
-  roll. Copy is still there for Avrae while the table switches over.
+- **Roll buttons replace the Avrae commands.** Every roll in Turnkeeper (attacks, damage,
+  spells, saves, checks, hit dice, death saves) says in plain words what will roll, like
+  "1d20 + 5 + 1d4, with disadvantage" or "2d6 (reroll 1s and 2s once) + 3", with a Roll
+  button beside it. ✎ lets you change the dice before you roll.
 - **3D dice that everyone sees.** Your roll tumbles across your screen, every other player's
   screen and the DM Screen at once, landing on the same numbers everywhere. A card shows who
   rolled, what for, the total and each die. Advantage keeps the higher d20 and disadvantage
   the lower, with the dropped one struck through.
 - **Natural 20s and natural 1s come from the die, never the total.** With disadvantage, a 20
   and a 5 count as a 5.
+- **A natural 20 on an attack turns Crit on by itself.** The damage dice double and the damage
+  line starts with a gold **CRIT** tag. Untick Crit if you need to.
 - **Your dice, your style.** "🎲 Your dice" at the bottom of the page picks a ready-made set
   or your own colors, texture and material, saved with your character. Everyone sees your
   rolls in your style. "Try them" makes a practice roll only you see.
-- **The DM decides who rolls.** On the DM Screen, click a character's card to let them roll
-  (it turns gold) and click it again to stop. "Allow everyone to roll" and "Stop all rolls"
-  do the whole party at once. Characters not in a campaign can always roll.
+- **Who rolls when.** In combat, whoever's turn it is can roll. Outside combat (or for a
+  reaction or a save on someone else's turn), the DM clicks a character's card on the DM
+  Screen to let them roll (it turns gold) and clicks again to stop. "Allow everyone to roll"
+  and "Stop all rolls" do the whole party at once. Characters not in a campaign can always roll.
+- **The DM's own dice, private.** The DM Screen has a Dice panel (any dice, quick d4 to d100,
+  advantage and disadvantage) with its own dice style, and Roll buttons in monster stat blocks
+  and concentration saves. The DM's rolls show only on the DM Screen, never to players.
 
 
 ## 2026-10-01 — Every spell up to 9th level, and a clearer "Your turn!"
