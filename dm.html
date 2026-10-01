@@ -321,6 +321,32 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
 .dm-quick{display:flex; flex-wrap:wrap; gap:6px; margin-top:8px;}
 .dm-test{display:flex; flex-wrap:wrap; gap:6px 8px; align-items:center; margin-top:10px; font-size:0.85rem;}
 .dm-test-note{font-size:0.75rem; color:var(--ink-dim);}
+/* Monsters & encounters (js/dm-library.js) */
+.lib-cols{display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:14px;}
+.lib-head{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:6px;}
+.lib-head h3{font-family:var(--font-display); color:var(--sea); font-size:1.05rem; margin:0 auto 0 0; font-weight:normal;}
+.lib-row{display:flex; align-items:center; gap:8px 10px; flex-wrap:wrap; padding:7px 9px; border:1px solid var(--border); border-radius:6px; background:var(--panel2); margin-bottom:6px;}
+.lib-main{flex:1 1 180px; min-width:0; display:flex; flex-direction:column;}
+.lib-sub{font-size:0.75rem; color:var(--ink-dim);}
+.lib-btns{display:flex; align-items:center; gap:5px; flex-wrap:wrap;}
+.lib-btns button{padding:4px 10px; font-size:0.78rem;}
+.lib-count{width:52px;}
+.lib-empty{font-size:0.8rem; color:var(--ink-dim); font-style:italic; margin:4px 0;}
+.lib-popup{width:min(720px, 100%);}
+.lib-form{display:flex; flex-direction:column; gap:8px; margin-top:10px;}
+.lib-from{display:flex; flex-wrap:wrap; gap:6px 8px; align-items:end; padding:8px; border:1px dashed var(--border); border-radius:6px;}
+.lib-from label{display:flex; flex-direction:column; gap:3px; font-size:0.75rem; color:var(--ink-dim);}
+.lib-from .lib-sub{flex-basis:100%;}
+.lib-sublbl{font-size:0.72rem; text-transform:uppercase; letter-spacing:0.06em; color:var(--sea-dim); margin-top:4px;}
+.lib-sublbl small{text-transform:none; letter-spacing:0; color:var(--ink-dim);}
+.lib-attack, .lib-item{display:grid; gap:6px; align-items:center; margin-bottom:5px;}
+.lib-attack{grid-template-columns:minmax(0, 2fr) 64px minmax(0, 1.2fr) minmax(0, 1fr) auto;}
+.lib-item{grid-template-columns:minmax(0, 1fr) 70px auto;}
+.lib-attack input, .lib-item input{min-width:0;}
+.lib-notes, .lib-wide{display:flex; flex-direction:column; gap:3px; font-size:0.78rem; color:var(--ink-dim);}
+.lib-check{font-size:0.85rem;}
+.sb-notes{white-space:pre-wrap; font-size:0.85rem; color:var(--ink); margin:2px 0;}
+@media (max-width:560px){ .lib-attack{grid-template-columns:1fr 64px; } .lib-attack input[data-f="name"]{grid-column:1 / -1;} }
 #rollsBox{margin-top:12px;}
 #rollsList li.n20{color:#f2c14e;}
 #rollsList li.n1{color:var(--danger);}
@@ -365,7 +391,7 @@ applyTheme(savedTheme || DEFAULT_THEME);
   <div class="top-right"><label class="campaign-pick">Campaign <select id="campaignSelect"></select></label><button type="button" class="ghost" id="settingsBtn">Campaign settings</button></div>
 </header>
 <nav class="jump" aria-label="Sections">
-  <a href="#partyPanel">Party</a><a href="#initPanel">Initiative</a><a href="#dicePanel">Dice</a><a href="#encPanel">Encounter difficulty</a><a href="#refPanel">Rules reference</a><a href="#notesPanel">Session notes</a>
+  <a href="#partyPanel">Party</a><a href="#initPanel">Initiative</a><a href="#libPanel">Monsters &amp; encounters</a><a href="#dicePanel">Dice</a><a href="#encPanel">Encounter difficulty</a><a href="#refPanel">Rules reference</a><a href="#notesPanel">Session notes</a>
 </nav>
 
 <!-- PARTY -->
@@ -427,6 +453,23 @@ applyTheme(savedTheme || DEFAULT_THEME);
   <details class="log" id="logBox"><summary>Combat log</summary><ol id="logList"></ol></details>
 </section>
 
+<!-- MONSTERS & ENCOUNTERS (js/dm-library.js) -->
+<section class="panel" id="libPanel">
+  <div class="panel-head"><h2>Monsters &amp; encounters</h2><span class="live-state">Saved for this campaign, on any device</span></div>
+  <p class="panel-note">Save your own monsters (key villains, homebrew, tweaked SRD monsters) and groups of monsters as encounters, then load them into Initiative in one click. Hit points and initiative are rolled each time, using the Add monsters options above.</p>
+  <div class="lib-cols">
+    <div class="lib-col">
+      <div class="lib-head"><h3>Saved monsters</h3><button type="button" class="ghost" id="libNewMon">New monster</button></div>
+      <div id="libMonsters"></div>
+    </div>
+    <div class="lib-col">
+      <div class="lib-head"><h3>Encounters</h3><button type="button" class="ghost" id="libNewEnc">New encounter</button><button type="button" class="ghost" id="libSaveCurrent" title="Save the monsters in Initiative now as an encounter">Save Initiative as one</button></div>
+      <div id="libEncounters"></div>
+    </div>
+  </div>
+  <div class="msg" id="libMsg" aria-live="polite"></div>
+</section>
+
 <!-- DICE (the DM's own rolls: private) -->
 <section class="panel" id="dicePanel">
   <div class="panel-head"><h2>Your dice</h2><span class="live-state">Only you see these rolls</span></div>
@@ -476,6 +519,12 @@ applyTheme(savedTheme || DEFAULT_THEME);
   <div class="roll-popup cs-popup" role="dialog" aria-modal="true" aria-labelledby="csTitle">
     <div class="roll-head"><h4 id="csTitle">Campaign settings</h4><button type="button" class="roll-close" id="csClose" aria-label="Close">&times;</button></div>
     <div id="csBody"></div>
+  </div>
+</div>
+<div class="roll-backdrop" id="libBackdrop" hidden>
+  <div class="roll-popup lib-popup" role="dialog" aria-modal="true" aria-labelledby="libTitle">
+    <div class="roll-head"><h4 id="libTitle"></h4><button type="button" class="roll-close" id="libClose" aria-label="Close">&times;</button></div>
+    <div id="libBody"></div>
   </div>
 </div>
 <div class="roll-backdrop" id="sbBackdrop" hidden>
@@ -1115,7 +1164,7 @@ function combatantHtml(c, i, list){
           : `<div class="hp-ctrl"><input type="number" min="0" data-field="amt" aria-label="Amount" placeholder="#"><button type="button" class="chip-btn" data-act="dmg">Damage</button><button type="button" class="chip-btn" data-act="heal">Heal</button></div></div>`}
       <div class="cbt-actions">
         ${isTurn ? endTurnBtn : ''}
-        ${c.srd ? `<button type="button" class="chip-btn" data-act="stat" title="Stat block">Stats</button>` : ''}
+        ${c.srd || c.custom ? `<button type="button" class="chip-btn" data-act="stat" title="Stat block">Stats</button>` : ''}
         <button type="button" class="chip-btn${openRow === c.id ? ' on' : ''}" data-act="more" aria-expanded="${openRow === c.id}" title="Conditions, concentration, temp HP, notes">More</button>
         <button type="button" class="chip-btn" data-act="roll" title="Roll initiative (d20 ${fmtMod(c.initMod || 0)})">🎲</button>
         <span class="order"><button type="button" class="chip-btn" data-act="up" ${sameAbove ? '' : 'disabled'} title="Tied: go before">▲</button><button type="button" class="chip-btn" data-act="down" ${sameBelow ? '' : 'disabled'} title="Tied: go after">▼</button></span>
@@ -1207,6 +1256,19 @@ async function showStatBlock(c){
   $('sbTitle').textContent = c.name;
   $('sbBody').innerHTML = '<p class="sb-sub">Loading…</p>';
   openStatBlock();
+  // A saved monster (js/dm-library.js): its own stat block, plus the traits of the SRD monster
+  // it was based on (its attacks are the saved ones)
+  if(c.custom){
+    const cm = library.monsters[c.custom];
+    if(!cm){ $('sbBody').innerHTML = '<p class="msg err">This saved monster has been deleted.</p>'; return; }
+    $('sbBody').innerHTML = customStatBlockHtml(cm);
+    if(!cm.srd) return;
+    let s; try{ s = await srdMonster(cm.srd); }catch(e){ return; }
+    const feats = (title, list)=>(list || []).length ? `<div class="sb-sec">${title}</div>${list.map(actionHtml).join('')}` : '';
+    $('sbBody').insertAdjacentHTML('beforeend', `<div class="sb-sub" style="margin-top:12px;">From the SRD ${esc(s.name)} it’s based on:</div>`
+      + feats('Traits', s.special_abilities) + feats('Reactions', s.reactions) + feats('Legendary Actions', s.legendary_actions));
+    return;
+  }
   let m;
   try{ m = await srdMonster(c.srd); }catch(e){ $('sbBody').innerHTML = '<p class="msg err">Couldn’t load the stat block.</p>'; return; }
   const profs = (m.proficiencies || []);
@@ -1414,6 +1476,7 @@ let savedCampaign = null;
 try{ savedCampaign = localStorage.getItem('dndTracker:dm:campaign'); }catch(e){}
 setCampaign(savedCampaign || CAMPAIGNS[0].key);
 </script>
+<script src="js/dm-library.js"></script>
 <script>
 
 /* ---------- Dice on the DM Screen (V4) ----------
@@ -1690,11 +1753,14 @@ try{
     // Rolls and settings arrive raw: their links must keep every character (js/dice.js checks every field)
     stops.push(onValue(ref(db, `campaigns/${FBK(key)}/rolls`), snap=>window.dmRollsUpdate(key, snap.val()), fail));
     stops.push(onValue(ref(db, `campaigns/${FBK(key)}/settings`), snap=>window.dmSettingsUpdate(key, snap.val()), fail));
+    stops.push(onValue(ref(db, `campaigns/${FBK(key)}/dm`), snap=>window.dmLibraryUpdate(key, snap.val()), fail));   // saved monsters and encounters (checked in js/dm-library.js)
   };
   // The players' view of combat (see combatView: no HP, AC or notes)
   window.dmPublishCombat = (key, view)=>set(ref(db, `campaigns/${FBK(key)}/combat`), {...view, t:serverTimestamp()})
     .catch(err=>console.warn('Publishing combat:', err));
   // Campaign settings: set a value, or add one to a pool (add: a new key, like a GIF link)
+  // Saved monsters and encounters: set one, or add a new one (a new key)
+  window.dmLibraryWrite = (key, path, value, add)=>add ? push(ref(db, `campaigns/${FBK(key)}/dm/${path}`), value) : set(ref(db, `campaigns/${FBK(key)}/dm/${path}`), value);
   window.dmSettingsWrite = (key, path, value, add)=>add ? push(ref(db, `campaigns/${FBK(key)}/settings/${path}`), value) : set(ref(db, `campaigns/${FBK(key)}/settings/${path}`), value);
   // Let a player roll, or stop them (a click on their Party card)
   window.dmSetAllow = (key, sheet, on)=>set(ref(db, `campaigns/${FBK(key)}/allow/${sheet}`), on ? true : null)

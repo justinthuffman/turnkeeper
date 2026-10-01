@@ -3,6 +3,20 @@
 What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest first.
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
+## Unreleased — Saved monsters and encounters
+
+### Added
+- **Saved monsters on the DM Screen.** "Monsters & encounters" (under Initiative) keeps the DM's
+  own monsters: key villains, homebrew, or an SRD monster tweaked ("Fill in from it" copies its
+  numbers and attacks). Each has AC, HP (a number or dice, rolled each time), initiative, CR,
+  attacks with Roll buttons, and abilities and notes. Its stat block also shows the traits of
+  the SRD monster it's based on. Add any number to Initiative in one click.
+- **Encounters.** Save a group (say 4 Goblins, 2 Bugbears and your boss) and load the whole
+  thing into Initiative with one click, with hit points and initiative rolled. "Save
+  Initiative as one" turns the monsters already in Initiative into an encounter. An encounter
+  can add the party too.
+- Saved per campaign, so they're there on any device the DM uses.
+
 ## 2026-10-01 — Dice trays, sizes, throws and sounds
 
 ### Added
