@@ -4094,10 +4094,12 @@ function extractAllFlagList(table, rowStart, rowEnd, flagCol, modCol, nameCol){
     const row = table[r]; if(!row) continue;
     const name = row[nC];
     if(!name) continue;
-    const flag = row[fC], mod = row[mC];
+    const flag = String(row[fC] ?? '').trim().toLowerCase(), mod = row[mC];
+    // The sheet's box: 1 = proficient, e = expertise (the sheet says "Use 'e' for expertise!")
     out.push({
       name: String(name).trim(),
-      prof: String(flag).trim()==='1',
+      prof: flag==='1' || flag==='e',
+      expertise: flag==='e',
       mod: (mod===null||mod===undefined||mod==='') ? null : Number(mod)
     });
   }
