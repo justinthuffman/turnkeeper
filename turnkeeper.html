@@ -1479,8 +1479,12 @@ const EXTRA_SPELLS = parseSpells(RACIAL_SPELL_RAW);
    fx: what the spell does to your weapon attacks once cast (see Active effects): weapon
    ('melee'|'any'), until ('hit' = your next hit, or a duration), target:true if it only
    applies against one creature. Its extra damage is the rider's dice.
-   Currently: all cantrips and 1st-level spells on the class lists, plus the party's racial and
-   Oath spells up to 1st level. Spells not here and not in NO_ROLL_SPELLS show "not added yet". */
+   heal: {d, per, flat (fixed extra), noMod (no spellcasting modifier), desc}.  parts[].bonus: fixed damage on
+   top (Disintegrate's +40).  check: a spellcasting ability check.  saveLater: {save, text}, a save made later,
+   not on casting.  rolls: [{label, d, desc}], other dice the spell calls for.
+   Covers every spell on the wizard, bard and paladin lists from cantrips to 9th level (2nd and up added
+   2026-10-01), plus the party's racial and Oath spells. Spells not here and not in NO_ROLL_SPELLS show
+   "not added yet". */
 const SPELL_ROLLS = {
   'Acid Splash': {save:'dex', onSave:'none', cantrip:true, parts:[{d:'1d6', type:'acid'}], note:'One creature, or two within 5 ft of each other.'},
   'Chill Touch': {attack:'ranged', cantrip:true, parts:[{d:'1d8', type:'necrotic'}], note:'On a hit, the target can’t regain hit points until the start of your next turn. An undead target also has disadvantage on attacks against you until the end of your next turn.'},
@@ -1524,6 +1528,139 @@ const SPELL_ROLLS = {
   'Grease': {save:'dex', effect:'It falls prone. Also when a creature enters the area or ends its turn there.'},
   'Sanctuary': {save:'wis', effect:'Made by any creature that targets the warded creature with an attack or harmful spell: on a failure it must choose a new target or lose the attack.'},
   "Tasha's Hideous Laughter": {save:'wis', effect:'Prone and incapacitated with laughter. Creatures with Intelligence 4 or less are unaffected.'},
+
+  // ---- 2nd level and up (added 2026-10-01, checked against dnd5e.wikidot.com, 2014 PHB) ----
+  // 2nd level
+  'Blindness/Deafness': {save:'con', effect:'Blinded or deafened (your choice) for 1 minute. It repeats the save at the end of each of its turns.', upcastNote:'+1 target per slot level above 2nd.'},
+  'Branding Smite': {rider:{d:'2d6', type:'radiant', per:'1d6', on:'your next weapon hit'}, fx:{until:'hit', weapon:'any'}, note:'The target becomes visible if invisible, sheds dim light and can’t turn invisible until the spell ends.'},
+  'Calm Emotions': {save:'cha', effect:'Choose: its charm or fear effects are suppressed, or it becomes indifferent to creatures you choose that it’s hostile to. A creature can choose to fail.'},
+  'Cloud of Daggers': {parts:[{d:'4d4', type:'slashing', per:'2d4'}], note:'No attack or save: a creature takes this when it enters the 5-ft cube for the first time on a turn or starts its turn there.'},
+  'Crown of Madness': {save:'wis', effect:'Charmed: on each of its turns it attacks a creature you choose (you use your action to keep control). It repeats the save at the end of each of its turns. Humanoids only.'},
+  'Detect Thoughts': {save:'wis', effect:'If you probe deeper into its mind: on a failure you learn its reasoning, emotions and what looms large in its mind. On a success it knows you’re probing and the spell ends.'},
+  'Enhance Ability': {temp:{d:'2d6', desc:'temporary hit points (Bear’s Endurance only), lost when the spell ends'}, note:'Choose Bear’s Endurance, Bull’s Strength, Cat’s Grace, Eagle’s Splendor, Fox’s Cunning or Owl’s Wisdom: advantage on that ability’s checks, plus a bonus for some.', upcastNote:'+1 target per slot level above 2nd.'},
+  'Enlarge/Reduce': {save:'con', effect:'Only an unwilling creature saves: on a failure it’s enlarged or reduced (your choice) for up to 1 minute.'},
+  'Enthrall': {save:'wis', effect:'Disadvantage on Wisdom (Perception) checks to notice anyone but you for 1 minute. Creatures that can’t be charmed succeed automatically; it has advantage if you or your companions are fighting it.'},
+  'Flaming Sphere': {save:'dex', onSave:'half', parts:[{d:'2d6', type:'fire', per:'1d6'}], note:'A creature that ends its turn within 5 ft of the sphere saves. As a bonus action you can move the sphere 30 ft and ram a creature, which then saves.'},
+  'Gust of Wind': {save:'str', effect:'Each creature that starts its turn in the line is pushed 15 ft away from you.'},
+  'Heat Metal': {parts:[{d:'2d8', type:'fire', per:'1d8'}], note:'No attack or save for the damage: a creature touching the metal takes it when you cast the spell.',
+    saveLater:{save:'con', text:'a creature holding or wearing the object that takes the damage drops it if it can; if it doesn’t, it has disadvantage on attacks and ability checks until your next turn.'},
+    ongoing:{d:'2d8', type:'fire', per:'1d8', text:'On each later turn, use a bonus action to deal this damage again.'}},
+  'Hold Person': {save:'wis', effect:'Paralyzed for up to 1 minute. It repeats the save at the end of each of its turns. Humanoids only.', upcastNote:'+1 humanoid per slot level above 2nd (within 30 ft of each other).'},
+  'Levitate': {save:'con', effect:'Only an unwilling creature saves: on a failure it rises up to 20 ft and hangs there for up to 10 minutes.'},
+  "Melf's Acid Arrow": {attack:'ranged', parts:[{d:'4d4', type:'acid', per:'1d4'}], ongoing:{d:'2d4', type:'acid', per:'1d4', text:'On a hit, it also takes this at the end of its next turn.'}, note:'On a miss, the arrow splashes it for half the first damage and none later.'},
+  'Phantasmal Force': {save:'int', effect:'It sees a phantasm of your choice for up to 1 minute and treats it as real. It can use an action to make an Intelligence (Investigation) check against your DC to see through it.',
+    ongoing:{d:'1d6', type:'psychic', text:'Each round on your turn, if the phantasm could logically hurt it, it takes this damage.'}},
+  'Ray of Enfeeblement': {attack:'ranged', note:'On a hit, its Strength-based weapon attacks deal only half damage for up to 1 minute. It makes a Constitution save at the end of each of its turns to end it.'},
+  'Scorching Ray': {attack:'ranged', parts:[{d:'2d6', type:'fire'}], note:'3 rays: roll the attack and damage for each one. You can aim them at one target or several.', upcastNote:'+1 ray per slot level above 2nd.'},
+  'Shatter': {save:'con', onSave:'half', parts:[{d:'3d8', type:'thunder', per:'1d8'}], note:'10-ft-radius sphere. Creatures made of stone, crystal or metal save with disadvantage.'},
+  'Suggestion': {save:'wis', effect:'It follows your suggested course of activity (one or two sentences) for up to 8 hours. Creatures that can’t be charmed are immune.'},
+  'Web': {save:'dex', effect:'Restrained by the webs. It can use its action for a Strength check against your DC to break free.', note:'Creatures save when they start their turn in the webs or enter them. Burning webs deal 2d4 fire to a creature that starts its turn in the fire.'},
+  'Zone of Truth': {save:'cha', effect:'It can’t speak a deliberate lie while in the 15-ft-radius sphere. You know whether each creature passed or failed.'},
+
+  // 3rd level
+  'Blink': {rolls:[{label:'At the end of each of your turns', d:'1d20', desc:'11 or higher: you vanish to the Ethereal Plane until the start of your next turn'}], note:'Lasts 1 minute.'},
+  'Aura of Vitality': {heal:{d:'2d6', noMod:true, desc:'hit points regained by one creature in the aura (bonus action, each turn)'}, note:'For up to 1 minute (concentration), use a bonus action each turn to heal one creature in the 30-ft aura, you included.'},
+  'Bestow Curse': {save:'wis', effect:'Cursed (your choice): disadvantage on checks and saves with one ability; disadvantage on attacks against you; a Wisdom save each turn or it wastes its action; or your attacks and spells deal it extra damage (below).',
+    ongoing:{d:'1d8', type:'necrotic', text:'If you chose this curse: your attacks and spells deal this extra damage to the target.'}, upcastNote:'Longer: 4th-level slot 10 minutes (concentration), 5th 8 hours, 7th 24 hours, 9th until dispelled; from 5th level it needs no concentration.'},
+  'Blinding Smite': {rider:{d:'3d8', type:'radiant', on:'your next melee weapon hit'}, fx:{until:'hit', weapon:'melee'}, hitSave:{save:'con', effect:'blinded until the spell ends (it repeats the save at the end of each of its turns)'}},
+  'Counterspell': {check:'Only if the spell is 4th level or higher (higher than your slot): the DC is 10 + that spell’s level. A spell of your slot’s level or lower fails automatically.', upcastNote:'A higher slot automatically stops spells of that level or lower.'},
+  "Crusader's Mantle": {rider:{d:'1d4', type:'radiant', on:'every weapon hit for up to 1 minute (concentration), by you and each non-hostile creature within 30 ft'}, fx:{until:'1 minute', weapon:'any'}},
+  'Dispel Magic': {check:'For each spell of 4th level or higher on the target (higher than your slot): the DC is 10 + that spell’s level. Spells of your slot’s level or lower end automatically.', upcastNote:'A higher slot automatically ends spells of that level or lower.'},
+  'Elemental Weapon': {rider:{d:'1d4', type:'acid, cold, fire, lightning or thunder (your choice)', on:'every hit with the weapon for up to 1 hour (concentration)'}, fx:{until:'1 hour', weapon:'any', toHit:1},
+    upcastNote:'5th or 6th-level slot: +2 to hit and 2d4. 7th level or higher: +3 to hit and 3d4. (The Attack popup adds +1 and 1d4.)'},
+  'Fear': {save:'wis', effect:'It drops what it’s holding and is frightened of you for up to 1 minute, taking the Dash action to move away each turn. It saves again at the end of a turn it can’t see you.'},
+  'Fireball': {save:'dex', onSave:'half', parts:[{d:'8d6', type:'fire', per:'1d6'}], note:'20-ft-radius sphere. The fire spreads around corners.'},
+  'Glyph of Warding': {save:'dex', onSave:'half', parts:[{d:'5d8', type:'acid, cold, fire, lightning or thunder (chosen when you made it)', per:'1d8'}], note:'Explosive runes: each creature in a 20-ft-radius sphere saves when the glyph triggers. A spell glyph casts its stored spell instead.'},
+  'Hypnotic Pattern': {save:'wis', effect:'Charmed for up to 1 minute: incapacitated with speed 0. It ends if it takes damage or someone uses an action to shake it awake.'},
+  'Lightning Bolt': {save:'dex', onSave:'half', parts:[{d:'8d6', type:'lightning', per:'1d6'}], note:'100-ft line, 5 ft wide.'},
+  'Sleet Storm': {save:'dex', effect:'It falls prone.', note:'Creatures save when they enter the area or start their turn there. A creature concentrating that starts its turn there makes a Constitution save against your DC or loses concentration.'},
+  'Slow': {save:'wis', effect:'For up to 1 minute: speed halved, −2 to AC and Dexterity saves, no reactions, an action or a bonus action (not both) and one attack. It repeats the save at the end of each of its turns.', note:'Up to six creatures in a 40-ft cube.'},
+  'Stinking Cloud': {save:'con', effect:'It spends its action that turn retching. Creatures that don’t breathe or are immune to poison succeed automatically.', note:'Creatures completely in the 20-ft-radius cloud save at the start of each of their turns.'},
+  'Vampiric Touch': {attack:'melee', parts:[{d:'3d6', type:'necrotic', per:'1d6'}], note:'You regain hit points equal to half the necrotic damage. For up to 1 minute (concentration) you can make this attack again as your action.'},
+
+  // 4th level
+  'Banishment': {save:'cha', effect:'Banished for up to 1 minute (concentration). A creature native to another plane doesn’t come back if the spell lasts the full minute.', upcastNote:'+1 target per slot level above 4th.'},
+  'Blight': {save:'con', onSave:'half', parts:[{d:'8d8', type:'necrotic', per:'1d8'}], note:'No effect on undead or constructs. Plant creatures save with disadvantage and take maximum damage.'},
+  'Compulsion': {save:'wis', effect:'On each of its turns you can make it move in a direction you choose (bonus action), after which it saves again. Creatures that can’t be charmed succeed automatically.'},
+  'Confusion': {save:'wis', effect:'For up to 1 minute it can’t take reactions and rolls a d10 at the start of each turn: 1 moves randomly, 2–6 does nothing, 7–8 attacks a random creature in reach, 9–10 acts normally. It repeats the save at the end of each turn.',
+    rolls:[{label:'Its behavior (each turn)', d:'1d10', desc:'1 moves randomly · 2–6 nothing · 7–8 attacks a random creature · 9–10 acts normally'}], upcastNote:'The sphere’s radius grows by 5 ft per slot level above 4th.'},
+  'Control Water': {save:'str', onSave:'none', parts:[{d:'2d8', type:'bludgeoning'}], note:'Whirlpool only: a creature that enters the vortex or starts its turn there saves or takes this and is caught in it.'},
+  "Evard's Black Tentacles": {save:'dex', onSave:'none', parts:[{d:'3d6', type:'bludgeoning'}], effect:'It is also restrained.', note:'Creatures save when they enter the 20-ft square or start their turn there; one already restrained takes the damage at the start of its turn. It can escape with a Strength or Dexterity check against your DC.'},
+  'Fire Shield': {parts:[{d:'2d8', type:'fire (warm shield) or cold (chill shield)'}], note:'For 10 minutes: when a creature within 5 ft hits you with a melee attack, it takes this damage. You also resist cold (warm) or fire (chill).'},
+  'Ice Storm': {save:'dex', onSave:'half', parts:[{d:'2d8', type:'bludgeoning', per:'1d8'}, {d:'4d6', type:'cold'}], note:'20-ft-radius, 40-ft-high cylinder. The ground becomes difficult terrain until your next turn.'},
+  "Mordenkainen's Faithful Hound": {attack:'melee', parts:[{d:'4d8', type:'piercing'}], note:'At the start of your turn the hound bites one hostile creature within 5 ft of it, using your spell attack bonus.'},
+  "Otiluke's Resilient Sphere": {save:'dex', effect:'Only an unwilling creature saves: on a failure it’s enclosed in the sphere for up to 1 minute.'},
+  'Phantasmal Killer': {save:'wis', effect:'Frightened for up to 1 minute.', ongoing:{d:'4d10', type:'psychic', per:'1d10', save:'wis', text:'At the end of each of its turns it makes a Wisdom save: on a failure it takes this damage, on a success the spell ends.'}},
+  'Polymorph': {save:'wis', effect:'Only an unwilling creature saves: on a failure it turns into a beast you choose (CR up to its level) for up to 1 hour. Shapechangers succeed automatically.'},
+  'Staggering Smite': {rider:{d:'4d6', type:'psychic', on:'your next melee weapon hit'}, fx:{until:'hit', weapon:'melee'}, hitSave:{save:'wis', effect:'at disadvantage on attack rolls and ability checks, and can’t take reactions, until the end of its next turn'}},
+  'Wall of Fire': {save:'dex', onSave:'half', parts:[{d:'5d8', type:'fire', per:'1d8'}], note:'Creatures in the wall save when it appears. Afterward one side deals this damage (no save) to a creature that ends its turn within 10 ft of it or inside the wall.'},
+
+  // 5th level
+  'Animate Objects': {note:'Up to ten objects attack on your bonus-action command. Tiny: +8 to hit, 1d4+4 · Small: +6, 1d8+2 · Medium: +5, 2d6+1 · Large: +6, 2d10+2 · Huge: +8, 2d12+4 (bludgeoning).', upcastNote:'Two more objects per slot level above 5th.'},
+  'Banishing Smite': {rider:{d:'5d10', type:'force', on:'your next weapon hit'}, fx:{until:'hit', weapon:'any'}, note:'If the attack leaves it at 50 hit points or fewer, it is banished (no save) to its home plane, or a harmless demiplane, for up to 1 minute.'},
+  "Bigby's Hand": {attack:'melee', parts:[{d:'4d8', type:'force', per:'2d8'}], note:'Clenched Fist (the attack above). Other choices: Forceful Hand (push with a Strength contest), Grasping Hand (grapple; then crush for 2d6 + your spellcasting modifier bludgeoning, +2d6 per slot level above 5th) or Interposing Hand (cover).'},
+  'Cloudkill': {save:'con', onSave:'half', parts:[{d:'5d8', type:'poison', per:'1d8'}], note:'Creatures save when they enter the 20-ft-radius cloud or start their turn there. It moves 10 ft away from you each turn.'},
+  'Cone of Cold': {save:'con', onSave:'half', parts:[{d:'8d8', type:'cold', per:'1d8'}], note:'60-ft cone. A creature killed by it becomes a frozen statue.'},
+  'Contact Other Plane': {note:'You make a DC 15 Intelligence save: on a failure you take 6d6 psychic damage and are insane until a long rest. On a success you can ask up to five questions.'},
+  'Destructive Wave': {save:'con', onSave:'half', parts:[{d:'5d6', type:'thunder'}, {d:'5d6', type:'radiant or necrotic (your choice)'}], effect:'It is also knocked prone (not on a success).', note:'Creatures you choose within 30 ft of you.'},
+  'Dispel Evil and Good': {attack:'melee', hitSave:{save:'cha', effect:'sent back to its home plane (celestials, elementals, fey, fiends and undead)'}, note:'Or break an enchantment or possession on a creature you touch. Until the spell ends, those creature types have disadvantage on attacks against you.'},
+  'Dominate Person': {save:'wis', effect:'Charmed by you for up to 1 minute (concentration); you can command it telepathically. It saves again each time it takes damage. Advantage if you’re fighting it. Humanoids only.', upcastNote:'6th-level slot: up to 10 minutes. 7th: up to 1 hour. 8th or higher: up to 8 hours.'},
+  'Dream': {save:'wis', effect:'For a nightmare: it gets no benefit from that rest and takes the damage below when it wakes.', ongoing:{d:'3d6', type:'psychic', text:'Nightmare only: it takes this when it wakes up.'}},
+  'Geas': {save:'wis', effect:'Charmed by you for 30 days, bound to the service you command.', ongoing:{d:'5d10', type:'psychic', text:'Each time it acts directly against your instructions (once a day at most).'}, upcastNote:'7th or 8th-level slot: 1 year. 9th: until ended by Remove Curse, Greater Restoration or Wish.'},
+  'Hold Monster': {save:'wis', effect:'Paralyzed for up to 1 minute. It repeats the save at the end of each of its turns. No effect on undead.', upcastNote:'+1 creature per slot level above 5th (within 30 ft of each other).'},
+  'Mass Cure Wounds': {heal:{d:'3d8', per:'1d8', desc:'hit points regained by each of up to six creatures in a 30-ft sphere'}},
+  'Modify Memory': {save:'wis', effect:'Charmed for up to 1 minute while you change its memory of an event from the last 24 hours. Advantage if you’re fighting it.', upcastNote:'Older memories: 7 days (6th-level slot), 30 days (7th), 1 year (8th) or any time (9th).'},
+  'Planar Binding': {save:'cha', effect:'Bound to serve you for 24 hours (a celestial, elemental, fey or fiend).', upcastNote:'Longer: 10 days (6th-level slot), 30 days (7th), 180 days (8th), a year and a day (9th).'},
+  'Scrying': {save:'wis', effect:'You see and hear it through an invisible sensor for up to 10 minutes. The save has a bonus or penalty for how well you know it (+5 to −5) and what you have of it (−10 to −2). It can fail on purpose. On a success you can’t target it again for 24 hours.'},
+  'Seeming': {save:'cha', effect:'Only an unwilling creature saves: on a failure its appearance changes as you choose for 8 hours.'},
+  'Telekinesis': {check:'To move a creature: contested by its Strength check. If you win, move it up to 30 ft; it’s restrained until the end of your next turn. Objects up to 1,000 lb need no check unless someone is holding it.'},
+  'Wall of Stone': {save:'dex', effect:'Only a creature the wall would surround saves: on a success it moves out of the way first.'},
+
+  // 6th level
+  'Chain Lightning': {save:'dex', onSave:'half', parts:[{d:'10d8', type:'lightning'}], note:'One target, then three more bolts leap to other targets within 30 ft of it. Each target saves.', upcastNote:'+1 bolt per slot level above 6th.'},
+  'Circle of Death': {save:'con', onSave:'half', parts:[{d:'8d6', type:'necrotic', per:'2d6'}], note:'60-ft-radius sphere.'},
+  'Disintegrate': {save:'dex', onSave:'none', parts:[{d:'10d6', type:'force', per:'3d6', bonus:40}], note:'A creature reduced to 0 hit points is disintegrated (only True Resurrection or Wish can bring it back). Large or smaller objects and force creations are destroyed outright.'},
+  'Eyebite': {save:'wis', effect:'Your choice: asleep (until damaged or shaken awake), panicked (frightened, Dashes away), or sickened (disadvantage on attacks and checks; it saves again at the end of each turn).', note:'For up to 1 minute you can use your action each turn to target another creature within 60 ft.'},
+  'Flesh to Stone': {save:'con', effect:'Restrained. It saves again at the end of each of its turns: three failures and it’s petrified, three successes and the spell ends.', note:'No effect if its body isn’t flesh. If you concentrate for the full minute, the petrification is permanent.'},
+  'Magic Jar': {save:'cha', effect:'You take over its body; its soul goes into the container. On a success it resists you and you can’t try again for 24 hours.'},
+  'Mass Suggestion': {save:'wis', effect:'Each of up to twelve creatures follows your suggestion for up to 24 hours. Creatures that can’t be charmed are immune.', upcastNote:'Longer: 10 days (7th-level slot), 30 days (8th), a year and a day (9th).'},
+  "Otiluke's Freezing Sphere": {save:'con', onSave:'half', parts:[{d:'10d6', type:'cold', per:'1d6'}], note:'60-ft-radius sphere. It freezes water it hits. You can hold the globe and throw it later instead.'},
+  "Otto's Irresistible Dance": {saveLater:{save:'wis', text:'there’s no save when you cast it. As an action, the dancing creature can make this save to end the spell.'}, note:'For up to 1 minute it dances: it uses all its movement, has disadvantage on Dexterity saves and attacks, and attacks against it have advantage. Creatures that can’t be charmed are immune.'},
+  'Sunbeam': {save:'con', onSave:'half', parts:[{d:'6d8', type:'radiant'}], effect:'It is also blinded until your next turn (not on a success).', note:'60-ft line, 5 ft wide. Undead and oozes save with disadvantage. You can make a new line as your action each turn for up to 1 minute.'},
+  'Wall of Ice': {save:'dex', onSave:'half', parts:[{d:'10d6', type:'cold', per:'2d6'}], note:'Only a creature in the wall’s space when it appears saves.',
+    ongoing:{d:'5d6', type:'cold', per:'1d6', save:'con', text:'A destroyed section leaves frigid air: a creature moving through it makes a Constitution save, taking this on a failure or half on a success.'}},
+
+  // 7th level
+  'Delayed Blast Fireball': {save:'dex', onSave:'half', parts:[{d:'12d6', type:'fire', per:'1d6'}], note:'20-ft-radius sphere. If you hold the bead, the damage grows by 1d6 at the end of each of your turns before it explodes.'},
+  'Finger of Death': {save:'con', onSave:'half', parts:[{d:'7d8', type:'necrotic', bonus:30}], note:'A humanoid killed by it rises at the start of your next turn as a zombie under your command.'},
+  "Mordenkainen's Sword": {attack:'melee', parts:[{d:'3d10', type:'force'}], note:'The attack when it appears. On each later turn, a bonus action moves the sword 20 ft and repeats the attack. Lasts up to 1 minute.'},
+  'Plane Shift': {attack:'melee', hitSave:{save:'cha', effect:'sent to a plane of your choice'}, note:'Or carry yourself and up to eight willing creatures to another plane (no roll).'},
+  'Prismatic Spray': {save:'dex', onSave:'half', parts:[{d:'10d6', type:'set by the ray: fire, acid, lightning, poison or cold'}],
+    rolls:[{label:'Ray (one per creature)', d:'1d8', desc:'1 red fire · 2 orange acid · 3 yellow lightning · 4 green poison · 5 blue cold · 6 indigo · 7 violet · 8 two rays'}],
+    note:'Each creature in the 60-ft cone saves and is struck by one ray. Indigo: restrained, then Constitution saves at the end of each turn (three failures: petrified). Violet: blinded, then a Wisdom save at the start of your next turn or it’s sent to another plane. 8: two rays (roll twice, rerolling 8s). The damage rays deal half on a success.'},
+  'Regenerate': {heal:{d:'4d8', flat:15, noMod:true}, note:'Then it regains 1 hit point at the start of each of its turns for 1 hour, and severed body parts regrow after 2 minutes.'},
+  'Reverse Gravity': {save:'dex', effect:'Only a creature that can reach a fixed object saves: on a success it grabs hold and doesn’t fall upward.'},
+  'Symbol': {note:'The glyph triggers on a condition you set; each creature within 60 ft then saves against your spell save DC. Death: Constitution, 10d10 necrotic (half on a success). Discord: Constitution. Fear: Wisdom. Hopelessness: Charisma. Insanity: Intelligence. Pain: Constitution. Sleep: Wisdom. Stunning: Wisdom.',
+    rolls:[{label:'Death glyph damage', d:'10d10', desc:'necrotic (half on a successful Constitution save)'}]},
+  'Teleport': {note:'For an uncertain destination the DM rolls d100 on the familiarity table. A mishap deals 3d10 force damage to each creature teleporting, and the DM rolls again.'},
+
+  // 8th level
+  'Antipathy/Sympathy': {save:'wis', effect:'Antipathy: frightened of the target and must move away. Sympathy: drawn to the target. It saves again whenever the target harms it, or when it ends a turn more than 60 ft away and unable to see it.'},
+  'Dominate Monster': {save:'wis', effect:'Charmed by you for up to 1 hour (concentration); you can command it telepathically. It saves again each time it takes damage. Advantage if you’re fighting it.', upcastNote:'9th-level slot: up to 8 hours.'},
+  'Feeblemind': {save:'int', parts:[{d:'4d6', type:'psychic'}], effect:'Its Intelligence and Charisma become 1: it can’t cast spells, use magic items or communicate. It repeats the save every 30 days.', note:'It takes the damage whether or not it saves.'},
+  'Incendiary Cloud': {save:'dex', onSave:'half', parts:[{d:'10d8', type:'fire'}], note:'Creatures save when the 20-ft-radius cloud appears, when they enter it for the first time on a turn, or end their turn there. It drifts 10 ft each turn.'},
+  'Maze': {note:'No save: the creature is banished to a labyrinth for up to 10 minutes. It can use its action for a DC 20 Intelligence check to escape. Minotaurs and goristro demons escape automatically.'},
+  'Power Word: Stun': {saveLater:{save:'con', text:'if it has 150 hit points or fewer it is stunned (no save). It makes this save at the end of each of its turns to end it.'}},
+  'Sunburst': {save:'con', onSave:'half', parts:[{d:'12d6', type:'radiant'}], effect:'It is also blinded for 1 minute (not on a success); it saves again at the end of each of its turns.', note:'60-ft-radius sphere. Undead and oozes save with disadvantage.'},
+
+  // 9th level
+  'Imprisonment': {save:'wis', effect:'Imprisoned in the form you choose (burial, chaining, hedged prison, minimus containment or slumber) until freed by the condition you set. On a success it’s immune to your later castings.'},
+  'Meteor Swarm': {save:'dex', onSave:'half', parts:[{d:'20d6', type:'fire'}, {d:'20d6', type:'bludgeoning'}], note:'Four meteors, each a 40-ft-radius sphere. A creature caught in more than one is affected only once.'},
+  'Prismatic Wall': {note:'Creatures within 20 ft that can see the wall make a Constitution save or are blinded for 1 minute. A creature passing through makes a save for each layer: red fire, orange acid, yellow lightning, green poison, blue cold (Dexterity, 10d6 each, half on a success), indigo (Dexterity or restrained), violet (Dexterity or blinded, then sent to another plane).',
+    rolls:[{label:'Damaging layer', d:'10d6', desc:'red fire · orange acid · yellow lightning · green poison · blue cold'}]},
+  'Time Stop': {rolls:[{label:'Turns in a row', d:'1d4+1', desc:'your turns while time is stopped'}], note:'It ends early if anything you do affects another creature or its belongings, or you move more than 1,000 ft from where you cast it.'},
+  'True Polymorph': {save:'wis', effect:'Only an unwilling creature saves: on a failure it turns into another creature or an object, or an object into a creature, for up to 1 hour (permanent if you concentrate the whole hour).'},
+  'Weird': {save:'wis', effect:'Frightened for up to 1 minute.', ongoing:{d:'4d10', type:'psychic', save:'wis', text:'At the end of each of its turns it makes a Wisdom save: on a failure it takes this damage, on a success the spell ends for it.'}},
 };
 // Checked: these don't involve any roll by the caster
 const NO_ROLL_SPELLS = new Set(['Blade Ward','Dancing Lights','Friends','Light','Mage Hand','Mending','Message',
@@ -1531,7 +1668,24 @@ const NO_ROLL_SPELLS = new Set(['Blade Ward','Dancing Lights','Friends','Light',
   'Comprehend Languages','Detect Evil and Good','Detect Magic','Detect Poison and Disease','Disguise Self',
   'Expeditious Retreat','Feather Fall','Find Familiar','Fog Cloud','Heroism','Identify','Illusory Script',
   'Jump','Longstrider','Mage Armor','Protection from Evil and Good','Purify Food and Drink','Shield','Shield of Faith',
-  'Silent Image','Speak with Animals',"Tenser's Floating Disk",'Unseen Servant','Darkness']);
+  'Silent Image','Speak with Animals',"Tenser's Floating Disk",'Unseen Servant','Darkness',
+  // 2nd level and up (2026-10-01): only the caster's choices or effects, no roll by the caster
+  'Aid','Alter Self','Animal Messenger','Arcane Lock','Blur','Continual Flame','Darkvision','Find Steed','Gentle Repose',
+  'Invisibility','Knock','Lesser Restoration','Locate Animals or Plants','Locate Object','Magic Mouth','Magic Weapon',
+  'Mirror Image','Misty Step',"Nystul's Magic Aura",'Protection from Poison','Rope Trick','See Invisibility','Silence','Spider Climb',
+  'Animate Dead','Clairvoyance','Create Food and Water','Daylight','Feign Death','Fly','Gaseous Form','Haste',"Leomund's Tiny Hut",
+  'Magic Circle','Major Image','Nondetection','Phantom Steed','Plant Growth','Protection from Energy','Remove Curse','Revivify',
+  'Sending','Speak with Dead','Speak with Plants','Tongues','Water Breathing',
+  'Arcane Eye','Aura of Life','Aura of Purity','Conjure Minor Elementals','Death Ward','Dimension Door','Fabricate',
+  'Freedom of Movement','Greater Invisibility','Hallucinatory Terrain',"Leomund's Secret Chest",'Locate Creature',
+  "Mordenkainen's Private Sanctum",'Stone Shape','Stoneskin',
+  'Awaken','Circle of Power','Conjure Elemental','Creation','Greater Restoration','Legend Lore','Mislead','Passwall','Raise Dead',
+  "Rary's Telepathic Bond",'Teleportation Circle','Wall of Force',
+  'Arcane Gate','Contingency','Create Undead',"Drawmij's Instant Summons",'Find the Path','Globe of Invulnerability',
+  'Guards and Wards','Move Earth','Programmed Illusion','True Seeing',
+  'Etherealness','Forcecage','Mirage Arcane',"Mordenkainen's Magnificent Mansion",'Project Image','Resurrection','Sequester','Simulacrum',
+  'Antimagic Field','Clone','Control Weather','Demiplane','Glibness','Mind Blank','Telepathy',
+  'Astral Projection','Foresight','Gate','Power Word: Heal','Power Word: Kill','Shapechange','Wish']);
 
 function findSpell(name){
   for(const list of [...Object.values(SPELL_DATA), EXTRA_SPELLS]){
@@ -2498,7 +2652,7 @@ statusUi.open = wasOpen('status');
 const rollPopup = document.getElementById('rollPopup');
 const rollState = {sel:null, mode:'normal', crit:false, smite:0, undead:false};
 // Paladin spell slots: highest slot level available by paladin level (2014 half-caster table)
-const ORDINAL = ['','1st','2nd','3rd','4th','5th'];
+const ORDINAL = ['','1st','2nd','3rd','4th','5th','6th','7th','8th','9th'];
 
 function openRollPopup(sel, mode){
   hideTooltip();
@@ -2981,16 +3135,22 @@ function spellPopupHtml(){
     const dice = scaleDice(base, p.per, {up, cantrip, crit: r.attack && crit}) + adeptMi(p.type);
     let extra = r.attack ? critToggle() : '';
     if(p.alt) extra += `<div class="roll-toggles" style="margin-top:6px;">${toggleBtn('data-alt','1',r.altLabel,!!rollState.alt)}</div>`;
-    html += cmdBox('Damage', {cmd:`${ROLL} ${dice}${i===0 && empowered ? fmtMod(empowered) : ''}`, desc:`${sp.name} damage (${p.type})${i===0 && empowered ? `, +${empowered} Empowered Evocation` : ''}${adeptMi(p.type) ? ', Elemental Adept (1s count as 2s)' : ''}`}, extra);
+    html += cmdBox('Damage', {cmd:`${ROLL} ${dice}${p.bonus ? '+' + p.bonus : ''}${i===0 && empowered ? fmtMod(empowered) : ''}`, desc:`${sp.name} damage (${p.type})${i===0 && empowered ? `, +${empowered} Empowered Evocation` : ''}${adeptMi(p.type) ? ', Elemental Adept (1s count as 2s)' : ''}`}, extra);
   });
   if(r.explosion){
     const x = r.explosion;
     html += infoBox('Explosion', `${x.text} ${saveLine(s.dc, x.save, x.onSave)}`)
       + cmdBox('Explosion damage', {cmd:`${ROLL} ${scaleDice(x.d, x.per, {up})}${adeptMi(x.type)}`, desc:`${sp.name} explosion (${x.type})`});
   }
-  if(r.heal){ const d = scaleDice(r.heal.d, r.heal.per, {up}); html += cmdBox('Healing', {cmd:`${ROLL} ${d}${fmtMod(s.mod)}`, desc:'hit points regained'}, healMeHtml()); }
-  if(r.temp) html += cmdBox('Temporary hit points', {cmd:`${ROLL} ${r.temp.d}+${r.temp.flat + r.temp.perFlat*up}`, desc:'temporary hit points for 1 hour'}, tempMeHtml());
+  // Healing adds your spellcasting modifier unless the spell says otherwise (noMod); flat: a fixed amount on top
+  if(r.heal){ const d = scaleDice(r.heal.d, r.heal.per, {up}); html += cmdBox('Healing', {cmd:`${ROLL} ${d}${r.heal.flat ? '+' + r.heal.flat : ''}${r.heal.noMod ? '' : fmtMod(s.mod)}`, desc:r.heal.desc || 'hit points regained'}, healMeHtml()); }
+  if(r.temp){ const flat = (r.temp.flat || 0) + (r.temp.perFlat || 0) * up; html += cmdBox('Temporary hit points', {cmd:`${ROLL} ${r.temp.d}${flat ? '+' + flat : ''}`, desc:r.temp.desc || 'temporary hit points for 1 hour'}, tempMeHtml()); }
   if(r.pool) html += cmdBox('Hit point pool', {cmd:`${ROLL} ${scaleDice(r.pool.d, r.pool.per, {up})}`, desc:r.pool.what});
+  // check: a spellcasting ability check (Counterspell, Dispel Magic); saveLater: a save the target makes later, not when cast;
+  // rolls: other dice the spell calls for (Prismatic Spray's ray, Confusion's behavior)
+  if(r.check) html += cmdBox('Spellcasting ability check', {cmd:`${ROLL} 1d20${fmtMod(s.mod)}`, desc:r.check});
+  if(r.saveLater) html += infoBox('Saving throw', `<b>DC ${s.dc} ${ABILITY_TEXT(r.saveLater.save)}</b>: ${r.saveLater.text}`);
+  (r.rolls || []).forEach(x=>{ html += cmdBox(x.label, {cmd:`${ROLL} ${x.d}`, desc:x.desc}); });
   if(r.darts){
     const n = r.darts.n + up;
     html += cmdBox('All darts, one target', {cmd:`${ROLL} ${n}${r.darts.d.slice(1)}+${n*r.darts.bonus}`, desc:`${n} darts (${r.darts.type})`})

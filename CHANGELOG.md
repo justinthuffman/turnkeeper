@@ -5,6 +5,23 @@ Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wi
 
 
 
+## Unreleased — Every spell up to 9th level
+
+### Added
+- **Roll details for every spell from 2nd to 9th level** on the wizard, bard and paladin lists
+  (211 spells), checked against the 2014 rules. Casting one now gives the dice to copy, the save
+  or spell attack, what a failed save does, and how it grows in a higher slot. For example,
+  Fireball is 8d6 fire with a Dexterity save for half, and +1d6 per slot above 3rd.
+  - Smites (Branding, Blinding, Staggering, Banishing), Crusader's Mantle and Elemental Weapon
+    are added to your Attack popups like the 1st-level smites.
+  - Spells that call for another roll show it too: Counterspell and Dispel Magic's ability
+    check, Blink's d20, Confusion's d10, Prismatic Spray's d8 ray, Time Stop's turns.
+  - Spells with no roll, like Misty Step, say so.
+  - That's everything the party can learn, so nothing needs adding as you level up.
+
+### Fixed
+- Spell popups said "undefined-level slot" for 6th-level slots and higher.
+
 ## 2026-09-30 — Unarmed Strike and rests that clear what should end
 
 ### Added
