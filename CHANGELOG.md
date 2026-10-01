@@ -9,6 +9,7 @@ Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wi
 - **Tray size:** small, medium or large, under 🎲 Your dice → Tray. Everyone sees your rolls
   in your tray at your size.
 - **The DM Screen's party cards show the same icons** as each player's Character Summary.
+- **Krunk's icon matches the others** now: his portrait, head and shoulders, in a gold paladin ring.
 
 ## 2026-10-02 — Character icons
 

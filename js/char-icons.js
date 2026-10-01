@@ -4,7 +4,7 @@
    class. To use a framed icon like Krunk's for someone else, put it in portraits/ and give
    their entry {img:'portraits/…'} instead. */
 const CHAR_ICONS = {
-  '1vIvEke6E12m7il5voB2n5rJAqwgJeWf_2BZYJSKpYgU':{img:'portraits/krunk-icon.webp'},
+  '1vIvEke6E12m7il5voB2n5rJAqwgJeWf_2BZYJSKpYgU':{face:'portraits/krunk-portrait.jpg', zoom:'200%', pos:'66% 5%', ring:'paladin'},
   '14TFj-bb1ixAUl9bw_tNdcIpWtnYxeV8JW5f2kIbiW_Q':{face:'portraits/bel.webp', zoom:'180%', pos:'68% 5%', ring:'bard'},
   '1GqXXArCfLC42oVTF9XVrbNeKbw868HF1ih2S7VpX8jk':{face:'portraits/ezlo.webp', zoom:'200%', pos:'41% 4%', ring:'wizard'},
   '1mS5Z2jgmi4U-bdEPP0JvZIkI-7puhWGjwlF8i6JIYbo':{face:'portraits/venthor.webp', zoom:'170%', pos:'58% 8%', ring:'rogue'},
