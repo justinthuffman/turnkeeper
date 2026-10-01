@@ -3,13 +3,16 @@
 What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest first.
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
-## Unreleased
+## 2026-10-02 — Tray size and DM icons
 
 ### Added
 - **Tray size:** small, medium or large, under 🎲 Your dice → Tray. Everyone sees your rolls
   in your tray at your size.
 - **The DM Screen's party cards show the same icons** as each player's Character Summary.
 - **Krunk's icon matches the others** now: his portrait, head and shoulders, in a gold paladin ring.
+- **Krunk tray pictures** for a dice tray's Picture box: Full Color Cutout, Embossed Bronze,
+  Embossed Metal, Tooled Leather and Woodburned. Link: `https://justinthuffman.github.io/turnkeeper/trays/`
+  plus the name (`%20` for each space) and `.webp`.
 
 ### Fixed
 - On the DM Screen's party cards, the rolling tag wrapped onto two lines, or pushed past the card when it was highlighted. It's shorter now ("🎲 Can roll", "🎲 Their turn", "Not rolling") and always fits.
