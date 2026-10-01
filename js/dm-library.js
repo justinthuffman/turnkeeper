@@ -223,10 +223,10 @@ function openEncounterEditor(id, start){
     <div class="form-row"><span class="msg" id="leMsg"></span><span class="sep" style="flex:1"></span><button type="button" class="ghost" data-lib-cancel="1">Cancel</button><button type="submit">Save encounter</button></div>
   </form>`);
 }
-// Saved monsters first (marked), then the SRD
+// Saved monsters first, then the SRD. Names only: some browsers show an option's label instead of its value
 function libMonsterOptions(){
-  return Object.values(library.monsters).sort((a, b)=>a.name.localeCompare(b.name)).map(m=>`<option value="${esc(m.name)}">Saved</option>`).join('')
-    + (srdIndex || []).map(m=>`<option value="${esc(m.name)}">SRD</option>`).join('');
+  return Object.values(library.monsters).sort((a, b)=>a.name.localeCompare(b.name)).map(m=>`<option value="${esc(m.name)}"></option>`).join('')
+    + (srdIndex || []).map(m=>`<option value="${esc(m.name)}"></option>`).join('');
 }
 async function saveEncounterForm(form){
   const name = $('leName').value.trim(); if(!name){ $('leMsg').textContent = 'Give it a name.'; return; }
