@@ -261,8 +261,12 @@ button.ds-mark:hover{border-color:var(--ink);}
 .combat-banner{position:sticky; top:0; z-index:45; display:flex; flex-wrap:wrap; justify-content:center; align-items:baseline; gap:4px 14px; margin:0 0 14px; padding:8px 14px; border-radius:6px; background:var(--danger); color:#fff; font-family:var(--font-display); letter-spacing:0.04em; cursor:pointer; box-shadow:0 4px 14px rgba(0,0,0,0.4);}
 .combat-banner[hidden]{display:none;}
 .combat-banner .cb-title{font-size:1.1rem; text-transform:uppercase; letter-spacing:0.1em;}
-.combat-banner.mine{background:var(--orange); animation:bannerPulse 1.6s ease-in-out infinite;}
-@keyframes bannerPulse{50%{box-shadow:0 0 22px var(--orange-bright);}}
+/* Your turn: gold with dark text in every theme, so it can't be mistaken for the red banner
+   (Ember's orange is red, so var(--orange) wasn't different enough) */
+.combat-banner.mine{background:#f2c14e; color:#1d1405; animation:bannerPulse 1.6s ease-in-out infinite;}
+@keyframes bannerPulse{50%{box-shadow:0 0 22px rgba(242,193,78,0.85);}}
+.combat-banner.mine button.cb-end{border-color:#1d1405; color:#1d1405; background:rgba(255,255,255,0.35);}
+.combat-banner.mine button.cb-end:hover{background:rgba(255,255,255,0.55);}
 @media (prefers-reduced-motion: reduce){ .combat-banner.mine{animation:none;} }
 .table-round{font-size:0.85rem; color:var(--ink-dim);}
 .itable{display:flex; flex-direction:column; gap:4px;}

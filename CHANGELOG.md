@@ -5,7 +5,7 @@ Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wi
 
 
 
-## Unreleased — Every spell up to 9th level
+## 2026-10-01 — Every spell up to 9th level, and a clearer "Your turn!"
 
 ### Added
 - **Roll details for every spell from 2nd to 9th level** on the wizard, bard and paladin lists
@@ -21,6 +21,8 @@ Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wi
 
 ### Fixed
 - Spell popups said "undefined-level slot" for 6th-level slots and higher.
+- **"Your turn!" stands out in every theme:** the banner turns gold with dark text on your turn.
+  In Ember it used to stay nearly the same red.
 
 ## 2026-09-30 — Unarmed Strike and rests that clear what should end
 
