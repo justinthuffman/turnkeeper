@@ -11,6 +11,9 @@ Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wi
 - **The DM Screen's party cards show the same icons** as each player's Character Summary.
 - **Krunk's icon matches the others** now: his portrait, head and shoulders, in a gold paladin ring.
 
+### Fixed
+- On the DM Screen's party cards, "Not rolling" and "Allowed to roll" wrapped onto two lines.
+
 ## 2026-10-02 — Character icons
 
 ### Added
