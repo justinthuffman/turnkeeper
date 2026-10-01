@@ -40,7 +40,7 @@ Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wi
   "Use the To Hit pool". Links that won't show are marked as bad links. "Add the old !tk GIFs"
   brings over the Avrae alias's GIFs and titles. Sound from clips is a campaign setting, and
   anyone can switch GIFs off on their own device ("Show crit GIFs on this device" under 🎲).
-- **The DM's own dice, private.** The DM Screen has a Dice panel (any dice, quick d4 to d100,
+- **The DM's own dice, private.** The DM Screen has a Dice panel (any dice, quick d4 to d20,
   advantage and disadvantage) with its own dice style, and Roll buttons in monster stat blocks
   and concentration saves. The DM's rolls show only on the DM Screen, never to players.
   **Test a crit** in the Dice panel shows any row's GIF and flavor text for a 20 or a 1.
