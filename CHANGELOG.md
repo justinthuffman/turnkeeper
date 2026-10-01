@@ -3,6 +3,13 @@
 What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest first.
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
+## Unreleased
+
+### Fixed
+- **Dice sounds were very quiet,** even at full volume. Each clack now plays loud enough to
+  hear (harder hits are louder), the dice landing on the tray's floor is heard again, and the
+  volume slider goes well past the old maximum.
+
 ## 2026-10-02 — Expertise skills
 
 ### Fixed

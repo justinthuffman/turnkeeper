@@ -209,7 +209,10 @@ function diceStyleMenuHtml(st, note){
 }
 document.addEventListener('change', e=>{ if(e.target.id === 'dsFx') setCritFxOn(e.target.checked); });
 document.addEventListener('input', e=>{
-  if(e.target.id === 'dsSound' || e.target.id === 'dsVol') setDiceSoundPrefs({on:document.getElementById('dsSound').checked, vol:+document.getElementById('dsVol').value});
+  if(e.target.id === 'dsSound' || e.target.id === 'dsVol'){
+    setDiceSoundPrefs({on:document.getElementById('dsSound').checked, vol:+document.getElementById('dsVol').value});
+    if(diceAudio) setDiceGain(+document.getElementById('dsVol').value);   // louder or quieter right away
+  }
 });
 const readDiceStyleMenu = ()=>{ const v = id=>document.getElementById(id).value;
   return safeDiceStyle({preset:v('dsPreset'), bg:v('dsBg'), fg:v('dsFg'), tex:v('dsTex'), mat:v('dsMat'), size:v('dsSize'), shape:v('dsShape'), floor:v('dsFloor'), rim:v('dsRim'), pic:v('dsPic').trim(), fit:v('dsFit')}); };
@@ -249,9 +252,47 @@ function diceBox(){
       });
       return v;
     };
+    // Dice sounds. The library plays each clack at impact speed / 8000 (so dice in a tray barely
+    // whisper) and reads the floor's speed, always 0, for the landing sound. Play them at 25–100%
+    // by how hard the die hits instead, louder still through diceAudio's gain (the volume slider).
+    box.eventCollide = function({body:e, target:t}){
+      if(this.animstate === 'simulate' || !this.sounds || !e || this.volume <= 0) return;
+      const now = Date.now(), dice = e.mass > 0, same = this.lastSoundStep === e.world.stepnumber || this.lastSound > now;
+      if(same && (!dice || this.lastSoundType === 'dice')) return;   // as the library: one sound per moment
+      const die = dice ? e : t, speed = die && die.velocity ? die.velocity.length() : 0;
+      if(speed < 150) return;
+      const list = dice ? (e.diceShape === 'd2' ? this.sounds_dice.coin : this.sounds_dice[this.sound_dieMaterial]) : this.sounds_table[this.surface];
+      const a = list && list[Math.floor(Math.random() * list.length)]; if(!a) return;
+      wireDiceAudio(a);
+      a.volume = Math.min(1, Math.max(0.25, speed / 1400));
+      try{ a.currentTime = 0; }catch(err){}
+      a.play().catch(()=>{});
+      this.lastSoundType = dice ? 'dice' : 'table'; this.lastSoundStep = e.world.stepnumber; this.lastSound = now + this.soundDelay;
+    };
     return box;
   })().catch(err=>{ console.warn('3D dice unavailable:', err); diceBoxP = null; return null; });
   return diceBoxP;
+}
+// The dice sounds' way out: the browser's audio mixer with a gain, so the volume slider can go
+// past an audio element's 100% (up to 2.5×). Starts the first time a sound plays; browsers only
+// let it make sound after the viewer has clicked or pressed a key on the page.
+let diceAudio = null;
+function diceAudioOut(){
+  if(!diceAudio){
+    const C = window.AudioContext || window.webkitAudioContext; if(!C) return null;
+    const ctx = new C(), gain = ctx.createGain();
+    gain.connect(ctx.destination);
+    diceAudio = {ctx, gain, wired:new WeakSet()};
+    const wake = ()=>{ if(ctx.state === 'suspended') ctx.resume().catch(()=>{}); };
+    ['pointerdown', 'keydown'].forEach(t=>document.addEventListener(t, wake, {capture:true, passive:true}));
+  }
+  return diceAudio;
+}
+function setDiceGain(vol){ const o = diceAudioOut(); if(o) o.gain.gain.value = Math.max(0, vol) / 100 * 2.5; }
+function wireDiceAudio(a){
+  const o = diceAudioOut(); if(!o) return;
+  if(!o.wired.has(a)){ try{ o.ctx.createMediaElementSource(a).connect(o.gain); o.wired.add(a); }catch(err){} }
+  if(o.ctx.state === 'suspended') o.ctx.resume().catch(()=>{});
 }
 // Tray size for a shape: width / height (a hexagon is 2 : √3), fitting the screen
 const TRAY_RATIO = {hex:2 / Math.sqrt(3), square:1, rect:1.5, oct:1, round:1};
@@ -302,6 +343,7 @@ async function setTray(box, st, strength){
   box.throwPower = safeThrow(strength);   // used by the throw (see diceBox)
   const snd = diceSoundPrefs();
   box.sounds = snd.on && critSettings.diceSound && snd.vol > 0; box.volume = snd.vol;   // the DM can mute dice for the campaign
+  if(box.sounds) setDiceGain(snd.vol);   // how loud: up to 2.5× the browser's normal 100%
   box.surface = TRAY_FLOORS[st.floor].sound;
   if(box.sounds) await box.loadSounds().catch(()=>{});   // fetched once per floor sound
 }
