@@ -25,6 +25,14 @@ Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wi
   reaction or a save on someone else's turn), the DM clicks a character's card on the DM
   Screen to let them roll (it turns gold) and clicks again to stop. "Allow everyone to roll"
   and "Stop all rolls" do the whole party at once. Characters not in a campaign can always roll.
+- **Crit GIFs.** On a natural 20 or 1, everyone at the table sees the same GIF or clip and a
+  flavor line across the top (like "KRUNK TOOK TOO SMALL A SLICE AND MADE A BIG MUD PIE!!") once
+  the dice land. It stays until you click outside it or the ✕. The DM sets them up in
+  **Campaign settings** on the DM Screen (password protected): rows for To Hit, death saves,
+  initiative, saves, ability checks and skills, each with its own GIFs and flavor text, or
+  "Use the To Hit pool". Links that won't show are marked as bad links. "Add the old !tk GIFs"
+  brings over the Avrae alias's GIFs and titles. Sound from clips is a campaign setting, and
+  anyone can switch GIFs off on their own device ("Show crit GIFs on this device" under 🎲).
 - **The DM's own dice, private.** The DM Screen has a Dice panel (any dice, quick d4 to d100,
   advantage and disadvantage) with its own dice style, and Roll buttons in monster stat blocks
   and concentration saves. The DM's rolls show only on the DM Screen, never to players.

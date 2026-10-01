@@ -6,6 +6,7 @@
 <title>Turnkeeper</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 40 40%27%3E%3Crect width=%2740%27 height=%2740%27 rx=%279%27 fill=%27%230c1b26%27/%3E%3Ccircle cx=%2720%27 cy=%2720%27 r=%2715%27 fill=%27none%27 stroke=%27%234fb8a6%27 stroke-width=%272.5%27/%3E%3Cpath d=%27M14 11H26M14 29H26M15 11Q15 18 20 20Q25 18 25 11M15 29Q15 22 20 20Q25 22 25 29%27 fill=%27none%27 stroke=%27%234fb8a6%27 stroke-width=%272.2%27 stroke-linejoin=%27round%27/%3E%3Cpath d=%27M17 27.5Q20 23.5 23 27.5Z%27 fill=%27%23d97b3f%27/%3E%3C/svg%3E">
 <link rel="stylesheet" href="themes.css">
+<link rel="stylesheet" href="css/dice.css">
 <style>
 *{box-sizing:border-box;}
 body{
@@ -382,27 +383,6 @@ button.dice-edit:hover{color:var(--ink); border-color:var(--sea);}
 button.roll-btn{padding:6px 14px; font-size:0.82rem; white-space:nowrap; font-weight:600;}
 body:not(.may-roll) button.roll-btn{opacity:0.5;}
 .roll-wait{flex-basis:100%; font-size:0.78rem; color:var(--danger);}
-/* Dice: the 3D dice fall over the whole page; the result card sits at the bottom */
-#diceLayer{position:fixed; inset:0; z-index:400; pointer-events:none;}
-#diceLayer[hidden]{display:none;}
-#diceLayer canvas{display:block;}
-.dice-card{position:fixed; left:50%; bottom:18px; transform:translateX(-50%); z-index:401; width:min(460px, calc(100vw - 32px));
-  background:var(--panel); border:1px solid var(--sea); border-radius:8px; box-shadow:0 10px 30px rgba(0,0,0,0.5); padding:10px 14px 12px; pointer-events:auto;}
-.dice-card[hidden]{display:none;}
-.dice-card .dc-head{display:flex; align-items:baseline; gap:8px; padding-right:24px;}
-.dice-card .dc-who{color:var(--sea); font-weight:600;}
-.dice-card .dc-what{color:var(--ink-dim); font-size:0.85rem; overflow-wrap:anywhere;}
-.dice-card .dc-total{font-family:var(--font-display); font-size:2rem; color:var(--ink); line-height:1.1; margin-top:2px;}
-.dice-card .dc-total small{font-family:ui-monospace, Consolas, monospace; font-size:0.8rem; color:var(--ink-dim); margin-left:8px;}
-.dice-card .dc-dice{display:flex; flex-wrap:wrap; gap:4px; margin-top:6px;}
-.dice-card .dc-die{font-family:ui-monospace, Consolas, monospace; font-size:0.78rem; border:1px solid var(--border); border-radius:4px; padding:1px 6px; background:var(--panel2);}
-.dice-card .dc-die.x{opacity:0.45; text-decoration:line-through;}
-.dice-card .dc-die.n20{border-color:#f2c14e; color:#f2c14e;}
-.dice-card .dc-die.n1{border-color:var(--danger); color:var(--danger);}
-.dice-card .dc-nat{font-weight:700; margin-top:4px;}
-.dice-card .dc-nat.n20{color:#f2c14e;}
-.dice-card .dc-nat.n1{color:var(--danger);}
-.dice-card .dc-close{position:absolute; top:4px; right:6px; background:none; border:none; color:var(--ink-dim); font-size:1.4rem; line-height:1; padding:0 4px; box-shadow:none;}
 /* Your dice: the style picker beside the theme picker */
 .dice-style-menu{position:absolute; bottom:calc(100% + 6px); left:50%; transform:translateX(-50%); z-index:50; width:min(340px, calc(100vw - 32px));
   display:grid; grid-template-columns:auto 1fr; gap:6px 10px; align-items:center; padding:12px;
@@ -794,286 +774,7 @@ applyTheme(savedTheme || DEFAULT_THEME);
   </div>
 </div>
 
-<script>
-/* ---------- Dice core (the same in turnkeeper.html and dm.html) ----------
-   Keep the two copies identical until the refactor moves them into one shared file.
-   Reads dice (readDice: "1d20+5 adv", "2d6ro<3+3", "(2d6,2d6)kh1", "1d20mi10+7"), describes them in plain
-   words, rolls them with the browser's secure random numbers, and shows the roll: a card with
-   the total and every die, and 3D dice (@3d-dice/dice-box-threejs, MIT) told where to land so
-   every screen shows the same faces. Each page sets window.onDiceRoll(button) to roll a row. */
-const DICE_SIDES = [4, 6, 8, 10, 12, 20, 100];
-const SHOWN_SIDES = [4, 6, 8, 10, 12, 20];   // the 3D library's dice (d100 is counted, not shown)
-const diceEsc = s=>String(s ?? '').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-// Returns {terms, mode} or null if the dice can't be read
-function readDice(text){
-  let s = String(text || '').trim().replace(/^!(tk|r|roll)\s+/i, '');
-  let mode = '';
-  const word = s.match(/[\s,]+(?:with\s+)?(adv|dis|advantage|disadvantage)\s*$/i);
-  if(word){ mode = word[1].slice(0, 3).toLowerCase(); s = s.slice(0, word.index); }
-  s = s.replace(/\s+/g, '').replace(/−/g, '-');
-  if(!s || s.length > 120) return null;
-  const terms = [];
-  let i = 0, count = 0;
-  while(i < s.length){
-    let sign = 1;
-    if(s[i] === '+' || s[i] === '-'){ sign = s[i] === '-' ? -1 : 1; i++; }
-    else if(terms.length) return null;
-    const rest = s.slice(i);
-    if(rest[0] === '('){   // Savage Attacker: (2d6,2d6)kh1 rolls both and keeps the higher
-      const close = rest.indexOf(')'), k = close > 0 && /^k([hl])1/i.exec(rest.slice(close + 1));
-      if(!k) return null;
-      const opts = rest.slice(1, close).split(',').map(o=>readDice(o));
-      if(opts.length < 2 || opts.some(o=>!o || o.mode)) return null;
-      terms.push({sign, kind:'group', opts:opts.map(o=>o.terms), keep:k[1].toLowerCase()});
-      i += close + 1 + k[0].length; continue;
-    }
-    const d = /^(\d*)d(\d+)((?:mi\d+|ro<\d+|k[hl]\d+)*)/i.exec(rest);
-    if(d){
-      const n = d[1] === '' ? 1 : +d[1], sides = +d[2], mods = d[3] || '';
-      if(n < 1 || n > 100 || !DICE_SIDES.includes(sides) || (count += n) > 100) return null;
-      const mi = /mi(\d+)/i.exec(mods), ro = /ro<(\d+)/i.exec(mods), k = /k([hl])(\d+)/i.exec(mods);
-      terms.push({sign, kind:'dice', n, sides, min:mi ? +mi[1] : 0, ro:ro ? +ro[1] : 0, keep:k ? {hl:k[1].toLowerCase(), n:+k[2]} : null});
-      i += d[0].length; continue;
-    }
-    const num = /^\d+/.exec(rest);
-    if(!num || +num[0] > 9999) return null;
-    terms.push({sign, kind:'num', v:+num[0]});
-    i += num[0].length;
-  }
-  // Advantage / disadvantage: the first single d20 becomes two, keeping the higher or lower
-  const d20 = mode && terms.find(t=>t.kind === 'dice' && t.n === 1 && t.sides === 20 && !t.keep);
-  if(d20){ d20.n = 2; d20.keep = {hl:mode === 'adv' ? 'h' : 'l', n:1}; d20.mode = mode; }
-  else mode = '';   // nothing for it to apply to (no single d20)
-  return terms.length ? {terms, mode} : null;
-}
-// What a roll will do, in words: "1d20 + 5 + 1d4, with disadvantage" ({html, text})
-function describeDice(text){
-  const p = readDice(text);
-  if(!p) return {html:diceEsc(text), text:String(text || '')};
-  const one = t=>{
-    if(t.kind === 'num') return String(t.v);
-    if(t.kind === 'group') return `the ${t.keep === 'h' ? 'better' : 'worse'} of ${t.opts.map(o=>o.map((x, j)=>(j ? (x.sign < 0 ? ' − ' : ' + ') : '') + one(x)).join('')).join(' or ')}`;
-    const extra = [];
-    if(t.ro) extra.push(t.ro === 2 ? 'reroll 1s once' : t.ro === 3 ? 'reroll 1s and 2s once' : `reroll under ${t.ro} once`);
-    if(t.min) extra.push(t.min === 2 ? '1s count as 2' : `${t.min - 1} or lower counts as ${t.min}`);
-    if(t.keep && !t.mode) extra.push(`keep the ${t.keep.hl === 'h' ? 'highest' : 'lowest'} ${t.keep.n}`);
-    const s = `${t.mode ? 1 : t.n}d${t.sides}`;
-    return extra.length ? `${s} (${extra.join(', ')})` : s;
-  };
-  const out = p.terms.map((t, i)=>(i ? (t.sign < 0 ? ' − ' : ' + ') : (t.sign < 0 ? '−' : '')) + one(t)).join('');
-  const mode = p.mode === 'adv' ? 'with advantage' : p.mode === 'dis' ? 'with disadvantage' : '';
-  return {html:`<b>${diceEsc(out)}</b>${mode ? ', ' + mode : ''}`, text:out + (mode ? ', ' + mode : '')};
-}
-function dieRoll(sides){   // a fair secure roll from 1 to sides
-  const a = new Uint32Array(1), limit = Math.floor(0x100000000 / sides) * sides;
-  do crypto.getRandomValues(a); while(a[0] >= limit);
-  return a[0] % sides + 1;
-}
-// Every die rolled is listed ({s: sides, v: face, c: counts as, x: dropped}); nat is the kept
-// d20 of the roll's first d20 term when it's a 20 or a 1, else 0
-function rollTerms(terms){
-  let total = 0, nat = 0;
-  const dice = [];
-  terms.forEach(t=>{
-    if(t.kind === 'num'){ total += t.sign * t.v; return; }
-    if(t.kind === 'group'){
-      const outs = t.opts.map(rollTerms);
-      const best = outs.reduce((b, o, j)=>(t.keep === 'h' ? o.total > outs[b].total : o.total < outs[b].total) ? j : b, 0);
-      outs.forEach((o, j)=>o.dice.forEach(d=>dice.push(j === best ? d : {...d, x:true})));
-      total += t.sign * outs[best].total; return;
-    }
-    const mine = Array.from({length:t.n}, ()=>{
-      let v = dieRoll(t.sides);
-      if(t.ro && v < t.ro) v = dieRoll(t.sides);   // reroll once (Great Weapon Fighting), keep the new one
-      const d = {s:t.sides, v};
-      if(t.min && v < t.min) d.c = t.min;           // counts as at least this (Reliable Talent, Elemental Adept)
-      return d;
-    });
-    if(t.keep){
-      const order = mine.map((d, j)=>j).sort((a, b)=>{ const va = mine[a].c || mine[a].v, vb = mine[b].c || mine[b].v; return t.keep.hl === 'h' ? vb - va : va - vb; });
-      order.slice(t.keep.n).forEach(j=>{ mine[j].x = true; });
-    }
-    mine.forEach(d=>{ if(!d.x) total += t.sign * (d.c || d.v); });
-    if(!nat && t.sides === 20 && (t.n === 1 || (t.keep && t.keep.n === 1))){
-      const kept = mine.find(d=>!d.x);
-      nat = kept && (kept.v === 20 || kept.v === 1) ? kept.v : -1;   // only the first d20 counts
-    }
-    dice.push(...mine);
-  });
-  return {total, dice, nat:Math.max(nat, 0)};
-}
-function rollId(){ const a = new Uint32Array(2); crypto.getRandomValues(a); return a[0].toString(36) + a[1].toString(36); }
-
-/* A roll row: what will roll (in words), Roll, and ✎ to change the dice first */
-function rollRow(dice, label, desc, attrs, crit){
-  dice = String(dice || '').trim();
-  const what = String(label || desc || 'roll'), d = describeDice(dice);
-  return `<div class="roll-cmd-row" data-dice="${diceEsc(dice)}"><span class="roll-what">${d.html}</span>`
-    + `<button type="button" class="roll-btn" data-roll="${diceEsc(what)}"${attrs || ''} aria-label="Roll ${diceEsc(what.toLowerCase())}: ${diceEsc(d.text)}">Roll</button>`
-    + `<button type="button" class="dice-edit" title="Change the dice before rolling" aria-label="Change the dice">✎</button>`
-    + (desc || crit ? `<span class="roll-cmd-desc">${crit ? '<b class="crit-tag">CRIT</b> ' : ''}${diceEsc(desc || '')}</span>` : '') + `</div>`;
-}
-const rowDice = row=>{ const inp = row.querySelector('.roll-edit'); return inp ? inp.value.trim() : (row.dataset.dice || ''); };
-document.addEventListener('click', e=>{
-  const ed = e.target.closest && e.target.closest('.dice-edit'); if(!ed) return;
-  const row = ed.closest('.roll-cmd-row'), what = row && row.querySelector('.roll-what');
-  if(!what || what.querySelector('.roll-edit')) return;
-  what.innerHTML = `<input class="roll-edit" type="text" spellcheck="false" autocomplete="off" aria-label="Dice to roll" value="${diceEsc(row.dataset.dice)}">`;
-  const inp = what.querySelector('input'); inp.focus(); inp.select();
-});
-document.addEventListener('keydown', e=>{
-  if(e.key !== 'Enter' || !e.target.matches || !e.target.matches('.roll-edit')) return;
-  e.preventDefault();
-  const b = e.target.closest('.roll-cmd-row').querySelector('button[data-roll]'); if(b) b.click();
-});
-// Capture phase, so the roll happens before a page's own click handling of the same button
-document.addEventListener('click', e=>{ const b = e.target.closest && e.target.closest('button[data-roll]'); if(b && window.onDiceRoll) window.onDiceRoll(b); }, true);
-// Shown under a row when the roll can't happen
-function rowWarn(row, msg){
-  const old = row.querySelector('.roll-wait'); if(old) old.remove();
-  if(!msg) return;
-  const w = document.createElement('div'); w.className = 'roll-wait'; w.textContent = msg; row.appendChild(w);
-}
-
-/* Dice looks: a ready-made set, or your own colors, texture and material */
-const DICE_PRESETS = [['bronze','Thylean Bronze'],['bloodmoon','Blood Moon'],['starynight','Starry Night'],['astralsea','Astral Sea'],['dragons','Here be Dragons'],
-  ['glitterparty','Glitter Party'],['inspired','Inspired'],['pinkdreams','Pink Dreams'],['breebaby','Pastel Sunset'],['rainbow','Rainbow'],['black','Black'],['white','White'],
-  ['fire','Fire'],['ice','Ice'],['lightning','Lightning'],['thunder','Thunder'],['acid','Acid'],['poison','Poison'],['radiant','Radiant'],['necrotic','Necrotic'],
-  ['psychic','Psychic'],['force','Force'],['water','Water'],['earth','Earth'],['air','Air']];
-const DICE_TEXTURES = ['none','marble','wood','stone','metal','cloudy','fire','water','ice','paper','speckles','glitter','stars','stainedglass','skulls','dragon','lizard','leopard','tiger','cheetah','astral','bronze01','bronze03'];
-const DICE_MATERIALS = ['glass','plastic','metal','wood','none'];
-const DEFAULT_DICE = {preset:'bronze', bg:'#8a1c12', fg:'#ffffff', tex:'none', mat:'glass'};
-// Only known values get through (styles come from other players over the network)
-function safeDiceStyle(s){
-  s = s && typeof s === 'object' ? s : {};
-  const hex = v=>typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v);
-  return {preset:DICE_PRESETS.some(p=>p[0] === s.preset) ? s.preset : (s.preset === '' ? '' : DEFAULT_DICE.preset),
-    bg:hex(s.bg) ? s.bg : DEFAULT_DICE.bg, fg:hex(s.fg) ? s.fg : DEFAULT_DICE.fg,
-    tex:DICE_TEXTURES.includes(s.tex) ? s.tex : 'none', mat:DICE_MATERIALS.includes(s.mat) ? s.mat : 'glass'};
-}
-function diceStyleMenuHtml(st, note){
-  return `<label for="dsPreset">Set</label><select id="dsPreset"><option value="">My own (below)</option>${DICE_PRESETS.map(([k, n])=>`<option value="${k}"${st.preset === k ? ' selected' : ''}>${n}</option>`).join('')}</select>`
-    + `<label for="dsBg">Dice color</label><div class="ds-row-full" style="grid-column:auto"><input type="color" id="dsBg" value="${st.bg}"><label for="dsFg">Numbers</label><input type="color" id="dsFg" value="${st.fg}"></div>`
-    + `<label for="dsTex">Texture</label><select id="dsTex">${DICE_TEXTURES.map(t=>`<option${st.tex === t ? ' selected' : ''}>${t}</option>`).join('')}</select>`
-    + `<label for="dsMat">Material</label><select id="dsMat">${DICE_MATERIALS.map(m=>`<option${st.mat === m ? ' selected' : ''}>${m}</option>`).join('')}</select>`
-    + `<div class="ds-note">Colors and texture are used when Set is “My own”. ${note}</div>`
-    + `<div class="ds-row-full"><button type="button" class="flow-btn" id="dsTry">Try them</button><span class="ds-note" style="grid-column:auto">A practice roll only you see.</span></div>`;
-}
-const readDiceStyleMenu = ()=>{ const v = id=>document.getElementById(id).value; return safeDiceStyle({preset:v('dsPreset'), bg:v('dsBg'), fg:v('dsFg'), tex:v('dsTex'), mat:v('dsMat')}); };
-function tryDice(name, style){
-  const r = rollTerms(readDice('1d20+1d12+1d10+1d8+1d6+1d4').terms);
-  showRoll({name, label:'Trying your dice', notation:'one of each', total:r.total, dice:r.dice, nat:0, style}, {note:'Practice roll: only you see this.'});
-}
-
-/* 3D dice, loaded the first time a roll is shown */
-const DICE_LIB = 'https://cdn.jsdelivr.net/npm/@3d-dice/dice-box-threejs@0.0.12/';
-let diceBoxP = null, diceLook = '', diceHideTimer = null, dicePlaySeq = 0;
-function diceBox(){
-  if(!diceBoxP) diceBoxP = (async()=>{
-    const {default:DiceBox} = await import(DICE_LIB + '+esm');
-    document.getElementById('diceLayer').hidden = false;   // stays in the page from now on (the library sizes itself from it)
-    const box = new DiceBox('#diceLayer', {assetPath:DICE_LIB + 'public/', theme_surface:'green-felt', theme_colorset:'white', theme_material:'glass', sounds:false, baseScale:100});
-    await box.initialize();
-    return box;
-  })().catch(err=>{ console.warn('3D dice unavailable:', err); diceBoxP = null; return null; });
-  return diceBoxP;
-}
-// The library never frees what it draws: each look's face pictures stay cached and each roll
-// leaves its dice behind. Free them here, or memory climbs with every roll and look.
-function freeDice(box){
-  box.diceList.forEach(die=>{
-    [].concat(die.material).forEach(m=>m && m.dispose());
-    if(die.geometry !== box.DiceFactory.geometries[die.notation.type]) die.geometry.dispose();   // a forced face copies the shape
-  });
-}
-function freeLooks(box){
-  const f = box.DiceFactory;
-  Object.values(f.materials_cache).forEach(c=>{ if(c.composite) c.composite.dispose(); if(c.bump) c.bump.dispose(); });
-  f.materials_cache = {};
-  const sets = box.DiceColors.colorsets;
-  Object.keys(sets).forEach(k=>{ if(k.startsWith('custom ') && k !== (box.colorData && box.colorData.name)) delete sets[k]; });
-}
-// Custom looks are named by their settings: the library keeps the first set under each name
-async function setDiceLook(box, style){
-  const st = safeDiceStyle(style), key = JSON.stringify(st);
-  if(key === diceLook) return false;
-  diceLook = key;
-  if(st.preset) await box.updateConfig({theme_customColorset:null, theme_colorset:st.preset, theme_material:st.mat});
-  else await box.updateConfig({theme_customColorset:{name:`custom ${st.bg} ${st.fg} ${st.tex} ${st.mat}`, background:st.bg, foreground:st.fg, texture:st.tex, material:st.mat}, theme_material:st.mat});
-  freeLooks(box);
-  return true;
-}
-async function play3d(roll){
-  if(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  const shown = roll.dice.filter(d=>SHOWN_SIDES.includes(d.s)).slice(0, 24);
-  if(!shown.length) return;
-  const seq = ++dicePlaySeq, box = await diceBox();
-  if(!box || seq !== dicePlaySeq) return;
-  await setDiceLook(box, roll.style);
-  if(seq !== dicePlaySeq) return;
-  freeDice(box);
-  const layer = document.getElementById('diceLayer');
-  layer.style.transition = 'none'; layer.style.opacity = '1';
-  box.roll(shown.map(d=>'1d' + d.s).join('+') + '@' + shown.map(d=>d.v).join(',')).catch(err=>console.warn('3D dice:', err));
-}
-function clearDice(){
-  const layer = document.getElementById('diceLayer');
-  layer.style.transition = 'opacity 0.6s'; layer.style.opacity = '0';
-  const seq = dicePlaySeq;
-  setTimeout(async()=>{
-    if(seq !== dicePlaySeq || !diceBoxP) return;
-    const box = await diceBoxP;
-    if(box && seq === dicePlaySeq){ freeDice(box); box.clearDice(); }
-  }, 700);
-}
-// Re-skin the dice on the table (changing your dice style while they're showing)
-async function restyleDice(style){
-  if(!diceBoxP) return;
-  const box = await diceBoxP;
-  if(!box || !(await setDiceLook(box, style))) return;
-  const f = box.DiceFactory;
-  box.diceList.forEach(die=>{
-    [].concat(die.material).forEach(m=>m && m.dispose());
-    f.setMaterialInfo();
-    die.material = f.createMaterials(f.get(die.notation.type), box.baseScale / 2, 1);
-  });
-  box.renderer.render(box.scene, box.camera);
-}
-
-/* The result card: who rolled what, the total, every die (dropped ones struck through) */
-function showRoll(roll, opts){
-  const card = document.getElementById('diceCard');
-  const chips = roll.dice.slice(0, 60).map(d=>`<span class="dc-die${d.x ? ' x' : ''}${!d.x && d.s === 20 && (d.v === 20 || d.v === 1) ? ' n' + d.v : ''}" title="d${d.s}${d.x ? ', dropped' : ''}${d.c ? `, counts as ${d.c}` : ''}">${d.v}${d.c ? '→' + d.c : ''}<small> d${d.s}</small></span>`).join('');
-  card.innerHTML = `<button type="button" class="dc-close" aria-label="Close">&times;</button>`
-    + `<div class="dc-head"><span class="dc-who">${diceEsc(roll.name || 'Someone')}</span><span class="dc-what">${diceEsc(roll.label || 'Roll')}</span></div>`
-    + `<div class="dc-total">${roll.total}<small>${diceEsc(roll.notation || '')}</small></div>`
-    + (chips ? `<div class="dc-dice">${chips}</div>` : '')
-    + (roll.nat === 20 ? `<div class="dc-nat n20">Natural 20!</div>` : roll.nat === 1 ? `<div class="dc-nat n1">Natural 1!</div>` : '')
-    + (opts && opts.note ? `<div class="dc-what">${diceEsc(opts.note)}</div>` : '');
-  card.hidden = false;
-  play3d(roll);
-  clearTimeout(diceHideTimer);
-  diceHideTimer = setTimeout(hideRoll, 12000);
-}
-function hideRoll(){ clearTimeout(diceHideTimer); document.getElementById('diceCard').hidden = true; clearDice(); }
-document.getElementById('diceCard').addEventListener('click', e=>{ if(e.target.closest('.dc-close')) hideRoll(); });
-// A roll from the database (untrusted): only known shapes and values get through
-function cleanRoll(r){
-  const dice = (Array.isArray(r.dice) ? r.dice : Object.values(r.dice || {})).slice(0, 60)
-    .filter(d=>d && DICE_SIDES.includes(d.s) && Number.isInteger(d.v) && d.v >= 1 && d.v <= d.s)
-    .map(d=>({s:d.s, v:d.v, ...(Number.isInteger(d.c) ? {c:d.c} : {}), ...(d.x === true ? {x:true} : {})}));
-  return {id:String(r.id || ''), name:String(r.name || ''), label:String(r.label || ''), notation:String(r.notation || ''),
-    total:typeof r.total === 'number' && Number.isFinite(r.total) ? r.total : 0, dice, nat:r.nat === 20 || r.nat === 1 ? r.nat : 0, style:safeDiceStyle(r.style)};
-}
-// Make a roll from a row's dice: {roll} or {error}
-function makeRoll(text, name, label, style){
-  const parsed = readDice(text);
-  if(!parsed) return {error:'Turnkeeper can’t read those dice. Try something like 1d20+5, 2d6+3 or 1d20+4 adv.'};
-  const r = rollTerms(parsed.terms);
-  return {roll:{id:rollId(), name:String(name || '').slice(0, 60), label:String(label || 'Roll').slice(0, 80),
-    notation:describeDice(text).text.slice(0, 120), total:r.total, dice:r.dice.slice(0, 60), nat:r.nat, style:safeDiceStyle(style)}};
-}
-</script>
+<script src="js/dice.js"></script>
 <script>
 /* ---------- Spell data (level|Name|School|Casting Time|Range|Duration|Components) ---------- */
 const WIZARD_RAW = `0|Acid Splash|Conjuration|1 Action|60 Feet|Instantaneous|V, S
@@ -2535,7 +2236,7 @@ function renderDeath(){
   if(dead) html += `<p class="ds-msg">Three failed death saves: your character has died. Only magic such as <i>Revivify</i> can bring them back. If a mark is wrong, click it to fix it.</p>`;
   else if(stable) html += `<p class="ds-msg">Three successes: you’re stable. You stop rolling death saves and stay unconscious at 0 HP, regaining 1 HP after 1d4 hours. Taking damage starts the saves again.</p>`;
   else html += `<p class="ds-msg">You’re unconscious at 0 HP. At the start of each of your turns, roll a death saving throw (no modifiers) and click what you rolled.</p>`
-    + cmdRow(`1d20`, 'death saving throw', 'Death save')
+    + cmdRow(`1d20`, 'death saving throw', 'Death save', ' data-fx-row="death"')
     + `<div class="ds-btns">${[['succ','10 or higher'],['fail','9 or lower'],['n20','Natural 20'],['n1','Natural 1']].map(([k,l])=>`<button type="button" class="flow-btn" data-ds="${k}">${l}</button>`).join('')}</div>`;
   if(!dead) html += `<div class="ds-btns"><span class="ds-label">Took damage at 0 HP?</span><button type="button" class="flow-btn" data-ds="dmg">Damage (1 failure)</button><button type="button" class="flow-btn" data-ds="crit">Critical hit (2 failures)</button></div>`;
   if(deathUndo) html += `<button type="button" class="sel-toggle" data-ds="undo">Undo</button>`;
@@ -2750,7 +2451,7 @@ function renderConc(){
   const cmd = d20Cmd(mode, info.bonus + st.flat, false, statusDiceStr(st));
   const parts = [...(warCaster ? ['advantage from War Caster'] : []), ...statusDescParts(st)];
   box.innerHTML = `<div><b>Concentration save</b> to keep <b>${escapeHtml(k.name)}</b>: DC ${c.dc} Constitution save (${c.dc > 10 ? `half of ${c.dmg} damage` : `10, or half the damage if that's higher`}).</div>`
-    + cmdRow(cmd, withParts('Constitution save', parts), 'Concentration save')
+    + cmdRow(cmd, withParts('Constitution save', parts), 'Concentration save', ' data-fx-row="save"')
     + (st.fail.length ? `<div class="status-warn">${st.fail.join(', ')}: you automatically fail this save.</div>` : '')
     + `<div class="ds-btns"><button type="button" class="flow-btn" data-conc="kept">Kept it (${c.dc} or higher)</button><button type="button" class="flow-btn" data-conc="lost">Lost it</button></div>`;
 }
@@ -3157,7 +2858,7 @@ function damageCommand(){
 // c.crit: the damage is a crit's (dice already doubled), flagged CRIT before the description
 function cmdBox(label, c, extraHtml){
   return `<div class="roll-box"><div class="roll-box-label">${label}</div>
-    ${cmdRow(c.cmd, c.desc, label, `${c.consume ? ' data-consume="1"' : ''}${c.countAttack ? ' data-count-attack="1"' : ''}`, c.crit)}${extraHtml||''}</div>`;
+    ${cmdRow(c.cmd, c.desc, label, `${c.consume ? ' data-consume="1"' : ''}${c.countAttack ? ' data-count-attack="1"' : ''}${c.kind ? ` data-fx-row="${c.kind}"` : ''}`, c.crit)}${extraHtml||''}</div>`;
 }
 // A roll row: what will roll in words, Roll, and ✎ to change the dice first (rollRow, Dice core)
 function cmdRow(cmd, desc, label, attrs, crit){ return rollRow(cmd, label, desc, attrs, crit); }
@@ -3439,7 +3140,7 @@ function spellPopupHtml(){
       : infoBox('Not added yet', `Roll details for ${sp.name} haven’t been added to the tracker yet. Your spell attack is ${fmtMod(s.atk)} and your save DC is ${s.dc}.`));
   }
   const notes = [];
-  if(r.attack) html += inspToggleHtml() + cmdBox('Spell attack', {cmd:d20Cmd(attackMode(), s.atk, false, statusDiceStr(rollState.st)), desc:withParts(`${sp.name} (${r.attack} spell attack)`, [...inspPart(), ...statusDescParts(rollState.st)])}, statusNotesHtml(rollState.st, mode));
+  if(r.attack) html += inspToggleHtml() + cmdBox('Spell attack', {kind:'hit', cmd:d20Cmd(attackMode(), s.atk, false, statusDiceStr(rollState.st)), desc:withParts(`${sp.name} (${r.attack} spell attack)`, [...inspPart(), ...statusDescParts(rollState.st)])}, statusNotesHtml(rollState.st, mode));
   if(r.save) html += infoBox('Saving throw', saveLine(s.dc, r.save, r.onSave, r.effect));
   // School of Evocation (wizard spells only): Empowered Evocation adds INT (min +1) to one damage
   // roll of a wizard evocation spell; Potent Cantrip makes a successful save still take half
@@ -3551,7 +3252,8 @@ function renderRollPopup(){
       + rollState.fxList.map(e=>toggleBtn('data-fx', escapeHtml(e.id), escapeHtml(e.target ? `${e.name} target${castTargetsText(e.name)}` : `${e.name} (${fxWhat(e)})`), !!rollState.fxOn[e.id])).join('') + `</div>`;
     if(target.length) html += `<div class="roll-after">Tick a target only if you’re attacking the creature it’s on.</div>`;
   }
-  html += cmdBox(sel.kind==='weapon' ? 'To hit' : sel.kind==='check' ? checkInfo(sel.type, sel.key).name : 'Athletics check', {...toHitCommand(), countAttack: !!rollState.attackNo});
+  html += cmdBox(sel.kind==='weapon' ? 'To hit' : sel.kind==='check' ? checkInfo(sel.type, sel.key).name : 'Athletics check', {...toHitCommand(), countAttack: !!rollState.attackNo,
+    kind:sel.kind==='weapon' ? 'hit' : sel.kind==='check' ? ({init:'init', skill:'skill', ability:'check'}[sel.type] || 'save') : 'skill'});   // its crit GIF row
   html += statusNotesHtml(rollState.st, rollState.mode);
   if(sel.kind==='check'){
     const notes = [...checkInfo(sel.type, sel.key).included, ...checkReminders(sel.type, sel.key, true)];
@@ -6304,9 +6006,11 @@ window.onDiceRoll = btn=>{
   }
   // In the roll popup, say what it's for: "Greatsword: To hit"
   const title = btn.closest('#rollPopup') ? document.getElementById('rollTitle').textContent.trim() : '';
-  const made = makeRoll(rowDice(row), myName(), (title ? `${title}: ` : '') + (btn.dataset.roll || 'Roll'), myDiceStyle());
+  const made = makeRoll(rowDice(row), myName(), (title ? `${title}: ` : '') + (btn.dataset.roll || 'Roll'), myDiceStyle(), btn.dataset.fxRow);
   if(made.error){ rowWarn(row, made.error); return; }
   const roll = made.roll;
+  roll.fx = pickCritFx(roll.kind, roll.nat, myName());   // a natural 20 or 1: the campaign's GIF, the same on every screen
+  if(!roll.fx) delete roll.fx;
   btn.dataset.rolled = '1';
   diceTable.seen.add(roll.id);
   showRoll(roll);
@@ -6323,6 +6027,7 @@ window.onDiceRoll = btn=>{
 
 /* Rolls and permissions from the table (the module script calls this) */
 window.tkDiceUpdate = (part, data)=>{
+  if(part === 'settings'){ critSettings = cleanCritSettings(data); return; }
   if(part === 'allow'){ diceTable.allow = data && typeof data === 'object' ? data : {}; window.tkDiceRefresh(); return; }
   if(part !== 'rolls') return;
   const all = data && typeof data === 'object' ? data : {};
@@ -6390,8 +6095,10 @@ try{
     ['combat', 'effects', 'live'].forEach(part=>onValue(ref(db, `campaigns/${FBK(key)}/${part}`),
       s=>window.tkTableUpdate(part, clean(s.val())), err=>console.warn('Following the table:', err)));
     // Dice: who the DM has allowed to roll, and everyone's latest roll (played on this screen too)
-    ['allow', 'rolls'].forEach(part=>onValue(ref(db, `campaigns/${FBK(key)}/${part}`),
-      s=>window.tkDiceUpdate(part, clean(s.val())), err=>{ console.warn('Dice from the table:', err); if(part === 'allow') window.tkDiceUpdate('allow', {}); }));
+    // (rolls and settings arrive raw: their links must keep every character, and js/dice.js
+    // checks every field itself: cleanRoll, cleanCritSettings)
+    ['allow', 'rolls', 'settings'].forEach(part=>onValue(ref(db, `campaigns/${FBK(key)}/${part}`),
+      s=>window.tkDiceUpdate(part, part === 'allow' ? clean(s.val()) : s.val()), err=>{ console.warn('Dice from the table:', err); if(part === 'allow') window.tkDiceUpdate('allow', {}); }));
   }
   async function push(){
     const snap = liveSnapshot();
