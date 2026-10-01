@@ -107,7 +107,10 @@ button.sel-toggle:hover{background:none; color:var(--ink);}
 .pc-live .res b{color:var(--ink); font-weight:600;}
 .pc-top{align-items:flex-start;}
 .pc-top > div{align-self:center;}
-.pc-when{margin-left:auto; flex:0 0 auto; font-size:0.72rem; color:var(--ink-dim); white-space:nowrap;}
+/* "● Live · 10m" floats in the card's top-right corner, so the name column keeps the full width */
+.pc-card{position:relative;}
+.pc-when{position:absolute; top:8px; right:10px; font-size:0.72rem; color:var(--ink-dim); white-space:nowrap;}
+.pc-top:has(.pc-when){padding-top:14px;}   /* the icon and name sit just below it, so a name never runs under it */
 .pc-when.on{color:var(--green);}
 .live-state{font-size:0.78rem; color:var(--ink-dim);}
 .live-state.on{color:var(--green);}
