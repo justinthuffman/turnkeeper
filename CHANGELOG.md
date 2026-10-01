@@ -16,6 +16,11 @@ Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wi
   the lower, with the dropped one struck through.
 - **Natural 20s and natural 1s come from the die, never the total.** With disadvantage, a 20
   and a 5 count as a 5.
+- **Attack rolls say "Critical Hit!" or "Critical Miss!"** Other d20 rolls say "Natural 20" or
+  "Natural 1".
+- **Pick a target before rolling in combat.** If a popup asks who you're attacking (or aiming a
+  spell at), Roll waits until you've picked, and the picker flashes to show you where.
+- **"Start of my turn" out of turn** says whose turn it is instead of starting yours.
 - **A natural 20 on an attack turns Crit on by itself.** The damage dice double and the damage
   line starts with a gold **CRIT** tag. Untick Crit if you need to.
 - **Your dice, your style.** "🎲 Your dice" at the bottom of the page picks a ready-made set
@@ -25,9 +30,11 @@ Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wi
   reaction or a save on someone else's turn), the DM clicks a character's card on the DM
   Screen to let them roll (it turns gold) and clicks again to stop. "Allow everyone to roll"
   and "Stop all rolls" do the whole party at once. Characters not in a campaign can always roll.
-- **Crit GIFs.** On a natural 20 or 1, everyone at the table sees the same GIF or clip and a
-  flavor line across the top (like "KRUNK TOOK TOO SMALL A SLICE AND MADE A BIG MUD PIE!!") once
-  the dice land. It stays until you click outside it or the ✕. The DM sets them up in
+- **Crit GIFs.** On a natural 20 or 1, everyone at the table sees the same GIF or clip once the
+  dice land, with the flavor line (like "KRUNK TOOK TOO SMALL A SLICE AND MADE A BIG MUD PIE!!")
+  in an animated banner right above it: a glowing border with light running around it, a
+  drifting background, letters that pop in with a shine, and sparkles. Misses get the same in
+  fiery red, with letters that slam down and embers. It stays until you click outside it or the ✕. The DM sets them up in
   **Campaign settings** on the DM Screen (password protected): rows for To Hit, death saves,
   initiative, saves, ability checks and skills, each with its own GIFs and flavor text, or
   "Use the To Hit pool". Links that won't show are marked as bad links. "Add the old !tk GIFs"
@@ -36,6 +43,10 @@ Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wi
 - **The DM's own dice, private.** The DM Screen has a Dice panel (any dice, quick d4 to d100,
   advantage and disadvantage) with its own dice style, and Roll buttons in monster stat blocks
   and concentration saves. The DM's rolls show only on the DM Screen, never to players.
+  **Test a crit** in the Dice panel shows any row's GIF and flavor text for a 20 or a 1.
+- **Every player roll on the DM Screen.** Each roll says who, what for, the total and the dice
+  ("Bel: Perception check: 17 (1d20 + 4: 13)"). During a fight it goes in the combat log, and
+  every roll is listed under Recent rolls in the Party panel.
 
 
 ## 2026-10-01 — Every spell up to 9th level, and a clearer "Your turn!"

@@ -6,6 +6,7 @@
 <title>DM Screen · Turnkeeper</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 40 40%27%3E%3Crect width=%2740%27 height=%2740%27 rx=%279%27 fill=%27%230c1b26%27/%3E%3Ccircle cx=%2720%27 cy=%2720%27 r=%2715%27 fill=%27none%27 stroke=%27%234fb8a6%27 stroke-width=%272.5%27/%3E%3Cpath d=%27M14 11H26M14 29H26M15 11Q15 18 20 20Q25 18 25 11M15 29Q15 22 20 20Q25 22 25 29%27 fill=%27none%27 stroke=%27%234fb8a6%27 stroke-width=%272.2%27 stroke-linejoin=%27round%27/%3E%3Cpath d=%27M17 27.5Q20 23.5 23 27.5Z%27 fill=%27%23d97b3f%27/%3E%3C/svg%3E">
 <link rel="stylesheet" href="themes.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&display=swap">
 <link rel="stylesheet" href="css/dice.css">
 <style>
 *{box-sizing:border-box;}
@@ -318,6 +319,11 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
 .dm-roll #dmDice{font-family:ui-monospace, Consolas, monospace; width:min(200px, 100%);}
 .dm-roll #dmLabel{flex:1 1 160px; min-width:0;}
 .dm-quick{display:flex; flex-wrap:wrap; gap:6px; margin-top:8px;}
+.dm-test{display:flex; flex-wrap:wrap; gap:6px 8px; align-items:center; margin-top:10px; font-size:0.85rem;}
+.dm-test-note{font-size:0.75rem; color:var(--ink-dim);}
+#rollsBox{margin-top:12px;}
+#rollsList li.n20{color:#f2c14e;}
+#rollsList li.n1{color:var(--danger);}
 .dm-dice-picker{margin-top:0;}
 .dice-style-menu{position:absolute; top:calc(100% + 6px); right:0; z-index:50; width:min(340px, calc(100vw - 32px));
   display:grid; grid-template-columns:auto 1fr; gap:6px 10px; align-items:center; padding:12px;
@@ -367,6 +373,7 @@ applyTheme(savedTheme || DEFAULT_THEME);
   <div class="panel-head"><h2>Party</h2><span class="live-state" id="liveState">Connecting to live updates…</span><button type="button" class="ghost" id="allowAll">Allow everyone to roll</button><button type="button" class="ghost" id="allowNone">Stop all rolls</button><button type="button" class="ghost" id="partyRefresh">Reload sheets</button></div>
   <p class="panel-note">Stats come from each character’s Google Sheet. The live box shows what the player is tracking in Turnkeeper (hit points, conditions, magic, concentration, slots), updated as it changes. <b>Click a card</b> to let that player roll their dice in Turnkeeper; click it again to stop.</p>
   <div class="party-grid" id="partyGrid"></div>
+  <details class="log" id="rollsBox" open><summary>Recent rolls</summary><ol id="rollsList"></ol></details>
   <div class="passive-check">
     <span>Passive</span>
     <select id="passSkill"><option value="perception">Perception</option><option value="investigation">Investigation</option><option value="insight">Insight</option></select>
@@ -433,6 +440,7 @@ applyTheme(savedTheme || DEFAULT_THEME);
     </div>
   </div>
   <div class="dm-quick"><button type="button" class="chip-btn" data-quick="1d4">d4</button><button type="button" class="chip-btn" data-quick="1d6">d6</button><button type="button" class="chip-btn" data-quick="1d8">d8</button><button type="button" class="chip-btn" data-quick="1d10">d10</button><button type="button" class="chip-btn" data-quick="1d12">d12</button><button type="button" class="chip-btn" data-quick="1d20">d20</button><button type="button" class="chip-btn" data-quick="1d20 adv">d20 adv</button><button type="button" class="chip-btn" data-quick="1d20 dis">d20 dis</button><button type="button" class="chip-btn" data-quick="1d100">d100</button></div>
+  <div class="dm-test"><span>Test a crit</span><select id="testRow" aria-label="Which roll type"></select><select id="testNat" aria-label="Natural 20 or 1"><option value="20">20</option><option value="1">1</option></select><button type="button" class="ghost" id="testCrit">Test</button><span class="dm-test-note">Shows the GIF and flavor text from Campaign settings, only on this screen.</span></div>
   <div class="msg" id="dmDiceMsg"></div>
   <p class="panel-note" style="margin:6px 0 0;">Add <b>adv</b> or <b>dis</b> after the dice for advantage or disadvantage. Monster stat blocks have Roll buttons for their attacks too.</p>
 </section>
@@ -1189,7 +1197,7 @@ $('initList').addEventListener('keydown', e=>{
 function speedText(s){ return Object.entries(s || {}).map(([k,v])=>k === 'walk' ? v : k === 'hover' ? (v ? 'hover' : '') : `${k} ${v}`).filter(Boolean).join(', '); }
 function actionHtml(a){
   const cmds = [];
-  if(a.attack_bonus !== undefined) cmds.push(rollRow(`1d20${fmtMod(a.attack_bonus)}`, `${a.name}: to hit`, 'to hit'));
+  if(a.attack_bonus !== undefined) cmds.push(rollRow(`1d20${fmtMod(a.attack_bonus)}`, `${a.name}: to hit`, 'to hit', ' data-fx-row="hit"'));
   (a.damage || []).forEach(d=>{ if(d.damage_dice) cmds.push(rollRow(d.damage_dice.replace(/\s/g,''), `${a.name}: damage`, `${d.damage_type ? d.damage_type.name.toLowerCase() : ''} damage`)); });
   const usage = a.usage ? ` (${a.usage.type === 'recharge on roll' ? `Recharge ${a.usage.min_value}–6` : a.usage.type === 'per day' ? `${a.usage.times}/Day` : a.usage.type})` : '';
   return `<div class="sb-feat"><b>${esc(a.name)}${esc(usage)}.</b><p>${esc(a.desc)}</p>${cmds.join('')}</div>`;
@@ -1365,6 +1373,7 @@ function setCampaign(key){
   combat = loadJSON(storeKey('combat'), null) || {list:[], round:0, turn:null, log:[], nextId:1};
   live = {};
   loadNotes(); renderInit(); renderEncounter(); loadParty();
+  if(window.renderRecentRolls) window.renderRecentRolls();
   if(window.dmLiveWatch) window.dmLiveWatch(campaign.key);
 }
 $('campaignSelect').addEventListener('change', e=>setCampaign(e.target.value));
@@ -1435,14 +1444,35 @@ window.dmRollsUpdate = (key, data)=>{
   if(key !== campaign.key) return;
   const all = Object.values(data || {}).filter(r=>r && r.id);
   if(rollsKey !== key){ rollsKey = key; all.forEach(r=>rollsSeen.add(String(r.id))); return; }
-  all.forEach(r=>{ if(rollsSeen.has(String(r.id))) return; rollsSeen.add(String(r.id)); showRoll(cleanRoll(r)); });
+  all.forEach(r=>{ if(rollsSeen.has(String(r.id))) return; rollsSeen.add(String(r.id)); const roll = cleanRoll(r); showRoll(roll); noteRoll(roll); });
 };
+// Players' rolls stay on this screen: in the combat log during a fight, and always under
+// Recent rolls in the Party panel ("Bel: Perception check: 17 (1d20 + 4: 13)"), saved in this
+// browser per campaign
+const ROLLS_KEEP = 30;
+function rollLine(r){
+  const dice = r.dice.map(d=>`${d.v}${d.c ? '→' + d.c : ''}${d.x ? ' dropped' : ''}`).join(', ');
+  return `${r.name || 'Someone'}: ${r.label || 'Roll'}: ${r.total} (${r.notation}${dice ? `: ${dice}` : ''})${r.nat ? ` · ${natWords(r)}!` : ''}`;
+}
+function noteRoll(r){
+  const text = rollLine(r);
+  if(combat.round){ logLine(text); saveJSON(storeKey('combat'), combat); renderInit(); }
+  const list = [{t:Date.now(), round:combat.round || 0, text, nat:r.nat}, ...loadJSON(storeKey('rolls'), [])].slice(0, ROLLS_KEEP);
+  saveJSON(storeKey('rolls'), list); renderRecentRolls();
+}
+function renderRecentRolls(){
+  const list = loadJSON(storeKey('rolls'), []);
+  $('rollsList').innerHTML = list.map(l=>`<li class="${l.nat ? 'n' + l.nat : ''}"><b>${new Date(l.t).toLocaleTimeString([], {hour:'numeric', minute:'2-digit'})}</b>${l.round ? ` · R${l.round}` : ''} ${esc(l.text)}</li>`).join('')
+    || '<li>No rolls yet. Players’ rolls show here (and in the combat log during a fight).</li>';
+}
+window.renderRecentRolls = renderRecentRolls;
+renderRecentRolls();
 
 /* The DM's private rolls */
 const DM_DICE_KEY = 'dndTracker:dm:dice';
 let dmStyle = safeDiceStyle(loadJSON(DM_DICE_KEY, null) || {preset:'bloodmoon'});
-function dmRoll(text, who, label, row){
-  const made = makeRoll(text, who || 'DM', label, dmStyle);
+function dmRoll(text, who, label, row, kind){
+  const made = makeRoll(text, who || 'DM', label, dmStyle, kind);   // kind: 'hit' for a monster attack ("Critical Hit"); never a GIF
   if(made.error){ if(row) rowWarn(row, made.error); else $('dmDiceMsg').textContent = made.error; return; }
   if(row) rowWarn(row, ''); else $('dmDiceMsg').textContent = '';
   showRoll(made.roll, {note:'Only you see this roll.'});
@@ -1451,8 +1481,18 @@ function dmRoll(text, who, label, row){
 window.onDiceRoll = btn=>{
   const row = btn.closest('.roll-cmd-row'); if(!row) return;
   const who = btn.dataset.who || (btn.closest('#sbBackdrop') ? $('sbTitle').textContent : 'DM');
-  dmRoll(rowDice(row), who, btn.dataset.roll, row);
+  dmRoll(rowDice(row), who, btn.dataset.roll, row, btn.dataset.fxRow);
 };
+// Test a crit: a d20 that lands on 20 or 1 for the chosen row, with that row's GIF and flavor
+// text (private, like all the DM's rolls)
+$('testRow').innerHTML = CRIT_ROWS.map(([k, name])=>`<option value="${k}">${name}</option>`).join('');
+$('testCrit').addEventListener('click', ()=>{
+  const row = $('testRow').value, nat = +$('testNat').value, name = CRIT_ROWS.find(x=>x[0] === row)[1];
+  const fx = pickCritFx(row, nat, 'Krunk');
+  $('dmDiceMsg').textContent = fx ? '' : `${name} has no GIFs or flavor text for a ${nat} yet (and nothing in To Hit’s to fall back on). Add some in Campaign settings.`;
+  showRoll({id:rollId(), name:'Test', label:`${name}: test`, notation:'1d20', total:nat, dice:[{s:20, v:nat}], nat, kind:row, style:dmStyle, ...(fx ? {fx} : {})},
+    {note:'Test roll: only you see this. {who} shows as Krunk.'});
+});
 $('dmRollBtn').addEventListener('click', ()=>dmRoll($('dmDice').value, 'DM', $('dmLabel').value.trim() || 'Roll'));
 $('dmDice').addEventListener('keydown', e=>{ if(e.key === 'Enter'){ e.preventDefault(); $('dmRollBtn').click(); } });
 $('dmLabel').addEventListener('keydown', e=>{ if(e.key === 'Enter'){ e.preventDefault(); $('dmRollBtn').click(); } });
@@ -1581,9 +1621,11 @@ $('csBody').addEventListener('click', async e=>{
   }
   else if(b.id === 'csSeed'){
     if(!confirm('Add the !tk alias’s 6 GIFs and 2 titles to To Hit?')) return;
+    // Only what isn't in the pool already (so clicking it twice doesn't double anything)
     for(const s of ['success', 'fail']){
-      for(const l of OLD_TK[s].links) await csWrite(`gifs/hit/${s}/links`, l, true);
-      for(const f of OLD_TK[s].flavor) await csWrite(`gifs/hit/${s}/flavor`, f, true);
+      const have = critSettings.gifs.hit[s];
+      for(const l of OLD_TK[s].links) if(!have.links.some(x=>x.v === l)) await csWrite(`gifs/hit/${s}/links`, l, true);
+      for(const f of OLD_TK[s].flavor) if(!have.flavor.some(x=>x.v === f)) await csWrite(`gifs/hit/${s}/flavor`, f, true);
     }
   }
 });

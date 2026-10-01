@@ -6,6 +6,7 @@
 <title>Turnkeeper</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 40 40%27%3E%3Crect width=%2740%27 height=%2740%27 rx=%279%27 fill=%27%230c1b26%27/%3E%3Ccircle cx=%2720%27 cy=%2720%27 r=%2715%27 fill=%27none%27 stroke=%27%234fb8a6%27 stroke-width=%272.5%27/%3E%3Cpath d=%27M14 11H26M14 29H26M15 11Q15 18 20 20Q25 18 25 11M15 29Q15 22 20 20Q25 22 25 29%27 fill=%27none%27 stroke=%27%234fb8a6%27 stroke-width=%272.2%27 stroke-linejoin=%27round%27/%3E%3Cpath d=%27M17 27.5Q20 23.5 23 27.5Z%27 fill=%27%23d97b3f%27/%3E%3C/svg%3E">
 <link rel="stylesheet" href="themes.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&display=swap">
 <link rel="stylesheet" href="css/dice.css">
 <style>
 *{box-sizing:border-box;}
@@ -380,6 +381,10 @@ button.dice-edit{background:none; border:1px solid var(--border); color:var(--in
 button.dice-edit:hover{color:var(--ink); border-color:var(--sea);}
 /* Crit damage: a gold CRIT tag before the description */
 .crit-tag{display:inline-block; background:#f2c14e; color:#1d1405; font-weight:800; letter-spacing:0.08em; font-size:0.72rem; border-radius:3px; padding:0 6px; margin-right:2px;}
+/* Rolling without picking a target first: the picker flashes */
+.target-pick.need-pick{outline:2px solid var(--danger); outline-offset:2px; animation:needPick 0.5s;}
+@keyframes needPick{0%,100%{transform:none;} 25%{transform:translateX(-5px);} 75%{transform:translateX(5px);}}
+@media (prefers-reduced-motion: reduce){ .target-pick.need-pick{animation:none;} }
 button.roll-btn{padding:6px 14px; font-size:0.82rem; white-space:nowrap; font-weight:600;}
 body:not(.may-roll) button.roll-btn{opacity:0.5;}
 .roll-wait{flex-basis:100%; font-size:0.78rem; color:var(--danger);}
@@ -2204,7 +2209,15 @@ document.getElementById('combatBar').addEventListener('click', e=>{
   const b = e.target.closest('[data-combat]'); if(!b) return;
   const c = track.combat, k = b.dataset.combat;
   if(k === 'end'){ track.combat = null; saveTrack(); renderCombat(); renderActiveFx(); return; }
-  if(k === 'turn') startOfTurn();
+  if(k === 'turn'){
+    // In the DM's combat your turn starts when the initiative gets to you: say whose turn it is
+    if(tableActive() && !myTurnNow()){
+      const cur = arrOf(table.combat.order).find(o=>o.id === table.combat.turn);
+      c.msg = `It’s ${cur ? cur.name : 'someone else'}’s turn right now, not yours yet. Your turn starts on its own when the DM’s initiative gets to you.`;
+      saveTrack(); renderCombat(); return;
+    }
+    startOfTurn();
+  }
   else if(k === 'endturn'){ endOfTurn(); sendTurnEnd(); }
   else {
     if(k === 'reaction') c.reaction = !c.reaction;
@@ -6004,9 +6017,18 @@ window.onDiceRoll = btn=>{
       : 'Your DM hasn’t asked you to roll. They let you roll by clicking your card on the DM Screen (in combat, you can roll on your turn).');
     return;
   }
+  // In the DM's combat, a popup that asks who you're attacking (or aiming at) needs a pick first
+  const aimPick = btn.closest('#rollPopup') && document.querySelector('#rollPopup [data-aim]');
+  if(aimPick && !(rollState.aim || []).length){
+    rowWarn(row, rollState.sel && rollState.sel.kind === 'weapon' ? 'Pick who you’re attacking first.' : 'Pick a target first.');
+    const box = aimPick.closest('.target-pick');
+    if(box){ box.classList.remove('need-pick'); void box.offsetWidth; box.classList.add('need-pick'); box.scrollIntoView({block:'nearest', behavior:'smooth'}); }
+    return;
+  }
   // In the roll popup, say what it's for: "Greatsword: To hit"
   const title = btn.closest('#rollPopup') ? document.getElementById('rollTitle').textContent.trim() : '';
-  const made = makeRoll(rowDice(row), myName(), (title ? `${title}: ` : '') + (btn.dataset.roll || 'Roll'), myDiceStyle(), btn.dataset.fxRow);
+  const what = btn.dataset.roll || 'Roll';   // not "Perception check: Perception check"
+  const made = makeRoll(rowDice(row), myName(), title ? (title.startsWith(what) ? title : `${title}: ${what}`) : what, myDiceStyle(), btn.dataset.fxRow);
   if(made.error){ rowWarn(row, made.error); return; }
   const roll = made.roll;
   roll.fx = pickCritFx(roll.kind, roll.nat, myName());   // a natural 20 or 1: the campaign's GIF, the same on every screen

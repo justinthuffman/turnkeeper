@@ -252,7 +252,7 @@ function showRoll(roll, opts){
     + `<div class="dc-head"><span class="dc-who">${diceEsc(roll.name || 'Someone')}</span><span class="dc-what">${diceEsc(roll.label || 'Roll')}</span></div>`
     + `<div class="dc-total">${roll.total}<small>${diceEsc(roll.notation || '')}</small></div>`
     + (chips ? `<div class="dc-dice">${chips}</div>` : '')
-    + (roll.nat === 20 ? `<div class="dc-nat n20">Natural 20!</div>` : roll.nat === 1 ? `<div class="dc-nat n1">Natural 1!</div>` : '')
+    + (roll.nat ? `<div class="dc-nat n${roll.nat}">${natWords(roll)}!</div>` : '')
     + (opts && opts.note ? `<div class="dc-what">${diceEsc(opts.note)}</div>` : '');
   card.hidden = false;
   const landed = play3d(roll);
@@ -261,6 +261,8 @@ function showRoll(roll, opts){
   clearTimeout(diceHideTimer);
   diceHideTimer = setTimeout(hideRoll, 12000);
 }
+// Attack rolls crit (2014 rules); other d20 rolls just come up a natural 20 or 1
+const natWords = roll=>roll.kind === 'hit' ? (roll.nat === 20 ? 'Critical Hit' : 'Critical Miss') : `Natural ${roll.nat}`;
 function hideRoll(){ clearTimeout(diceHideTimer); document.getElementById('diceCard').hidden = true; clearDice(); }
 document.getElementById('diceCard').addEventListener('click', e=>{ if(e.target.closest('.dc-close')) hideRoll(); });
 // A roll from the database (untrusted): only known shapes and values get through
@@ -325,7 +327,41 @@ function cleanFx(fx){
 const CRIT_FX_KEY = 'dndTracker:critFx';
 const critFxOn = ()=>{ try{ return localStorage.getItem(CRIT_FX_KEY) !== 'off'; }catch(e){ return true; } };
 function setCritFxOn(on){ try{ localStorage.setItem(CRIT_FX_KEY, on ? 'on' : 'off'); }catch(e){} }
-// Shown until the viewer clicks outside it or the ✕. Reduced motion: the text only, no GIF.
+// The flavor text as an animated banner right above the centered GIF; shown until the viewer
+// clicks outside it or the ✕. Reduced motion: the same banner, still, and no GIF.
+function critBanner(text){
+  const banner = document.createElement('div'); banner.className = 'cf-banner';
+  const panel = document.createElement('div'); panel.className = 'cf-panel';
+  const h = document.createElement('p'); h.className = 'cf-text';
+  // Each letter pops in after the one before; words never split across lines
+  let i = 0;
+  text.split(/(\s+)/).forEach(part=>{
+    if(!part) return;
+    if(/^\s+$/.test(part)){ h.appendChild(document.createTextNode(' ')); return; }
+    const w = document.createElement('span'); w.className = 'w';
+    [...part].forEach(ch=>{
+      const l = document.createElement('span'); l.className = 'l'; l.textContent = ch;
+      l.style.animationDelay = `${0.25 + i * 0.03}s, ${i * 0.04}s, ${i * 0.06}s`; i++;
+      w.appendChild(l);
+    });
+    h.appendChild(w);
+  });
+  panel.appendChild(h); banner.appendChild(panel);
+  // Sparkles (or embers) around the banner's edges
+  for(let k = 0; k < 16; k++){
+    const s = document.createElement('i'); s.className = 'cf-spark';
+    const r = ()=>Math.random(), top = r() < 0.5;
+    s.style.setProperty('--x', `${top ? r() * 100 : (r() < 0.5 ? -2 : 98)}%`);
+    s.style.setProperty('--y', `${top ? (r() < 0.5 ? -10 : 90) : r() * 100}%`);
+    s.style.setProperty('--s', `${8 + r() * 14}px`);
+    s.style.setProperty('--d', `${1.4 + r() * 1.6}s`);
+    s.style.setProperty('--delay', `${r() * 2}s`);
+    s.style.setProperty('--dx', `${(r() - 0.5) * 60}px`);
+    s.style.setProperty('--dy', `${(r() - 0.5) * 50}px`);
+    banner.appendChild(s);
+  }
+  return banner;
+}
 function showCritFx(fx){
   if(!fx || !critFxOn()) return;
   hideCritFx();
@@ -333,7 +369,8 @@ function showCritFx(fx){
   const wrap = document.createElement('div');
   wrap.className = 'crit-fx' + (fx.side === 'fail' ? ' fail' : ''); wrap.id = 'critFx';
   wrap.setAttribute('role', 'dialog'); wrap.setAttribute('aria-label', fx.text || (fx.side === 'fail' ? 'Natural 1' : 'Natural 20'));
-  if(fx.text){ const t = document.createElement('div'); t.className = 'cf-text'; t.textContent = fx.text; wrap.appendChild(t); }
+  const stage = document.createElement('div'); stage.className = 'cf-stage';
+  if(fx.text) stage.appendChild(critBanner(fx.text));
   const box = document.createElement('div'); box.className = 'cf-box';
   if(fx.gif && !still){
     let media;
@@ -347,10 +384,10 @@ function showCritFx(fx){
     box.appendChild(media);
   }
   const x = document.createElement('button'); x.type = 'button'; x.className = 'cf-close'; x.setAttribute('aria-label', 'Close'); x.textContent = '×';
-  box.appendChild(x); wrap.appendChild(box);
+  box.appendChild(x); stage.appendChild(box); wrap.appendChild(stage);
   wrap.addEventListener('click', e=>{ if(e.target === wrap || e.target === x) hideCritFx(); });
   document.body.appendChild(wrap);
-  x.focus();
+  x.focus({preventScroll:true});
 }
 function hideCritFx(){ const el = document.getElementById('critFx'); if(el){ const v = el.querySelector('video'); if(v) v.pause(); el.remove(); } }
 document.addEventListener('keydown', e=>{ if(e.key === 'Escape') hideCritFx(); });
