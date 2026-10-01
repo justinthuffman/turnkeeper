@@ -40,32 +40,73 @@ function setupPanelOrder(opts){
     p.insertBefore(g, p.firstChild);
   });
 
-  // Dragging: the panel moves through the list as the pointer passes the middle of the others
+  // Dragging. Picking a panel up shrinks every panel to its title bar (the whole list fits on
+  // screen, and a short move passes a neighbour); the panel lifts out as a card under the pointer
+  // and follows it anywhere, a dashed slot shows where it will land, and the others slide out of
+  // the way. Letting go opens the panels again; Esc puts it back where it was.
   let drag = null;
+  const slide = fn=>{   // move panels, animating the others from where they were (FLIP)
+    if(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches){ fn(); return; }
+    const before = new Map(all().filter(visible).map(p=>[p, p.getBoundingClientRect().top]));
+    fn();
+    before.forEach((top, p)=>{
+      if(p === drag.panel) return;
+      const dy = top - p.getBoundingClientRect().top; if(!dy) return;
+      p.style.transition = 'none'; p.style.transform = `translateY(${dy}px)`;
+      requestAnimationFrame(()=>{ p.style.transition = 'transform 0.16s ease'; p.style.transform = ''; });
+    });
+  };
+  const place = (x, y)=>{ drag.card.style.left = (x - drag.dx) + 'px'; drag.card.style.top = (y - drag.dy) + 'px'; };
   box.addEventListener('pointerdown', e=>{
-    const g = e.target.closest('.panel-grip'); if(!g || e.button > 0) return;
+    const g = e.target.closest('.panel-grip'); if(!g || e.button > 0 || drag) return;
     e.preventDefault();
-    drag = {panel:g.parentElement, grip:g, id:e.pointerId};
+    const panel = g.parentElement;
+    drag = {panel, grip:g, id:e.pointerId, from:order()};
     try{ g.setPointerCapture(e.pointerId); }catch(err){}   // keeps getting moves when the pointer leaves the grip
-    drag.panel.classList.add('panel-dragging'); document.body.classList.add('panels-dragging');
+    document.body.classList.add('panels-sorting');
+    // Keep the grabbed panel's (now short) bar under the pointer after everything shrinks
+    const r = panel.getBoundingClientRect();
+    scrollBy(0, r.top - (e.clientY - 22));
+    const bar = panel.getBoundingClientRect();
+    drag.dx = e.clientX - bar.left; drag.dy = e.clientY - bar.top;
+    // The card in your hand: the panel's title bar
+    const card = document.createElement('div');
+    card.className = 'panel panel-held'; card.style.width = bar.width + 'px';
+    card.innerHTML = `<span class="panel-grip-icon">⠿</span><h2></h2>`; card.querySelector('h2').textContent = title(panel);
+    card.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(card); drag.card = card;
+    panel.classList.add('panel-slot');
+    place(e.clientX, e.clientY);
   });
   box.addEventListener('pointermove', e=>{
     if(!drag || e.pointerId !== drag.id) return;
     const y = e.clientY;
-    if(y < 70) scrollBy(0, -14); else if(y > innerHeight - 70) scrollBy(0, 14);   // scroll while dragging near the edges
+    place(e.clientX, y);
+    if(y < 60) scrollBy(0, -12); else if(y > innerHeight - 60) scrollBy(0, 12);   // scroll near the edges
+    // The slot goes before the first panel whose middle is below the card's middle
+    const mid = y - drag.dy + drag.card.offsetHeight / 2;
     const others = all().filter(p=>p !== drag.panel && visible(p));
-    const target = others.find(p=>{ const r = p.getBoundingClientRect(); return y < r.top + r.height / 2; });
+    const target = others.find(p=>{ const r = p.getBoundingClientRect(); return mid < r.top + r.height / 2; });
     const ref = target || end;
-    if(drag.panel.nextSibling !== ref && drag.panel !== ref) box.insertBefore(drag.panel, ref);
+    if(drag.panel.nextSibling !== ref && drag.panel !== ref) slide(()=>box.insertBefore(drag.panel, ref));
   });
-  const stop = e=>{
-    if(!drag || e.pointerId !== drag.id) return;
-    drag.panel.classList.remove('panel-dragging'); document.body.classList.remove('panels-dragging');
-    try{ drag.grip.releasePointerCapture(drag.id); }catch(err){}
-    drag = null; changed();
-  };
+  function finish(cancel){
+    const {panel, card, grip, id, from} = drag;
+    if(cancel) apply(from);
+    card.remove(); panel.classList.remove('panel-slot');
+    all().forEach(p=>{ p.style.transition = ''; p.style.transform = ''; });
+    try{ grip.releasePointerCapture(id); }catch(err){}
+    const y = panel.getBoundingClientRect().top;
+    document.body.classList.remove('panels-sorting');
+    scrollBy(0, panel.getBoundingClientRect().top - y);   // the panel stays where it was dropped as the others open up
+    drag = null;
+    if(!cancel) changed();
+    grip.focus({preventScroll:true});
+  }
+  const stop = e=>{ if(drag && e.pointerId === drag.id) finish(e.type === 'pointercancel'); };
   box.addEventListener('pointerup', stop);
   box.addEventListener('pointercancel', stop);
+  document.addEventListener('keydown', e=>{ if(drag && e.key === 'Escape'){ e.preventDefault(); finish(true); } });
 
   // Keyboard: up and down arrows move the panel past its visible neighbour
   box.addEventListener('keydown', e=>{

@@ -7,9 +7,10 @@ Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wi
 
 ### Added
 - **Arrange the panels.** On the tracker (Character Summary, Resources, Status, Combat Menu,
-  Spells…) and the DM Screen (Party, Initiative, Monsters & Encounters…), drag a panel by the
-  ⠿ grip next to its title, with a mouse or a finger, or focus the grip and use the up and
-  down arrow keys. The order is remembered in this browser, and the DM Screen's links at the
+  Spells…) and the DM Screen (Party, Initiative, Monsters & Encounters…), pick a panel up by
+  the ⠿ grip next to its title, with a mouse or a finger. Every panel shrinks to its title bar
+  while you carry it, a dashed slot shows where it will land, and Esc puts it back. You can
+  also focus the grip and use the up and down arrow keys. The order is remembered in this browser, and the DM Screen's links at the
   top follow it. "Reset panel order" at the bottom puts everything back.
 
 ### Changed

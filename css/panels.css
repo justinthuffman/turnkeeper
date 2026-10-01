@@ -3,9 +3,19 @@
 button.panel-grip{position:absolute; top:16px; left:1px; width:16px; height:24px; padding:0; border:none; background:none; box-shadow:none; text-shadow:none;
   color:var(--ink-dim); opacity:0.4; font-size:15px; line-height:24px; cursor:grab; touch-action:none; border-radius:3px;}
 button.panel-grip:hover, button.panel-grip:focus-visible{opacity:1; color:var(--ink); background:none;}
-.panel-dragging{outline:2px dashed var(--sea); outline-offset:3px; opacity:0.85; box-shadow:0 12px 30px rgba(0,0,0,0.45);}
-.panel-dragging .panel-grip{cursor:grabbing;}
-body.panels-dragging{user-select:none; -webkit-user-select:none; cursor:grabbing;}
-button.panel-reset{margin-top:6px;}
 /* Some themes style every button: the grip stays plain */
 html .wrap > .panel > button.panel-grip{background:none !important; border:none !important; box-shadow:none !important; padding:0 !important; min-height:0 !important;}
+/* While a panel is picked up: every panel shrinks to its title bar */
+body.panels-sorting{user-select:none; -webkit-user-select:none; cursor:grabbing;}
+body.panels-sorting .wrap > .panel{max-height:58px; overflow:hidden; margin-bottom:10px;}
+body.panels-sorting .wrap > .panel::after{content:""; position:absolute; inset:auto 0 0 0; height:18px; background:linear-gradient(transparent, var(--panel)); pointer-events:none;}
+/* The empty slot where the held panel will land */
+.wrap > .panel.panel-slot{background:transparent; border:2px dashed var(--sea); box-shadow:none;}
+.wrap > .panel.panel-slot > *, .wrap > .panel.panel-slot::after{visibility:hidden;}
+/* The panel in your hand */
+.panel-held{position:fixed; z-index:600; margin:0; pointer-events:none; display:flex; align-items:center; gap:10px; padding:14px 18px;
+  border:2px solid var(--sea) !important; box-shadow:0 18px 44px rgba(0,0,0,0.6); transform:rotate(-1.2deg) scale(1.03); opacity:0.97;}
+.panel-held h2{margin:0 !important;}
+.panel-held .panel-grip-icon{color:var(--ink); font-size:15px;}
+button.panel-reset{margin-top:6px;}
+@media (prefers-reduced-motion: reduce){ .panel-held{transform:none;} }
