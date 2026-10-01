@@ -14,7 +14,9 @@ Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wi
 - **Dice size:** small, medium or large, part of your dice look.
 - **Throw:** a gentle-to-hard slider at the top of the roll popup (and in the DM's Dice panel)
   sets how hard you throw. It stays where you leave it, and everyone sees your throw. The
-  numbers aren't affected.
+  numbers aren't affected. A hard throw sends the dice spinning and bouncing across the tray;
+  a gentle one rolls them a short way.
+- **Click anywhere outside the tray** to put the roll away (the tray and the result card).
 - **Dice sounds:** the dice clatter, sounding like the floor they land on (soft on felt, a
   clatter on the tavern table). Each device has its own on/off and volume under 🎲, and the DM
   can turn dice sounds off for everyone in Campaign settings. Sound starts once you've clicked

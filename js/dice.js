@@ -232,6 +232,23 @@ function diceBox(){
     sizeTray(DEFAULT_DICE.shape);
     const box = new DiceBox('#trayDice', {assetPath:DICE_LIB + 'public/', theme_surface:'green-felt', theme_colorset:'white', theme_material:'glass', sounds:false, baseScale:80});
     await box.initialize();
+    // The throw. The library starts the dice at the box's edge (outside a hexagon's or
+    // octagon's angled walls, so they hit a wall in mid-air) with a random speed that swamps its
+    // own strength setting. Start them inside the tray instead, and set their speed and spin
+    // from the Throw slider (box.throwPower), with a little variety.
+    const startThrow = box.startClickThrow.bind(box);
+    box.startClickThrow = notation=>{
+      const v = startThrow(notation), p = box.throwPower || THROW_DEFAULT;
+      const base = Math.max(box.display.containerWidth, box.display.containerHeight) * 1.6;   // a medium throw crosses the tray
+      if(v && v.vectors) v.vectors.forEach(x=>{
+        x.pos.x *= 0.5; x.pos.y *= 0.5;
+        const m = Math.hypot(x.velocity.x, x.velocity.y) || 1, speed = base * p * (0.85 + Math.random() * 0.3);
+        x.velocity.x = x.velocity.x / m * speed; x.velocity.y = x.velocity.y / m * speed;
+        const a = Math.hypot(x.angle.x, x.angle.y, x.angle.z) || 1, spin = 10 * p * (0.8 + Math.random() * 0.4);
+        x.angle.x = x.angle.x / a * spin; x.angle.y = x.angle.y / a * spin; x.angle.z = x.angle.z / a * spin;
+      });
+      return v;
+    };
     return box;
   })().catch(err=>{ console.warn('3D dice unavailable:', err); diceBoxP = null; return null; });
   return diceBoxP;
@@ -282,7 +299,7 @@ async function setTray(box, st, strength){
   }
   box.setDimensions(new box.dimensions.constructor(w, h));
   trayShapeWalls(box, st.shape);
-  box.strength = safeThrow(strength);
+  box.throwPower = safeThrow(strength);   // used by the throw (see diceBox)
   const snd = diceSoundPrefs();
   box.sounds = snd.on && critSettings.diceSound && snd.vol > 0; box.volume = snd.vol;   // the DM can mute dice for the campaign
   box.surface = TRAY_FLOORS[st.floor].sound;
@@ -326,12 +343,12 @@ async function play3d(roll){
   await setTray(box, st, roll.throw);
   if(seq !== dicePlaySeq) return;
   const layer = document.getElementById('diceLayer');
-  layer.style.transition = 'none'; layer.style.opacity = '1';
+  layer.style.transition = 'none'; layer.style.opacity = '1'; layer.dataset.on = '1';
   return box.roll(shown.map(d=>'1d' + d.s).join('+') + '@' + shown.map(d=>d.v).join(',')).catch(err=>console.warn('3D dice:', err));   // settles when the dice land
 }
 function clearDice(){
   const layer = document.getElementById('diceLayer');
-  layer.style.transition = 'opacity 0.6s'; layer.style.opacity = '0';
+  layer.style.transition = 'opacity 0.6s'; layer.style.opacity = '0'; delete layer.dataset.on;
   const seq = dicePlaySeq;
   setTimeout(async()=>{
     if(seq !== dicePlaySeq || !diceBoxP) return;
@@ -370,7 +387,7 @@ function showRoll(roll, opts){
     + (chips ? `<div class="dc-dice">${chips}</div>` : '')
     + (roll.nat ? `<div class="dc-nat n${roll.nat}">${natWords(roll)}!</div>` : '')
     + (opts && opts.note ? `<div class="dc-what">${diceEsc(opts.note)}</div>` : '');
-  card.hidden = false;
+  card.hidden = false; rollShownAt = Date.now();
   const landed = play3d(roll);
   // A crit's GIF shows once the dice have landed (or after a few seconds if they can't be shown)
   if(roll.fx) Promise.race([landed, new Promise(ok=>setTimeout(ok, 5000))]).then(()=>showCritFx(roll.fx));
@@ -379,7 +396,15 @@ function showRoll(roll, opts){
 }
 // Attack rolls crit (2014 rules); other d20 rolls just come up a natural 20 or 1
 const natWords = roll=>roll.kind === 'hit' ? (roll.nat === 20 ? 'Critical Hit' : 'Critical Miss') : `Natural ${roll.nat}`;
-function hideRoll(){ clearTimeout(diceHideTimer); document.getElementById('diceCard').hidden = true; clearDice(); }
+function hideRoll(){ clearTimeout(diceHideTimer); document.getElementById('diceCard').hidden = true; dicePlaySeq++; clearDice(); }   // dicePlaySeq++: a roll still setting up doesn't show
+// Clicking anywhere outside the tray and the card puts the roll away (not the click that made
+// the roll, and not one on a crit GIF, which closes itself)
+let rollShownAt = 0;
+document.addEventListener('click', e=>{
+  if(document.getElementById('diceCard').hidden || Date.now() - rollShownAt < 400) return;
+  if(e.target.closest && e.target.closest('#diceCard, #diceTray, #critFx')) return;
+  hideRoll();
+});
 document.getElementById('diceCard').addEventListener('click', e=>{ if(e.target.closest('.dc-close')) hideRoll(); });
 // A roll from the database (untrusted): only known shapes and values get through
 function cleanRoll(r){

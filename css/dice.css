@@ -5,6 +5,7 @@
 #diceLayer[hidden]{display:none;}
 #diceLayer canvas{display:block;}
 .tray{position:relative; --rim:14px;}
+#diceLayer[data-on] .tray{pointer-events:auto;}   /* while showing, a click on the tray keeps the roll; anywhere else puts it away */
 .tray > *{position:absolute;}
 .tray-rim{inset:calc(-1 * var(--rim)); background:var(--rimBg); box-shadow:0 18px 40px rgba(0,0,0,0.55);}
 .tray-floor{inset:0; background:var(--floorBg);}
