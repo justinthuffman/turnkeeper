@@ -3,6 +3,13 @@
 What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest first.
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
+## Unreleased
+
+### Added
+- **Tray size:** small, medium or large, under 🎲 Your dice → Tray. Everyone sees your rolls
+  in your tray at your size.
+- **The DM Screen's party cards show the same icons** as each player's Character Summary.
+
 ## 2026-10-02 — Character icons
 
 ### Added

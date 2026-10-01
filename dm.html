@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&display=swap">
 <link rel="stylesheet" href="css/dice.css">
 <link rel="stylesheet" href="css/panels.css">
+<link rel="stylesheet" href="css/char-icons.css">
 <style>
 *{box-sizing:border-box;}
 body{
@@ -72,6 +73,7 @@ button.sel-toggle:hover{background:none; color:var(--ink);}
 .pc-card > .pc-sublbl{align-self:end;}
 .pc-top{display:flex; gap:10px; align-items:center;}
 .pc-portrait{width:52px; height:52px; border-radius:50%; object-fit:cover; object-position:top; border:1px solid var(--border); flex:0 0 auto; background:var(--bg);}
+.pc-icon{width:64px;}   /* the player's icon (css/char-icons.css) */
 .pc-card h3{font-size:1.15rem; color:var(--sea);}
 .pc-sub{font-size:0.78rem; color:var(--ink-dim);}
 .pc-stats{display:grid; grid-template-columns:repeat(5, minmax(0,1fr)); gap:4px; margin:0;}
@@ -539,6 +541,7 @@ applyTheme(savedTheme || DEFAULT_THEME);
 <div id="diceLayer" hidden></div>
 <div class="dice-card" id="diceCard" role="status" aria-live="polite" hidden></div>
 <script src="js/dice.js"></script>
+<script src="js/char-icons.js"></script>
 <script>
 /* ============================================================
    DM Screen. One page for the DM: the campaign's party (read from their sheets), an
@@ -786,7 +789,9 @@ function pcCard(pc){
   const may = !!allowed[pc.sheet], cur = combat.round ? byId(combat.turn) : null;
   const turnNow = !may && !!(cur && cur.kind === 'pc' && cur.name === pc.name);
   const allowTag = `<span class="pc-allow${may || turnNow ? '' : ' off'}" title="${may ? `Click the card to stop ${esc(pc.name)} rolling` : turnNow ? `It's ${esc(pc.name)}'s turn, so they can roll. Clicking the card also lets them roll off their turn` : `Click the card to let ${esc(pc.name)} roll`}">${may ? '🎲 Allowed to roll' : turnNow ? '🎲 Their turn: can roll' : 'Not rolling'}</span>`;
-  const top = sub => `<div class="pc-top"><img class="pc-portrait" src="${pc.portrait}" alt=""><div><h3>${esc(pc.name)}</h3><div class="pc-sub">${sub}</div>${allowTag}</div>${liveCornerHtml(pc)}</div>`;
+  // The same icon as the player's tracker (js/char-icons.js), or the plain portrait if there isn't one
+  const icon = charIconHtml(pc.sheet, `${pc.name}’s icon`, 'pc-icon') || `<img class="pc-portrait" src="${pc.portrait}" alt="">`;
+  const top = sub => `<div class="pc-top">${icon}<div><h3>${esc(pc.name)}</h3><div class="pc-sub">${sub}</div>${allowTag}</div>${liveCornerHtml(pc)}</div>`;
   if(!p || p.error) return `<article class="pc-card${p ? '' : ' loading'}${may ? ' allowed' : turnNow ? ' turn' : ''}" data-sheet="${pc.sheet}">${top(p ? '' : 'Loading…')}${p ? `<div class="pc-err">${esc(p.error)}</div>` : ''}${links}</article>`;
   const saves = ABILS.map(a=>{
     const s = p.saves.find(x=>x.name.toLowerCase().startsWith(ABIL_NAME[a].toLowerCase().slice(0,3)));

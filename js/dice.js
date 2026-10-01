@@ -147,6 +147,7 @@ const DICE_TEXTURES = ['none','marble','wood','stone','metal','cloudy','fire','w
 const DICE_MATERIALS = ['glass','plastic','metal','wood','none'];
 const DICE_SIZES = [['small', 'Small', 62], ['medium', 'Medium', 80], ['large', 'Large', 100]];   // the library's baseScale
 const TRAY_SHAPES = [['hex', 'Hexagon'], ['square', 'Square'], ['rect', 'Rectangle'], ['oct', 'Octagon'], ['round', 'Round']];
+const TRAY_SIZES = [['small', 'Small', 0.75], ['medium', 'Medium', 1], ['large', 'Large', 1.3]];   // how big the tray is
 // Floors and rims are drawn in code (SVG noise over gradients): nothing to download. A floor
 // also sets the sound the dice make landing on it.
 const trayNoise = (freq, oct, op)=>`url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='${freq}' numOctaves='${oct}' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='100%' height='100%' filter='url(#n)' opacity='${op}'/></svg>`)}")`;
@@ -164,7 +165,7 @@ const TRAY_RIMS = {
   iron:{name:'Iron', bg:`${trayNoise(0.8, 2, 0.25)}, linear-gradient(135deg, #6f747a, #2f3236 45%, #575c61 60%, #26282b)`},
   gold:{name:'Gold trim', bg:'linear-gradient(135deg, #f7e08a, #b8862b 35%, #fff2b5 50%, #9a6d1d 70%, #e6c25a)'},
 };
-const DEFAULT_DICE = {preset:'bronze', bg:'#8a1c12', fg:'#ffffff', tex:'none', mat:'glass', size:'medium', shape:'hex', floor:'greenfelt', rim:'darkwood', pic:'', fit:'fit'};
+const DEFAULT_DICE = {preset:'bronze', bg:'#8a1c12', fg:'#ffffff', tex:'none', mat:'glass', size:'medium', shape:'hex', traySize:'medium', floor:'greenfelt', rim:'darkwood', pic:'', fit:'fit'};
 // Only known values get through (styles come from other players over the network)
 function safeDiceStyle(s){
   s = s && typeof s === 'object' ? s : {};
@@ -173,6 +174,7 @@ function safeDiceStyle(s){
     bg:hex(s.bg) ? s.bg : D.bg, fg:hex(s.fg) ? s.fg : D.fg,
     tex:DICE_TEXTURES.includes(s.tex) ? s.tex : 'none', mat:DICE_MATERIALS.includes(s.mat) ? s.mat : 'glass',
     size:DICE_SIZES.some(x=>x[0] === s.size) ? s.size : D.size, shape:TRAY_SHAPES.some(x=>x[0] === s.shape) ? s.shape : D.shape,
+    traySize:TRAY_SIZES.some(x=>x[0] === s.traySize) ? s.traySize : D.traySize,
     floor:TRAY_FLOORS[s.floor] ? s.floor : D.floor, rim:TRAY_RIMS[s.rim] ? s.rim : D.rim,
     pic:safeUrl(s.pic), fit:s.fit === 'fill' ? 'fill' : 'fit'};
 }
@@ -196,6 +198,7 @@ function diceStyleMenuHtml(st, note){
     + `<div class="ds-note">Colors and texture are used when Set is “My own”. ${note}</div>`
     + `<div class="ds-head">Tray</div>`
     + `<label for="dsShape">Shape</label><select id="dsShape">${diceOpts(TRAY_SHAPES, st.shape)}</select>`
+    + `<label for="dsTraySize">Size</label><select id="dsTraySize">${diceOpts(TRAY_SIZES, st.traySize)}</select>`
     + `<label for="dsFloor">Floor</label><select id="dsFloor">${diceOpts(Object.entries(TRAY_FLOORS).map(([k, f])=>[k, f.name]), st.floor)}</select>`
     + `<label for="dsRim">Rim</label><select id="dsRim">${diceOpts(Object.entries(TRAY_RIMS).map(([k, r])=>[k, r.name]), st.rim)}</select>`
     + `<label for="dsPic">Picture</label><input type="url" id="dsPic" value="${diceEsc(st.pic)}" placeholder="https://… (optional)">`
@@ -215,7 +218,7 @@ document.addEventListener('input', e=>{
   }
 });
 const readDiceStyleMenu = ()=>{ const v = id=>document.getElementById(id).value;
-  return safeDiceStyle({preset:v('dsPreset'), bg:v('dsBg'), fg:v('dsFg'), tex:v('dsTex'), mat:v('dsMat'), size:v('dsSize'), shape:v('dsShape'), floor:v('dsFloor'), rim:v('dsRim'), pic:v('dsPic').trim(), fit:v('dsFit')}); };
+  return safeDiceStyle({preset:v('dsPreset'), bg:v('dsBg'), fg:v('dsFg'), tex:v('dsTex'), mat:v('dsMat'), size:v('dsSize'), shape:v('dsShape'), traySize:v('dsTraySize'), floor:v('dsFloor'), rim:v('dsRim'), pic:v('dsPic').trim(), fit:v('dsFit')}); };
 function tryDice(name, style, strength){
   const r = rollTerms(readDice('1d20+1d12+1d10+1d8+1d6+1d4').terms);
   showRoll({name, label:'Trying your dice', notation:'one of each', total:r.total, dice:r.dice, nat:0, style, throw:strength}, {note:'Practice roll: only you see this.'});
@@ -296,9 +299,10 @@ function wireDiceAudio(a){
 }
 // Tray size for a shape: width / height (a hexagon is 2 : √3), fitting the screen
 const TRAY_RATIO = {hex:2 / Math.sqrt(3), square:1, rect:1.5, oct:1, round:1};
-function sizeTray(shape){
-  const tray = document.getElementById('diceTray');
-  const maxW = Math.min(520, innerWidth - 56), maxH = Math.max(200, innerHeight * 0.5);
+function sizeTray(shape, size){
+  const tray = document.getElementById('diceTray'), f = (TRAY_SIZES.find(x=>x[0] === size) || TRAY_SIZES[1])[2];
+  // Medium is 520 wide at most and half the screen tall; small and large scale that, within the screen
+  const maxW = Math.min(520 * f, innerWidth - 56), maxH = Math.min(innerHeight * 0.8, Math.max(160, innerHeight * 0.5 * f));
   let w = maxW, h = w / TRAY_RATIO[shape];
   if(h > maxH){ h = maxH; w = h * TRAY_RATIO[shape]; }
   w = Math.round(w); h = Math.round(h);
@@ -326,7 +330,7 @@ function trayShapeWalls(box, shape){
 // The roller's tray: shape and size (walls follow), floor, rim, picture, dice size, and sound
 async function setTray(box, st, strength){
   const tray = document.getElementById('diceTray');
-  const {w, h} = sizeTray(st.shape);
+  const {w, h} = sizeTray(st.shape, st.traySize);
   tray.style.setProperty('--floorBg', TRAY_FLOORS[st.floor].bg);
   tray.style.setProperty('--rimBg', TRAY_RIMS[st.rim].bg);
   const pic = tray.querySelector('.tray-pic');
@@ -404,7 +408,7 @@ async function restyleDice(style, strength){
   const box = await diceBoxP; if(!box) return;
   const st = safeDiceStyle(style);
   if(document.getElementById('diceLayer').style.opacity === '1'){
-    const tray = document.getElementById('diceTray'), {w, h} = sizeTray(st.shape);
+    const tray = document.getElementById('diceTray'), {w, h} = sizeTray(st.shape, st.traySize);
     tray.style.setProperty('--floorBg', TRAY_FLOORS[st.floor].bg); tray.style.setProperty('--rimBg', TRAY_RIMS[st.rim].bg);
     const pic = tray.querySelector('.tray-pic'); pic.style.backgroundImage = st.pic ? `url("${st.pic.replace(/["\\]/g, '')}")` : 'none'; pic.dataset.fit = st.fit;
     box.setDimensions(new box.dimensions.constructor(w, h)); trayShapeWalls(box, st.shape);

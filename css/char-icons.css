@@ -1,0 +1,13 @@
+/* Character icons: shared by the tracker (Character Summary) and the DM Screen (party cards).
+   An image that already has its frame (Krunk's), or a portrait cropped to the face inside a
+   ring colored for the class. Each page sets the size (width). js/char-icons.js fills them in. */
+.char-icon{aspect-ratio:1; flex:0 0 auto; border-radius:50%; position:relative;}
+.char-icon[hidden]{display:none;}
+.char-icon.framed{background:center / contain no-repeat; filter:drop-shadow(0 4px 10px rgba(0,0,0,0.5));}
+.char-icon.ringed{padding:5px; background:var(--ring); box-shadow:0 4px 12px rgba(0,0,0,0.55), inset 0 0 0 1px rgba(0,0,0,0.6);}
+.char-icon.ringed::before{content:""; position:absolute; inset:5px; border-radius:50%; background:var(--face) var(--pos) / var(--zoom) no-repeat;
+  box-shadow:inset 0 0 0 2px var(--inner), inset 0 0 12px rgba(0,0,0,0.6);}
+.char-icon.bard{--ring:conic-gradient(from 210deg, #6b4a1e, #d9b25e, #7a5420, #f0d48a, #5a3c14, #c79a45, #6b4a1e); --inner:#8a1c22;}
+.char-icon.wizard{--ring:conic-gradient(from 210deg, #2c2a33, #8d8aa0, #34313d, #b9b5cc, #24222b, #6f6b83, #2c2a33); --inner:#8b5cf6;}
+.char-icon.rogue{--ring:conic-gradient(from 210deg, #1f2420, #5f6a5f, #252a26, #8a958a, #1b1f1c, #4e584e, #1f2420); --inner:#2f6b3a;}
+.char-icon.paladin{--ring:conic-gradient(from 210deg, #5a4520, #c9a24a, #6b5222, #e8cf86, #4e3a18, #b48a3a, #5a4520); --inner:#e8d27a;}
