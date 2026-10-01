@@ -3,6 +3,14 @@
 What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest first.
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
+## Unreleased
+
+### Added
+- **Character icons.** Each character's round icon sits at the top right of their tracker:
+  Krunk's own framed portrait, and the others' portraits cropped to the face inside a ring
+  colored for their class (bronze and crimson for Bel, steel and violet for Ezlo, dark iron
+  and green for Venthor).
+
 ## 2026-10-02 — Louder dice
 
 ### Fixed
