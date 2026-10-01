@@ -6,7 +6,7 @@ Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wi
 ## Unreleased
 
 ### Added
-- **Character icons.** Each character's round icon sits at the top right of their tracker:
+- **Character icons.** Each character's round icon sits in their Character Summary, beside the name:
   Krunk's own framed portrait, and the others' portraits cropped to the face inside a ring
   colored for their class (bronze and crimson for Bel, steel and violet for Ezlo, dark iron
   and green for Venthor).
