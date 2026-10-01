@@ -137,50 +137,156 @@ function rowWarn(row, msg){
   const w = document.createElement('div'); w.className = 'roll-wait'; w.textContent = msg; row.appendChild(w);
 }
 
-/* Dice looks: a ready-made set, or your own colors, texture and material */
+/* Dice looks: a ready-made set, or your own colors, texture and material; plus the dice size
+   and the tray they land in. Everyone sees a roll in the roller's look. */
 const DICE_PRESETS = [['bronze','Thylean Bronze'],['bloodmoon','Blood Moon'],['starynight','Starry Night'],['astralsea','Astral Sea'],['dragons','Here be Dragons'],
   ['glitterparty','Glitter Party'],['inspired','Inspired'],['pinkdreams','Pink Dreams'],['breebaby','Pastel Sunset'],['rainbow','Rainbow'],['black','Black'],['white','White'],
   ['fire','Fire'],['ice','Ice'],['lightning','Lightning'],['thunder','Thunder'],['acid','Acid'],['poison','Poison'],['radiant','Radiant'],['necrotic','Necrotic'],
   ['psychic','Psychic'],['force','Force'],['water','Water'],['earth','Earth'],['air','Air']];
 const DICE_TEXTURES = ['none','marble','wood','stone','metal','cloudy','fire','water','ice','paper','speckles','glitter','stars','stainedglass','skulls','dragon','lizard','leopard','tiger','cheetah','astral','bronze01','bronze03'];
 const DICE_MATERIALS = ['glass','plastic','metal','wood','none'];
-const DEFAULT_DICE = {preset:'bronze', bg:'#8a1c12', fg:'#ffffff', tex:'none', mat:'glass'};
+const DICE_SIZES = [['small', 'Small', 62], ['medium', 'Medium', 80], ['large', 'Large', 100]];   // the library's baseScale
+const TRAY_SHAPES = [['hex', 'Hexagon'], ['square', 'Square'], ['rect', 'Rectangle'], ['oct', 'Octagon'], ['round', 'Round']];
+// Floors and rims are drawn in code (SVG noise over gradients): nothing to download. A floor
+// also sets the sound the dice make landing on it.
+const trayNoise = (freq, oct, op)=>`url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='${freq}' numOctaves='${oct}' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='100%' height='100%' filter='url(#n)' opacity='${op}'/></svg>`)}")`;
+const TRAY_FLOORS = {
+  greenfelt:{name:'Green felt', sound:'felt', bg:`${trayNoise(0.9, 2, 0.28)}, radial-gradient(ellipse at 50% 40%, #2f7a45, #164a29 75%)`},
+  bluefelt:{name:'Blue felt', sound:'felt', bg:`${trayNoise(0.9, 2, 0.28)}, radial-gradient(ellipse at 50% 40%, #2c5a8c, #142b4c 75%)`},
+  velvet:{name:'Red velvet', sound:'felt', bg:`${trayNoise(1.4, 2, 0.22)}, radial-gradient(ellipse at 35% 30%, #a3202e, #5c0b16 55%, #3a0610 90%)`},
+  leather:{name:'Dark leather', sound:'felt', bg:`${trayNoise(0.35, 3, 0.35)}, ${trayNoise(1.2, 1, 0.18)}, radial-gradient(ellipse at 50% 40%, #5a3a24, #2e1c10 80%)`},
+  tavern:{name:'Tavern table', sound:'wood_table', bg:`${trayNoise('0.015 0.35', 3, 0.45)}, repeating-linear-gradient(90deg, transparent 0 calc(25% - 2px), rgba(0,0,0,0.55) calc(25% - 2px) 25%), linear-gradient(90deg, #7a4b26, #8e5a2e 30%, #6f4220 60%, #855330)`},
+  stone:{name:'Stone', sound:'metal', bg:`${trayNoise(0.05, 4, 0.5)}, ${trayNoise(0.6, 2, 0.2)}, radial-gradient(ellipse at 50% 40%, #8a8a86, #4e4f4e 80%)`},
+};
+const TRAY_RIMS = {
+  darkwood:{name:'Dark wood', bg:`${trayNoise('0.02 0.5', 3, 0.5)}, linear-gradient(135deg, #4a2a14, #2a170a 50%, #3d220f)`},
+  lightwood:{name:'Light wood', bg:`${trayNoise('0.02 0.5', 3, 0.4)}, linear-gradient(135deg, #b8864f, #8c5f33 50%, #a77845)`},
+  iron:{name:'Iron', bg:`${trayNoise(0.8, 2, 0.25)}, linear-gradient(135deg, #6f747a, #2f3236 45%, #575c61 60%, #26282b)`},
+  gold:{name:'Gold trim', bg:'linear-gradient(135deg, #f7e08a, #b8862b 35%, #fff2b5 50%, #9a6d1d 70%, #e6c25a)'},
+};
+const DEFAULT_DICE = {preset:'bronze', bg:'#8a1c12', fg:'#ffffff', tex:'none', mat:'glass', size:'medium', shape:'hex', floor:'greenfelt', rim:'darkwood', pic:'', fit:'fit'};
 // Only known values get through (styles come from other players over the network)
 function safeDiceStyle(s){
   s = s && typeof s === 'object' ? s : {};
-  const hex = v=>typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v);
-  return {preset:DICE_PRESETS.some(p=>p[0] === s.preset) ? s.preset : (s.preset === '' ? '' : DEFAULT_DICE.preset),
-    bg:hex(s.bg) ? s.bg : DEFAULT_DICE.bg, fg:hex(s.fg) ? s.fg : DEFAULT_DICE.fg,
-    tex:DICE_TEXTURES.includes(s.tex) ? s.tex : 'none', mat:DICE_MATERIALS.includes(s.mat) ? s.mat : 'glass'};
+  const hex = v=>typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v), D = DEFAULT_DICE;
+  return {preset:DICE_PRESETS.some(p=>p[0] === s.preset) ? s.preset : (s.preset === '' ? '' : D.preset),
+    bg:hex(s.bg) ? s.bg : D.bg, fg:hex(s.fg) ? s.fg : D.fg,
+    tex:DICE_TEXTURES.includes(s.tex) ? s.tex : 'none', mat:DICE_MATERIALS.includes(s.mat) ? s.mat : 'glass',
+    size:DICE_SIZES.some(x=>x[0] === s.size) ? s.size : D.size, shape:TRAY_SHAPES.some(x=>x[0] === s.shape) ? s.shape : D.shape,
+    floor:TRAY_FLOORS[s.floor] ? s.floor : D.floor, rim:TRAY_RIMS[s.rim] ? s.rim : D.rim,
+    pic:safeUrl(s.pic), fit:s.fit === 'fill' ? 'fill' : 'fit'};
 }
+// Throw strength (the library's strength): how hard the dice leave your hand
+const THROW_MIN = 0.4, THROW_MAX = 2.2, THROW_DEFAULT = 1;
+const safeThrow = v=>typeof v === 'number' && Number.isFinite(v) ? Math.min(THROW_MAX, Math.max(THROW_MIN, Math.round(v * 10) / 10)) : THROW_DEFAULT;
+const throwSlider = (id, value)=>`<label class="throw-pick" title="How hard you throw the dice (the numbers aren’t affected)">Throw <small>gentle</small><input type="range" id="${id}" min="${THROW_MIN}" max="${THROW_MAX}" step="0.1" value="${safeThrow(value)}" aria-label="Throw strength, gentle to hard"><small>hard</small></label>`;
+// Dice sounds on this device: on/off and volume (the DM can also mute them for the campaign)
+const DICE_SOUND_KEY = 'dndTracker:diceSound';
+function diceSoundPrefs(){ try{ const v = JSON.parse(localStorage.getItem(DICE_SOUND_KEY) || 'null'); return {on:!v || v.on !== false, vol:v && Number.isFinite(v.vol) ? Math.min(100, Math.max(0, v.vol)) : 70}; }catch(e){ return {on:true, vol:70}; } }
+function setDiceSoundPrefs(p){ try{ localStorage.setItem(DICE_SOUND_KEY, JSON.stringify(p)); }catch(e){} }
+const diceOpts = (list, cur)=>list.map(([k, n])=>`<option value="${k}"${cur === k ? ' selected' : ''}>${n}</option>`).join('');
 function diceStyleMenuHtml(st, note){
-  return `<label for="dsPreset">Set</label><select id="dsPreset"><option value="">My own (below)</option>${DICE_PRESETS.map(([k, n])=>`<option value="${k}"${st.preset === k ? ' selected' : ''}>${n}</option>`).join('')}</select>`
+  const snd = diceSoundPrefs();
+  return `<div class="ds-head">Dice</div>`
+    + `<label for="dsPreset">Set</label><select id="dsPreset"><option value="">My own (below)</option>${diceOpts(DICE_PRESETS, st.preset)}</select>`
     + `<label for="dsBg">Dice color</label><div class="ds-row-full" style="grid-column:auto"><input type="color" id="dsBg" value="${st.bg}"><label for="dsFg">Numbers</label><input type="color" id="dsFg" value="${st.fg}"></div>`
     + `<label for="dsTex">Texture</label><select id="dsTex">${DICE_TEXTURES.map(t=>`<option${st.tex === t ? ' selected' : ''}>${t}</option>`).join('')}</select>`
     + `<label for="dsMat">Material</label><select id="dsMat">${DICE_MATERIALS.map(m=>`<option${st.mat === m ? ' selected' : ''}>${m}</option>`).join('')}</select>`
+    + `<label for="dsSize">Size</label><select id="dsSize">${diceOpts(DICE_SIZES, st.size)}</select>`
     + `<div class="ds-note">Colors and texture are used when Set is “My own”. ${note}</div>`
-    + `<div class="ds-row-full"><button type="button" class="flow-btn" id="dsTry">Try them</button><span class="ds-note" style="grid-column:auto">A practice roll only you see.</span></div>`
-    + `<label class="ds-row-full"><input type="checkbox" id="dsFx"${critFxOn() ? ' checked' : ''}> Show crit GIFs on this device</label>`;
+    + `<div class="ds-head">Tray</div>`
+    + `<label for="dsShape">Shape</label><select id="dsShape">${diceOpts(TRAY_SHAPES, st.shape)}</select>`
+    + `<label for="dsFloor">Floor</label><select id="dsFloor">${diceOpts(Object.entries(TRAY_FLOORS).map(([k, f])=>[k, f.name]), st.floor)}</select>`
+    + `<label for="dsRim">Rim</label><select id="dsRim">${diceOpts(Object.entries(TRAY_RIMS).map(([k, r])=>[k, r.name]), st.rim)}</select>`
+    + `<label for="dsPic">Picture</label><input type="url" id="dsPic" value="${diceEsc(st.pic)}" placeholder="https://… (optional)">`
+    + `<label for="dsFit">Picture fit</label><select id="dsFit">${diceOpts([['fit', 'Fit (whole picture)'], ['fill', 'Fill the floor']], st.fit)}</select>`
+    + `<div class="ds-note">A picture sits on the floor, centered; the floor still sets the sound.</div>`
+    + `<div class="ds-head">On this device</div>`
+    + `<label class="ds-row-full"><input type="checkbox" id="dsSound"${snd.on ? ' checked' : ''}> Dice sounds</label>`
+    + `<label for="dsVol">Sound volume</label><input type="range" id="dsVol" min="0" max="100" value="${snd.vol}">`
+    + `<label class="ds-row-full"><input type="checkbox" id="dsFx"${critFxOn() ? ' checked' : ''}> Show crit GIFs</label>`
+    + `<div class="ds-row-full"><button type="button" class="flow-btn" id="dsTry">Try them</button><span class="ds-note" style="grid-column:auto">A practice roll only you see.</span></div>`;
 }
 document.addEventListener('change', e=>{ if(e.target.id === 'dsFx') setCritFxOn(e.target.checked); });
-const readDiceStyleMenu = ()=>{ const v = id=>document.getElementById(id).value; return safeDiceStyle({preset:v('dsPreset'), bg:v('dsBg'), fg:v('dsFg'), tex:v('dsTex'), mat:v('dsMat')}); };
-function tryDice(name, style){
+document.addEventListener('input', e=>{
+  if(e.target.id === 'dsSound' || e.target.id === 'dsVol') setDiceSoundPrefs({on:document.getElementById('dsSound').checked, vol:+document.getElementById('dsVol').value});
+});
+const readDiceStyleMenu = ()=>{ const v = id=>document.getElementById(id).value;
+  return safeDiceStyle({preset:v('dsPreset'), bg:v('dsBg'), fg:v('dsFg'), tex:v('dsTex'), mat:v('dsMat'), size:v('dsSize'), shape:v('dsShape'), floor:v('dsFloor'), rim:v('dsRim'), pic:v('dsPic').trim(), fit:v('dsFit')}); };
+function tryDice(name, style, strength){
   const r = rollTerms(readDice('1d20+1d12+1d10+1d8+1d6+1d4').terms);
-  showRoll({name, label:'Trying your dice', notation:'one of each', total:r.total, dice:r.dice, nat:0, style}, {note:'Practice roll: only you see this.'});
+  showRoll({name, label:'Trying your dice', notation:'one of each', total:r.total, dice:r.dice, nat:0, style, throw:strength}, {note:'Practice roll: only you see this.'});
 }
 
-/* 3D dice, loaded the first time a roll is shown */
+/* 3D dice in a tray, loaded the first time a roll is shown. One dice box for the page: before
+   each roll it takes on the roller's tray (shape, floor, rim, picture), dice look and size. */
 const DICE_LIB = 'https://cdn.jsdelivr.net/npm/@3d-dice/dice-box-threejs@0.0.12/';
-let diceBoxP = null, diceLook = '', diceHideTimer = null, dicePlaySeq = 0;
+let diceBoxP = null, diceLook = '', diceHideTimer = null, dicePlaySeq = 0, trayWalls = [];
+
 function diceBox(){
   if(!diceBoxP) diceBoxP = (async()=>{
     const {default:DiceBox} = await import(DICE_LIB + '+esm');
-    document.getElementById('diceLayer').hidden = false;   // stays in the page from now on (the library sizes itself from it)
-    const box = new DiceBox('#diceLayer', {assetPath:DICE_LIB + 'public/', theme_surface:'green-felt', theme_colorset:'white', theme_material:'glass', sounds:false, baseScale:100});
+    const layer = document.getElementById('diceLayer');
+    layer.innerHTML = `<div class="tray" id="diceTray"><div class="tray-rim"></div><div class="tray-floor"></div><div class="tray-pic"></div><div class="tray-shade"></div><div class="tray-dice" id="trayDice"></div></div>`;
+    layer.hidden = false;   // stays in the page from now on (the library sizes itself from the tray)
+    sizeTray(DEFAULT_DICE.shape);
+    const box = new DiceBox('#trayDice', {assetPath:DICE_LIB + 'public/', theme_surface:'green-felt', theme_colorset:'white', theme_material:'glass', sounds:false, baseScale:80});
     await box.initialize();
     return box;
   })().catch(err=>{ console.warn('3D dice unavailable:', err); diceBoxP = null; return null; });
   return diceBoxP;
+}
+// Tray size for a shape: width / height (a hexagon is 2 : √3), fitting the screen
+const TRAY_RATIO = {hex:2 / Math.sqrt(3), square:1, rect:1.5, oct:1, round:1};
+function sizeTray(shape){
+  const tray = document.getElementById('diceTray');
+  const maxW = Math.min(520, innerWidth - 56), maxH = Math.max(200, innerHeight * 0.5);
+  let w = maxW, h = w / TRAY_RATIO[shape];
+  if(h > maxH){ h = maxH; w = h * TRAY_RATIO[shape]; }
+  w = Math.round(w); h = Math.round(h);
+  tray.style.width = w + 'px'; tray.style.height = h + 'px'; tray.dataset.shape = shape;
+  return {w, h};
+}
+// Walls along a hexagon's or octagon's angled edges (round is 16 sides). The library only has
+// four, a rectangle at 93% of the half-width and half-height; these are flat planes at the same
+// distance, facing inward.
+function trayShapeWalls(box, shape){
+  trayWalls.forEach(b=>box.world.removeBody(b)); trayWalls = [];
+  const sample = box.box_body.topWall; if(!sample) return;
+  const Body = sample.constructor, Plane = sample.shapes[0].constructor, V = sample.position.constructor;
+  const a = (shape === 'hex' ? box.display.containerHeight : box.display.containerWidth) * 0.93;   // apothem
+  const angles = shape === 'hex' ? [30, 150, 210, 330] : shape === 'oct' ? [45, 135, 225, 315]
+    : shape === 'round' ? Array.from({length:16}, (_, i)=>i * 22.5).filter(d=>d % 90) : [];
+  angles.forEach(deg=>{
+    const r = deg * Math.PI / 180, out = new V(Math.cos(r), Math.sin(r), 0);
+    const wall = new Body({mass:0, shape:new Plane(), material:sample.material});
+    wall.quaternion.setFromVectors(new V(0, 0, 1), new V(-out.x, -out.y, 0));
+    wall.position.set(out.x * a, out.y * a, 0);
+    box.world.addBody(wall); trayWalls.push(wall);
+  });
+}
+// The roller's tray: shape and size (walls follow), floor, rim, picture, dice size, and sound
+async function setTray(box, st, strength){
+  const tray = document.getElementById('diceTray');
+  const {w, h} = sizeTray(st.shape);
+  tray.style.setProperty('--floorBg', TRAY_FLOORS[st.floor].bg);
+  tray.style.setProperty('--rimBg', TRAY_RIMS[st.rim].bg);
+  const pic = tray.querySelector('.tray-pic');
+  pic.style.backgroundImage = st.pic ? `url("${st.pic.replace(/["\\]/g, '')}")` : 'none';
+  pic.dataset.fit = st.fit;
+  const scale = (DICE_SIZES.find(x=>x[0] === st.size) || DICE_SIZES[1])[2];
+  if(box.DiceFactory.baseScale !== scale){   // the dice shapes are rebuilt at the new size
+    freeDice(box); box.clearDice();
+    Object.values(box.DiceFactory.geometries).forEach(g=>g && g.dispose && g.dispose());
+    box.DiceFactory.geometries = {}; box.DiceFactory.baseScale = scale; box.baseScale = scale;
+  }
+  box.setDimensions(new box.dimensions.constructor(w, h));
+  trayShapeWalls(box, st.shape);
+  box.strength = safeThrow(strength);
+  const snd = diceSoundPrefs();
+  box.sounds = snd.on && critSettings.diceSound && snd.vol > 0; box.volume = snd.vol;   // the DM can mute dice for the campaign
+  box.surface = TRAY_FLOORS[st.floor].sound;
+  if(box.sounds) await box.loadSounds().catch(()=>{});   // fetched once per floor sound
 }
 // The library never frees what it draws: each look's face pictures stay cached and each roll
 // leaves its dice behind. Free them here, or memory climbs with every roll and look.
@@ -199,7 +305,7 @@ function freeLooks(box){
 }
 // Custom looks are named by their settings: the library keeps the first set under each name
 async function setDiceLook(box, style){
-  const st = safeDiceStyle(style), key = JSON.stringify(st);
+  const st = safeDiceStyle(style), key = JSON.stringify([st.preset, st.bg, st.fg, st.tex, st.mat]);
   if(key === diceLook) return false;
   diceLook = key;
   if(st.preset) await box.updateConfig({theme_customColorset:null, theme_colorset:st.preset, theme_material:st.mat});
@@ -213,9 +319,12 @@ async function play3d(roll){
   if(!shown.length) return;
   const seq = ++dicePlaySeq, box = await diceBox();
   if(!box || seq !== dicePlaySeq) return;
-  await setDiceLook(box, roll.style);
+  const st = safeDiceStyle(roll.style);
+  await setDiceLook(box, st);
   if(seq !== dicePlaySeq) return;
   freeDice(box);
+  await setTray(box, st, roll.throw);
+  if(seq !== dicePlaySeq) return;
   const layer = document.getElementById('diceLayer');
   layer.style.transition = 'none'; layer.style.opacity = '1';
   return box.roll(shown.map(d=>'1d' + d.s).join('+') + '@' + shown.map(d=>d.v).join(',')).catch(err=>console.warn('3D dice:', err));   // settles when the dice land
@@ -230,11 +339,18 @@ function clearDice(){
     if(box && seq === dicePlaySeq){ freeDice(box); box.clearDice(); }
   }, 700);
 }
-// Re-skin the dice on the table (changing your dice style while they're showing)
-async function restyleDice(style){
+// Re-skin the dice and tray on screen (changing your dice style while they're showing)
+async function restyleDice(style, strength){
   if(!diceBoxP) return;
-  const box = await diceBoxP;
-  if(!box || !(await setDiceLook(box, style))) return;
+  const box = await diceBoxP; if(!box) return;
+  const st = safeDiceStyle(style);
+  if(document.getElementById('diceLayer').style.opacity === '1'){
+    const tray = document.getElementById('diceTray'), {w, h} = sizeTray(st.shape);
+    tray.style.setProperty('--floorBg', TRAY_FLOORS[st.floor].bg); tray.style.setProperty('--rimBg', TRAY_RIMS[st.rim].bg);
+    const pic = tray.querySelector('.tray-pic'); pic.style.backgroundImage = st.pic ? `url("${st.pic.replace(/["\\]/g, '')}")` : 'none'; pic.dataset.fit = st.fit;
+    box.setDimensions(new box.dimensions.constructor(w, h)); trayShapeWalls(box, st.shape);
+  }
+  if(!(await setDiceLook(box, st))) return;
   const f = box.DiceFactory;
   box.diceList.forEach(die=>{
     [].concat(die.material).forEach(m=>m && m.dispose());
@@ -272,15 +388,15 @@ function cleanRoll(r){
     .map(d=>({s:d.s, v:d.v, ...(Number.isInteger(d.c) ? {c:d.c} : {}), ...(d.x === true ? {x:true} : {})}));
   return {id:String(r.id || ''), name:String(r.name || ''), label:String(r.label || ''), notation:String(r.notation || ''),
     total:typeof r.total === 'number' && Number.isFinite(r.total) ? r.total : 0, dice, nat:r.nat === 20 || r.nat === 1 ? r.nat : 0, style:safeDiceStyle(r.style),
-    kind:CRIT_ROWS.some(x=>x[0] === r.kind) ? r.kind : '', fx:cleanFx(r.fx)};
+    kind:CRIT_ROWS.some(x=>x[0] === r.kind) ? r.kind : '', fx:cleanFx(r.fx), throw:safeThrow(r.throw)};
 }
 // Make a roll from a row's dice: {roll} or {error}
-function makeRoll(text, name, label, style, kind){
+function makeRoll(text, name, label, style, kind, strength){
   const parsed = readDice(text);
   if(!parsed) return {error:'Turnkeeper can’t read those dice. Try something like 1d20+5, 2d6+3 or 1d20+4 adv.'};
   const r = rollTerms(parsed.terms);
   return {roll:{id:rollId(), name:String(name || '').slice(0, 60), label:String(label || 'Roll').slice(0, 80),
-    notation:describeDice(text).text.slice(0, 120), total:r.total, dice:r.dice.slice(0, 60), nat:r.nat, style:safeDiceStyle(style), kind:kind || ''}};
+    notation:describeDice(text).text.slice(0, 120), total:r.total, dice:r.dice.slice(0, 60), nat:r.nat, style:safeDiceStyle(style), kind:kind || '', throw:safeThrow(strength)}};
 }
 
 /* ---------- Crit GIFs (Campaign settings on the DM Screen) ----------
@@ -306,7 +422,7 @@ function cleanCritSettings(raw){
     const side = s=>({links:list(s && s.links, safeUrl), flavor:list(s && s.flavor, v=>typeof v === 'string' ? v.slice(0, 80) : '')});
     gifs[k] = {useHit:k !== 'hit' && r.useHit === true, success:side(r.success), fail:side(r.fail)};
   });
-  return {sound:raw.sound === true, gifs};
+  return {sound:raw.sound === true, diceSound:raw.diceSound !== false, gifs};
 }
 let critSettings = cleanCritSettings(null);
 // What a crit shows: {gif, text, side} or null. who replaces {who} in flavor text.

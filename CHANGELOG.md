@@ -3,6 +3,23 @@
 What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest first.
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
+## Unreleased — Dice trays, sizes, throws and sounds
+
+### Added
+- **Dice trays.** Your dice land in your own tray, in the middle of the screen: a hexagon,
+  square, rectangle, octagon or round tray, with a floor (green or blue felt, red velvet, dark
+  leather, a tavern table or stone) and a rim (dark or light wood, iron or gold trim). Dice
+  bounce off the tray's real edges. You can also put a picture on the floor, centered (the
+  whole picture, or filling the floor). Everyone sees your rolls in your tray.
+- **Dice size:** small, medium or large, part of your dice look.
+- **Throw:** a gentle-to-hard slider at the top of the roll popup (and in the DM's Dice panel)
+  sets how hard you throw. It stays where you leave it, and everyone sees your throw. The
+  numbers aren't affected.
+- **Dice sounds:** the dice clatter, sounding like the floor they land on (soft on felt, a
+  clatter on the tavern table). Each device has its own on/off and volume under 🎲, and the DM
+  can turn dice sounds off for everyone in Campaign settings. Sound starts once you've clicked
+  somewhere on the page (a browser rule).
+
 ## 2026-10-01 — Turnkeeper rolls its own dice
 
 ### Added

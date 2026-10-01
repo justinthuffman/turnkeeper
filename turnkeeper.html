@@ -364,6 +364,7 @@ button.flow-btn.active{background:var(--sea-dim); border-color:var(--sea);}
 .roll-popup{background:var(--panel); border:1px solid var(--border); border-radius:8px; width:min(540px,100%); max-height:90vh; overflow:auto; padding:14px 16px 16px; box-shadow:0 12px 40px rgba(0,0,0,0.45); transform:translateY(8px); transition:transform .2s ease;}
 .roll-backdrop.open .roll-popup{transform:none;}
 .roll-head{display:flex; justify-content:space-between; align-items:center; gap:12px;}
+.roll-throw{display:flex; justify-content:flex-end; margin-top:2px;}
 .roll-head h4{font-family:var(--font-display); color:var(--sea); font-size:1.1rem; margin:0; font-weight:normal;}
 button.roll-close{background:none; border:none; color:var(--ink-dim); font-size:1.5rem; line-height:1; padding:0 4px;}
 button.roll-close:hover{background:none; color:var(--ink);}
@@ -775,6 +776,7 @@ applyTheme(savedTheme || DEFAULT_THEME);
 <div class="roll-backdrop" id="rollPopup" hidden>
   <div class="roll-popup" role="dialog" aria-modal="true" aria-labelledby="rollTitle">
     <div class="roll-head"><h4 id="rollTitle"></h4><button type="button" class="roll-close" aria-label="Close">&times;</button></div>
+    <div class="roll-throw" id="rollThrow"></div>
     <div id="rollBody"></div>
   </div>
 </div>
@@ -5514,12 +5516,13 @@ function loadTrack(){
   track.inspSheet = saved && typeof saved.inspSheet==='boolean' ? saved.inspSheet : null;
   track.changedAt = saved && typeof saved.changedAt==='number' ? saved.changedAt : 0;   // when this browser last changed it (live sharing)
   track.cast = saved && Array.isArray(saved.cast) ? saved.cast : [];   // spells and features you cast on others (shared combat)
+  track.throw = saved && typeof saved.throw === 'number' ? saved.throw : null;   // how hard you throw your dice (the Throw slider)
   track.dice = saved && saved.dice && typeof saved.dice === 'object' ? saved.dice : null;   // how your dice look (diceStyle)
 }
 function saveTrack(){
   if(!currentCharId) return;
   track.changedAt = Date.now();
-  storageSet(trackKey(), JSON.stringify({hp:track.hp, temp:track.temp, used:track.used, fx:track.fx, death:track.death, combat:track.combat, status:track.status, conc:track.conc, insp:track.insp, inspSheet:track.inspSheet, changedAt:track.changedAt, cast:track.cast || [], dice:track.dice || null}));
+  storageSet(trackKey(), JSON.stringify({hp:track.hp, temp:track.temp, used:track.used, fx:track.fx, death:track.death, combat:track.combat, status:track.status, conc:track.conc, insp:track.insp, inspSheet:track.inspSheet, changedAt:track.changedAt, cast:track.cast || [], dice:track.dice || null, throw:track.throw ?? null}));
   livePush();
 }
 
@@ -6005,7 +6008,13 @@ function mayRoll(){
   if(!currentCharId || !myCampaignKey()) return true;
   return !!(diceTable.allow && diceTable.allow[currentCharId]) || myTurnNow();
 }
-window.tkDiceRefresh = ()=>document.body.classList.toggle('may-roll', mayRoll());
+window.tkDiceRefresh = ()=>{ document.body.classList.toggle('may-roll', mayRoll()); syncThrow(); };
+// The Throw slider at the top of the roll popup: how hard this character throws, remembered
+// until it's changed (rolls outside the popup use it too)
+document.getElementById('rollThrow').innerHTML = throwSlider('tkThrow', THROW_DEFAULT);
+function syncThrow(){ const s = document.getElementById('tkThrow'); if(s && document.activeElement !== s) s.value = safeThrow(track.throw ?? THROW_DEFAULT); }
+let throwTimer = null;
+document.getElementById('tkThrow').addEventListener('input', e=>{ track.throw = safeThrow(+e.target.value); clearTimeout(throwTimer); throwTimer = setTimeout(()=>{ if(currentCharId) saveTrack(); }, 300); });
 window.onDiceRoll = btn=>{
   btn.dataset.rolled = '';
   const row = btn.closest('.roll-cmd-row'); if(!row) return;
@@ -6028,7 +6037,7 @@ window.onDiceRoll = btn=>{
   // In the roll popup, say what it's for: "Greatsword: To hit"
   const title = btn.closest('#rollPopup') ? document.getElementById('rollTitle').textContent.trim() : '';
   const what = btn.dataset.roll || 'Roll';   // not "Perception check: Perception check"
-  const made = makeRoll(rowDice(row), myName(), title ? (title.startsWith(what) ? title : `${title}: ${what}`) : what, myDiceStyle(), btn.dataset.fxRow);
+  const made = makeRoll(rowDice(row), myName(), title ? (title.startsWith(what) ? title : `${title}: ${what}`) : what, myDiceStyle(), btn.dataset.fxRow, track.throw);
   if(made.error){ rowWarn(row, made.error); return; }
   const roll = made.roll;
   roll.fx = pickCritFx(roll.kind, roll.nat, myName());   // a natural 20 or 1: the campaign's GIF, the same on every screen
@@ -6069,9 +6078,9 @@ document.getElementById('diceStyleMenu').addEventListener('input', ()=>{
   track.dice = readDiceStyleMenu();
   // A color picker fires many times a second while dragging: save and re-skin once it settles
   clearTimeout(diceStyleTimer);
-  diceStyleTimer = setTimeout(()=>{ if(currentCharId) saveTrack(); restyleDice(myDiceStyle()); }, 150);
+  diceStyleTimer = setTimeout(()=>{ if(currentCharId) saveTrack(); restyleDice(myDiceStyle(), track.throw); }, 150);
 });
-document.getElementById('diceStyleMenu').addEventListener('click', e=>{ if(e.target.closest('#dsTry')) tryDice(myName(), myDiceStyle()); });
+document.getElementById('diceStyleMenu').addEventListener('click', e=>{ if(e.target.closest('#dsTry')) tryDice(myName(), myDiceStyle(), track.throw); });
 function showDiceStyleMenu(open){
   const menu = document.getElementById('diceStyleMenu');
   if(open) menu.innerHTML = diceStyleMenuHtml(myDiceStyle(), 'Everyone at the table sees your rolls in this style.');

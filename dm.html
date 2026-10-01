@@ -434,6 +434,7 @@ applyTheme(savedTheme || DEFAULT_THEME);
     <input type="text" id="dmDice" value="1d20" spellcheck="false" autocomplete="off" aria-label="Dice to roll, like 1d20+5 or 2d6+3">
     <input type="text" id="dmLabel" placeholder="What for (optional)" autocomplete="off" aria-label="What the roll is for">
     <button type="button" id="dmRollBtn">Roll</button>
+    <span id="dmThrowWrap"></span>
     <div class="theme-picker dm-dice-picker" id="dicePicker">
       <button type="button" class="theme-toggle" id="diceStyleToggle" aria-expanded="false" aria-controls="diceStyleMenu" title="Change how your dice look">🎲 Dice style</button>
       <div class="dice-style-menu" id="diceStyleMenu" role="group" aria-label="Dice style" hidden></div>
@@ -1471,8 +1472,13 @@ renderRecentRolls();
 /* The DM's private rolls */
 const DM_DICE_KEY = 'dndTracker:dm:dice';
 let dmStyle = safeDiceStyle(loadJSON(DM_DICE_KEY, null) || {preset:'bloodmoon'});
+// How hard the DM throws (the Throw slider next to Roll), saved in this browser
+const DM_THROW_KEY = 'dndTracker:dm:throw';
+let dmThrow = safeThrow(loadJSON(DM_THROW_KEY, THROW_DEFAULT));
+$('dmThrowWrap').innerHTML = throwSlider('dmThrow', dmThrow);
+$('dmThrow').addEventListener('input', e=>{ dmThrow = safeThrow(+e.target.value); saveJSON(DM_THROW_KEY, dmThrow); });
 function dmRoll(text, who, label, row, kind){
-  const made = makeRoll(text, who || 'DM', label, dmStyle, kind);   // kind: 'hit' for a monster attack ("Critical Hit"); never a GIF
+  const made = makeRoll(text, who || 'DM', label, dmStyle, kind, dmThrow);   // kind: 'hit' for a monster attack ("Critical Hit"); never a GIF
   if(made.error){ if(row) rowWarn(row, made.error); else $('dmDiceMsg').textContent = made.error; return; }
   if(row) rowWarn(row, ''); else $('dmDiceMsg').textContent = '';
   showRoll(made.roll, {note:'Only you see this roll.'});
@@ -1490,7 +1496,7 @@ $('testCrit').addEventListener('click', ()=>{
   const row = $('testRow').value, nat = +$('testNat').value, name = CRIT_ROWS.find(x=>x[0] === row)[1];
   const fx = pickCritFx(row, nat, 'Krunk');
   $('dmDiceMsg').textContent = fx ? '' : `${name} has no GIFs or flavor text for a ${nat} yet (and nothing in To Hit’s to fall back on). Add some in Campaign settings.`;
-  showRoll({id:rollId(), name:'Test', label:`${name}: test`, notation:'1d20', total:nat, dice:[{s:20, v:nat}], nat, kind:row, style:dmStyle, ...(fx ? {fx} : {})},
+  showRoll({id:rollId(), name:'Test', label:`${name}: test`, notation:'1d20', total:nat, dice:[{s:20, v:nat}], nat, kind:row, style:dmStyle, throw:dmThrow, ...(fx ? {fx} : {})},
     {note:'Test roll: only you see this. {who} shows as Krunk.'});
 });
 $('dmRollBtn').addEventListener('click', ()=>dmRoll($('dmDice').value, 'DM', $('dmLabel').value.trim() || 'Roll'));
@@ -1502,9 +1508,9 @@ let dmStyleTimer = null;
 $('diceStyleMenu').addEventListener('input', ()=>{
   dmStyle = readDiceStyleMenu();
   clearTimeout(dmStyleTimer);
-  dmStyleTimer = setTimeout(()=>{ saveJSON(DM_DICE_KEY, dmStyle); restyleDice(dmStyle); }, 150);
+  dmStyleTimer = setTimeout(()=>{ saveJSON(DM_DICE_KEY, dmStyle); restyleDice(dmStyle, dmThrow); }, 150);
 });
-$('diceStyleMenu').addEventListener('click', e=>{ if(e.target.closest('#dsTry')) tryDice('DM', dmStyle); });
+$('diceStyleMenu').addEventListener('click', e=>{ if(e.target.closest('#dsTry')) tryDice('DM', dmStyle, dmThrow); });
 function showDiceStyleMenu(open){
   if(open) $('diceStyleMenu').innerHTML = diceStyleMenuHtml(dmStyle, 'Your rolls are only ever shown on this screen.');
   $('diceStyleMenu').hidden = !open;
@@ -1580,6 +1586,7 @@ function renderSettings(){
   // Keep whatever is being typed across a redraw (a change from another screen)
   const el = document.activeElement, typing = el && el.closest && el.closest('#csBody') && el.id ? {id:el.id, v:el.value} : null;
   $('csBody').innerHTML = `<div class="cs-opts">
+      <label><input type="checkbox" id="csDiceSound"${critSettings.diceSound ? ' checked' : ''}> Dice sounds on every screen</label>
       <label><input type="checkbox" id="csSound"${critSettings.sound ? ' checked' : ''}> Play sound from clips (MP4 and WebM) on every screen</label>
       <label><input type="checkbox" id="csFx"${critFxOn() ? ' checked' : ''}> Show crit GIFs on this screen</label>
       <button type="button" class="ghost" id="csSeed">Add the old !tk GIFs to To Hit</button></div>
@@ -1631,6 +1638,7 @@ $('csBody').addEventListener('click', async e=>{
 });
 $('csBody').addEventListener('change', e=>{
   if(e.target.id === 'csSound') csWrite('sound', e.target.checked);
+  else if(e.target.id === 'csDiceSound') csWrite('diceSound', e.target.checked);
   else if(e.target.id === 'csFx') setCritFxOn(e.target.checked);
   else if(e.target.dataset.csUsehit) csWrite(`gifs/${e.target.dataset.csUsehit}/useHit`, e.target.checked);
 });

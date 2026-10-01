@@ -1,8 +1,32 @@
 /* Dice: shared by turnkeeper.html and dm.html (js/dice.js draws these).
-   The 3D dice fall over the whole page; the result card sits at the bottom. */
-#diceLayer{position:fixed; inset:0; z-index:400; pointer-events:none;}
+   The dice land in the roller's tray, centered on screen (clicks pass through it); the result
+   card sits at the bottom. */
+#diceLayer{position:fixed; inset:0 0 120px; z-index:400; pointer-events:none; display:flex; align-items:center; justify-content:center;}
 #diceLayer[hidden]{display:none;}
 #diceLayer canvas{display:block;}
+.tray{position:relative; --rim:14px;}
+.tray > *{position:absolute;}
+.tray-rim{inset:calc(-1 * var(--rim)); background:var(--rimBg); box-shadow:0 18px 40px rgba(0,0,0,0.55);}
+.tray-floor{inset:0; background:var(--floorBg);}
+.tray-pic{inset:0; background-repeat:no-repeat; background-position:center; opacity:0.92;}
+.tray-pic[data-fit="fit"]{background-size:contain;}
+.tray-pic[data-fit="fill"]{background-size:cover;}
+.tray-shade{inset:0; background:radial-gradient(ellipse at 50% 45%, transparent 50%, rgba(0,0,0,0.5) 100%), linear-gradient(180deg, rgba(0,0,0,0.35), transparent 14%);}
+.tray-dice{inset:0;}
+.tray[data-shape="square"] .tray-rim, .tray[data-shape="rect"] .tray-rim{border-radius:16px;}
+.tray:is([data-shape="square"], [data-shape="rect"]) :is(.tray-floor, .tray-pic, .tray-shade){border-radius:5px;}
+.tray[data-shape="hex"] :is(.tray-rim, .tray-floor, .tray-pic, .tray-shade){clip-path:polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%);}
+.tray[data-shape="oct"] :is(.tray-rim, .tray-floor, .tray-pic, .tray-shade){clip-path:polygon(29.3% 0, 70.7% 0, 100% 29.3%, 100% 70.7%, 70.7% 100%, 29.3% 100%, 0 70.7%, 0 29.3%);}
+.tray[data-shape="round"] :is(.tray-rim, .tray-floor, .tray-pic, .tray-shade){border-radius:50%;}
+.tray:is([data-shape="hex"], [data-shape="oct"]){filter:drop-shadow(0 16px 22px rgba(0,0,0,0.55));}
+/* The throw slider (next to the Roll buttons) and the style menu's section heads */
+.throw-pick{display:inline-flex; align-items:center; gap:6px; font-size:0.78rem; color:var(--ink-dim);}
+.throw-pick small{font-size:0.68rem; opacity:0.8;}
+.throw-pick input{width:110px;}
+.dice-style-menu .ds-head{grid-column:1 / -1; font-size:0.68rem; text-transform:uppercase; letter-spacing:0.06em; color:var(--sea); border-top:1px solid var(--border); padding-top:6px; margin-top:2px;}
+.dice-style-menu .ds-head:first-child{border-top:none; padding-top:0; margin-top:0;}
+.dice-style-menu input[type=url]{width:100%; min-width:0;}
+.dice-style-menu{max-height:min(75vh, 640px); overflow-y:auto;}
 .dice-card{position:fixed; left:50%; bottom:18px; transform:translateX(-50%); z-index:401; width:min(460px, calc(100vw - 32px));
   background:var(--panel); border:1px solid var(--sea); border-radius:8px; box-shadow:0 10px 30px rgba(0,0,0,0.5); padding:10px 14px 12px; pointer-events:auto;}
 .dice-card[hidden]{display:none;}
