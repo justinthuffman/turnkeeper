@@ -3,7 +3,7 @@
 What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest first.
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
-## Unreleased — Dice trays, sizes, throws and sounds
+## 2026-10-01 — Dice trays, sizes, throws and sounds
 
 ### Added
 - **Dice trays.** Your dice land in your own tray, in the middle of the screen: a hexagon,
