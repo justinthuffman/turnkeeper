@@ -143,7 +143,7 @@ const attackRow = a=>`<div class="lib-attack"><input type="text" data-f="name" m
 function openMonsterEditor(id, start){
   const m = start || (id ? library.monsters[id] : {name:'', ac:null, hp:'', init:0, cr:'', srd:'', notes:'', attacks:[]});
   loadSrdIndex();
-  openLibPopup(id ? `Edit ${m.name}` : 'New monster', `<form class="lib-form" id="libMonForm" data-id="${esc(id || '')}" autocomplete="off">
+  openLibPopup(id ? `Edit ${m.name}` : 'New Monster', `<form class="lib-form" id="libMonForm" data-id="${esc(id || '')}" autocomplete="off">
     <div class="lib-from"><label>Start from an SRD monster <input type="text" id="lmSrd" list="srdList" placeholder="e.g. Bugbear" value=""></label><button type="button" class="ghost" id="lmFill">Fill in from it</button><span class="lib-sub" id="lmSrdTag">${m.srd ? `Based on the SRD ${esc(srdName(m.srd))} (its traits show in the stat block).` : ''}</span></div>
     <input type="hidden" id="lmSrdIndex" value="${esc(m.srd || '')}">
     <div class="form-grid">
@@ -213,7 +213,7 @@ const encRow = it=>`<div class="lib-item"><input type="text" data-f="who" list="
 function openEncounterEditor(id, start){
   const e = start || (id ? library.encounters[id] : {name:'', party:false, items:[]});
   loadSrdIndex().then(()=>{ const dl = $('libMonsterList'); if(dl) dl.innerHTML = libMonsterOptions(); });
-  openLibPopup(id ? `Edit ${e.name}` : 'New encounter', `<form class="lib-form" id="libEncForm" data-id="${esc(id || '')}" autocomplete="off">
+  openLibPopup(id ? `Edit ${e.name}` : 'New Encounter', `<form class="lib-form" id="libEncForm" data-id="${esc(id || '')}" autocomplete="off">
     <label class="lib-wide">Name <input type="text" id="leName" maxlength="60" required value="${esc(e.name)}" placeholder="e.g. Goblin ambush, Kragg's lair"></label>
     <div class="lib-sublbl">Monsters <small>(your saved monsters, or any SRD monster)</small></div>
     <datalist id="libMonsterList">${libMonsterOptions()}</datalist>
@@ -276,7 +276,7 @@ function customStatBlockHtml(m){
   return `<div class="sb-sub">Your saved monster${m.srd ? ` · based on the SRD ${esc(srdName(m.srd))}` : ''}</div>
     ${line('Armor Class', m.ac)}${line('Hit Points', m.hp)}${line('Initiative', fmtMod(m.init))}${line('Challenge', m.cr ? `${m.cr} (${CR_XP[m.cr]} XP)` : '')}
     ${attacks ? `<div class="sb-sec">Attacks</div>${attacks}` : ''}
-    ${m.notes ? `<div class="sb-sec">Abilities and notes</div><p class="sb-notes">${esc(m.notes)}</p>` : ''}`;
+    ${m.notes ? `<div class="sb-sec">Abilities and Notes</div><p class="sb-notes">${esc(m.notes)}</p>` : ''}`;
 }
 
 /* ---------- From the database (dm.html's module script calls this) ---------- */

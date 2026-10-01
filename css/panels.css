@@ -1,0 +1,11 @@
+/* Panels in your own order (js/panel-order.js): the ⠿ grip by each panel's title */
+.wrap > .panel{position:relative;}
+button.panel-grip{position:absolute; top:16px; left:1px; width:16px; height:24px; padding:0; border:none; background:none; box-shadow:none; text-shadow:none;
+  color:var(--ink-dim); opacity:0.4; font-size:15px; line-height:24px; cursor:grab; touch-action:none; border-radius:3px;}
+button.panel-grip:hover, button.panel-grip:focus-visible{opacity:1; color:var(--ink); background:none;}
+.panel-dragging{outline:2px dashed var(--sea); outline-offset:3px; opacity:0.85; box-shadow:0 12px 30px rgba(0,0,0,0.45);}
+.panel-dragging .panel-grip{cursor:grabbing;}
+body.panels-dragging{user-select:none; -webkit-user-select:none; cursor:grabbing;}
+button.panel-reset{margin-top:6px;}
+/* Some themes style every button: the grip stays plain */
+html .wrap > .panel > button.panel-grip{background:none !important; border:none !important; box-shadow:none !important; padding:0 !important; min-height:0 !important;}

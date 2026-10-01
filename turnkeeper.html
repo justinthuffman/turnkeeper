@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="themes.css">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&display=swap">
 <link rel="stylesheet" href="css/dice.css">
+<link rel="stylesheet" href="css/panels.css">
 <style>
 *{box-sizing:border-box;}
 body{
@@ -531,7 +532,7 @@ applyTheme(savedTheme || DEFAULT_THEME);
 </div>
 
 <!-- CHARACTER SUMMARY -->
-<div class="panel">
+<div class="panel" id="summaryPanel">
   <div class="panel-head"><h2>Character Summary</h2><button type="button" class="sel-toggle" id="masterSelAll" title="Pin or unpin everything: traits, features, saving throws, skills and attacks"></button></div>
   <div class="name-ask" id="nameAsk" hidden>
     <label for="nameAskInput" id="nameAskLabel">What’s this character’s name?</label>
@@ -677,7 +678,7 @@ applyTheme(savedTheme || DEFAULT_THEME);
 </div>
 
 <!-- COMBAT MENU -->
-<div class="panel">
+<div class="panel" id="combatPanel">
   <h2>Combat Menu</h2>
   <p class="turn-note">On your turn, you can do these in any order. The numbers are just for reference. You can also split your movement, for example moving 10 feet, attacking, then moving the rest. Some bonus actions do depend on something else first, such as off-hand attacks, which need the Attack action.</p>
   <div class="move-line">1. Move up to <span id="moveFt">30</span> feet.<span class="move-dash" id="moveDash"></span></div>
@@ -712,7 +713,7 @@ applyTheme(savedTheme || DEFAULT_THEME);
 </div>
 
 <!-- SPELLS -->
-<div class="panel">
+<div class="panel" id="spellsPanel">
   <div class="spell-toggle" id="spellToggle"><span class="arrow">&#9656;</span><h2 style="margin:0;">Spells</h2></div>
   <div class="spell-body" id="spellBody">
     <div class="class-select">
@@ -747,6 +748,7 @@ applyTheme(savedTheme || DEFAULT_THEME);
   <button type="button" class="theme-toggle" id="diceStyleToggle" aria-expanded="false" aria-controls="diceStyleMenu" title="Change how this character's dice look">🎲 Your dice</button>
   <div class="dice-style-menu" id="diceStyleMenu" role="group" aria-label="Dice style" hidden></div>
 </div>
+<div class="theme-picker"><button type="button" class="theme-toggle panel-reset" id="panelReset" title="Put the panels back in their usual order">Reset panel order</button></div>
 
 
 <!-- IMPORT (moved to bottom, collapsed and de-emphasized) -->
@@ -5988,6 +5990,7 @@ window.addEventListener('storage', e=>{ if(e.key === 'dndTracker:theme'){ applyT
   }
 })();
 </script>
+<script src="js/panel-order.js"></script>
 <script>
 
 /* ---------- Dice in the tracker (V4) ----------
@@ -6089,6 +6092,13 @@ function showDiceStyleMenu(open){
 }
 document.getElementById('diceStyleToggle').addEventListener('click', ()=>showDiceStyleMenu(document.getElementById('diceStyleMenu').hidden));
 document.addEventListener('click', e=>{ if(!e.target.closest('#dicePicker')) showDiceStyleMenu(false); });
+
+/* Panels in your own order (js/panel-order.js). Saved in this browser for now (one key, to move
+   to the player's account when logins come) */
+const PANEL_KEY = 'dndTracker:panels';
+const tkPanels = setupPanelOrder({container:'.wrap', save:o=>{ try{ localStorage.setItem(PANEL_KEY, JSON.stringify(o)); }catch(e){} }});
+try{ tkPanels.apply(JSON.parse(localStorage.getItem(PANEL_KEY) || 'null')); }catch(e){}
+document.getElementById('panelReset').addEventListener('click', ()=>tkPanels.reset());
 </script>
 <script type="module">
 /* ---------- Live sharing: sending (Firebase Realtime Database) ----------

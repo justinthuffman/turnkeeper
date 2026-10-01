@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="themes.css">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&display=swap">
 <link rel="stylesheet" href="css/dice.css">
+<link rel="stylesheet" href="css/panels.css">
 <style>
 *{box-sizing:border-box;}
 body{
@@ -391,7 +392,7 @@ applyTheme(savedTheme || DEFAULT_THEME);
   <div class="top-right"><label class="campaign-pick">Campaign <select id="campaignSelect"></select></label><button type="button" class="ghost" id="settingsBtn">Campaign settings</button></div>
 </header>
 <nav class="jump" aria-label="Sections">
-  <a href="#partyPanel">Party</a><a href="#initPanel">Initiative</a><a href="#libPanel">Monsters &amp; encounters</a><a href="#dicePanel">Dice</a><a href="#encPanel">Encounter difficulty</a><a href="#refPanel">Rules reference</a><a href="#notesPanel">Session notes</a>
+  <a href="#partyPanel">Party</a><a href="#initPanel">Initiative</a><a href="#libPanel">Monsters &amp; Encounters</a><a href="#dicePanel">Dice</a><a href="#encPanel">Encounter Difficulty</a><a href="#refPanel">Rules Reference</a><a href="#notesPanel">Session Notes</a>
 </nav>
 
 <!-- PARTY -->
@@ -455,11 +456,11 @@ applyTheme(savedTheme || DEFAULT_THEME);
 
 <!-- MONSTERS & ENCOUNTERS (js/dm-library.js) -->
 <section class="panel" id="libPanel">
-  <div class="panel-head"><h2>Monsters &amp; encounters</h2><span class="live-state">Saved for this campaign, on any device</span></div>
+  <div class="panel-head"><h2>Monsters &amp; Encounters</h2><span class="live-state">Saved for this campaign, on any device</span></div>
   <p class="panel-note">Save your own monsters (key villains, homebrew, tweaked SRD monsters) and groups of monsters as encounters, then load them into Initiative in one click. Hit points and initiative are rolled each time, using the Add monsters options above.</p>
   <div class="lib-cols">
     <div class="lib-col">
-      <div class="lib-head"><h3>Saved monsters</h3><button type="button" class="ghost" id="libNewMon">New monster</button></div>
+      <div class="lib-head"><h3>Saved Monsters</h3><button type="button" class="ghost" id="libNewMon">New monster</button></div>
       <div id="libMonsters"></div>
     </div>
     <div class="lib-col">
@@ -472,7 +473,7 @@ applyTheme(savedTheme || DEFAULT_THEME);
 
 <!-- DICE (the DM's own rolls: private) -->
 <section class="panel" id="dicePanel">
-  <div class="panel-head"><h2>Your dice</h2><span class="live-state">Only you see these rolls</span></div>
+  <div class="panel-head"><h2>Your Dice</h2><span class="live-state">Only you see these rolls</span></div>
   <div class="dm-roll">
     <input type="text" id="dmDice" value="1d20" spellcheck="false" autocomplete="off" aria-label="Dice to roll, like 1d20+5 or 2d6+3">
     <input type="text" id="dmLabel" placeholder="What for (optional)" autocomplete="off" aria-label="What the roll is for">
@@ -491,20 +492,20 @@ applyTheme(savedTheme || DEFAULT_THEME);
 
 <!-- ENCOUNTER -->
 <section class="panel" id="encPanel">
-  <div class="panel-head"><h2>Encounter difficulty</h2></div>
+  <div class="panel-head"><h2>Encounter Difficulty</h2></div>
   <p class="panel-note">From the monsters in Initiative and the party’s levels, using the 2014 Dungeon Master’s Guide. Add monsters before rolling to plan a fight.</p>
   <div id="encBody"></div>
 </section>
 
 <!-- REFERENCE -->
 <section class="panel" id="refPanel">
-  <div class="panel-head"><h2>Rules reference</h2></div>
+  <div class="panel-head"><h2>Rules Reference</h2></div>
   <div id="refBody"></div>
 </section>
 
 <!-- NOTES -->
 <section class="panel" id="notesPanel">
-  <div class="panel-head"><h2>Session notes</h2><span class="msg" id="notesMsg" style="margin:0"></span></div>
+  <div class="panel-head"><h2>Session Notes</h2><span class="msg" id="notesMsg" style="margin:0"></span></div>
   <textarea id="notesBox" placeholder="NPCs, clues, loot, what happened this session…"></textarea>
   <p class="panel-note" style="margin:6px 0 0;">Saved in this browser as you type.</p>
 </section>
@@ -513,11 +514,12 @@ applyTheme(savedTheme || DEFAULT_THEME);
   <button type="button" class="theme-toggle" id="themeToggle" aria-expanded="false" aria-controls="themeMenu" title="Change the color theme"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 3a9 9 0 0 0 0 18c1.1 0 1.8-.8 1.8-1.7 0-.5-.2-.9-.5-1.2-.3-.3-.5-.7-.5-1.2 0-.9.8-1.7 1.7-1.7H16a5 5 0 0 0 5-5C21 6.4 17 3 12 3zm-5.5 9a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm3-4a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm3 4a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg><span>Theme</span></button>
   <div class="theme-menu" id="themeMenu" role="group" aria-label="Color theme" hidden></div>
 </div>
+<div class="theme-picker"><button type="button" class="theme-toggle panel-reset" id="panelReset" title="Put the panels back in their usual order">Reset panel order</button></div>
 </div>
 
 <div class="roll-backdrop" id="csBackdrop" hidden>
   <div class="roll-popup cs-popup" role="dialog" aria-modal="true" aria-labelledby="csTitle">
-    <div class="roll-head"><h4 id="csTitle">Campaign settings</h4><button type="button" class="roll-close" id="csClose" aria-label="Close">&times;</button></div>
+    <div class="roll-head"><h4 id="csTitle">Campaign Settings</h4><button type="button" class="roll-close" id="csClose" aria-label="Close">&times;</button></div>
     <div id="csBody"></div>
   </div>
 </div>
@@ -1477,6 +1479,21 @@ try{ savedCampaign = localStorage.getItem('dndTracker:dm:campaign'); }catch(e){}
 setCampaign(savedCampaign || CAMPAIGNS[0].key);
 </script>
 <script src="js/dm-library.js"></script>
+<script src="js/panel-order.js"></script>
+<script>
+/* Panels in your own order (js/panel-order.js). Saved in this browser for now (one key, to move
+   to the DM's account when logins come). The nav links follow the panels' order. */
+const DM_PANEL_KEY = 'dndTracker:dm:panels';
+function navInPanelOrder(order){
+  const nav = document.querySelector('nav.jump'); if(!nav) return;
+  order.forEach(id=>{ const a = nav.querySelector(`a[href="#${id}"]`); if(a) nav.appendChild(a); });
+}
+const dmPanels = setupPanelOrder({container:'.wrap', onChange:navInPanelOrder,
+  save:o=>{ try{ localStorage.setItem(DM_PANEL_KEY, JSON.stringify(o)); }catch(e){} }});
+try{ dmPanels.apply(JSON.parse(localStorage.getItem(DM_PANEL_KEY) || 'null')); }catch(e){}
+navInPanelOrder(dmPanels.order());
+$('panelReset').addEventListener('click', ()=>dmPanels.reset());
+</script>
 <script>
 
 /* ---------- Dice on the DM Screen (V4) ----------

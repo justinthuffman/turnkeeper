@@ -201,7 +201,7 @@ function diceStyleMenuHtml(st, note){
     + `<label for="dsPic">Picture</label><input type="url" id="dsPic" value="${diceEsc(st.pic)}" placeholder="https://… (optional)">`
     + `<label for="dsFit">Picture fit</label><select id="dsFit">${diceOpts([['fit', 'Fit (whole picture)'], ['fill', 'Fill the floor']], st.fit)}</select>`
     + `<div class="ds-note">A picture sits on the floor, centered; the floor still sets the sound.</div>`
-    + `<div class="ds-head">On this device</div>`
+    + `<div class="ds-head">On This Device</div>`
     + `<label class="ds-row-full"><input type="checkbox" id="dsSound"${snd.on ? ' checked' : ''}> Dice sounds</label>`
     + `<label for="dsVol">Sound volume</label><input type="range" id="dsVol" min="0" max="100" value="${snd.vol}">`
     + `<label class="ds-row-full"><input type="checkbox" id="dsFx"${critFxOn() ? ' checked' : ''}> Show crit GIFs</label>`
