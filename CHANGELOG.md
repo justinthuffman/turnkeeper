@@ -3,6 +3,17 @@
 What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest first.
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
+## Unreleased
+
+### Added
+- **The DM Screen has the Settings gear too** (top right, beside Campaign settings): Theme with the
+  class themes, Dice and Tray (moved from the Dice panel), Panels (reset the order, open every
+  panel) and Backup (this screen's settings and Session Notes, as a .txt file or a code).
+
+### Changed
+- Themes and the settings panel are now shared files (js/themes.js, css/settings.css), so the
+  tracker and DM Screen stay the same.
+
 ## 2026-10-02 — Settings, class themes, heal your party
 
 ### Added

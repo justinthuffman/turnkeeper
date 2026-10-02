@@ -10,6 +10,8 @@
 <link rel="stylesheet" href="css/dice.css">
 <link rel="stylesheet" href="css/panels.css">
 <link rel="stylesheet" href="css/char-icons.css">
+<link rel="stylesheet" href="css/class-themes.css">
+<link rel="stylesheet" href="css/settings.css">
 <style>
 *{box-sizing:border-box;}
 body{
@@ -357,7 +359,9 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
 #rollsBox{margin-top:12px;}
 #rollsList li.n20{color:#f2c14e;}
 #rollsList li.n1{color:var(--danger);}
-.dm-dice-picker{margin-top:0;}
+.dm-clip{display:flex; flex-direction:column; gap:8px; margin-top:8px;}
+.dm-clip[hidden]{display:none;}
+.dm-clip textarea{width:100%;}
 .dice-style-menu{position:absolute; top:calc(100% + 6px); right:0; z-index:50; width:min(340px, calc(100vw - 32px));
   display:grid; grid-template-columns:auto 1fr; gap:6px 10px; align-items:center; padding:12px;
   background:var(--panel); border:1px solid var(--border); border-radius:8px; box-shadow:0 8px 24px rgba(0,0,0,0.45); font-size:0.8rem;}
@@ -367,36 +371,45 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
 .dice-style-menu .ds-row-full{grid-column:1 / -1; display:flex; gap:8px; align-items:center; flex-wrap:wrap;}
 .dice-style-menu .ds-note{grid-column:1 / -1; color:var(--ink-dim); font-size:0.72rem;}
 </style>
-<script>
-// Apply the saved color theme before the page draws (the same pick as the tracker and hub)
-const THEME_FONTS = {
-  tome: 'https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap',
-  keep: 'https://fonts.googleapis.com/css2?family=MedievalSharp&display=swap',
-  inferno: 'https://fonts.googleapis.com/css2?family=Pirata+One&display=swap',
-};
-function applyTheme(key){
-  if(key && key.startsWith('class')) key = DEFAULT_THEME;   // class themes are for character sheets only
-  const root = document.documentElement;
-  if(key && key !== 'harbor') root.setAttribute('data-theme', key); else root.removeAttribute('data-theme');
-  if(THEME_FONTS[key] && !document.getElementById('font-'+key)){
-    const l = document.createElement('link');
-    l.id = 'font-'+key; l.rel = 'stylesheet'; l.href = THEME_FONTS[key];
-    document.head.appendChild(l);
-  }
-}
-// Ember is the default look for anyone who hasn't picked a theme (Justin, 2026-09-30)
-const DEFAULT_THEME = 'ember';
-let savedTheme = null;
-try{ savedTheme = localStorage.getItem('dndTracker:theme'); }catch(e){}
-applyTheme(savedTheme || DEFAULT_THEME);
-</script>
+<script src="js/themes.js"></script>
 </head>
 <body>
 <div class="wrap">
 
 <header class="top">
   <h1><a class="brand-link" href="index.html" title="Back to all characters"><svg class="brand-mark" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="16" fill="none" stroke="var(--sea)" stroke-width="2"/><path d="M14 11 H26 M14 29 H26 M15 11 Q15 18 20 20 Q25 18 25 11 M15 29 Q15 22 20 20 Q25 22 25 29" fill="none" stroke="var(--sea)" stroke-width="1.8" stroke-linejoin="round"/><path d="M17.5 27 Q20 24 22.5 27 Z" fill="var(--orange)"/></svg>Turnkeeper</a><span class="page-name">DM Screen</span></h1>
-  <div class="top-right"><label class="campaign-pick">Campaign <select id="campaignSelect"></select></label><button type="button" class="ghost" id="settingsBtn">Campaign settings</button></div>
+  <div class="top-right"><label class="campaign-pick">Campaign <select id="campaignSelect"></select></label><button type="button" class="ghost" id="campSettingsBtn">Campaign settings</button>
+  <!-- SETTINGS for this screen: theme, dice and tray, panels, backup (the gear; css/settings.css, js/themes.js) -->
+  <div class="settings" id="settings">
+    <button type="button" class="gear-btn" id="settingsBtn" aria-expanded="false" aria-controls="settingsPop" title="Settings" aria-label="Settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.49.49 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.48.48 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.48.48 0 0 0-.59.22L2.74 8.87a.48.48 0 0 0 .12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32a.48.48 0 0 0-.12-.61l-2.01-1.58zM12 15.6a3.6 3.6 0 1 1 0-7.2 3.6 3.6 0 0 1 0 7.2z"/></svg></button>
+    <div class="settings-pop" id="settingsPop" role="dialog" aria-label="Settings" hidden>
+      <div class="set-head"><h2>Settings</h2><button type="button" class="roll-close" id="settingsClose" aria-label="Close settings">&times;</button></div>
+      <details class="set-sec" id="setTheme" open><summary>Theme</summary>
+        <div class="theme-menu" id="themeMenu" role="group" aria-label="Color theme"></div>
+      </details>
+      <details class="set-sec" id="setDice"><summary>Dice and Tray</summary>
+        <div class="dice-style-menu" id="diceStyleMenu" role="group" aria-label="Dice style"></div>
+      </details>
+      <details class="set-sec" id="setPanels"><summary>Panels</summary>
+        <p class="set-note">Drag a panel by its ⠿ grip to move it, and click its title to fold it.</p>
+        <div class="set-actions"><button type="button" class="chip-btn" id="panelReset">Reset panel order</button><button type="button" class="chip-btn" id="panelOpenAll">Open every panel</button></div>
+      </details>
+      <details class="set-sec" id="setBackup"><summary>Backup</summary>
+        <p class="set-note">This screen’s settings in this browser: theme, panel order and folding, your dice and throw, sounds, the campaign you last opened, and your Session Notes. Monsters, encounters and Campaign settings are saved with the campaign already.</p>
+        <div class="set-actions">
+          <button type="button" class="chip-btn" id="dmBackupTxt">Back up to .txt</button>
+          <button type="button" class="chip-btn" id="dmRestoreTxt">Restore from .txt</button>
+          <input type="file" id="dmRestoreFile" accept=".txt,text/plain" hidden>
+          <button type="button" class="chip-btn" id="dmClipToggle" aria-expanded="false" aria-controls="dmClipPanel">Copy/Restore From Clipboard</button>
+        </div>
+        <div class="dm-clip" id="dmClipPanel" hidden>
+          <textarea id="dmClipBox" rows="5" aria-label="Backup text: copy it, or clear it and paste a backup to restore" placeholder="Paste a backup here, then click Restore"></textarea>
+          <div class="set-actions"><button type="button" class="chip-btn" id="dmClipCopy">Copy</button><button type="button" class="chip-btn" id="dmClipRestore">Restore</button><button type="button" class="chip-btn" id="dmClipClear">Clear</button></div>
+        </div>
+        <div class="msg" id="dmBackupMsg" aria-live="polite"></div>
+      </details>
+    </div>
+  </div></div>
 </header>
 <nav class="jump" aria-label="Sections">
   <a href="#partyPanel">Party</a><a href="#initPanel">Initiative</a><a href="#libPanel">Monsters &amp; Encounters</a><a href="#dicePanel">Dice</a><a href="#encPanel">Encounter Difficulty</a><a href="#refPanel">Rules Reference</a><a href="#notesPanel">Session Notes</a>
@@ -486,10 +499,6 @@ applyTheme(savedTheme || DEFAULT_THEME);
     <input type="text" id="dmLabel" placeholder="What for (optional)" autocomplete="off" aria-label="What the roll is for">
     <button type="button" id="dmRollBtn">Roll</button>
     <span id="dmThrowWrap"></span>
-    <div class="theme-picker dm-dice-picker" id="dicePicker">
-      <button type="button" class="theme-toggle" id="diceStyleToggle" aria-expanded="false" aria-controls="diceStyleMenu" title="Change how your dice look">🎲 Dice style</button>
-      <div class="dice-style-menu" id="diceStyleMenu" role="group" aria-label="Dice style" hidden></div>
-    </div>
   </div>
   <div class="dm-quick"><button type="button" class="chip-btn" data-quick="1d4">d4</button><button type="button" class="chip-btn" data-quick="1d6">d6</button><button type="button" class="chip-btn" data-quick="1d8">d8</button><button type="button" class="chip-btn" data-quick="1d10">d10</button><button type="button" class="chip-btn" data-quick="1d12">d12</button><button type="button" class="chip-btn" data-quick="1d20">d20</button><button type="button" class="chip-btn" data-quick="1d20 adv">d20 adv</button><button type="button" class="chip-btn" data-quick="1d20 dis">d20 dis</button><button type="button" class="chip-btn" data-quick="1d100">d100</button></div>
   <div class="dm-test"><span>Test a crit</span><select id="testRow" aria-label="Which roll type"></select><select id="testNat" aria-label="Natural 20 or 1"><option value="20">20</option><option value="1">1</option></select><button type="button" class="ghost" id="testCrit">Test</button><span class="dm-test-note">Shows the GIF and flavor text from Campaign settings, only on this screen.</span></div>
@@ -517,11 +526,6 @@ applyTheme(savedTheme || DEFAULT_THEME);
   <p class="panel-note" style="margin:6px 0 0;">Saved in this browser as you type.</p>
 </section>
 
-<div class="theme-picker" id="themePicker">
-  <button type="button" class="theme-toggle" id="themeToggle" aria-expanded="false" aria-controls="themeMenu" title="Change the color theme"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 3a9 9 0 0 0 0 18c1.1 0 1.8-.8 1.8-1.7 0-.5-.2-.9-.5-1.2-.3-.3-.5-.7-.5-1.2 0-.9.8-1.7 1.7-1.7H16a5 5 0 0 0 5-5C21 6.4 17 3 12 3zm-5.5 9a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm3-4a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm3 4a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg><span>Theme</span></button>
-  <div class="theme-menu" id="themeMenu" role="group" aria-label="Color theme" hidden></div>
-</div>
-<div class="theme-picker"><button type="button" class="theme-toggle panel-reset" id="panelReset" title="Put the panels back in their usual order">Reset panel order</button></div>
 </div>
 
 <div class="roll-backdrop" id="csBackdrop" hidden>
@@ -1453,36 +1457,8 @@ function setCampaign(key){
 }
 $('campaignSelect').addEventListener('change', e=>setCampaign(e.target.value));
 
-/* ---------- Theme (shared with the tracker and hub) ---------- */
-const THEMES = [
-  {key:'harbor', name:'Harbor', bg:'#13293d', accent:'#4fb8a6'},
-  {key:'midnight', name:'Midnight', bg:'#1a1730', accent:'#c9962f'},
-  {key:'grove', name:'Grove', bg:'#16241c', accent:'#9ccf6f'},
-  {key:'ember', name:'Ember', bg:'#221a1b', accent:'#b8433a'},
-  {key:'daylight', name:'Daylight', bg:'#ffffff', accent:'#1d7a6e'},
-  {key:'tome', name:'Tome', bg:'#f2e7cc', accent:'#7d1a16'},
-  {key:'keep', name:'Keep', bg:'#3a2515', accent:'#d9ad56'},
-  {key:'inferno', name:'Inferno', bg:'#170c0b', accent:'#d42a12'},
-];
-function setTheme(key){
-  const t = THEMES.find(x=>x.key===key) || THEMES[0];
-  applyTheme(t.key);
-  try{ localStorage.setItem('dndTracker:theme', t.key); }catch(e){}
-  renderThemeBar();
-}
-function renderThemeBar(){
-  const menu = $('themeMenu');
-  const cur = document.documentElement.getAttribute('data-theme') || 'harbor';
-  menu.innerHTML = THEMES.map(x=>
-    `<button type="button" class="theme-option" data-theme-pick="${x.key}" aria-pressed="${x.key===cur}"><span class="theme-dot" style="background:linear-gradient(135deg, ${x.bg} 50%, ${x.accent} 50%);"></span>${x.name}</button>`).join('');
-  menu.querySelectorAll('[data-theme-pick]').forEach(b=>b.addEventListener('click', ()=>setTheme(b.dataset.themePick)));
-}
-function showThemeMenu(open){ $('themeMenu').hidden = !open; $('themeToggle').setAttribute('aria-expanded', String(open)); }
-$('themeToggle').addEventListener('click', ()=>showThemeMenu($('themeMenu').hidden));
-document.addEventListener('click', e=>{ if(!e.composedPath().includes($('themePicker'))) showThemeMenu(false); });
-document.addEventListener('keydown', e=>{ if(e.key === 'Escape') showThemeMenu(false); });
-renderThemeBar();
-window.addEventListener('storage', e=>{ if(e.key === 'dndTracker:theme'){ applyTheme(e.newValue || DEFAULT_THEME); renderThemeBar(); } });
+/* ---------- Themes and the Settings gear (js/themes.js, the same as the tracker) ---------- */
+setupSettings({onOpen:()=>{ if($('setDice').open) fillDiceStyleMenu(); }});
 
 let savedCampaign = null;
 try{ savedCampaign = localStorage.getItem('dndTracker:dm:campaign'); }catch(e){}
@@ -1510,6 +1486,71 @@ document.querySelector('nav.jump').addEventListener('click', e=>{ const a = e.ta
 try{ dmPanels.apply(JSON.parse(localStorage.getItem(DM_PANEL_KEY) || 'null')); }catch(e){}
 navInPanelOrder(dmPanels.order());
 $('panelReset').addEventListener('click', ()=>dmPanels.reset());
+$('panelOpenAll').addEventListener('click', ()=>dmPanels.collapsed().forEach(id=>dmPanels.expand(id)));
+
+/* ---------- Settings → Backup: this screen's settings in this browser ----------
+   Theme, panel order and folding, dice style and throw, sounds, crit GIFs, the last campaign and
+   each campaign's Session Notes.
+   (Monsters, encounters and Campaign settings live with the campaign in Firebase. The Campaign
+   settings unlock isn't included.) A code TKDM1:<base64 JSON>; restoring reloads the page. */
+const DM_BACKUP_GLOBAL = ['dndTracker:theme', 'dndTracker:diceSound', 'dndTracker:critFx'];
+// Not the live fight or roll log (restoring an old one would overwrite the current game), nor the unlock
+const dmBackable = k=>(k.startsWith('dndTracker:dm:') && k !== CS_UNLOCK_KEY && !/:(combat|rolls)$/.test(k)) || DM_BACKUP_GLOBAL.includes(k);
+function dmBackupKeys(){
+  const out = {};
+  try{
+    for(let i = 0; i < localStorage.length; i++){
+      const k = localStorage.key(i);
+      if(k && dmBackable(k)) out[k] = localStorage.getItem(k);
+    }
+  }catch(e){}
+  return out;
+}
+const b64 = s=>btoa(unescape(encodeURIComponent(s))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+const unb64 = s=>{ const b = s.replace(/-/g,'+').replace(/_/g,'/'); return decodeURIComponent(escape(atob(b + '==='.slice((b.length + 3) % 4)))); };
+function dmBackupText(){
+  const when = new Date().toLocaleString(undefined, {month:'short', day:'numeric', year:'numeric', hour:'numeric', minute:'2-digit'});
+  return `Turnkeeper DM Screen settings, ${when}\nRestore code: TKDM1:${b64(JSON.stringify(dmBackupKeys()))}`;
+}
+const dmBackupMsg = (t, err)=>{ $('dmBackupMsg').textContent = t; $('dmBackupMsg').classList.toggle('err', !!err); };
+function dmRestore(text){
+  const m = String(text || '').match(/TKDM1:([A-Za-z0-9_-]+)/);
+  let keys = null; try{ keys = m ? JSON.parse(unb64(m[1])) : null; }catch(e){}
+  if(!keys || typeof keys !== 'object'){ dmBackupMsg('No DM Screen backup found in that.', true); return; }
+  try{
+    Object.keys(dmBackupKeys()).forEach(k=>localStorage.removeItem(k));
+    Object.entries(keys).forEach(([k, v])=>{ if(typeof v === 'string' && dmBackable(k)) localStorage.setItem(k, v); });
+  }catch(e){ dmBackupMsg('Couldn’t restore: this browser isn’t letting Turnkeeper save.', true); return; }
+  location.reload();
+}
+$('dmBackupTxt').addEventListener('click', ()=>{
+  const url = URL.createObjectURL(new Blob([dmBackupText() + '\n'], {type:'text/plain'}));
+  const a = document.createElement('a');
+  a.href = url; a.download = `turnkeeper-dm-screen-backup-${new Date().toISOString().slice(0,10)}.txt`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 2000);
+  dmBackupMsg('Backup file downloaded. Keep it somewhere safe.');
+});
+$('dmRestoreTxt').addEventListener('click', ()=>$('dmRestoreFile').click());
+$('dmRestoreFile').addEventListener('change', e=>{
+  const file = e.target.files && e.target.files[0]; e.target.value = '';
+  if(!file) return;
+  if(file.size > 100000){ dmBackupMsg('That file is too big to be a Turnkeeper backup.', true); return; }
+  const r = new FileReader(); r.onload = ()=>dmRestore(String(r.result || '')); r.readAsText(file);
+});
+$('dmClipToggle').addEventListener('click', e=>{
+  const open = $('dmClipPanel').hidden;
+  $('dmClipPanel').hidden = !open; e.currentTarget.setAttribute('aria-expanded', String(open));
+  if(open) $('dmClipBox').value = dmBackupText();
+  dmBackupMsg('');
+});
+$('dmClipCopy').addEventListener('click', ()=>{
+  const text = $('dmClipBox').value; if(!text.trim()){ dmBackupMsg('The box is empty.', true); return; }
+  const done = ok=>dmBackupMsg(ok ? 'Copied. Paste it somewhere safe.' : 'Couldn’t copy automatically. Select the text in the box and copy it.', !ok);
+  if(navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(text).then(()=>done(true), ()=>done(false)); else done(false);
+});
+$('dmClipRestore').addEventListener('click', ()=>dmRestore($('dmClipBox').value));
+$('dmClipClear').addEventListener('click', ()=>{ $('dmClipBox').value = ''; dmBackupMsg('Box cleared. Paste a backup (Ctrl+V), then click Restore.'); $('dmClipBox').focus(); });
 </script>
 <script>
 
@@ -1608,13 +1649,9 @@ $('diceStyleMenu').addEventListener('input', ()=>{
   dmStyleTimer = setTimeout(()=>{ saveJSON(DM_DICE_KEY, dmStyle); restyleDice(dmStyle, dmThrow); }, 150);
 });
 $('diceStyleMenu').addEventListener('click', e=>{ if(e.target.closest('#dsTry')) tryDice('DM', dmStyle, dmThrow); });
-function showDiceStyleMenu(open){
-  if(open) $('diceStyleMenu').innerHTML = diceStyleMenuHtml(dmStyle, 'Your rolls are only ever shown on this screen.');
-  $('diceStyleMenu').hidden = !open;
-  $('diceStyleToggle').setAttribute('aria-expanded', String(open));
-}
-$('diceStyleToggle').addEventListener('click', ()=>showDiceStyleMenu($('diceStyleMenu').hidden));
-document.addEventListener('click', e=>{ if(!e.target.closest('#dicePicker')) showDiceStyleMenu(false); });
+// Settings → Dice and Tray: filled each time it's opened
+function fillDiceStyleMenu(){ $('diceStyleMenu').innerHTML = diceStyleMenuHtml(dmStyle, 'Your rolls are only ever shown on this screen.'); }
+$('setDice').addEventListener('toggle', e=>{ if(e.currentTarget.open) fillDiceStyleMenu(); });
 
 /* ---------- Campaign settings: crit GIF pools (V4) ----------
    Behind a simple password ("pizza": a speed bump among friends, not security). Saved in the
@@ -1641,7 +1678,7 @@ function closeSettings(){
   setTimeout(()=>{ bd.hidden = true; }, 200);
   if(csReturnFocus && csReturnFocus.isConnected) csReturnFocus.focus();
 }
-$('settingsBtn').addEventListener('click', openSettings);
+$('campSettingsBtn').addEventListener('click', openSettings);
 $('csClose').addEventListener('click', closeSettings);
 $('csBackdrop').addEventListener('click', e=>{ if(e.target === $('csBackdrop')) closeSettings(); });
 document.addEventListener('keydown', e=>{ if(e.key === 'Escape' && !$('csBackdrop').hidden) closeSettings(); });

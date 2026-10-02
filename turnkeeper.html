@@ -11,6 +11,7 @@
 <link rel="stylesheet" href="css/panels.css">
 <link rel="stylesheet" href="css/char-icons.css">
 <link rel="stylesheet" href="css/class-themes.css">
+<link rel="stylesheet" href="css/settings.css">
 <style>
 *{box-sizing:border-box;}
 body{
@@ -514,40 +515,6 @@ button.flow-btn .src-tag{color:var(--ink); border-color:rgba(255,255,255,0.6);}
 footer{text-align:center; color:var(--ink-dim); font-size:0.75rem; margin-top:30px;}
 /* Theme picker: a small, quiet "Theme" button that opens a menu of the themes
    (the same on the tracker and the hub; keep the two in step) */
-/* Settings: a quiet gear at the top right opens a panel of sections (theme, dice and tray,
-   panels, backup, leaving the page) */
-header.top{align-items:center;}
-.settings{position:relative; margin-left:auto;}
-button.gear-btn{display:inline-flex; align-items:center; justify-content:center; width:36px; height:36px; padding:0; border-radius:50%;
-  background:none; border:1px solid transparent; color:var(--ink-dim); box-shadow:none; text-shadow:none; cursor:pointer; transition:color .15s, border-color .15s, transform .4s ease;}
-button.gear-btn svg{width:22px; height:22px;}
-button.gear-btn:hover, button.gear-btn[aria-expanded="true"]{background:none; color:var(--sea); border-color:var(--border);}
-button.gear-btn[aria-expanded="true"] svg{transform:rotate(60deg); transition:transform .4s ease;}
-@media (prefers-reduced-motion: reduce){ button.gear-btn[aria-expanded="true"] svg{transform:none;} }
-.settings-pop{position:absolute; top:calc(100% + 8px); right:0; z-index:60; width:min(400px, calc(100vw - 32px));
-  max-height:min(80vh, 760px); overflow-y:auto; padding:12px 14px; background:var(--panel); border:1px solid var(--border);
-  border-radius:10px; box-shadow:0 12px 32px rgba(0,0,0,0.5); font-family:var(--font-body);}
-.settings-pop[hidden]{display:none;}
-.set-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;}
-.set-head h2{font-size:1.05rem; margin:0; color:var(--sea);}
-.set-sec{border-top:1px solid var(--border); padding:8px 0;}
-.set-sec > summary{cursor:pointer; font-family:var(--font-display); color:var(--ink); font-size:0.95rem; list-style:none; display:flex; align-items:center; gap:6px; padding:2px 0;}
-.set-sec > summary::-webkit-details-marker{display:none;}
-.set-sec > summary::before{content:'▸'; color:var(--sea); font-size:0.85rem; transition:transform .15s; display:inline-block; width:0.9em;}
-.set-sec[open] > summary::before{transform:rotate(90deg);}
-.set-sec > :not(summary){margin-top:8px;}
-.set-note{font-size:0.76rem; color:var(--ink-dim); margin:0 0 8px;}
-.set-check{display:flex; gap:8px; align-items:flex-start; font-size:0.82rem; color:var(--ink); cursor:pointer;}
-.set-check input{margin-top:3px;}
-.settings-pop .theme-menu, .settings-pop .dice-style-menu{position:static; transform:none; width:auto; max-height:none; overflow:visible;
-  box-shadow:none; border:none; background:none; padding:0;}
-.settings-pop .theme-menu{grid-template-columns:repeat(auto-fill, minmax(140px, 1fr));}
-.theme-group{grid-column:1 / -1; font-size:0.68rem; text-transform:uppercase; letter-spacing:0.06em; color:var(--sea); border-top:1px solid var(--border); padding-top:8px; margin-top:4px;}
-.settings-pop .backup{margin-top:0; padding-top:8px;}
-.settings-pop button.chip-btn{background:var(--panel2); border:1px solid var(--border); border-radius:999px; color:var(--ink); padding:4px 14px; font-size:0.8rem;}
-.settings-pop button.chip-btn:hover{border-color:var(--sea-dim);}
-.settings-pop button.chip-btn.on{background:var(--orange-tint); border-color:var(--orange);}
-.settings-pop textarea{width:100%; box-sizing:border-box;}
 .leave-bar{position:fixed; left:50%; bottom:16px; transform:translateX(-50%); z-index:250; width:max-content; max-width:calc(100vw - 32px); box-sizing:border-box;
   display:flex; flex-wrap:wrap; align-items:center; gap:10px; padding:10px 14px; background:var(--panel); border:1px solid var(--orange);
   border-radius:10px; box-shadow:0 10px 30px rgba(0,0,0,0.55); font-size:0.88rem; color:var(--ink);}
@@ -570,50 +537,7 @@ button.theme-option:hover{background:var(--panel2);}
 button.theme-option[aria-pressed="true"]{font-weight:600;}
 button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box-shadow:0 0 0 2px var(--panel), 0 0 0 3px var(--ink);}
 </style>
-<script>
-// Apply the saved color theme before the page draws (no flash of the default look).
-// Tome and Keep load their fonts from Google Fonts only when they're picked.
-const GF = 'https://fonts.googleapis.com/css2?display=swap&family=';
-const THEME_FONTS = {
-  tome: 'https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap',
-  keep: 'https://fonts.googleapis.com/css2?family=MedievalSharp&display=swap',
-  inferno: 'https://fonts.googleapis.com/css2?family=Pirata+One&display=swap',
-  // Class themes (css/class-themes.css); Cinzel Decorative is already on the page
-  'class-barbarian': GF + 'New+Rocker',
-  'class-bard': GF + 'Playfair+Display:ital,wght@0,400;0,600;1,400&family=Playfair+Display+SC:ital,wght@0,400;0,700;1,400',
-  'class-cleric': GF + 'Cormorant+Garamond:wght@400;600',
-  'class-druid': GF + 'Uncial+Antiqua',
-  'class-fighter': GF + 'Cinzel:wght@400;700',
-  'class-monk': GF + 'Marcellus&family=Marcellus+SC',
-  'class-paladin': GF + 'Cinzel:wght@400;700',
-  'class-ranger': GF + 'Almendra:wght@400;700',
-  'class-rogue': GF + 'IM+Fell+English+SC',
-  'class-warlock': GF + 'Grenze+Gotisch:wght@400;600',
-  'class-wizard': GF + 'Cormorant+SC:wght@500;600',
-};
-// Ember is the default look for anyone who hasn't picked a theme (Justin, 2026-09-30; Keep before that)
-const DEFAULT_THEME = 'ember';
-// "My class" (saved as 'class') is the open character's class theme. The class is remembered per
-// sheet (dndTracker:classOf:<sheet ID>), so the page draws in it before the sheet has loaded.
-function resolveTheme(key){
-  if(key !== 'class') return key;
-  let cls = window.tkClassKey || null;
-  if(!cls){ try{ const m = String(new URLSearchParams(location.search).get('sheet') || '').match(/\/d\/([A-Za-z0-9_-]+)/); if(m) cls = localStorage.getItem('dndTracker:classOf:' + m[1]); }catch(e){} }
-  return cls ? 'class-' + cls : DEFAULT_THEME;
-}
-function applyTheme(saved){
-  const root = document.documentElement, key = resolveTheme(saved);
-  if(key && key !== 'harbor') root.setAttribute('data-theme', key); else root.removeAttribute('data-theme');
-  if(THEME_FONTS[key] && !document.getElementById('font-'+key)){
-    const l = document.createElement('link');
-    l.id = 'font-'+key; l.rel = 'stylesheet'; l.href = THEME_FONTS[key];
-    document.head.appendChild(l);
-  }
-}
-let savedTheme = null;
-try{ savedTheme = localStorage.getItem('dndTracker:theme'); }catch(e){}
-applyTheme(savedTheme || DEFAULT_THEME);
-</script>
+<script src="js/themes.js"></script>
 </head>
 <body>
 <div class="wrap">
@@ -6338,76 +6262,15 @@ document.querySelectorAll('.collapsible').forEach(wrap=>{
 renderChips('savesChips', []); renderChips('skillsChips', []); renderAttacksList();
 racialSection.render(); classSection.render(); featSection.render();
 if(spellBody.classList.contains('open')) renderSpellList();   // Spells was left open last time
-
-/* ---------- Color themes: the Theme button at the bottom of the page ----------
-   The saved theme (or DEFAULT_THEME, Ember) is applied by the small script in <head> before
-   the page draws; this builds the Theme menu. Each option's dot shows that theme's background
-   and accent colors. The same list is in index.html and dm.html. */
-const THEMES = [
-  {key:'harbor', name:'Harbor', bg:'#13293d', accent:'#4fb8a6'},
-  {key:'midnight', name:'Midnight', bg:'#1a1730', accent:'#c9962f'},
-  {key:'grove', name:'Grove', bg:'#16241c', accent:'#9ccf6f'},
-  {key:'ember', name:'Ember', bg:'#221a1b', accent:'#b8433a'},
-  {key:'daylight', name:'Daylight', bg:'#ffffff', accent:'#1d7a6e'},
-  {key:'tome', name:'Tome', bg:'#f2e7cc', accent:'#7d1a16'},
-  {key:'keep', name:'Keep', bg:'#3a2515', accent:'#d9ad56'},
-  {key:'inferno', name:'Inferno', bg:'#170c0b', accent:'#d42a12'},
-];
-// Class themes (css/class-themes.css): "My class" follows the open character; any class can be picked
-const CLASS_THEMES = [
-  {key:'class-barbarian', name:'Barbarian', bg:'#241a14', accent:'#c4342a'},
-  {key:'class-bard', name:'Bard', bg:'#2a1019', accent:'#e9c46a'},
-  {key:'class-cleric', name:'Cleric', bg:'#fbf8f1', accent:'#c8a24a'},
-  {key:'class-druid', name:'Druid', bg:'#152619', accent:'#a8d46a'},
-  {key:'class-fighter', name:'Fighter', bg:'#1d232a', accent:'#3d73c4'},
-  {key:'class-monk', name:'Monk', bg:'#f6f0e2', accent:'#b0281e'},
-  {key:'class-paladin', name:'Paladin', bg:'#141b38', accent:'#f0c95a'},
-  {key:'class-ranger', name:'Ranger', bg:'#2b2116', accent:'#4f8449'},
-  {key:'class-rogue', name:'Rogue', bg:'#121219', accent:'#a98bf0'},
-  {key:'class-sorcerer', name:'Sorcerer', bg:'#1f0c22', accent:'#ff5f8f'},
-  {key:'class-warlock', name:'Warlock', bg:'#0c1510', accent:'#5cff9c'},
-  {key:'class-wizard', name:'Wizard', bg:'#11152f', accent:'#8fb4ff'},
-];
-const savedThemeKey = ()=>storageGet('dndTracker:theme') || DEFAULT_THEME;
-function setTheme(key){
-  const t = key === 'class' ? {key} : THEMES.find(x=>x.key===key) || CLASS_THEMES.find(x=>x.key===key) || THEMES[0];
-  applyTheme(t.key);
-  storageSet('dndTracker:theme', t.key);   // saved even for Harbor, since Ember is the default
-  renderThemeBar();
-}
-// The character's class, for "My class" (called when a sheet's class is read)
+/* ---------- Themes and the Settings gear (js/themes.js) ----------
+   "My class" needs the character's class: noteClassTheme runs when a sheet's class is read. */
 function noteClassTheme(cls){
   window.tkClassKey = cls || null;
   if(cls && currentCharId) storageSet(`dndTracker:classOf:${currentCharId}`, cls);
   if(savedThemeKey() === 'class') applyTheme('class');
-  if(typeof renderThemeBar === 'function' && document.getElementById('themeMenu').childElementCount) renderThemeBar();
+  renderThemeMenu();
 }
-function renderThemeBar(){
-  const menu = document.getElementById('themeMenu');
-  const cur = savedThemeKey();
-  const opt = x=>`<button type="button" class="theme-option" data-theme-pick="${x.key}" aria-pressed="${x.key===cur}"><span class="theme-dot" style="background:linear-gradient(135deg, ${x.bg} 50%, ${x.accent} 50%);"></span>${x.name}</button>`;
-  const mine = window.tkClassKey && CLASS_THEMES.find(x=>x.key === 'class-' + window.tkClassKey);
-  menu.innerHTML = THEMES.map(opt).join('')
-    + `<div class="theme-group">Class Themes</div>`
-    + opt({key:'class', name:`My class${mine ? ` (${mine.name})` : ''}`, bg:mine ? mine.bg : '#555', accent:mine ? mine.accent : '#999'})
-    + CLASS_THEMES.map(opt).join('');
-  menu.querySelectorAll('[data-theme-pick]').forEach(b=>b.addEventListener('click', ()=>setTheme(b.dataset.themePick)));
-}
-// Settings (the gear, top right): opens and closes the panel; a click elsewhere, Escape or × closes it.
-// It stays open after a pick so themes can be compared.
-function showSettings(open){
-  document.getElementById('settingsPop').hidden = !open;
-  document.getElementById('settingsBtn').setAttribute('aria-expanded', String(open));
-  if(open && document.getElementById('setDice').open) fillDiceStyleMenu();
-}
-document.getElementById('settingsBtn').addEventListener('click', ()=>showSettings(document.getElementById('settingsPop').hidden));
-document.getElementById('settingsClose').addEventListener('click', ()=>{ showSettings(false); document.getElementById('settingsBtn').focus(); });
-// composedPath, not closest(): picking a theme rebuilds the menu, detaching the clicked button
-document.addEventListener('click', e=>{ if(!e.composedPath().includes(document.getElementById('settings'))) showSettings(false); });
-document.addEventListener('keydown', e=>{ if(e.key === 'Escape' && !document.getElementById('settingsPop').hidden){ showSettings(false); document.getElementById('settingsBtn').focus(); } });
-renderThemeBar();
-// A theme picked in another tab (tracker or hub) is followed here straight away
-window.addEventListener('storage', e=>{ if(e.key === 'dndTracker:theme'){ applyTheme(e.newValue || DEFAULT_THEME); renderThemeBar(); } });
+setupSettings({onOpen:()=>{ if(document.getElementById('setDice').open) fillDiceStyleMenu(); }});
 
 /* ---------- Auto-import when opened with ?sheet=<url>&name=<name> ---------- */
 (async function(){

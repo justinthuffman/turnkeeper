@@ -1,0 +1,35 @@
+/* Settings (the tracker and the DM Screen): a quiet gear at the top right opens a panel of
+   sections (theme, dice and tray, panels, backup...). js/themes.js opens and closes it. */
+header.top{align-items:center;}
+.settings{position:relative; margin-left:auto;}
+button.gear-btn{display:inline-flex; align-items:center; justify-content:center; width:36px; height:36px; padding:0; border-radius:50%;
+  background:none; border:1px solid transparent; color:var(--ink-dim); box-shadow:none; text-shadow:none; cursor:pointer; transition:color .15s, border-color .15s, transform .4s ease;}
+button.gear-btn svg{width:22px; height:22px;}
+button.gear-btn:hover, button.gear-btn[aria-expanded="true"]{background:none; color:var(--sea); border-color:var(--border);}
+button.gear-btn[aria-expanded="true"] svg{transform:rotate(60deg); transition:transform .4s ease;}
+@media (prefers-reduced-motion: reduce){ button.gear-btn[aria-expanded="true"] svg{transform:none;} }
+.settings-pop{position:absolute; top:calc(100% + 8px); right:0; z-index:60; width:min(400px, calc(100vw - 32px));
+  max-height:min(80vh, 760px); overflow-y:auto; padding:12px 14px; background:var(--panel); border:1px solid var(--border);
+  border-radius:10px; box-shadow:0 12px 32px rgba(0,0,0,0.5); font-family:var(--font-body);}
+.settings-pop[hidden]{display:none;}
+.set-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;}
+.set-head h2{font-size:1.05rem; margin:0; color:var(--sea);}
+.set-sec{border-top:1px solid var(--border); padding:8px 0;}
+.set-sec > summary{cursor:pointer; font-family:var(--font-display); color:var(--ink); font-size:0.95rem; list-style:none; display:flex; align-items:center; gap:6px; padding:2px 0;}
+.set-sec > summary::-webkit-details-marker{display:none;}
+.set-sec > summary::before{content:'▸'; color:var(--sea); font-size:0.85rem; transition:transform .15s; display:inline-block; width:0.9em;}
+.set-sec[open] > summary::before{transform:rotate(90deg);}
+.set-sec > :not(summary){margin-top:8px;}
+.set-note{font-size:0.76rem; color:var(--ink-dim); margin:0 0 8px;}
+.set-check{display:flex; gap:8px; align-items:flex-start; font-size:0.82rem; color:var(--ink); cursor:pointer;}
+.set-check input{margin-top:3px;}
+.settings-pop .theme-menu, .settings-pop .dice-style-menu{position:static; transform:none; width:auto; max-height:none; overflow:visible;
+  box-shadow:none; border:none; background:none; padding:0;}
+.settings-pop .theme-menu{grid-template-columns:repeat(auto-fill, minmax(140px, 1fr));}
+.theme-group{grid-column:1 / -1; font-size:0.68rem; text-transform:uppercase; letter-spacing:0.06em; color:var(--sea); border-top:1px solid var(--border); padding-top:8px; margin-top:4px;}
+.settings-pop .backup{margin-top:0; padding-top:8px;}
+.settings-pop button.chip-btn{background:var(--panel2); border:1px solid var(--border); border-radius:999px; color:var(--ink); padding:4px 14px; font-size:0.8rem;}
+.settings-pop button.chip-btn:hover{border-color:var(--sea-dim);}
+.settings-pop button.chip-btn.on{background:var(--orange-tint); border-color:var(--orange);}
+.settings-pop textarea{width:100%; box-sizing:border-box;}
+.set-actions{display:flex; flex-wrap:wrap; align-items:center; gap:10px;}
