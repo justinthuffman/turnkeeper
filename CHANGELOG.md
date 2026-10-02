@@ -19,7 +19,8 @@ Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wi
   tray) and your theme and panel settings, so you can move to a new browser. Restoring reloads the
   page, with Undo. Older backup codes still restore HP and charges.
 - **Asks before you leave** if you've changed something since your last backup (the browser's own
-  "Leave site?" box). It can be turned off in Settings → Leaving the Page.
+  "Leave site?" box). Choose Cancel and a bar offers Back up to .txt or Copy backup code in one click.
+  It can be turned off in Settings → Leaving the Page.
 - **Class themes.** Twelve new themes, one per class, each with its own colors, font, background,
   panel decoration and heading icon. "My class" uses the open character's class; any class's theme
   can be picked too. The DM Screen and hub keep their usual look.

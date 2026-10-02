@@ -548,6 +548,11 @@ button.gear-btn[aria-expanded="true"] svg{transform:rotate(60deg); transition:tr
 .settings-pop button.chip-btn:hover{border-color:var(--sea-dim);}
 .settings-pop button.chip-btn.on{background:var(--orange-tint); border-color:var(--orange);}
 .settings-pop textarea{width:100%; box-sizing:border-box;}
+.leave-bar{position:fixed; left:50%; bottom:16px; transform:translateX(-50%); z-index:250; width:max-content; max-width:calc(100vw - 32px); box-sizing:border-box;
+  display:flex; flex-wrap:wrap; align-items:center; gap:10px; padding:10px 14px; background:var(--panel); border:1px solid var(--orange);
+  border-radius:10px; box-shadow:0 10px 30px rgba(0,0,0,0.55); font-size:0.88rem; color:var(--ink);}
+.leave-bar button.chip-btn{background:var(--panel2); border:1px solid var(--border); border-radius:999px; color:var(--ink); padding:5px 14px; font-size:0.82rem;}
+.leave-bar button.chip-btn:hover{border-color:var(--sea-dim);}
 .restored-msg{margin:0 0 12px; padding:8px 12px; border:1px solid var(--sea-dim); border-radius:6px; background:var(--panel2); font-size:0.85rem;}
 .theme-picker{position:relative; display:flex; justify-content:center; margin-top:14px;}
 button.theme-toggle{display:inline-flex; align-items:center; gap:5px; background:none; border:none; padding:4px 6px; border-radius:4px; color:var(--ink-dim); opacity:0.6; font-size:0.72rem; font-family:var(--font-body); cursor:pointer; box-shadow:none; text-shadow:none;}
@@ -6165,8 +6170,35 @@ var leavingOk = false, lastChange = 0, userActed = false;   // var: storageSet c
 function noteChange(key){ if(userActed && currentCharId && key.includes(currentCharId) && !key.startsWith('dndTracker:backupAt:')) lastChange = Date.now(); }
 addEventListener('beforeunload', e=>{
   if(leavingOk || !currentCharId || !lastChange || storageGet('dndTracker:askBackup') === 'off') return;
-  if(lastChange > (+storageGet(backupAtKey()) || 0)){ e.preventDefault(); e.returnValue = ''; }
+  if(lastChange > (+storageGet(backupAtKey()) || 0)){
+    e.preventDefault(); e.returnValue = '';
+    // The browser's box can't hold buttons. If the player chooses Cancel (stays), this runs and
+    // offers the backup right away; if they leave, the page is gone and it never shows.
+    setTimeout(showLeaveBackupBar, 400);
+  }
 });
+// "You have changes since your last backup": one click to the .txt file or the code
+function showLeaveBackupBar(){
+  if(document.getElementById('leaveBar')) return;
+  const bar = document.createElement('div');
+  bar.id = 'leaveBar'; bar.className = 'leave-bar'; bar.setAttribute('role', 'alert');
+  bar.innerHTML = `<span>You’ve changed things since your last backup.</span>`
+    + `<button type="button" class="chip-btn" data-leave="txt">Back up to .txt</button>`
+    + `<button type="button" class="chip-btn" data-leave="copy">Copy backup code</button>`
+    + `<button type="button" class="roll-close" data-leave="close" aria-label="Close">&times;</button>`;
+  document.body.appendChild(bar);
+  bar.addEventListener('click', e=>{
+    const b = e.target.closest('[data-leave]'); if(!b) return;
+    if(b.dataset.leave === 'txt'){ document.getElementById('downloadUsageBtn').click(); bar.querySelector('span').textContent = 'Backup file downloaded. You can close the page now.'; }
+    else if(b.dataset.leave === 'copy'){
+      const text = usageNotesText();
+      const done = ok=>{ if(ok) markBackedUp(); bar.querySelector('span').textContent = ok ? 'Copied. Paste it somewhere safe, then you can close the page.' : 'Couldn’t copy. Use Settings → Backup instead.'; };
+      if(navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(text).then(()=>done(true), ()=>done(fallbackCopy(text)));
+      else done(fallbackCopy(text));
+    }
+    else bar.remove();
+  });
+}
 const markBackedUp = ()=>{ if(currentCharId) storageSet(backupAtKey(), String(Date.now())); };
 {
   const ask = document.getElementById('askBackup');
