@@ -2485,6 +2485,8 @@ function healWhoHtml(what, max){
 window.tkHealed = h=>{
   const n = Math.round(+h.hp);
   if(!currentCharId || !(n > 0) || hpNow() === null) return;
+  // A heal that's been waiting more than 6 hours (sent while this sheet was closed) is dropped
+  if(typeof h.t === 'number' && Date.now() - h.t > 6 * 3600 * 1000) return;
   const before = hpNow();
   setHp(before + n);
   showHealFx(`${h.from || 'An ally'} healed you${h.what ? ` with ${h.what}` : ''}`, `+${n} HP`, `now ${hpNow()} / ${hpMax()}`);
@@ -5863,7 +5865,7 @@ function showLive(state){
   const el = document.getElementById('campaignLive');
   el.hidden = !state;
   el.className = 'live-tag ' + (state === 'on' ? 'on' : 'off');
-  el.textContent = ({on:'● Live with the DM', err:'○ Not connected', newer:'○ Paused'}[state] || '') + (state && new URLSearchParams(location.search).has('test') ? ' (test)' : '');
+  el.textContent = ({on:'● Live with the DM', err:'○ Not connected', newer:'○ Paused'}[state] || '') + (state && (new URLSearchParams(location.search).has('test') || ['localhost', '127.0.0.1', '[::1]', ''].includes(location.hostname)) ? ' (test)' : '');
   el.title = {on:'Your hit points, conditions, slots and features show on the DM Screen as they change.',
     err:'Couldn’t reach the live service, so the DM Screen isn’t getting updates. Tracking still works.',
     newer:'This character was changed more recently on another device. This one shares again once you change something here.'}[state] || '';
@@ -6561,9 +6563,10 @@ const FIREBASE_CONFIG = {
   appId: '1:866334063897:web:feaaa8b817f9b80ee69988',
 };
 const FB = 'https://www.gstatic.com/firebasejs/12.19.0/';
-// Test mode (?test=1 on the address): everything goes to a separate 'test' campaign in the
+// Test mode (?test=1 on the address, or any copy on this computer: localhost or a local file):
+// everything goes to a separate 'test' campaign in the
 // database, so testing never touches the real game
-const TEST_MODE = new URLSearchParams(location.search).has('test');
+const TEST_MODE = (new URLSearchParams(location.search).has('test') || ['localhost', '127.0.0.1', '[::1]', ''].includes(location.hostname));
 const FBK = key=>TEST_MODE ? 'test' : key;
 // Shared data is untrusted: strip HTML characters from every key and string (same as dm.html)
 const clean = v=>typeof v === 'string' ? v.replace(/[<>"&`]/g, '').slice(0, 200) : Array.isArray(v) ? v.map(clean)

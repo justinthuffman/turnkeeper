@@ -753,7 +753,7 @@ window.dmLiveUpdate = (key, data)=>{
 window.dmLiveStatus = (state, detail)=>{
   const el = $('liveState');
   el.className = 'live-state ' + (state === 'on' ? 'on' : '');
-  el.textContent = (state === 'on' ? '● Live' : 'Live updates unavailable') + (new URLSearchParams(location.search).has('test') ? ' (test mode)' : '');
+  el.textContent = (state === 'on' ? '● Live' : 'Live updates unavailable') + ((new URLSearchParams(location.search).has('test') || ['localhost', '127.0.0.1', '[::1]', ''].includes(location.hostname)) ? ' (test mode)' : '');
   el.title = state === 'on' ? 'Updates from the players’ Turnkeeper arrive as they happen' : (detail || '');
 };
 // Characters in Initiative follow their player's hit points
@@ -1763,9 +1763,10 @@ const FIREBASE_CONFIG = {
   appId: '1:866334063897:web:feaaa8b817f9b80ee69988',
 };
 const FB = 'https://www.gstatic.com/firebasejs/12.19.0/';
-// Test mode (?test=1 on the address): everything goes to a separate 'test' campaign in the
+// Test mode (?test=1 on the address, or any copy on this computer: localhost or a local file):
+// everything goes to a separate 'test' campaign in the
 // database, so testing never touches the real game
-const TEST_MODE = new URLSearchParams(location.search).has('test');
+const TEST_MODE = (new URLSearchParams(location.search).has('test') || ['localhost', '127.0.0.1', '[::1]', ''].includes(location.hostname));
 const FBK = key=>TEST_MODE ? 'test' : key;
 // Shared data is untrusted: strip HTML characters from every key and string (same as turnkeeper.html)
 const clean = v=>typeof v === 'string' ? v.replace(/[<>"&`]/g, '').slice(0, 200) : Array.isArray(v) ? v.map(clean)
