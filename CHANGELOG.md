@@ -3,6 +3,17 @@
 What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest first.
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
+## Unreleased
+
+### Added
+- **Cast as a ritual.** Ritual spells offer "Normally (spell slot)" or "As a ritual (+10 min, no slot)"
+  for characters who can ritual cast (2014): wizards, bards, clerics and druids. Ezlo can also cast
+  rituals from his spellbook that he hasn't prepared (marked "ritual only").
+
+### Fixed
+- Ritual spells were colored as rituals for every class. Paladins and rogues can't cast rituals,
+  so Krunk's Detect Magic and the like now show as normal spells that use a slot.
+
 ## 2026-10-02 — Tray size and DM icons
 
 ### Added

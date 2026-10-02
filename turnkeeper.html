@@ -737,7 +737,7 @@ applyTheme(savedTheme || DEFAULT_THEME);
     <div class="legend">
       <span class="legend-item"><span class="dot" style="background:var(--act-action);"></span>Action</span>
       <span class="legend-item"><span class="dot" style="background:var(--act-bonus);"></span>Bonus Action</span>
-      <span class="legend-item"><span class="dot" style="background:var(--act-ritual);"></span>Ritual</span>
+      <span class="legend-item" id="ritualLegend"><span class="dot" style="background:var(--act-ritual);"></span>Ritual</span>
       <span class="legend-item">Plain text = Reaction or a longer casting time (Minutes/Hours)</span>
       <span class="legend-item"><span class="src-tag src-racial" style="margin-left:0;">Racial</span>From your race; always prepared</span>
       <span class="legend-item"><span class="src-tag src-class" style="margin-left:0;">Class</span>From your class or subclass; always prepared</span>
@@ -2721,7 +2721,7 @@ function openRollPopup(sel, mode){
   }
   // Using a spell slot, racial use or feature charge is tracked as soon as the popup opens
   let id = null, desc = '';
-  if(sel.kind==='spell' && sel.entry.sp.level > 0){
+  if(sel.kind==='spell' && sel.entry.sp.level > 0 && !sel.ritual){
     if(sel.entry.fixedLevel){ id = 'race:'+sel.entry.sp.name; desc = `${sel.entry.sp.name} (once per long rest)`; }
     else { id = slotIdFor(sel.slot); desc = `a ${ORDINAL[sel.slot]}-level spell slot`; }
   } else if(sel.kind==='feature' && sel.feature.spendOnUse !== false){
@@ -3161,7 +3161,7 @@ function spellPopupHtml(){
   const s = spellStats(e.ability), up = sp.level ? Math.max(0, sel.slot - sp.level) : 0, cantrip = !!(r && r.cantrip);
   const abil = ABILITY_FULL[e.ability];
   const selfBox = rollState.target ? targetPickHtml() : (aimHtml() || selfCastHtml(sp));
-  let html = selfBox + `<p class="roll-intro">${sp.level ? (e.fixedLevel ? `Cast at ${ORDINAL[sel.slot]} level (no spell slot).` : `Uses a ${ORDINAL[sel.slot]}-level spell slot.`) : 'Cantrip.'} ${abil} is your spellcasting ability for it.</p>`;
+  let html = selfBox + `<p class="roll-intro">${sp.level ? (sel.ritual ? `Cast as a ritual: ${sp.time} + 10 minutes, no spell slot.` : e.fixedLevel ? `Cast at ${ORDINAL[sel.slot]} level (no spell slot).` : `Uses a ${ORDINAL[sel.slot]}-level spell slot.`) : 'Cantrip.'} ${abil} is your spellcasting ability for it.</p>`;
   if(!r){
     return html + (NO_ROLL_SPELLS.has(sp.name)
       ? infoBox('No roll', `${sp.name} doesn’t need a roll. ${sp.desc}`)
@@ -3268,7 +3268,7 @@ function spendLineHtml(){
 function renderRollPopup(){
   const {sel, mode} = rollState;
   const modeLabel = ROLL_MODES.find(([k])=>k===attackMode())[1];
-  document.getElementById('rollTitle').textContent = `${sel.label}${sel.kind==='spell' && sel.slot && !sel.entry.fixedLevel && sel.slot > sel.entry.sp.level ? ` (${ORDINAL[sel.slot]}-level slot)` : ''}${attackMode()!=='normal' ? ` — ${modeLabel}` : ''}`;
+  document.getElementById('rollTitle').textContent = `${sel.label}${sel.ritual ? ' (ritual)' : ''}${sel.kind==='spell' && sel.slot && !sel.entry.fixedLevel && sel.slot > sel.entry.sp.level ? ` (${ORDINAL[sel.slot]}-level slot)` : ''}${attackMode()!=='normal' ? ` — ${modeLabel}` : ''}`;
   if(sel.kind==='spell' || sel.kind==='feature'){
     document.getElementById('rollBody').innerHTML = spendLineHtml() + turnLineHtml() + fxLineHtml() + (sel.kind==='spell' ? spellPopupHtml() : featurePopupHtml());
     return;
@@ -3490,9 +3490,21 @@ function castableSpells(){
     if(!sp || seen.has(n)) return; seen.add(n);
     entries.push({sp, source:null, ability:listAbility, fixedLevel:null});
   });
+  // Wizards can cast a ritual from their spellbook without preparing it (as a ritual only)
+  if(listKey==='wizard' && cf.classKey==='wizard' && ritualCaster()){
+    SPELL_DATA.wizard.filter(sp=>sp.ritual && sp.level > 0 && state.spellbook[sp.name] && !seen.has(sp.name)).forEach(sp=>{
+      seen.add(sp.name);
+      entries.push({sp, source:null, ability:listAbility, fixedLevel:null, ritualOnly:true});
+    });
+  }
   return entries.sort((a,b)=>a.sp.level-b.sp.level || a.sp.name.localeCompare(b.sp.name));
 }
-const castFlow = {name:null, slot:null, mode:'normal'};
+const castFlow = {name:null, slot:null, mode:'normal', ritual:false};
+// Cast as a ritual: no slot, 10 minutes longer, at the spell's own level
+const castAsRitual = entry=>canRitual(entry) && (!!entry.ritualOnly || castFlow.ritual);
+const ritualPickHtml = on=>`<div class="flow-label">Cast</div><div class="flow-grid">`
+  + `<button type="button" class="flow-btn${on?'':' active'}" data-ritual="0">Normally <small>(spell slot)</small></button>`
+  + `<button type="button" class="flow-btn${on?' active':''}" data-ritual="1">As a ritual <small>(+10 min, no slot)</small></button></div>`;
 function spellStepHtml(entry){
   const sp = entry.sp, r = SPELL_ROLLS[sp.name];
   const url = `https://dnd5e.wikidot.com/spell:${slugify(sp.name)}`;
@@ -3504,7 +3516,15 @@ function spellStepHtml(entry){
       castFlow.slot = entry.fixedLevel;
       const rid = 'race:'+sp.name, tracked = trackedResources().some(r=>r.id===rid);
       html += `<div class="flow-label">Cast at</div><div class="flow-summary" style="margin-top:0;">${ORDINAL[entry.fixedLevel]} level (from ${entry.source==='Racial'?'your race':'this feature'}; no spell slot)${tracked ? ` &middot; ${remaining(rid)} use left until a long rest` : ''}</div>`;
+    } else if(canRitual(entry) && entry.ritualOnly){
+      castFlow.slot = sp.level;
+      html += `<div class="flow-label">Cast as a ritual</div><div class="flow-summary" style="margin-top:0;">It’s in your spellbook but not prepared, so you can only cast it as a ritual: ${sp.time} + 10 minutes, no spell slot.</div>`;
+    } else if(castAsRitual(entry)){
+      castFlow.slot = sp.level;
+      html += ritualPickHtml(true)
+        + `<div class="flow-summary">${sp.time} + 10 minutes, no spell slot, cast at ${ORDINAL[sp.level]} level.</div>`;
     } else {
+      if(canRitual(entry)) html += ritualPickHtml(false);
       // Slot levels you have that can cast it (Warlocks: pact level only), with how many are left
       let levels = castableSlotLevels(sp.level);
       const noSlots = !levels.length;
@@ -3528,8 +3548,9 @@ function spellStepHtml(entry){
 function wireSpellStep(entry, rerender){
   actionDetail.querySelectorAll('[data-slot]').forEach(b=>b.addEventListener('click', ()=>{ castFlow.slot = +b.dataset.slot; rerender(); }));
   actionDetail.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click', ()=>{ castFlow.mode = b.dataset.mode; rerender(); }));
+  actionDetail.querySelectorAll('[data-ritual]').forEach(b=>b.addEventListener('click', ()=>{ castFlow.ritual = b.dataset.ritual==='1'; castFlow.slot = null; rerender(); }));
   const go = document.getElementById('flowRoll');
-  if(go) go.addEventListener('click', ()=>openRollPopup({kind:'spell', label:entry.sp.name, entry, slot: entry.sp.level ? castFlow.slot : 0},
+  if(go) go.addEventListener('click', ()=>openRollPopup({kind:'spell', label:entry.sp.name, entry, ritual:castAsRitual(entry), slot: entry.sp.level ? castFlow.slot : 0},
     SPELL_ROLLS[entry.sp.name] && SPELL_ROLLS[entry.sp.name].attack ? castFlow.mode : 'normal'));
 }
 function renderCastDetail(){
@@ -3546,7 +3567,7 @@ function renderCastDetail(){
     html += entries.map(e=>{
       const head = e.sp.level !== lastLevel ? `${lastLevel>=0?'</div>':''}<div class="flow-label">${LEVEL_NAMES[e.sp.level]}</div><div class="flow-grid">` : '';
       lastLevel = e.sp.level;
-      return head + `<button type="button" class="flow-btn${e===sel?' active':''}" data-cast="${escapeHtml(e.sp.name)}">${e.sp.name}${e.source ? sourceTag(e.source) : ''}</button>`;
+      return head + `<button type="button" class="flow-btn${e===sel?' active':''}" data-cast="${escapeHtml(e.sp.name)}">${e.sp.name}${e.source ? sourceTag(e.source) : ''}${e.ritualOnly ? ' <small>(ritual only)</small>' : ''}</button>`;
     }).join('') + `</div>`;
     html += `<p class="empty-note" style="margin-top:8px; font-size:0.72rem;">Bonus action spells are in Bonus Action Options, and reaction spells are in Reactions.</p>`;
   }
@@ -3555,7 +3576,7 @@ function renderCastDetail(){
   actionDetail.querySelectorAll('[data-cast]').forEach(b=>{
     const e = entries.find(x=>x.sp.name===b.dataset.cast);
     wireSpellTooltip(b, e.sp);
-    b.addEventListener('click', ()=>{ hideTooltip(); if(castFlow.name!==e.sp.name){ castFlow.name = e.sp.name; castFlow.slot = null; castFlow.mode = 'normal'; } renderCastDetail(); });
+    b.addEventListener('click', ()=>{ hideTooltip(); if(castFlow.name!==e.sp.name){ castFlow.name = e.sp.name; castFlow.slot = null; castFlow.mode = 'normal'; castFlow.ritual = false; } renderCastDetail(); });
   });
   if(sel) wireSpellStep(sel, renderCastDetail);
 }
@@ -3613,7 +3634,7 @@ function renderBonusDetail(){
     if(key.startsWith('f:')){ const t = feats.find(f=>'f:'+f.name===key); b.addEventListener('mouseenter', e=>showFeatureTooltip(e, t)); b.addEventListener('mousemove', moveTooltip); b.addEventListener('mouseleave', hideTooltip); }
     b.addEventListener('click', ()=>{
       hideTooltip();
-      if(bonusFlow.pick !== key){ bonusFlow.pick = key; bonusFlow.mode = 'normal'; castFlow.name = key.slice(2); castFlow.slot = null; castFlow.mode = 'normal'; }
+      if(bonusFlow.pick !== key){ bonusFlow.pick = key; bonusFlow.mode = 'normal'; castFlow.name = key.slice(2); castFlow.slot = null; castFlow.mode = 'normal'; castFlow.ritual = false; }
       renderBonusDetail();
     });
   });
@@ -3718,7 +3739,7 @@ function renderReactionsDetail(){
     if(key.startsWith('f:')){ const t = feats.find(f=>'f:'+f.name===key); b.addEventListener('mouseenter', e=>showFeatureTooltip(e, t)); b.addEventListener('mousemove', moveTooltip); b.addEventListener('mouseleave', hideTooltip); }
     b.addEventListener('click', ()=>{
       hideTooltip();
-      if(reactFlow.pick !== key){ reactFlow.pick = key; reactFlow.mode = 'normal'; reactFlow.power = false; castFlow.name = key.slice(2); castFlow.slot = null; castFlow.mode = 'normal'; }
+      if(reactFlow.pick !== key){ reactFlow.pick = key; reactFlow.mode = 'normal'; reactFlow.power = false; castFlow.name = key.slice(2); castFlow.slot = null; castFlow.mode = 'normal'; castFlow.ritual = false; }
       renderReactionsDetail();
     });
   });
@@ -3806,6 +3827,7 @@ function updateSpellSelToggle(list){
   });
 }
 function renderSpellList(){
+  document.getElementById('ritualLegend').style.display = ritualCaster() ? '' : 'none';
   const classKey = document.getElementById('spellClassSelect').value;
   const area = document.getElementById('spellListArea');
   area.innerHTML='';
@@ -3818,7 +3840,7 @@ function renderSpellList(){
     always.forEach(x=>{
       const locked = charLevel() < x.unlock;
       const row = document.createElement('div'); row.className = 'spell-row' + (locked ? ' spell-locked' : '');
-      row.innerHTML = `<span class="sname ${x.sp.cls}">${x.sp.name}</span>${sourceTag(x.source)}`
+      row.innerHTML = `<span class="sname ${spellCls(x.sp)}">${x.sp.name}</span>${sourceTag(x.source)}`
         + `<span class="rspell-note">(always prepared${locked ? ` &middot; unlocks at level ${x.unlock}` : ''})</span>`;
       wireSpellTooltip(row.querySelector('.sname'), x.sp, alwaysPreparedNote(x));
       group.appendChild(row);
@@ -3890,7 +3912,7 @@ function renderSpellList(){
       if(blocked && !book) row.classList.add('spell-blocked');
       if(tooMany) row.classList.add('spell-over');
       const bookBox = book ? `<input type="checkbox" class="book-cb" ${inBook ? 'checked' : ''}${bookBlocked ? ` disabled title="${escapeHtml(bookBlocked)}"` : ''} aria-label="${escapeHtml(sp.name)} in spellbook">` : '';
-      row.innerHTML = bookBox + `<input type="checkbox" class="prep-cb" ${on ? 'checked' : ''}${blocked ? ' disabled' : ''}${blocked ? ` title="${escapeHtml(blocked)}"` : ''} aria-label="${escapeHtml(sp.name)}${book ? ' prepared' : ''}"><span class="sname ${sp.cls}">${sp.name}</span>`
+      row.innerHTML = bookBox + `<input type="checkbox" class="prep-cb" ${on ? 'checked' : ''}${blocked ? ' disabled' : ''}${blocked ? ` title="${escapeHtml(blocked)}"` : ''} aria-label="${escapeHtml(sp.name)}${book ? ' prepared' : ''}"><span class="sname ${spellCls(sp)}">${sp.name}</span>`
         + (inBook && state.spellbook[sp.name]==='copied' ? `<span class="copied-tag" title="Copied from a scroll or another spellbook">Copied</span>` : '');
       if(blocked && !book) row.title = blocked;
       if(book){
@@ -5379,6 +5401,16 @@ const SUBCLASS_CASTING = {'rogue|Arcane Trickster': {ability:'int', from:3}};
 function castingFor(){
   return SPELLCASTING[cf.classKey] || SUBCLASS_CASTING[`${cf.classKey}|${cf.subclass}`] || null;
 }
+// Ritual casting (2014) needs a feature that grants it, not just the ritual tag: wizards (any ritual
+// in their spellbook, prepared or not), bards (rituals they know), clerics and druids (rituals they've
+// prepared). Paladins, rangers, sorcerers, rogues and the rest cast ritual spells only the normal way.
+// (Warlocks' Book of Ancient Secrets and the Ritual Caster feat aren't tracked yet.)
+const RITUAL_CLASSES = new Set(['wizard','bard','cleric','druid']);
+const ritualCaster = ()=>RITUAL_CLASSES.has(cf.classKey) && !!castingFor() && charLevel() >= castingFor().from;
+// A class-list spell (not one from your race or a feature) you can cast as a ritual
+const canRitual = entry=>!!(entry.sp.ritual && entry.sp.level > 0 && !entry.source && !entry.fixedLevel && ritualCaster());
+// A spell's color: ritual spells only show as rituals for characters who can cast them that way
+const spellCls = sp=>sp.ritual && !ritualCaster() ? actionClass({...sp, ritual:false}) : sp.cls;
 const ABILITY_FULL = {str:'Strength', dex:'Dexterity', con:'Constitution', int:'Intelligence', wis:'Wisdom', cha:'Charisma'};
 function proficiencyBonus(){ return 2 + Math.floor((Math.min(Math.max(charLevel(),1),20) - 1) / 4); }
 function spellStats(ability){
