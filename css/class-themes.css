@@ -1,0 +1,422 @@
+/* Class themes: one look per PHB class (html[data-theme="class-<class>"]), picked in Settings →
+   Theme. "My class" (the saved key "class") shows the open character's class theme; any class's
+   theme can be picked too. Each one swaps the colors and font, and adds its own background,
+   panel decoration and an icon before each panel heading. Every image is an inline SVG or a CSS
+   gradient; moving parts stop when the device asks for reduced motion. Fonts load from Google
+   Fonts only when the theme is picked (THEME_FONTS). */
+
+/* Shared: the heading icon is a mask, so it takes each theme's --ct-icon-color */
+html[data-theme^="class-"] .panel h2::before, html[data-theme^="class-"] .set-head h2::before{
+  content:''; display:inline-block; width:1em; height:1em; margin-right:0.4em; vertical-align:-0.12em;
+  background:var(--ct-icon-color, var(--sea)); -webkit-mask:var(--ct-icon) center/contain no-repeat; mask:var(--ct-icon) center/contain no-repeat;
+  filter:var(--ct-icon-glow, none);
+}
+html[data-theme^="class-"] .panel h2, html[data-theme^="class-"] header.top h1{font-family:var(--font-display); letter-spacing:0.03em;}
+html[data-theme^="class-"] header.top h1{font-size:1.9rem;}
+html[data-theme^="class-"] body{background-attachment:fixed;}
+/* Main buttons get each theme's sheen (--ct-btn) */
+html[data-theme^="class-"] button:not(.sel-toggle):not(.pip):not(.ds-mark):not(.status-chip):not(.theme-toggle):not(.theme-option):not(.roll-close):not(.feat-opt):not(.chip-btn):not(.build-tag):not(.ghost):not(.gear-btn):not(.panel-fold):not(.panel-grip){
+  background-image:var(--ct-btn, none); box-shadow:var(--ct-btn-shadow, none);
+}
+
+/* ---------- Barbarian: a war camp. Fur-dark hide, blood-red war paint, claw marks ---------- */
+html[data-theme="class-barbarian"]{
+  --bg:#140f0c; --panel:#241a14; --panel2:#30231a; --border:#5a3a26;
+  --ink:#f1e2d2; --ink-dim:#bba18a; --sea:#e0663a; --sea-dim:#8f3a1c;
+  --orange:#a3241b; --orange-bright:#c4342a; --green:#9cc56a;
+  --act-action:#f07d5a; --act-bonus:#e8c060; --act-ritual:#c9a2e6; --racial:#8fb7e2;
+  --danger:#ff5a48; --on-accent:#f8eadc; --tooltip-bg:#100b08; --backdrop:rgba(10,5,2,0.75);
+  --orange-tint:rgba(163,36,27,0.3); --orange-wash:rgba(163,36,27,0.12);
+  --font-display:'New Rocker', 'Book Antiqua', Georgia, serif;
+  --ct-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M11 2h2v20h-2z M13 3.5c5 0 8 3 8.5 7.5-.5 4.5-3.5 7-8.5 7z M11 3.5C6 3.5 3 6.5 2.5 11c.5 4.5 3.5 7 8.5 7z'/%3E%3C/svg%3E");
+  --ct-btn:linear-gradient(180deg, rgba(255,200,160,0.18), transparent 50%, rgba(0,0,0,0.3));
+  --ct-btn-shadow:inset 0 1px 0 rgba(255,210,170,0.25), 0 2px 0 rgba(0,0,0,0.6);
+}
+html[data-theme="class-barbarian"] body{
+  background-image:radial-gradient(ellipse at 50% 120%, rgba(200,70,20,0.25), transparent 55%),
+    repeating-linear-gradient(100deg, rgba(0,0,0,0.25) 0 3px, transparent 3px 9px, rgba(120,70,40,0.05) 9px 10px, transparent 10px 17px),
+    linear-gradient(#17100c, #0f0a08);
+}
+/* Panels: rough hide with three claw marks raked across the bottom-right corner */
+html[data-theme="class-barbarian"] .panel, html[data-theme="class-barbarian"] .roll-popup, html[data-theme="class-barbarian"] .settings-pop{
+  border:2px solid #4a2e1e; border-radius:3px 9px 4px 11px;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 60'%3E%3Cg fill='none' stroke='%23a3241b' stroke-width='3.2' stroke-linecap='round' opacity='0.75'%3E%3Cpath d='M18 4 Q30 26 40 52'/%3E%3Cpath d='M30 2 Q41 22 52 46'/%3E%3Cpath d='M42 2 Q50 16 58 34'/%3E%3C/g%3E%3C/svg%3E"),
+    repeating-linear-gradient(80deg, rgba(255,220,180,0.025) 0 1px, transparent 1px 4px);
+  background-size:64px 64px, auto; background-repeat:no-repeat, repeat; background-position:right 6px bottom 4px, 0 0;
+  box-shadow:0 4px 14px rgba(0,0,0,0.6), inset 0 0 24px rgba(0,0,0,0.45);
+}
+html[data-theme="class-barbarian"] .panel h2, html[data-theme="class-barbarian"] header.top h1{text-shadow:2px 2px 0 rgba(0,0,0,0.7); text-transform:uppercase; font-size:1.25rem;}
+html[data-theme="class-barbarian"] header.top h1{font-size:2rem;}
+html[data-theme="class-barbarian"] header.top{border-bottom:4px solid transparent; border-image:repeating-linear-gradient(90deg, #a3241b 0 30px, transparent 30px 38px, #7a1a12 38px 52px, transparent 52px 60px) 4;}
+
+/* ---------- Bard: a theatre's velvet and gilt. Crimson, gold leaf, a musical staff ---------- */
+html[data-theme="class-bard"]{
+  --bg:#1a0b12; --panel:#2a1019; --panel2:#371623; --border:#7a5a2a;
+  --ink:#f7e8dc; --ink-dim:#c7a9a2; --sea:#e9c46a; --sea-dim:#9c7a2e;
+  --orange:#a81d3d; --orange-bright:#c42a4e; --green:#9fd08a;
+  --act-action:#ff8a7a; --act-bonus:#f2cf66; --act-ritual:#d7aaf2; --racial:#94c0f0;
+  --danger:#ff6a6a; --on-accent:#fff1e6; --tooltip-bg:#14070c; --backdrop:rgba(12,2,6,0.72);
+  --orange-tint:rgba(168,29,61,0.28); --orange-wash:rgba(168,29,61,0.1);
+  --font-display:'Playfair Display SC', 'Didot', Georgia, serif;
+  --font-body:'Playfair Display', Georgia, serif;
+  --ct-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M9 3.5 20 1.5v13.2a3.3 3.3 0 1 1-2-3V6.2l-7 1.3v9.2A3.3 3.3 0 1 1 9 13.7z'/%3E%3C/svg%3E");
+  --ct-btn:linear-gradient(180deg, rgba(255,230,200,0.2), transparent 55%, rgba(0,0,0,0.25));
+  --ct-btn-shadow:inset 0 0 0 1px rgba(233,196,106,0.5), 0 2px 0 rgba(0,0,0,0.5);
+}
+html[data-theme="class-bard"] body{
+  background-image:repeating-linear-gradient(90deg, rgba(0,0,0,0.28) 0 6px, rgba(255,255,255,0.025) 6px 9px, transparent 9px 34px),
+    radial-gradient(ellipse at 50% -10%, rgba(255,210,120,0.22), transparent 55%),
+    linear-gradient(#24101a, #120609);
+}
+/* Panels: velvet in a double gilt frame, a five-line staff along the bottom */
+html[data-theme="class-bard"] .panel, html[data-theme="class-bard"] .roll-popup, html[data-theme="class-bard"] .settings-pop{
+  border:1px solid #c9a24a;
+  box-shadow:inset 0 0 0 3px var(--panel), inset 0 0 0 4px rgba(233,196,106,0.55), 0 6px 18px rgba(0,0,0,0.55);
+  background-image:repeating-linear-gradient(180deg, transparent 0 4px, rgba(233,196,106,0.22) 4px 5px);
+  background-size:100% 25px; background-repeat:no-repeat; background-position:0 calc(100% - 8px); padding-bottom:30px;
+}
+html[data-theme="class-bard"] .panel h2, html[data-theme="class-bard"] header.top h1{font-style:italic; text-shadow:0 0 10px rgba(233,196,106,0.35);}
+html[data-theme="class-bard"] header.top{border-bottom:3px double #c9a24a;}
+html[data-theme="class-bard"] input, html[data-theme="class-bard"] select, html[data-theme="class-bard"] textarea{font-family:var(--font-body);}
+
+/* ---------- Cleric: a temple at dawn. White marble, gold, rays of light ---------- */
+html[data-theme="class-cleric"]{
+  --bg:#e9e4d8; --panel:#fbf8f1; --panel2:#f1ebdc; --border:#cdb57a;
+  --ink:#2a2418; --ink-dim:#6e634a; --sea:#9a6a00; --sea-dim:#c39a3c;
+  --orange:#b0802a; --orange-bright:#c8973a; --green:#3d7a3a;
+  --act-action:#b3402a; --act-bonus:#8a6200; --act-ritual:#6a4aa8; --racial:#2b6aa8;
+  --danger:#b3261e; --on-accent:#fffaf0; --tooltip-bg:#fffdf7; --backdrop:rgba(60,50,30,0.45);
+  --orange-tint:rgba(176,128,42,0.2); --orange-wash:rgba(176,128,42,0.08);
+  --font-display:'Cinzel Decorative', 'Trajan Pro', Georgia, serif;
+  --font-body:'Cormorant Garamond', 'Palatino Linotype', Georgia, serif;
+  --ct-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='4.2'/%3E%3Cg stroke='%23000' stroke-width='1.8' stroke-linecap='round'%3E%3Cpath d='M12 1.5v3.5M12 19v3.5M1.5 12H5M19 12h3.5M4.6 4.6l2.5 2.5M16.9 16.9l2.5 2.5M4.6 19.4l2.5-2.5M16.9 7.1l2.5-2.5'/%3E%3C/g%3E%3C/svg%3E");
+  --ct-icon-glow:drop-shadow(0 0 3px rgba(230,180,60,0.8));
+  --ct-btn:linear-gradient(180deg, rgba(255,255,255,0.35), transparent 50%, rgba(80,50,0,0.12));
+  --ct-btn-shadow:inset 0 1px 0 rgba(255,255,255,0.6), 0 1px 3px rgba(120,90,30,0.35);
+  font-size:106%;
+}
+html[data-theme="class-cleric"] body{
+  background-image:repeating-conic-gradient(from 0deg at 50% -8%, rgba(255,215,120,0.16) 0 4deg, transparent 4deg 12deg),
+    radial-gradient(ellipse at 50% -8%, rgba(255,235,180,0.9), transparent 55%),
+    linear-gradient(#efe9db, #e2dacb);
+}
+/* Panels: marble veins, a gold rule at the top and a soft halo behind the heading */
+html[data-theme="class-cleric"] .panel, html[data-theme="class-cleric"] .roll-popup, html[data-theme="class-cleric"] .settings-pop{
+  border:1px solid #d8c48e; border-top:3px solid #c8a24a;
+  background-image:radial-gradient(ellipse 260px 60px at 90px 0, rgba(255,215,120,0.28), transparent 70%),
+    linear-gradient(115deg, transparent 40%, rgba(150,140,120,0.07) 41%, transparent 43%, transparent 70%, rgba(150,140,120,0.06) 71%, transparent 72%);
+  box-shadow:0 3px 14px rgba(120,95,40,0.18);
+}
+html[data-theme="class-cleric"] .panel h2, html[data-theme="class-cleric"] header.top h1{color:#8a5e00; font-weight:700;}
+html[data-theme="class-cleric"] header.top{border-bottom:1px solid #c8a24a; box-shadow:0 4px 0 -3px #e7d29a;}
+html[data-theme="class-cleric"] input, html[data-theme="class-cleric"] select, html[data-theme="class-cleric"] textarea{font-family:var(--font-body); font-size:1.02rem;}
+
+/* ---------- Druid: an old grove. Moss, bark, vines curling round every panel ---------- */
+html[data-theme="class-druid"]{
+  --bg:#0d1a10; --panel:#152619; --panel2:#1d3322; --border:#3e5a32;
+  --ink:#e6efd9; --ink-dim:#a3b796; --sea:#a8d46a; --sea-dim:#5c8a33;
+  --orange:#8a5a2b; --orange-bright:#a66e38; --green:#7fd0a0;
+  --act-action:#ec8a64; --act-bonus:#e3c662; --act-ritual:#c0a2e2; --racial:#8ec0e0;
+  --danger:#f0705a; --on-accent:#f4f8ec; --tooltip-bg:#09130b; --backdrop:rgba(4,12,6,0.72);
+  --orange-tint:rgba(138,90,43,0.3); --orange-wash:rgba(138,90,43,0.12);
+  --font-display:'Uncial Antiqua', 'Book Antiqua', Georgia, serif;
+  --ct-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4 20C4 9 10.5 3.5 21 3c-.5 10.5-6 17-17 17zm2.2-1.6 9.6-9.6-1-1-9.6 9.6z' fill-rule='evenodd'/%3E%3C/svg%3E");
+  --ct-btn:linear-gradient(180deg, rgba(220,255,200,0.14), transparent 55%, rgba(0,0,0,0.25));
+  --ct-btn-shadow:inset 0 1px 0 rgba(220,255,200,0.2), 0 2px 0 rgba(0,0,0,0.5);
+}
+html[data-theme="class-druid"] body{
+  background-image:radial-gradient(circle at 15% 20%, rgba(140,200,90,0.12), transparent 30%),
+    radial-gradient(circle at 85% 70%, rgba(90,160,110,0.12), transparent 35%),
+    repeating-radial-gradient(circle at 50% 120%, rgba(0,0,0,0.18) 0 2px, transparent 2px 22px),
+    linear-gradient(#0f1d12, #08110a);
+}
+/* Panels: bark-brown edge with vines in the top-left and bottom-right corners */
+html[data-theme="class-druid"] .panel, html[data-theme="class-druid"] .roll-popup, html[data-theme="class-druid"] .settings-pop{
+  border:2px solid #4a3a22; border-radius:14px 4px 14px 4px;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 80'%3E%3Cg fill='none' stroke='%237aa84a' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M2 78 C2 40 20 14 78 2'/%3E%3Cpath d='M14 40 c6-6 14-6 16 0' /%3E%3Cpath d='M34 18 c4-7 12-8 15-3'/%3E%3C/g%3E%3Cg fill='%237aa84a'%3E%3Cpath d='M10 52c-8-2-10-10-6-14 6 2 8 8 6 14z'/%3E%3Cpath d='M26 26c-8 0-12-7-9-12 6 1 10 6 9 12z'/%3E%3Cpath d='M48 12c-5-5-3-12 3-13 3 5 2 10-3 13z'/%3E%3C/g%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 80'%3E%3Cg fill='none' stroke='%237aa84a' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M78 2 C78 40 60 66 2 78'/%3E%3C/g%3E%3Cg fill='%237aa84a'%3E%3Cpath d='M70 28c8 2 10 10 6 14-6-2-8-8-6-14z'/%3E%3Cpath d='M54 54c8 0 12 7 9 12-6-1-10-6-9-12z'/%3E%3C/g%3E%3C/svg%3E");
+  background-size:70px 70px, 70px 70px; background-repeat:no-repeat; background-position:left 0 top 0, right 0 bottom 0;
+  box-shadow:inset 0 0 0 1px rgba(122,168,74,0.25), 0 5px 16px rgba(0,0,0,0.5);
+}
+html[data-theme="class-druid"] .panel h2{padding-left:16px;}
+html[data-theme="class-druid"] header.top{border-bottom:2px solid transparent; border-image:linear-gradient(90deg, transparent, #7aa84a, #4a3a22, #7aa84a, transparent) 1;}
+
+/* ---------- Fighter: a soldier's kit. Polished steel plates, rivets, a banner stripe ---------- */
+html[data-theme="class-fighter"]{
+  --bg:#101317; --panel:#1d232a; --panel2:#262e37; --border:#56616e;
+  --ink:#e8edf2; --ink-dim:#a2adb9; --sea:#d6dee8; --sea-dim:#6f7d8c;
+  --orange:#2f5fa8; --orange-bright:#3d73c4; --green:#8fcf8a;
+  --act-action:#f08a6a; --act-bonus:#e8c868; --act-ritual:#c6a8ee; --racial:#8cbdf0;
+  --danger:#ff6a5a; --on-accent:#f2f6fa; --tooltip-bg:#0c0f12; --backdrop:rgba(4,6,10,0.72);
+  --orange-tint:rgba(47,95,168,0.3); --orange-wash:rgba(47,95,168,0.12);
+  --font-display:'Cinzel', 'Trajan Pro', Georgia, serif;
+  --ct-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg stroke='%23000' stroke-width='2.2' stroke-linecap='round'%3E%3Cpath d='M4 4l12.5 12.5M20 4L7.5 16.5'/%3E%3Cpath d='M14 19l5-5M10 19l-5-5' stroke-width='2.6'/%3E%3C/g%3E%3C/svg%3E");
+  --ct-btn:linear-gradient(180deg, rgba(255,255,255,0.22), rgba(255,255,255,0.04) 48%, rgba(0,0,0,0.25) 52%, rgba(0,0,0,0.1));
+  --ct-btn-shadow:inset 0 1px 0 rgba(255,255,255,0.35), 0 2px 0 rgba(0,0,0,0.55);
+}
+html[data-theme="class-fighter"] body{
+  background-image:linear-gradient(135deg, rgba(255,255,255,0.03) 25%, transparent 25%, transparent 50%, rgba(255,255,255,0.03) 50%, rgba(255,255,255,0.03) 75%, transparent 75%),
+    radial-gradient(ellipse at 50% 0%, rgba(120,150,190,0.18), transparent 60%), linear-gradient(#14181d, #0b0d10);
+  background-size:28px 28px, auto, auto;
+}
+/* Panels: brushed steel with a rivet in each corner and a blue banner stripe down the left */
+html[data-theme="class-fighter"] .panel, html[data-theme="class-fighter"] .roll-popup, html[data-theme="class-fighter"] .settings-pop{
+  border:2px solid #5d6875; border-left:6px solid #2f5fa8; border-radius:4px;
+  background-image:
+    radial-gradient(circle at 10px 10px, #e8eef4 0 1.3px, #7a8592 2.2px, transparent 3.2px),
+    radial-gradient(circle at calc(100% - 10px) 10px, #e8eef4 0 1.3px, #7a8592 2.2px, transparent 3.2px),
+    radial-gradient(circle at 10px calc(100% - 10px), #e8eef4 0 1.3px, #7a8592 2.2px, transparent 3.2px),
+    radial-gradient(circle at calc(100% - 10px) calc(100% - 10px), #e8eef4 0 1.3px, #7a8592 2.2px, transparent 3.2px),
+    repeating-linear-gradient(90deg, rgba(255,255,255,0.025) 0 1px, transparent 1px 3px),
+    linear-gradient(180deg, rgba(255,255,255,0.05), transparent 40%);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,0.12), 0 5px 14px rgba(0,0,0,0.55);
+}
+html[data-theme="class-fighter"] .panel h2, html[data-theme="class-fighter"] header.top h1{font-weight:700; text-shadow:0 1px 0 #000, 0 0 6px rgba(140,170,210,0.3);}
+html[data-theme="class-fighter"] header.top{border-bottom:none; box-shadow:0 3px 0 #2f5fa8, 0 5px 0 #56616e;}
+
+/* ---------- Monk: a monastery scroll. Rice paper, brush ink, a red seal, an ensō ---------- */
+html[data-theme="class-monk"]{
+  --bg:#e6dcc8; --panel:#f6f0e2; --panel2:#ece2cd; --border:#b9a989;
+  --ink:#1f1a14; --ink-dim:#5f5444; --sea:#b0281e; --sea-dim:#7a6a52;
+  --orange:#b0281e; --orange-bright:#c8382c; --green:#3e6e3a;
+  --act-action:#a8341f; --act-bonus:#80600a; --act-ritual:#5a3e8e; --racial:#2a5e8e;
+  --danger:#a6201a; --on-accent:#fbf5e8; --tooltip-bg:#fbf6ea; --backdrop:rgba(40,30,20,0.45);
+  --orange-tint:rgba(176,40,30,0.16); --orange-wash:rgba(176,40,30,0.06);
+  --font-display:'Marcellus SC', 'Optima', Georgia, serif;
+  --font-body:'Marcellus', 'Optima', 'Segoe UI', sans-serif;
+  --ct-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23000' stroke-width='3' stroke-linecap='round' d='M16.5 4.2A9 9 0 1 0 20.6 9'/%3E%3C/svg%3E");
+  --ct-icon-color:#1f1a14;
+  --ct-btn:none; --ct-btn-shadow:0 1px 0 rgba(0,0,0,0.2);
+}
+html[data-theme="class-monk"] body{
+  background-image:radial-gradient(circle at 80% 15%, rgba(176,40,30,0.12), transparent 18%),
+    repeating-linear-gradient(0deg, rgba(120,100,70,0.05) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(90deg, rgba(120,100,70,0.04) 0 1px, transparent 1px 5px),
+    linear-gradient(#ece3d0, #ded2ba);
+}
+/* Panels: paper with a brush-stroke under the heading and a red seal in the bottom-right corner */
+html[data-theme="class-monk"] .panel, html[data-theme="class-monk"] .roll-popup, html[data-theme="class-monk"] .settings-pop{
+  border:none; border-radius:2px;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='1' y='1' width='22' height='22' rx='2' fill='%23b0281e' opacity='0.85'/%3E%3Cpath d='M6 7h12M12 7v11M7 12h10M7 18h10' stroke='%23f6f0e2' stroke-width='2' fill='none'/%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 12' preserveAspectRatio='none'%3E%3Cpath d='M2 7 C60 2 120 10 180 6 S270 3 298 8' stroke='%231f1a14' stroke-width='3.5' fill='none' stroke-linecap='round' opacity='0.8'/%3E%3C/svg%3E");
+  background-size:22px 22px, 220px 10px; background-repeat:no-repeat; background-position:right 10px bottom 10px, left 18px top 44px;
+  box-shadow:0 0 0 1px rgba(90,70,40,0.25), 0 4px 0 -2px rgba(0,0,0,0.08), 0 6px 18px rgba(80,60,30,0.18);
+}
+html[data-theme="class-monk"] .panel h2, html[data-theme="class-monk"] header.top h1{color:#1f1a14; letter-spacing:0.1em;}
+html[data-theme="class-monk"] header.top h1 .brand-mark{filter:grayscale(1) brightness(0.3);}
+html[data-theme="class-monk"] header.top{border-bottom:2px solid #1f1a14;}
+html[data-theme="class-monk"] input, html[data-theme="class-monk"] select, html[data-theme="class-monk"] textarea{font-family:var(--font-body);}
+
+/* ---------- Paladin: an oath sworn in a cathedral. Royal blue, gold filigree, a shield ---------- */
+html[data-theme="class-paladin"]{
+  --bg:#0b1024; --panel:#141b38; --panel2:#1c2549; --border:#9a7c35;
+  --ink:#eef0fa; --ink-dim:#a9b1d0; --sea:#f0c95a; --sea-dim:#9c7c2c;
+  --orange:#2e4aa8; --orange-bright:#3d5cc6; --green:#8fd29a;
+  --act-action:#ff8a72; --act-bonus:#f2cf66; --act-ritual:#c9aef6; --racial:#9cc6f6;
+  --danger:#ff6a6a; --on-accent:#f6f2e4; --tooltip-bg:#090d1d; --backdrop:rgba(3,5,16,0.72);
+  --orange-tint:rgba(46,74,168,0.32); --orange-wash:rgba(46,74,168,0.13);
+  --font-display:'Cinzel', 'Trajan Pro', Georgia, serif;
+  --ct-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill-rule='evenodd' d='M12 1.5 21 5v6.5c0 5.4-3.8 9.6-9 11.5-5.2-1.9-9-6.1-9-11.5V5zm-1.2 4.5v4.3H6.5v2.4h4.3v6.3h2.4v-6.3h4.3v-2.4h-4.3V6z'/%3E%3C/svg%3E");
+  --ct-icon-glow:drop-shadow(0 0 4px rgba(240,201,90,0.55));
+  --ct-btn:linear-gradient(180deg, rgba(255,240,200,0.2), transparent 50%, rgba(0,0,0,0.25));
+  --ct-btn-shadow:inset 0 0 0 1px rgba(240,201,90,0.45), 0 2px 0 rgba(0,0,0,0.55);
+}
+html[data-theme="class-paladin"] body{
+  background-image:radial-gradient(ellipse at 50% -15%, rgba(240,201,90,0.25), transparent 50%),
+    repeating-linear-gradient(90deg, transparent 0 46px, rgba(240,201,90,0.035) 46px 48px),
+    linear-gradient(#0e1530, #070a18);
+}
+/* Panels: deep blue inside a gold frame, with filigree brackets in the corners */
+html[data-theme="class-paladin"] .panel, html[data-theme="class-paladin"] .roll-popup, html[data-theme="class-paladin"] .settings-pop{
+  border:1px solid #b8963f;
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Cg fill='none' stroke='%23d9b456' stroke-width='1.6'%3E%3Cpath d='M2 30V2h28'/%3E%3Cpath d='M7 22V7h15'/%3E%3Cpath d='M7 7c4 6 10 7 14 3'/%3E%3C/g%3E%3Ccircle cx='2' cy='2' r='2' fill='%23d9b456'/%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Cg fill='none' stroke='%23d9b456' stroke-width='1.6'%3E%3Cpath d='M38 10v28H10'/%3E%3Cpath d='M33 18v15H18'/%3E%3Cpath d='M33 33c-4-6-10-7-14-3'/%3E%3C/g%3E%3Ccircle cx='38' cy='38' r='2' fill='%23d9b456'/%3E%3C/svg%3E"),
+    linear-gradient(180deg, rgba(240,201,90,0.06), transparent 30%);
+  background-size:34px 34px, 34px 34px, auto; background-repeat:no-repeat; background-position:left 3px top 3px, right 3px bottom 3px, 0 0;
+  box-shadow:inset 0 0 0 3px var(--panel), inset 0 0 0 4px rgba(240,201,90,0.35), 0 6px 20px rgba(0,0,0,0.6);
+}
+html[data-theme="class-paladin"] .panel h2, html[data-theme="class-paladin"] header.top h1{font-weight:700; text-shadow:0 0 12px rgba(240,201,90,0.35), 0 1px 0 #000;}
+html[data-theme="class-paladin"] .panel h2{padding-left:12px;}
+html[data-theme="class-paladin"] header.top{border-bottom:2px solid transparent; border-image:linear-gradient(90deg, transparent, #d9b456 15%, #f6e3a2 50%, #d9b456 85%, transparent) 1;}
+
+/* ---------- Ranger: a camp at the forest's edge. Tooled leather, stitching, an arrow ---------- */
+html[data-theme="class-ranger"]{
+  --bg:#12160f; --panel:#2b2116; --panel2:#35291b; --border:#6b5233;
+  --ink:#f0e6d2; --ink-dim:#bba98a; --sea:#c9b36a; --sea-dim:#7d6a35;
+  --orange:#3e6b3a; --orange-bright:#4f8449; --green:#9fd08a;
+  --act-action:#f08a64; --act-bonus:#ecc862; --act-ritual:#c9a8e8; --racial:#92bfe6;
+  --danger:#ff6b55; --on-accent:#f6efe0; --tooltip-bg:#100c08; --backdrop:rgba(8,6,3,0.72);
+  --orange-tint:rgba(62,107,58,0.32); --orange-wash:rgba(62,107,58,0.13);
+  --font-display:'Almendra', 'Book Antiqua', Georgia, serif;
+  --ct-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 20 19 5'/%3E%3Cpath d='M14 4h6v6'/%3E%3Cpath d='M4 20l1-4M4 20l4-1M7 17l-1-4M7 17l4-1'/%3E%3C/g%3E%3C/svg%3E");
+  --ct-btn:linear-gradient(180deg, rgba(255,240,210,0.15), transparent 55%, rgba(0,0,0,0.25));
+  --ct-btn-shadow:inset 0 1px 0 rgba(255,240,210,0.2), 0 2px 0 rgba(0,0,0,0.5);
+}
+html[data-theme="class-ranger"] body{
+  background-image:linear-gradient(to top, rgba(0,0,0,0.6), transparent 40%),
+    repeating-linear-gradient(90deg, transparent 0 60px, rgba(20,40,20,0.5) 60px 64px, transparent 64px 110px, rgba(20,40,20,0.35) 110px 113px),
+    radial-gradient(ellipse at 70% 10%, rgba(200,180,110,0.12), transparent 45%),
+    linear-gradient(#18200f, #0c0f08);
+}
+/* Panels: leather with a dashed stitch line just inside the edge */
+html[data-theme="class-ranger"] .panel, html[data-theme="class-ranger"] .roll-popup, html[data-theme="class-ranger"] .settings-pop{
+  border:2px solid #4a3620; border-radius:8px; outline:1.5px dashed rgba(201,179,106,0.55); outline-offset:-7px;
+  background-image:radial-gradient(ellipse at 30% 20%, rgba(255,220,170,0.06), transparent 50%),
+    repeating-linear-gradient(35deg, rgba(0,0,0,0.06) 0 2px, transparent 2px 7px);
+  box-shadow:inset 0 0 26px rgba(0,0,0,0.45), 0 5px 14px rgba(0,0,0,0.55);
+}
+html[data-theme="class-ranger"] .panel h2, html[data-theme="class-ranger"] header.top h1{font-weight:700; text-shadow:0 1px 0 rgba(0,0,0,0.8);}
+html[data-theme="class-ranger"] header.top{border-bottom:2px dashed rgba(201,179,106,0.6);}
+
+/* ---------- Rogue: the city at night. Smoke, shadow, a violet edge and a dagger ---------- */
+html[data-theme="class-rogue"]{
+  --bg:#08080c; --panel:#121219; --panel2:#1a1a24; --border:#2e2c40;
+  --ink:#e2e0ec; --ink-dim:#8f8ca6; --sea:#a98bf0; --sea-dim:#5e4c96;
+  --orange:#3c8a5c; --orange-bright:#4ba36e; --green:#7fd6a0;
+  --act-action:#ef7f6a; --act-bonus:#e2c25e; --act-ritual:#c8a6f6; --racial:#8eb8ee;
+  --danger:#ff5e6a; --on-accent:#eef0f4; --tooltip-bg:#06060a; --backdrop:rgba(0,0,4,0.78);
+  --orange-tint:rgba(60,138,92,0.3); --orange-wash:rgba(60,138,92,0.12);
+  --font-display:'IM Fell English SC', 'Book Antiqua', Georgia, serif;
+  --ct-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M20.5 1.5 11 13l-2-2zM8.2 11.6l4.2 4.2-1.4 1.4-1.3-1.3-4.6 4.6a1.6 1.6 0 0 1-2.3-2.3l4.6-4.6-1.3-1.3z'/%3E%3C/svg%3E");
+  --ct-icon-glow:drop-shadow(0 0 4px rgba(169,139,240,0.6));
+  --ct-btn:linear-gradient(180deg, rgba(200,180,255,0.1), transparent 50%, rgba(0,0,0,0.35));
+  --ct-btn-shadow:0 0 0 1px rgba(169,139,240,0.25), 0 2px 0 rgba(0,0,0,0.7);
+}
+html[data-theme="class-rogue"] body{
+  background-image:radial-gradient(ellipse at 20% 30%, rgba(120,100,180,0.1), transparent 35%),
+    radial-gradient(ellipse at 80% 80%, rgba(60,140,100,0.08), transparent 35%),
+    linear-gradient(#0b0b11, #050507);
+}
+/* Drifting smoke behind the panels */
+html[data-theme="class-rogue"] body::before{
+  content:''; position:fixed; inset:-20%; z-index:-1; pointer-events:none; opacity:0.5;
+  background:radial-gradient(ellipse 40% 18% at 30% 40%, rgba(140,130,170,0.12), transparent 70%),
+    radial-gradient(ellipse 35% 15% at 70% 60%, rgba(140,130,170,0.1), transparent 70%);
+  animation:ctSmoke 40s ease-in-out infinite alternate;
+}
+@keyframes ctSmoke{ from{transform:translateX(-4%);} to{transform:translateX(4%);} }
+/* Panels: shadowed, with a thin violet glow along the top edge */
+html[data-theme="class-rogue"] .panel, html[data-theme="class-rogue"] .roll-popup, html[data-theme="class-rogue"] .settings-pop{
+  border:1px solid #24222f; border-radius:3px;
+  background-image:linear-gradient(90deg, transparent, rgba(169,139,240,0.6) 30%, rgba(169,139,240,0.6) 70%, transparent),
+    linear-gradient(180deg, rgba(169,139,240,0.06), transparent 35%);
+  background-size:100% 1px, auto; background-repeat:no-repeat;
+  box-shadow:0 10px 26px rgba(0,0,0,0.8), inset 0 0 30px rgba(0,0,0,0.5);
+}
+html[data-theme="class-rogue"] .panel h2, html[data-theme="class-rogue"] header.top h1{letter-spacing:0.08em; text-shadow:0 0 8px rgba(169,139,240,0.35);}
+html[data-theme="class-rogue"] header.top{border-bottom:1px solid #2e2c40; box-shadow:0 1px 0 rgba(169,139,240,0.25);}
+
+/* ---------- Sorcerer: magic in the blood. Dragon scales, crimson and violet, a living flame ---------- */
+html[data-theme="class-sorcerer"]{
+  --bg:#120614; --panel:#1f0c22; --panel2:#2a112e; --border:#5c2a5e;
+  --ink:#f5e6f2; --ink-dim:#bf9cbc; --sea:#ff5f8f; --sea-dim:#a82e5c;
+  --orange:#7a2fb0; --orange-bright:#9440cf; --green:#8fe0b0;
+  --act-action:#ff8a72; --act-bonus:#f6d06a; --act-ritual:#d8a8ff; --racial:#9cc6f6;
+  --danger:#ff5a6a; --on-accent:#fdeefa; --tooltip-bg:#0d040f; --backdrop:rgba(8,0,10,0.75);
+  --orange-tint:rgba(122,47,176,0.32); --orange-wash:rgba(122,47,176,0.13);
+  --font-display:'Cinzel Decorative', 'Trajan Pro', Georgia, serif;
+  --ct-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 1.5c1 4.2 6.5 6.4 6.5 12a6.5 6.5 0 0 1-13 0c0-3 2-4.6 2.2-7.6 1.3 2 2.3 3 3.5 3.2-.3-3 0-5.4.8-7.6z'/%3E%3C/svg%3E");
+  --ct-icon-glow:drop-shadow(0 0 5px rgba(255,95,143,0.7));
+  --ct-btn:linear-gradient(180deg, rgba(255,200,240,0.16), transparent 55%, rgba(0,0,0,0.3));
+  --ct-btn-shadow:inset 0 1px 0 rgba(255,200,240,0.25), 0 0 10px rgba(255,95,143,0.25);
+}
+html[data-theme="class-sorcerer"] body{
+  background-image:radial-gradient(ellipse at 50% 110%, rgba(255,60,120,0.25), transparent 50%),
+    radial-gradient(ellipse at 10% 0%, rgba(140,60,220,0.25), transparent 45%),
+    linear-gradient(#170819, #08020a);
+}
+/* Panels: dragon scales, and an edge that breathes with light */
+html[data-theme="class-sorcerer"] .panel, html[data-theme="class-sorcerer"] .roll-popup, html[data-theme="class-sorcerer"] .settings-pop{
+  border:1px solid #7a2f6e; border-radius:10px;
+  background-image:radial-gradient(circle at 50% 0, transparent 9px, rgba(255,95,143,0.07) 10px, transparent 11px),
+    radial-gradient(circle at 0 50%, transparent 9px, rgba(255,95,143,0.07) 10px, transparent 11px);
+  background-size:20px 20px, 20px 20px; background-position:0 0, 10px 10px;
+  animation:ctSorcGlow 5s ease-in-out infinite;
+}
+@keyframes ctSorcGlow{
+  0%, 100%{box-shadow:0 0 0 1px rgba(255,95,143,0.15), 0 0 14px rgba(255,60,130,0.15), 0 6px 18px rgba(0,0,0,0.6);}
+  50%{box-shadow:0 0 0 1px rgba(170,90,255,0.3), 0 0 24px rgba(170,90,255,0.25), 0 6px 18px rgba(0,0,0,0.6);}
+}
+html[data-theme="class-sorcerer"] .panel h2, html[data-theme="class-sorcerer"] header.top h1{
+  background:linear-gradient(90deg, #ff7aa2, #c58bff); -webkit-background-clip:text; background-clip:text; color:transparent; font-weight:700;
+}
+html[data-theme="class-sorcerer"] header.top{border-bottom:2px solid transparent; border-image:linear-gradient(90deg, transparent, #ff5f8f, #9440cf, transparent) 1;}
+
+/* ---------- Warlock: a pact with something old. Eldritch green, runes, a watching eye ---------- */
+html[data-theme="class-warlock"]{
+  --bg:#050a07; --panel:#0c1510; --panel2:#122018; --border:#244a33;
+  --ink:#dff2e4; --ink-dim:#8fb39b; --sea:#5cff9c; --sea-dim:#2a9a5a;
+  --orange:#5a2a8a; --orange-bright:#7038a8; --green:#7cf0a8;
+  --act-action:#ff8670; --act-bonus:#e8d06a; --act-ritual:#c99cff; --racial:#90c4f0;
+  --danger:#ff5a5a; --on-accent:#eefcf2; --tooltip-bg:#030705; --backdrop:rgba(0,4,2,0.8);
+  --orange-tint:rgba(90,42,138,0.32); --orange-wash:rgba(90,42,138,0.13);
+  --font-display:'Grenze Gotisch', 'UnifrakturCook', Georgia, serif;
+  --ct-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill-rule='evenodd' d='M1.5 12S5.5 4.5 12 4.5 22.5 12 22.5 12 18.5 19.5 12 19.5 1.5 12 1.5 12zM12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm0 2.2a1.8 1.8 0 1 1 0 3.6 1.8 1.8 0 0 1 0-3.6z'/%3E%3C/svg%3E");
+  --ct-icon-glow:drop-shadow(0 0 5px rgba(92,255,156,0.7));
+  --ct-btn:linear-gradient(180deg, rgba(200,255,220,0.1), transparent 50%, rgba(0,0,0,0.35));
+  --ct-btn-shadow:0 0 0 1px rgba(92,255,156,0.2), 0 2px 0 rgba(0,0,0,0.7);
+}
+html[data-theme="class-warlock"] body{
+  background-image:radial-gradient(ellipse at 50% 50%, rgba(40,160,90,0.08), transparent 60%),
+    radial-gradient(ellipse at 50% 120%, rgba(90,42,138,0.3), transparent 50%),
+    linear-gradient(#07100a, #020403);
+}
+/* Panels: faint runes along the bottom edge, and an eldritch glow */
+html[data-theme="class-warlock"] .panel, html[data-theme="class-warlock"] .roll-popup, html[data-theme="class-warlock"] .settings-pop{
+  border:1px solid #1f5a38; border-radius:2px 14px 2px 14px;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 14'%3E%3Cg fill='none' stroke='%235cff9c' stroke-width='1.2' opacity='0.35'%3E%3Cpath d='M4 12V2l5 5-5 5M16 2v10M16 7l5-5M16 7l5 5M30 12l4-10 4 10M31.5 8h5M46 2v10h6M60 2l6 10M66 2l-6 10M76 12V2h5l-5 5 5 5M92 2v10M88 4h8M104 2c6 0 6 5 0 5s-6 5 0 5'/%3E%3C/g%3E%3C/svg%3E");
+  background-size:180px 16px; background-repeat:repeat-x; background-position:0 calc(100% - 4px);
+  box-shadow:0 0 18px rgba(40,200,110,0.12), inset 0 0 26px rgba(0,0,0,0.6);
+  padding-bottom:26px;
+}
+html[data-theme="class-warlock"] .panel h2, html[data-theme="class-warlock"] header.top h1{font-size:1.35rem; text-shadow:0 0 8px rgba(92,255,156,0.5), 0 0 22px rgba(40,200,110,0.25);}
+html[data-theme="class-warlock"] header.top h1{font-size:2.1rem;}
+html[data-theme="class-warlock"] .panel h2::before{animation:ctWatch 7s ease-in-out infinite;}
+@keyframes ctWatch{ 0%, 92%, 100%{transform:scaleY(1);} 95%{transform:scaleY(0.1);} }
+html[data-theme="class-warlock"] header.top{border-bottom:1px solid #1f5a38; box-shadow:0 6px 14px -8px rgba(92,255,156,0.45);}
+
+/* ---------- Wizard: a tower study at night. Indigo, a starfield, arcane circles ---------- */
+html[data-theme="class-wizard"]{
+  --bg:#080a1c; --panel:#11152f; --panel2:#181d3e; --border:#34407a;
+  --ink:#e8ebfb; --ink-dim:#a1a8d2; --sea:#8fb4ff; --sea-dim:#4a62b0;
+  --orange:#5b3fc4; --orange-bright:#7052e0; --green:#8fdcb0;
+  --act-action:#ff8a72; --act-bonus:#f2d06a; --act-ritual:#d2acff; --racial:#9cc8f6;
+  --danger:#ff6464; --on-accent:#f2f0ff; --tooltip-bg:#060818; --backdrop:rgba(2,3,12,0.78);
+  --orange-tint:rgba(91,63,196,0.32); --orange-wash:rgba(91,63,196,0.13);
+  --font-display:'Cormorant SC', 'Trajan Pro', Georgia, serif;
+  --ct-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 1.5 14.3 9.7 22.5 12l-8.2 2.3L12 22.5l-2.3-8.2L1.5 12l8.2-2.3z'/%3E%3C/svg%3E");
+  --ct-icon-glow:drop-shadow(0 0 5px rgba(143,180,255,0.8));
+  --ct-btn:linear-gradient(180deg, rgba(200,210,255,0.16), transparent 55%, rgba(0,0,0,0.3));
+  --ct-btn-shadow:inset 0 1px 0 rgba(200,210,255,0.22), 0 2px 0 rgba(0,0,0,0.55);
+}
+html[data-theme="class-wizard"] body{
+  background-image:radial-gradient(ellipse at 50% 0%, rgba(90,110,220,0.25), transparent 55%), linear-gradient(#0b0e26, #04050f);
+}
+/* Twinkling stars behind the panels */
+html[data-theme="class-wizard"] body::before{
+  content:''; position:fixed; inset:0; z-index:-1; pointer-events:none;
+  background-image:radial-gradient(circle at 20px 30px, #fff 0 0.8px, transparent 1.6px),
+    radial-gradient(circle at 140px 80px, #cfd8ff 0 1px, transparent 2px),
+    radial-gradient(circle at 90px 170px, #fff 0 0.7px, transparent 1.4px),
+    radial-gradient(circle at 230px 210px, #b8c6ff 0 1.1px, transparent 2.2px),
+    radial-gradient(circle at 260px 40px, #fff 0 0.6px, transparent 1.3px);
+  background-size:280px 260px; opacity:0.7; animation:ctTwinkle 6s ease-in-out infinite alternate;
+}
+@keyframes ctTwinkle{ from{opacity:0.35;} to{opacity:0.8;} }
+/* Panels: an arcane circle drawn faintly in the top-right corner */
+html[data-theme="class-wizard"] .panel, html[data-theme="class-wizard"] .roll-popup, html[data-theme="class-wizard"] .settings-pop{
+  border:1px solid #3a4890; border-radius:8px;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cg fill='none' stroke='%238fb4ff' opacity='0.22'%3E%3Ccircle cx='50' cy='50' r='46' stroke-width='1.2'/%3E%3Ccircle cx='50' cy='50' r='38' stroke-width='0.8'/%3E%3Cpath d='M50 12 83 69H17z' stroke-width='1'/%3E%3Cpath d='M50 88 17 31h66z' stroke-width='1'/%3E%3Ccircle cx='50' cy='50' r='10' stroke-width='1'/%3E%3C/g%3E%3C/svg%3E"),
+    linear-gradient(180deg, rgba(143,180,255,0.05), transparent 35%);
+  background-size:120px 120px, auto; background-repeat:no-repeat; background-position:right -22px top -22px, 0 0;
+  box-shadow:0 0 0 1px rgba(143,180,255,0.08), 0 6px 20px rgba(0,0,0,0.6);
+}
+html[data-theme="class-wizard"] .panel h2, html[data-theme="class-wizard"] header.top h1{font-weight:600; letter-spacing:0.06em; text-shadow:0 0 10px rgba(143,180,255,0.4);}
+html[data-theme="class-wizard"] .panel h2{font-size:1.25rem;}
+html[data-theme="class-wizard"] header.top{border-bottom:1px solid #3a4890; box-shadow:0 1px 0 rgba(143,180,255,0.2);}
+
+/* Moving parts stop when the device asks for less motion */
+@media (prefers-reduced-motion: reduce){
+  html[data-theme^="class-"] body::before, html[data-theme^="class-"] .panel, html[data-theme^="class-"] .panel h2::before{animation:none !important;}
+}

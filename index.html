@@ -244,6 +244,7 @@ const THEME_FONTS = {
   inferno: 'https://fonts.googleapis.com/css2?family=Pirata+One&display=swap',
 };
 function applyTheme(key){
+  if(key && key.startsWith('class')) key = DEFAULT_THEME;   // class themes are for character sheets only
   const root = document.documentElement;
   if(key && key !== 'harbor') root.setAttribute('data-theme', key); else root.removeAttribute('data-theme');
   if(THEME_FONTS[key] && !document.getElementById('font-'+key)){

@@ -10,6 +10,7 @@
 <link rel="stylesheet" href="css/dice.css">
 <link rel="stylesheet" href="css/panels.css">
 <link rel="stylesheet" href="css/char-icons.css">
+<link rel="stylesheet" href="css/class-themes.css">
 <style>
 *{box-sizing:border-box;}
 body{
@@ -513,6 +514,7 @@ button.gear-btn[aria-expanded="true"] svg{transform:rotate(60deg); transition:tr
 .settings-pop .theme-menu, .settings-pop .dice-style-menu{position:static; transform:none; width:auto; max-height:none; overflow:visible;
   box-shadow:none; border:none; background:none; padding:0;}
 .settings-pop .theme-menu{grid-template-columns:repeat(auto-fill, minmax(140px, 1fr));}
+.theme-group{grid-column:1 / -1; font-size:0.68rem; text-transform:uppercase; letter-spacing:0.06em; color:var(--sea); border-top:1px solid var(--border); padding-top:8px; margin-top:4px;}
 .settings-pop .backup{margin-top:0; padding-top:8px;}
 .settings-pop button.chip-btn{background:var(--panel2); border:1px solid var(--border); border-radius:999px; color:var(--ink); padding:4px 14px; font-size:0.8rem;}
 .settings-pop button.chip-btn:hover{border-color:var(--sea-dim);}
@@ -538,13 +540,36 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
 <script>
 // Apply the saved color theme before the page draws (no flash of the default look).
 // Tome and Keep load their fonts from Google Fonts only when they're picked.
+const GF = 'https://fonts.googleapis.com/css2?display=swap&family=';
 const THEME_FONTS = {
   tome: 'https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap',
   keep: 'https://fonts.googleapis.com/css2?family=MedievalSharp&display=swap',
   inferno: 'https://fonts.googleapis.com/css2?family=Pirata+One&display=swap',
+  // Class themes (css/class-themes.css); Cinzel Decorative is already on the page
+  'class-barbarian': GF + 'New+Rocker',
+  'class-bard': GF + 'Playfair+Display:ital,wght@0,400;0,600;1,400&family=Playfair+Display+SC:ital,wght@0,400;0,700;1,400',
+  'class-cleric': GF + 'Cormorant+Garamond:wght@400;600',
+  'class-druid': GF + 'Uncial+Antiqua',
+  'class-fighter': GF + 'Cinzel:wght@400;700',
+  'class-monk': GF + 'Marcellus&family=Marcellus+SC',
+  'class-paladin': GF + 'Cinzel:wght@400;700',
+  'class-ranger': GF + 'Almendra:wght@400;700',
+  'class-rogue': GF + 'IM+Fell+English+SC',
+  'class-warlock': GF + 'Grenze+Gotisch:wght@400;600',
+  'class-wizard': GF + 'Cormorant+SC:wght@500;600',
 };
-function applyTheme(key){
-  const root = document.documentElement;
+// Ember is the default look for anyone who hasn't picked a theme (Justin, 2026-09-30; Keep before that)
+const DEFAULT_THEME = 'ember';
+// "My class" (saved as 'class') is the open character's class theme. The class is remembered per
+// sheet (dndTracker:classOf:<sheet ID>), so the page draws in it before the sheet has loaded.
+function resolveTheme(key){
+  if(key !== 'class') return key;
+  let cls = window.tkClassKey || null;
+  if(!cls){ try{ const m = String(new URLSearchParams(location.search).get('sheet') || '').match(/\/d\/([A-Za-z0-9_-]+)/); if(m) cls = localStorage.getItem('dndTracker:classOf:' + m[1]); }catch(e){} }
+  return cls ? 'class-' + cls : DEFAULT_THEME;
+}
+function applyTheme(saved){
+  const root = document.documentElement, key = resolveTheme(saved);
   if(key && key !== 'harbor') root.setAttribute('data-theme', key); else root.removeAttribute('data-theme');
   if(THEME_FONTS[key] && !document.getElementById('font-'+key)){
     const l = document.createElement('link');
@@ -552,8 +577,6 @@ function applyTheme(key){
     document.head.appendChild(l);
   }
 }
-// Ember is the default look for anyone who hasn't picked a theme (Justin, 2026-09-30; Keep before that)
-const DEFAULT_THEME = 'ember';
 let savedTheme = null;
 try{ savedTheme = localStorage.getItem('dndTracker:theme'); }catch(e){}
 applyTheme(savedTheme || DEFAULT_THEME);
@@ -5111,6 +5134,7 @@ function updateClassFields(){
 function setupClassFeatures(clsText){
   cf.sheetText = String(clsText||'').trim();
   cf.classKey = classKeyFrom(clsText);
+  noteClassTheme(cf.classKey);
   const entry = CLASS_FEATURES[cf.classKey];
   const saved = storageGet(subclassStoreKey());
   cf.subclass = entry && saved && entry.subclasses[saved] ? saved : subclassFromText(cf.classKey, clsText);
@@ -6171,17 +6195,44 @@ const THEMES = [
   {key:'keep', name:'Keep', bg:'#3a2515', accent:'#d9ad56'},
   {key:'inferno', name:'Inferno', bg:'#170c0b', accent:'#d42a12'},
 ];
+// Class themes (css/class-themes.css): "My class" follows the open character; any class can be picked
+const CLASS_THEMES = [
+  {key:'class-barbarian', name:'Barbarian', bg:'#241a14', accent:'#c4342a'},
+  {key:'class-bard', name:'Bard', bg:'#2a1019', accent:'#e9c46a'},
+  {key:'class-cleric', name:'Cleric', bg:'#fbf8f1', accent:'#c8a24a'},
+  {key:'class-druid', name:'Druid', bg:'#152619', accent:'#a8d46a'},
+  {key:'class-fighter', name:'Fighter', bg:'#1d232a', accent:'#3d73c4'},
+  {key:'class-monk', name:'Monk', bg:'#f6f0e2', accent:'#b0281e'},
+  {key:'class-paladin', name:'Paladin', bg:'#141b38', accent:'#f0c95a'},
+  {key:'class-ranger', name:'Ranger', bg:'#2b2116', accent:'#4f8449'},
+  {key:'class-rogue', name:'Rogue', bg:'#121219', accent:'#a98bf0'},
+  {key:'class-sorcerer', name:'Sorcerer', bg:'#1f0c22', accent:'#ff5f8f'},
+  {key:'class-warlock', name:'Warlock', bg:'#0c1510', accent:'#5cff9c'},
+  {key:'class-wizard', name:'Wizard', bg:'#11152f', accent:'#8fb4ff'},
+];
+const savedThemeKey = ()=>storageGet('dndTracker:theme') || DEFAULT_THEME;
 function setTheme(key){
-  const t = THEMES.find(x=>x.key===key) || THEMES[0];
+  const t = key === 'class' ? {key} : THEMES.find(x=>x.key===key) || CLASS_THEMES.find(x=>x.key===key) || THEMES[0];
   applyTheme(t.key);
   storageSet('dndTracker:theme', t.key);   // saved even for Harbor, since Ember is the default
   renderThemeBar();
 }
+// The character's class, for "My class" (called when a sheet's class is read)
+function noteClassTheme(cls){
+  window.tkClassKey = cls || null;
+  if(cls && currentCharId) storageSet(`dndTracker:classOf:${currentCharId}`, cls);
+  if(savedThemeKey() === 'class') applyTheme('class');
+  if(typeof renderThemeBar === 'function' && document.getElementById('themeMenu').childElementCount) renderThemeBar();
+}
 function renderThemeBar(){
   const menu = document.getElementById('themeMenu');
-  const cur = document.documentElement.getAttribute('data-theme') || 'harbor';
-  menu.innerHTML = THEMES.map(x=>
-    `<button type="button" class="theme-option" data-theme-pick="${x.key}" aria-pressed="${x.key===cur}"><span class="theme-dot" style="background:linear-gradient(135deg, ${x.bg} 50%, ${x.accent} 50%);"></span>${x.name}</button>`).join('');
+  const cur = savedThemeKey();
+  const opt = x=>`<button type="button" class="theme-option" data-theme-pick="${x.key}" aria-pressed="${x.key===cur}"><span class="theme-dot" style="background:linear-gradient(135deg, ${x.bg} 50%, ${x.accent} 50%);"></span>${x.name}</button>`;
+  const mine = window.tkClassKey && CLASS_THEMES.find(x=>x.key === 'class-' + window.tkClassKey);
+  menu.innerHTML = THEMES.map(opt).join('')
+    + `<div class="theme-group">Class Themes</div>`
+    + opt({key:'class', name:`My class${mine ? ` (${mine.name})` : ''}`, bg:mine ? mine.bg : '#555', accent:mine ? mine.accent : '#999'})
+    + CLASS_THEMES.map(opt).join('');
   menu.querySelectorAll('[data-theme-pick]').forEach(b=>b.addEventListener('click', ()=>setTheme(b.dataset.themePick)));
 }
 // Settings (the gear, top right): opens and closes the panel; a click elsewhere, Escape or × closes it.
