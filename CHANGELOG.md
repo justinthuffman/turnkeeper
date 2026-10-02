@@ -11,9 +11,26 @@ Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wi
 - **Arcane Recovery picker.** After a short rest, Ezlo picks which spent slots come back (up to half
   his wizard level in slot levels, none 6th level or higher), and Recover refills them and marks it
   used for the day.
+- **Settings** (the gear at the top right): Theme, Dice and Tray, Panels (reset the order, open
+  every panel), Backup, and Leaving the Page. These replace the buttons at the bottom of the page
+  and the Backup section in Resources.
+- **Full backup.** Back up to .txt and Copy/Restore From Clipboard now carry everything this browser
+  keeps for the character (HP, charges, prepared spells and spellbook, pins, choices, feats, dice and
+  tray) and your theme and panel settings, so you can move to a new browser. Restoring reloads the
+  page, with Undo. Older backup codes still restore HP and charges.
+- **Asks before you leave** if you've changed something since your last backup (the browser's own
+  "Leave site?" box). It can be turned off in Settings → Leaving the Page.
+- **Class themes.** Twelve new themes, one per class, each with its own colors, font, background,
+  panel decoration and heading icon. "My class" uses the open character's class; any class's theme
+  can be picked too. The DM Screen and hub keep their usual look.
+- **Heal your party.** Healing spells and Lay on Hands ask who you're healing: you or anyone in your
+  party, in or out of combat (Mass Healing Word and the like can pick several). Their sheet adds the
+  HP and lights up in a golden glow saying who healed them, with what, and for how much.
 
 ### Changed
 - Elemental Adept notes no longer mention Avrae's `mi2` code: Turnkeeper rolls it for you.
+- Lay on Hands: "Heal myself" is now "Heal" (pick who), and "Spend" is "Spend only" for creatures
+  without a sheet.
 
 ## 2026-10-02 — Resistance reminder
 

@@ -235,6 +235,34 @@ button.build-tag:hover{background:var(--panel2); border-color:var(--sea);}
 .hp-adjust{display:flex; flex-wrap:wrap; align-items:center; gap:8px;}
 .hp-adjust input{width:64px; background:var(--panel2); border:1px solid var(--border); color:var(--ink); padding:7px 8px; border-radius:4px; font-size:0.95rem;}
 .hp-adjust button{padding:7px 12px; font-size:0.85rem;}
+/* Healed by someone else: a golden glow from the edges, rising sparkles, and a message that
+   floats up and fades (showHealFx) */
+.heal-who{align-items:center; margin-bottom:6px;}
+.heal-fx{position:fixed; inset:0; z-index:300; pointer-events:none; overflow:hidden;}
+.heal-glow{position:absolute; inset:0; box-shadow:inset 0 0 140px 50px rgba(255,200,80,0.55);
+  background:radial-gradient(ellipse at 50% 65%, rgba(255,225,130,0.22), transparent 60%); animation:healGlow 5.2s ease-out forwards;}
+@keyframes healGlow{0%{opacity:0;} 12%{opacity:1;} 65%{opacity:0.85;} 100%{opacity:0;}}
+.heal-spark{position:absolute; bottom:-16px; width:var(--s); height:var(--s); border-radius:50%; opacity:0;
+  background:radial-gradient(circle, #fffbe6 0 22%, #ffd66b 45%, transparent 70%);
+  animation:healSpark var(--d) ease-out var(--delay) forwards;}
+.heal-spark.star{background:none; color:#ffe08a; font-size:var(--s); line-height:1; text-shadow:0 0 6px #ffcf4d, 0 0 14px rgba(255,190,60,0.8);}
+@keyframes healSpark{0%{opacity:0; transform:translate(0,0) scale(0.5) rotate(0);} 12%{opacity:1;}
+  100%{opacity:0; transform:translate(var(--dx), -88vh) scale(1.25) rotate(160deg);}}
+.heal-text{position:absolute; left:50%; top:58%; transform:translate(-50%, 0); max-width:calc(100vw - 32px); box-sizing:border-box; text-align:center;
+  padding:14px 26px; border-radius:12px; border:2px solid #f3c95a; color:#fff7dc; font-family:var(--font-display);
+  background:linear-gradient(180deg, rgba(122,84,12,0.92), rgba(66,42,4,0.92));
+  box-shadow:0 0 0 4px rgba(243,201,90,0.25), 0 0 34px rgba(255,200,80,0.75); text-shadow:0 0 8px rgba(255,214,110,0.9);
+  animation:healText 5.2s ease-out forwards;}
+.heal-line{font-size:1.05rem;}
+.heal-amt{font-size:2.1rem; font-weight:700; color:#ffe9a8; letter-spacing:0.02em;}
+.heal-after{font-size:0.85rem; opacity:0.85; font-family:var(--font-body);}
+@keyframes healText{0%{opacity:0; transform:translate(-50%, 50px) scale(0.85);} 10%{opacity:1; transform:translate(-50%, 0) scale(1.06);}
+  18%{transform:translate(-50%, 0) scale(1);} 70%{opacity:1; transform:translate(-50%, -80px);} 100%{opacity:0; transform:translate(-50%, -170px);}}
+@media (prefers-reduced-motion: reduce){
+  .heal-spark{display:none;}
+  .heal-text{animation:healFade 5.2s ease-out forwards;}
+  @keyframes healFade{0%{opacity:0;} 10%{opacity:1;} 75%{opacity:1;} 100%{opacity:0;}}
+}
 .resist-note{font-size:0.78rem; color:var(--ink-dim); text-align:right; margin:-4px 0 8px;}
 .resist-note b{color:var(--ink); font-weight:600;}
 /* Temporary hit points beside HP */
@@ -2391,6 +2419,87 @@ function tempFromPopup(n){
   rollState.tempMsg = n > had ? `You now have ${track.temp} temporary hit points.` : `You already had ${had} temporary hit points; they don’t stack, so you keep the ${had}.`;
   renderRollPopup();
 }
+/* ---------- Healing others ----------
+   A healing spell or Lay on Hands asks who's healed: you, or anyone in your party (in combat,
+   the players in the turn order). Healing someone else is sent to their sheet (tkSendHeal),
+   which adds the HP and shows who healed them in a golden glow (tkHealed). Spells that heal
+   several creatures let you pick several; each gets the total you enter. */
+const MULTI_HEAL = {'Mass Cure Wounds':6, 'Mass Healing Word':6, 'Prayer of Healing':6, 'Heal':1, 'Mass Heal':99};
+function healCandidates(){
+  const me = {key:'s:' + currentCharId, name:myName(), sheet:currentCharId};
+  if(!tkConnected() || !window.tkSendHeal) return [me];
+  return [me, ...targetCandidates().filter(c=>c.sheet && c.sheet !== currentCharId)];
+}
+// The "Heal who?" buttons (rollState.healTo: the picked sheets; you by default)
+function healPickHtml(max){
+  const cands = healCandidates();
+  if(!rollState.healTo) rollState.healTo = [currentCharId];
+  rollState.healTo = rollState.healTo.filter(s=>cands.some(c=>c.sheet === s));
+  if(cands.length < 2) return '';
+  return `<div class="roll-toggles heal-who"><span>Heal${max > 1 ? ` (up to ${max})` : ''}:</span>${cands.map(c=>{
+    const on = rollState.healTo.includes(c.sheet);
+    return `<button type="button" class="flow-btn${on ? ' active' : ''}" data-heal-to="${escapeHtml(c.sheet)}" aria-pressed="${on}">${escapeHtml(c.sheet === currentCharId ? 'Me' : c.name)}</button>`;
+  }).join('')}</div>`;
+}
+function healToClick(sheet, max){
+  const list = rollState.healTo || [];
+  if(list.includes(sheet)) rollState.healTo = list.filter(s=>s !== sheet);
+  else rollState.healTo = max > 1 ? [...list, sheet].slice(-max) : [sheet];
+  renderRollPopup();
+}
+// Heal everyone picked for n: you directly (with Undo), others by sending it to their sheet
+function healPicked(n, what){
+  if(!(n > 0)) return [];
+  const cands = healCandidates(), done = [];
+  (rollState.healTo || [currentCharId]).forEach(sheet=>{
+    if(sheet === currentCharId){ const got = healSelf(n); done.push({name:'you', n:got, self:true}); return; }
+    const c = cands.find(x=>x.sheet === sheet); if(!c) return;
+    const d = {name:c.name, n};
+    window.tkSendHeal(sheet, {from:myName(), what, hp:Math.min(999, n)}).catch(err=>{
+      console.warn('Sending healing:', err);
+      d.failed = true;
+      if(what === 'Lay on Hands'){ spend('feat:Lay on Hands', -n); d.refunded = true; }   // the points weren't used
+      if(!rollPopup.hidden) renderRollPopup();
+    });
+    done.push(d);
+  });
+  return done;
+}
+const healDoneHtml = done=>done.map(d=>d.self
+  ? `Added ${d.n} HP to you (now ${hpNow()} / ${hpMax()}). <button type="button" class="sel-toggle" data-heal-undo="1">Undo</button>`
+  : d.failed ? `<span style="color:var(--danger);">Couldn’t send the healing to ${escapeHtml(d.name)} (not connected). ${d.refunded ? ' The points went back into your pool.' : ` Tell them to add ${d.n} HP.`}</span>`
+  : `Sent ${d.n} HP to ${escapeHtml(d.name)}; it’s added on their sheet.`).join('<br>');
+// Spell popups: who, how much, Heal
+function healWhoHtml(what, max){
+  if(!currentCharId || hpNow() === null) return '';
+  if(rollState.healDone) return `<div class="roll-toggles heal-me"><span>${healDoneHtml(rollState.healDone)}</span></div>`;
+  const others = (rollState.healTo || [currentCharId]).some(s=>s !== currentCharId);
+  return healPickHtml(max) + `<div class="roll-toggles heal-me"><span>${others ? 'Enter the total:' : 'Healed yourself? Enter the total:'}</span><input type="number" class="num-in" id="healAmt" min="1" aria-label="Healing total"><button type="button" class="flow-btn" data-heal-go="${escapeHtml(what)}" data-heal-max="${max}">${others ? 'Heal' : 'Add to my HP'}</button></div>`;
+}
+// On the healed player's sheet: add the HP and show who healed them
+window.tkHealed = h=>{
+  const n = Math.round(+h.hp);
+  if(!currentCharId || !(n > 0) || hpNow() === null) return;
+  const before = hpNow();
+  setHp(before + n);
+  showHealFx(`${h.from || 'An ally'} healed you${h.what ? ` with ${h.what}` : ''}`, `+${n} HP`, `now ${hpNow()} / ${hpMax()}`);
+  const msg = document.getElementById('restMsg');
+  msg.textContent = `${h.from || 'An ally'} healed you for ${n} HP${h.what ? ` (${h.what})` : ''}. You went from ${before} to ${hpNow()}.`;
+};
+// The golden glow: light washes in from the edges, sparkles rise, and the message floats up and fades
+function showHealFx(line, amount, after){
+  document.querySelectorAll('.heal-fx').forEach(x=>x.remove());
+  const box = document.createElement('div');
+  box.className = 'heal-fx'; box.setAttribute('role', 'status'); box.setAttribute('aria-live', 'polite');
+  let sparks = '';
+  for(let i = 0; i < 34; i++){
+    const star = i % 3 === 0;
+    sparks += `<span class="heal-spark${star ? ' star' : ''}" style="left:${(Math.random() * 100).toFixed(1)}%; --s:${(star ? 10 : 5) + Math.random() * 9}px; --d:${(2.4 + Math.random() * 2).toFixed(2)}s; --delay:${(Math.random() * 1.6).toFixed(2)}s; --dx:${Math.round(Math.random() * 80 - 40)}px;">${star ? '✦' : ''}</span>`;
+  }
+  box.innerHTML = `<div class="heal-glow"></div>${sparks}<div class="heal-text"><div class="heal-line">${escapeHtml(line)}</div><div class="heal-amt">${escapeHtml(amount)}</div><div class="heal-after">${escapeHtml(after)}</div></div>`;
+  document.body.appendChild(box);
+  setTimeout(()=>box.remove(), 5600);
+}
 function healSelf(n){
   if(!(n > 0) || hpNow() === null) return 0;
   rollState.healBefore = {hp:track.hp, death:{...track.death}};
@@ -2799,7 +2908,7 @@ const ORDINAL = ['','1st','2nd','3rd','4th','5th','6th','7th','8th','9th'];
 function openRollPopup(sel, mode){
   hideTooltip();
   Object.assign(rollState, {sel, mode, crit:false, autoCrit:false, smite:0, undead:false, alt:false, sneak:false, savage:false, spendInfo:null, smiteSpent:null,
-    fxList:[], fxOn:{}, fxStarted:null, concEnded:[], fxBefore:null, fxUsed:false, healed:null, healBefore:null, tempMsg:'', selfCast:null, statusBefore:null, target:null, castBefore:null, aim:null,
+    fxList:[], fxOn:{}, fxStarted:null, concEnded:[], fxBefore:null, fxUsed:false, healed:null, healBefore:null, healTo:null, healDone:null, tempMsg:'', selfCast:null, statusBefore:null, target:null, castBefore:null, aim:null,
     insp:false, reactionMarked:false, reactionWasUsed:false, attackNo:0, attackCounted:false});
   // In combat: a reaction is marked used when its popup opens (Undo on the slot gives it back);
   // an attack from the Attack action is counted when you copy its to-hit command
@@ -3286,7 +3395,7 @@ function spellPopupHtml(){
       + cmdBox('Explosion damage', {cmd:`${scaleDice(x.d, x.per, {up})}${adeptMi(x.type)}`, desc:`${sp.name} explosion (${x.type})`});
   }
   // Healing adds your spellcasting modifier unless the spell says otherwise (noMod); flat: a fixed amount on top
-  if(r.heal){ const d = scaleDice(r.heal.d, r.heal.per, {up}); html += cmdBox('Healing', {cmd:`${d}${r.heal.flat ? '+' + r.heal.flat : ''}${r.heal.noMod ? '' : fmtMod(s.mod)}`, desc:r.heal.desc || 'hit points regained'}, healMeHtml()); }
+  if(r.heal){ const d = scaleDice(r.heal.d, r.heal.per, {up}); html += cmdBox('Healing', {cmd:`${d}${r.heal.flat ? '+' + r.heal.flat : ''}${r.heal.noMod ? '' : fmtMod(s.mod)}`, desc:r.heal.desc || 'hit points regained'}, healWhoHtml(sp.name, MULTI_HEAL[sp.name] || 1)); }
   if(r.temp){ const flat = (r.temp.flat || 0) + (r.temp.perFlat || 0) * up; html += cmdBox('Temporary hit points', {cmd:`${r.temp.d}${flat ? '+' + flat : ''}`, desc:r.temp.desc || 'temporary hit points for 1 hour'}, tempMeHtml()); }
   if(r.pool) html += cmdBox('Hit point pool', {cmd:`${scaleDice(r.pool.d, r.pool.per, {up})}`, desc:r.pool.what});
   // check: a spellcasting ability check (Counterspell, Dispel Magic); saveLater: a save the target makes later, not when cast;
@@ -3335,12 +3444,14 @@ function featurePopupHtml(){
   if(t.save && dc) html += infoBox('Saving throw', `Target makes a <b>DC ${dc} ${ABILITY_TEXT(t.save)}</b> saving throw. ${t.saveNote||''}`);
   else if(t.name==='Lay on Hands' && t.pool){
     const id = 'feat:'+t.name, left = remaining(id);
+    const others = (rollState.healTo || [currentCharId]).some(s=>s !== currentCharId);
     html += infoBox('Healing pool', `<b>${left} of ${t.pool.max()} hit points</b> left (5 × paladin level, refilled on a long rest). Touch a creature and spend any amount; there’s nothing to roll. Or spend 5 to cure one disease or neutralize one poison.`
+      + `<div style="margin-top:8px;">${healPickHtml(1)}</div>`
       + `<div class="roll-toggles" style="margin-top:8px; align-items:center;"><input type="number" id="lohAmt" min="1" max="${left}" value="${Math.min(5, left) || 1}" style="width:64px; background:var(--bg); border:1px solid var(--border); color:var(--ink); padding:5px 8px; border-radius:4px;" aria-label="Hit points to spend">`
-      + `<button type="button" class="flow-btn" data-loh="amt"${left ? '' : ' disabled'}>Spend</button>`
-      + `<button type="button" class="flow-btn" data-loh="self"${left ? '' : ' disabled'}>Heal myself</button>`
+      + `<button type="button" class="flow-btn" data-loh="heal"${left ? '' : ' disabled'}>${others ? 'Heal' : 'Heal myself'}</button>`
+      + `<button type="button" class="flow-btn" data-loh="amt"${left ? '' : ' disabled'} title="Spend from the pool on someone without a sheet here (an NPC or a creature)">Spend only</button>`
       + `<button type="button" class="flow-btn" data-loh="5"${left >= 5 ? '' : ' disabled'}>Cure disease/poison (5)</button></div>`);
-    if(rollState.healed) html += `<div class="spent-line">Healed yourself for ${rollState.healed} HP (now ${hpNow()} / ${hpMax()}). <button type="button" class="sel-toggle" data-heal-undo="1">Undo</button></div>`;
+    if(rollState.healDone) html += `<div class="spent-line">${healDoneHtml(rollState.healDone)}</div>`;
   }
   else if(!featureRolls(t).length) html += infoBox('No roll', `${t.name} doesn’t need a roll.${t.tip ? ` ${t.tip}` : ''}`);
   return html;
@@ -3430,7 +3541,11 @@ rollPopup.addEventListener('click', e=>{
   else if(t.dataset.loh){
     const n = t.dataset.loh==='5' ? 5 : (parseInt(document.getElementById('lohAmt').value,10) || 0);
     const spent = n > 0 ? spend('feat:Lay on Hands', Math.min(n, remaining('feat:Lay on Hands'))) : 0;
-    if(t.dataset.loh==='self' && healSelf(spent)) rollState.healBefore.lohSpent = spent;   // Heal myself: the points spent go to your HP
+    // Heal: the points spent go to whoever's picked (you, or a party member's sheet)
+    if(t.dataset.loh==='heal' && spent){
+      rollState.healDone = healPicked(spent, 'Lay on Hands');
+      if(rollState.healBefore && rollState.healDone.some(d=>d.self)) rollState.healBefore.lohSpent = spent;
+    }
     renderRollPopup();
   }
   else if(t.dataset.target) targetClick(t.dataset.target);
@@ -3440,10 +3555,19 @@ rollPopup.addEventListener('click', e=>{
   else if(t.dataset.tempMe) tempFromPopup(parseInt(document.getElementById('tempAmt').value,10) || 0);
   else if(t.dataset.tempSet) tempFromPopup(+t.dataset.tempSet);
   else if(t.dataset.healMe){ healSelf(parseInt(document.getElementById('healAmt').value,10) || 0); renderRollPopup(); }
+  else if(t.dataset.healTo) healToClick(t.dataset.healTo, rollState.sel.kind === 'spell' ? (MULTI_HEAL[rollState.sel.entry.sp.name] || 1) : 1);
+  else if(t.dataset.healGo){
+    const done = healPicked(parseInt(document.getElementById('healAmt').value,10) || 0, t.dataset.healGo);
+    if(done.length) rollState.healDone = done;
+    renderRollPopup();
+  }
   else if(t.dataset.healUndo){
     const b = rollState.healBefore;
     if(b){ track.hp = b.hp; track.death = b.death; saveTrack(); if(b.lohSpent) spend('feat:Lay on Hands', -b.lohSpent); renderResources(); }
-    rollState.healed = null; rollState.healBefore = null; renderRollPopup();
+    rollState.healed = null; rollState.healBefore = null;
+    if(rollState.healDone) rollState.healDone = rollState.healDone.filter(d=>!d.self);
+    if(rollState.healDone && !rollState.healDone.length) rollState.healDone = null;
+    renderRollPopup();
   }
   else if(t.dataset.undead){ rollState.undead = !rollState.undead; renderRollPopup(); }
   else if(t.dataset.alt){ rollState.alt = !rollState.alt; renderRollPopup(); }
@@ -6413,12 +6537,12 @@ const FBK = key=>TEST_MODE ? 'test' : key;
 const clean = v=>typeof v === 'string' ? v.replace(/[<>"&`]/g, '').slice(0, 200) : Array.isArray(v) ? v.map(clean)
   : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k, x])=>[k.replace(/[<>"&`]/g, ''), clean(x)])) : v;
 try{
-  const [{initializeApp}, {getAuth, signInAnonymously}, {getDatabase, ref, get, set, onValue, onDisconnect, serverTimestamp}] =
+  const [{initializeApp}, {getAuth, signInAnonymously}, {getDatabase, ref, get, set, onValue, onDisconnect, serverTimestamp, runTransaction}] =
     await Promise.all(['firebase-app.js', 'firebase-auth.js', 'firebase-database.js'].map(f=>import(FB + f)));
   const app = initializeApp(FIREBASE_CONFIG);
   await signInAnonymously(getAuth(app));
   const db = getDatabase(app);
-  const compared = new Set(), watched = new Set();
+  const compared = new Set(), watched = new Set(), healWatched = new Set();
   // Follow the campaign: the DM's combat, everyone's effects and live state (tkTableUpdate)
   const following = new Set();
   function follow(key){
@@ -6446,6 +6570,19 @@ try{
     await set(ref(db, `campaigns/${FBK(snap.campaign)}/effects/${snap.sheet}`), Object.keys(snap.effects).length ? snap.effects : null);
     // Closing the page marks it closed (after the first write, so the record exists); t stays the last change
     if(!watched.has(snap.sheet)){ watched.add(snap.sheet); await onDisconnect(node).update({online:false}); }
+    // Healing sent to this character by someone else (heals/<this sheet>/<id>). Each one is taken
+    // with a transaction that deletes it, so only one open copy of this sheet adds the HP.
+    if(!healWatched.has(snap.sheet)){
+      healWatched.add(snap.sheet);
+      onValue(ref(db, `campaigns/${FBK(snap.campaign)}/heals/${snap.sheet}`), s=>{
+        Object.keys(s.val() || {}).forEach(id=>{
+          let got = null;
+          runTransaction(ref(db, `campaigns/${FBK(snap.campaign)}/heals/${snap.sheet}/${id}`), cur=>{ got = cur; return null; })
+            .then(r=>{ if(r.committed && got && window.tkHealed) window.tkHealed(clean(got)); })
+            .catch(err=>console.warn('Healing from the party:', err));
+        });
+      }, err=>console.warn('Healing from the party:', err));
+    }
     showLive('on');
   }
   let queue = Promise.resolve();
@@ -6460,6 +6597,12 @@ try{
     const snap = liveSnapshot(); if(!snap) return;
     set(ref(db, `campaigns/${FBK(snap.campaign)}/rolls/${snap.sheet}`), {...roll, t:serverTimestamp()})
       .catch(err=>console.warn('Sharing the roll:', err));
+  };
+  // Heal someone else: it waits on their sheet's heals list until their Turnkeeper takes it
+  window.tkSendHeal = (sheet, heal)=>{
+    const snap = liveSnapshot(); if(!snap) return Promise.reject(new Error('Not live'));
+    const id = 'h' + Date.now() + Math.floor(Math.random() * 1000);
+    return set(ref(db, `campaigns/${FBK(snap.campaign)}/heals/${sheet}/${id}`), {...heal, fromSheet:snap.sheet, t:serverTimestamp()});
   };
   window.tkLive = {connected:true, push(){ queue = queue.then(push).catch(err=>{ console.warn('Live sharing:', err); showLive('err'); }); }};
   window.tkLive.push();   // share the character that's already open
