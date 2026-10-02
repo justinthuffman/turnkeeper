@@ -13,7 +13,7 @@
   --font-display: Georgia, 'Iowan Old Style', 'Palatino Linotype', serif;
   --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
-/* Color themes: the same looks as the tracker (picked there, saved in this browser under
+/* Color themes: the same looks as the tracker (saved in this browser under
    dndTracker:theme). Keep these colors in step with the theme blocks in turnkeeper.html. */
 html[data-theme="midnight"]{--bg:#0f0d1a; --panel:#1a1730; --panel2:#252142; --border:#3b3563; --ink:#ece8f7; --ink-dim:#a49dc4; --sea:#b7a0f2; --sea-dim:#9a84dc; --orange:#c9962f;}
 html[data-theme="grove"]{--bg:#0e1712; --panel:#16241c; --panel2:#1f3327; --border:#30503c; --ink:#e8f0e3; --ink-dim:#9fb5a1; --sea:#9ccf6f; --sea-dim:#557f3d; --orange:#c47a35;}
@@ -225,9 +225,11 @@ button.theme-toggle:hover, button.theme-toggle[aria-expanded="true"]{background:
 button.theme-toggle svg{width:13px; height:13px;}
 .theme-menu{
   position:absolute; bottom:calc(100% + 6px); left:50%; transform:translateX(-50%); z-index:50;
-  display:grid; grid-template-columns:repeat(2, auto); gap:4px 12px; padding:10px 12px;
+  display:grid; grid-template-columns:repeat(3, auto); gap:4px 12px; padding:10px 12px;
   background:var(--panel); border:1px solid var(--border); border-radius:8px; box-shadow:0 8px 24px rgba(0,0,0,0.45);
 }
+.theme-group{grid-column:1 / -1; font-size:0.68rem; text-transform:uppercase; letter-spacing:0.06em; color:var(--sea); border-top:1px solid var(--border); padding-top:8px; margin-top:4px;}
+@media (max-width:520px){ .theme-menu{grid-template-columns:repeat(2, auto);} }
 .theme-menu[hidden]{display:none;}
 button.theme-option{display:flex; align-items:center; gap:8px; background:none; border:none; padding:4px 6px; border-radius:4px; color:var(--ink); font-size:0.78rem; font-family:var(--font-body); white-space:nowrap; cursor:pointer; box-shadow:none; text-shadow:none;}
 button.theme-option:hover{background:var(--panel2);}
@@ -235,31 +237,9 @@ button.theme-option:hover{background:var(--panel2);}
 button.theme-option[aria-pressed="true"]{font-weight:600;}
 button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box-shadow:0 0 0 2px var(--panel), 0 0 0 3px var(--ink);}
 </style>
-<script>
-// Use the theme picked in the tracker (same browser storage). If it changes in a tracker tab
-// while this page is open, follow it straight away.
-const THEME_FONTS = {
-  tome: 'https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap',
-  keep: 'https://fonts.googleapis.com/css2?family=MedievalSharp&display=swap',
-  inferno: 'https://fonts.googleapis.com/css2?family=Pirata+One&display=swap',
-};
-function applyTheme(key){
-  if(key && key.startsWith('class')) key = DEFAULT_THEME;   // class themes are for character sheets only
-  const root = document.documentElement;
-  if(key && key !== 'harbor') root.setAttribute('data-theme', key); else root.removeAttribute('data-theme');
-  if(THEME_FONTS[key] && !document.getElementById('font-'+key)){
-    const l = document.createElement('link');
-    l.id = 'font-'+key; l.rel = 'stylesheet'; l.href = THEME_FONTS[key];
-    document.head.appendChild(l);
-  }
-}
-// Ember is the default look for anyone who hasn't picked a theme (Justin, 2026-09-30; Keep before that)
-const DEFAULT_THEME = 'ember';
-let savedTheme = null;
-try{ savedTheme = localStorage.getItem('dndTracker:theme'); }catch(e){}
-applyTheme(savedTheme || DEFAULT_THEME);
-window.addEventListener('storage', e=>{ if(e.key === 'dndTracker:theme'){ applyTheme(e.newValue || DEFAULT_THEME); if(window.renderThemeBar) renderThemeBar(); } });
-</script>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&display=swap">
+<link rel="stylesheet" href="css/class-themes.css">
+<script src="js/themes.js"></script>
 </head>
 <body>
 
@@ -355,31 +335,8 @@ window.addEventListener('storage', e=>{ if(e.key === 'dndTracker:theme'){ applyT
 
 
 <script>
-// The Theme menu. The pick is saved under dndTracker:theme, which the tracker also uses, so
-// both pages always show the same theme (keep THEMES in step with turnkeeper.html).
-const THEMES = [
-  {key:'harbor', name:'Harbor', bg:'#13293d', accent:'#4fb8a6'},
-  {key:'midnight', name:'Midnight', bg:'#1a1730', accent:'#c9962f'},
-  {key:'grove', name:'Grove', bg:'#16241c', accent:'#9ccf6f'},
-  {key:'ember', name:'Ember', bg:'#221a1b', accent:'#b8433a'},
-  {key:'daylight', name:'Daylight', bg:'#ffffff', accent:'#1d7a6e'},
-  {key:'tome', name:'Tome', bg:'#f2e7cc', accent:'#7d1a16'},
-  {key:'keep', name:'Keep', bg:'#3a2515', accent:'#d9ad56'},
-  {key:'inferno', name:'Inferno', bg:'#170c0b', accent:'#d42a12'},
-];
-function setTheme(key){
-  const t = THEMES.find(x=>x.key===key) || THEMES[0];
-  applyTheme(t.key);
-  try{ localStorage.setItem('dndTracker:theme', t.key); }catch(e){}   // saved even for Harbor, since Ember is the default
-  renderThemeBar();
-}
-function renderThemeBar(){
-  const menu = document.getElementById('themeMenu');
-  const cur = document.documentElement.getAttribute('data-theme') || 'harbor';
-  menu.innerHTML = THEMES.map(x=>
-    `<button type="button" class="theme-option" data-theme-pick="${x.key}" aria-pressed="${x.key===cur}"><span class="theme-dot" style="background:linear-gradient(135deg, ${x.bg} 50%, ${x.accent} 50%);"></span>${x.name}</button>`).join('');
-  menu.querySelectorAll('[data-theme-pick]').forEach(b=>b.addEventListener('click', ()=>setTheme(b.dataset.themePick)));
-}
+// The Theme menu (js/themes.js builds it: every theme, including the class themes). The pick is
+// the browser's main theme, which the DM Screen and any sheet without its own theme also use.
 // The Theme button opens and closes the menu; a click elsewhere or Escape closes it.
 // It stays open after a pick so themes can be compared.
 function showThemeMenu(open){
@@ -390,7 +347,7 @@ document.getElementById('themeToggle').addEventListener('click', ()=>showThemeMe
 // composedPath, not closest(): picking a theme rebuilds the menu, detaching the clicked button
 document.addEventListener('click', e=>{ if(!e.composedPath().includes(document.getElementById('themePicker'))) showThemeMenu(false); });
 document.addEventListener('keydown', e=>{ if(e.key === 'Escape') showThemeMenu(false); });
-renderThemeBar();
+renderThemeMenu();
 </script>
 <script>
 // Cards with a video clip in .card-art play it from the start when chosen and stop it after
