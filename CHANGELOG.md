@@ -3,6 +3,13 @@
 What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest first.
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
+## Unreleased
+
+### Fixed
+- **The Turnkeeper icon now shows on iPhones and iPads** (home screen, bookmarks and Safari tabs).
+  iOS ignores the SVG icon, so each page also has PNG icons and an Apple touch icon, and Android's
+  "Add to Home screen" uses the same icon.
+
 ## 2026-10-02 — Per-character themes
 
 ### Changed
