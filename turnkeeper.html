@@ -429,7 +429,7 @@ button.flow-btn .src-tag{color:var(--ink); border-color:rgba(255,255,255,0.6);}
 .spell-toggle .arrow{transition:transform .15s; color:var(--sea-dim);}
 .spell-toggle.open .arrow{transform:rotate(90deg);}
 .spell-body{margin-top:0;}
-.spell-body.open{margin-top:12px;}
+.spell-body.open{margin-top:0;}
 .class-select{margin-bottom:12px; display:flex; gap:8px; align-items:center; font-size:0.85rem; color:var(--ink-dim);}
 .class-select select{background:var(--panel2); border:1px solid var(--border); color:var(--ink); padding:6px 8px; border-radius:4px;}
 .level-group{margin-bottom:14px;}
@@ -684,13 +684,13 @@ applyTheme(savedTheme || DEFAULT_THEME);
 
 <!-- STATUS: conditions and magic on you; they change your rolls, speed, HP and AC -->
 <div class="panel" id="statusPanel" hidden>
-  <h2>Status</h2>
+  <div class="panel-head"><h2>Status</h2></div>
   <div class="status-body"></div>
 </div>
 
 <!-- COMBAT MENU -->
 <div class="panel" id="combatPanel">
-  <h2>Combat Menu</h2>
+  <div class="panel-head"><h2>Combat Menu</h2></div>
   <p class="turn-note">On your turn, you can do these in any order. The numbers are just for reference. You can also split your movement, for example moving 10 feet, attacking, then moving the rest. Some bonus actions do depend on something else first, such as off-hand attacks, which need the Attack action.</p>
   <div class="move-line">1. Move up to <span id="moveFt">30</span> feet.<span class="move-dash" id="moveDash"></span></div>
   <div class="combat-bar" id="combatBar" hidden></div>
@@ -725,8 +725,8 @@ applyTheme(savedTheme || DEFAULT_THEME);
 
 <!-- SPELLS -->
 <div class="panel" id="spellsPanel">
-  <div class="spell-toggle" id="spellToggle"><span class="arrow">&#9656;</span><h2 style="margin:0;">Spells</h2></div>
-  <div class="spell-body" id="spellBody">
+  <div class="panel-head"><h2>Spells</h2></div>
+  <div class="spell-body open" id="spellBody">
     <div class="class-select">
       Spell list:
       <select id="spellClassSelect">
@@ -2871,7 +2871,7 @@ function damageCommand(){
   const power = rollState.sel.power;
   if(power){ mod += 10; notes.push(`${power}: +10 damage (not doubled on a crit)`); }
   // Savage Attacker: once per turn, reroll the weapon's damage dice and use either total.
-  // Avrae rolls the weapon dice twice and keeps the higher set; modifiers and extra dice are added once.
+  // The weapon dice are rolled twice and the higher set kept; modifiers and extra dice are added once.
   const savageOk = melee && hasFeat('Savage Attacker') && p.count > 0;
   const weaponDice = `${count}d${p.die}${gwf?'ro<3':''}`;
   const savage = savageOk && rollState.savage;
@@ -3058,7 +3058,7 @@ function renderTable(){
 }
 document.getElementById('combatBanner').addEventListener('click', e=>{
   if(e.target.closest('[data-banner-end]')){ if(track.combat && track.combat.onTurn) endOfTurn(); sendTurnEnd(); renderTable(); return; }
-  document.getElementById('tablePanel').scrollIntoView({behavior:'smooth', block:'start'});
+  tkPanels.expand('tablePanel'); document.getElementById('tablePanel').scrollIntoView({behavior:'smooth', block:'start'});
 });
 document.getElementById('combatBanner').addEventListener('keydown', e=>{ if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); e.currentTarget.click(); } });
 // Who a spell or feature can be cast on: the turn order in combat, else the party
@@ -3200,13 +3200,13 @@ function spellPopupHtml(){
   const empowered = wizardSpell && sp.school==='Evocation' && hasFeature('Empowered Evocation') ? Math.max(1, abilityScoreMod('int')) : 0;
   if(empowered) notes.push(`Empowered Evocation: +${empowered} (Intelligence) added to the damage.`);
   if(wizardSpell && cantrip && r.save && hasFeature('Potent Cantrip')) notes.push('Potent Cantrip: a target that succeeds on the save still takes half the damage.');
-  // Elemental Adept: 1s on the chosen damage type's dice count as 2s (Avrae: mi2), and resistance is ignored
+  // Elemental Adept: 1s on the chosen damage type's dice count as 2s (`mi2` on the dice), and resistance is ignored
   const adept = hasFeat('Elemental Adept') ? getChoice('Elemental Adept').toLowerCase() : '';
   const adeptMi = type=>adept && String(type).toLowerCase()===adept ? 'mi2' : '';
   if(adept){
     const types = [...(r.parts||[]), r.explosion, r.rider, r.ongoing].filter(Boolean).map(x=>String(x.type||'').toLowerCase());
-    if(types.includes(adept)) notes.push(`Elemental Adept (${adept}): 1s count as 2s on the ${adept} dice (<code>mi2</code>), and the spell ignores resistance to ${adept} damage.`);
-    else if(types.some(t=>t.includes(adept))) notes.push(`Elemental Adept: if you pick ${adept}, add <code>mi2</code> after the dice (1s count as 2s) and the spell ignores resistance to it.`);
+    if(types.includes(adept)) notes.push(`Elemental Adept (${adept}): 1s count as 2s on the ${adept} dice (done for you), and the spell ignores resistance to ${adept} damage.`);
+    else if(types.some(t=>t.includes(adept))) notes.push(`Elemental Adept: if you pick ${adept}, 1s on its damage dice count as 2s (count them yourself, since the spell lets you choose the type) and the spell ignores resistance to it.`);
   }
   (r.parts||[]).forEach((p, i)=>{
     const base = p.alt && rollState.alt ? p.alt : p.d;
@@ -3828,16 +3828,8 @@ function preparedCounts(){
 }
 
 /* ---------- Spells section ---------- */
-const spellToggle = document.getElementById('spellToggle');
+// Spells folds like every other panel (js/panel-order.js); the list is always kept up to date
 const spellBody = document.getElementById('spellBody');
-spellToggle.addEventListener('click', ()=>{
-  spellToggle.classList.toggle('open');
-  spellBody.classList.toggle('open');
-  const open = spellBody.classList.contains('open');
-  rememberOpen('spells', open);
-  if(open) renderSpellList();
-});
-if(wasOpen('spells')){ spellToggle.classList.add('open'); spellBody.classList.add('open'); }
 document.getElementById('spellClassSelect').addEventListener('change', renderSpellList);
 
 // Select all / none for the class spell list shown (always-prepared spells have no tick box)
@@ -5108,7 +5100,7 @@ const FEATS = [
   {name:'Dual Wielder', desc:'+1 AC while wielding a separate melee weapon in each hand. Two-Weapon Fighting works with one-handed melee weapons that aren’t light, and you can draw or stow two one-handed weapons at once.'},
   {name:'Dungeon Delver', desc:'Advantage on Perception and Investigation checks to find secret doors, and on saves against traps. Resistance to trap damage. You can search for traps while traveling at a normal pace.'},
   {name:'Durable', asi:{con:1}, desc:'+1 Constitution. When you roll a Hit Die to regain hit points, you regain at least twice your Constitution modifier (minimum 2).'},
-  {name:'Elemental Adept', prereq:'Can cast at least one spell', choose:true, desc:'Pick a damage type. Your spells ignore resistance to it, and when you roll damage of that type, 1s count as 2s. Turnkeeper adds <code>mi2</code> to that damage.',
+  {name:'Elemental Adept', prereq:'Can cast at least one spell', choose:true, desc:'Pick a damage type. Your spells ignore resistance to it, and when you roll damage of that type, 1s count as 2s. Turnkeeper rolls it that way for you.',
     tiers:['Acid','Cold','Fire','Lightning','Thunder'].map(n=>({level:1, name:n, text:`Your spells ignore resistance to ${n.toLowerCase()} damage; 1s on its damage dice count as 2s.`}))},
   {name:'Grappler', prereq:'Strength 13', meets:needs('str',13), type:'action',
     roll:{label:'Pin (Athletics, contested)', cmd:()=>d20Cmd('normal', skillMod('Athletics')), desc:()=>'Grappler: pin the creature you’re grappling'},
@@ -5203,7 +5195,7 @@ function openFeatPicker(level){
   const s = getSlots()[level];
   Object.assign(featUi, {slot:level, tab:s && s.asi ? 'asi' : 'feat', asi:s && s.asi ? {...s.asi} : {}, query:''});
   featSection.open = true; featSection.render();
-  document.getElementById('feToggle').scrollIntoView({behavior:'smooth', block:'start'});
+  tkPanels.expand(document.getElementById('feToggle').closest('.wrap > .panel').id); document.getElementById('feToggle').scrollIntoView({behavior:'smooth', block:'start'});
 }
 function fillSlot(level, value){
   const old = getSlots()[level];
@@ -5501,7 +5493,7 @@ function songOfRestDie(){ const l = charLevel(); return l >= 17 ? 12 : l >= 13 ?
    One die per level, its size set by the class. Spend any number on a short rest: each rolls
    the die + your Constitution modifier. A long rest gives back half your total (at least 1;
    see takeRest). Durable: each die heals at least twice your Con modifier (minimum 2), done
-   with Avrae's `mi` on the die. Tracked as track.used.hitDice. */
+   with `mi` on the die. Tracked as track.used.hitDice. */
 const HIT_DIE = {barbarian:12, fighter:10, paladin:10, ranger:10, bard:8, cleric:8, druid:8, monk:8, rogue:8, warlock:8, sorcerer:6, wizard:6};
 function hitDie(){ return HIT_DIE[cf.classKey] || 0; }
 const hd = {open:false, n:1, done:null};   // the Spend panel: how many, and the last spend (for Undo)
@@ -5528,6 +5520,41 @@ function hitDiceHtml(){
     + (notes.length ? `<ul class="roll-notes">${notes.map(n=>`<li>${n}</li>`).join('')}</ul>` : '')
     + `<div class="hd-count"><span>Enter the total you rolled:</span><input type="number" class="num-in" id="hdTotal" min="0" aria-label="Hit Dice total"><button type="button" class="flow-btn" data-hd="spend">Spend and add HP</button></div></div>`;
   return html;
+}
+/* ---------- Arcane Recovery (wizard, 2014) ----------
+   Once a day, when you finish a short rest: get back spent slots whose levels add up to half your
+   wizard level (rounded up), none 6th level or higher. A short rest opens this picker under the
+   spell slots; Recover gives the slots back and marks the feature used. */
+const arcane = {open:false, pick:{}};
+const arcaneBudget = ()=>Math.ceil(charLevel() / 2);
+const arcaneUsed = ()=>Object.entries(arcane.pick).reduce((n, [l, c])=>n + l*c, 0);
+// Spent slots it can bring back: 1st to 5th level
+const arcaneLevels = ()=>slotTable().filter(s=>s.max > 0 && s.level <= 5 && !s.pact && remaining(s.id) < s.max);
+function arcaneHtml(){
+  const budget = arcaneBudget(), used = arcaneUsed(), levels = arcaneLevels();
+  let html = `<div class="hd-panel"><div><b>Arcane Recovery</b>: pick spent slots adding up to <b>${budget} slot level${budget===1 ? '' : 's'}</b> (none 6th level or higher). Once a day.</div>`;
+  if(!levels.length) return html + `<p class="empty-note">No spent slots to recover. <button type="button" class="sel-toggle" data-arc="close">Close</button></p></div>`;
+  html += levels.map(s=>{
+    const n = arcane.pick[s.level] || 0, spent = s.max - remaining(s.id);
+    const canAdd = n < spent && used + s.level <= budget;
+    return `<div class="hd-count"><span style="min-width:72px;">${ORDINAL[s.level]} level</span><button type="button" class="flow-btn" data-arc="minus" data-lvl="${s.level}" aria-label="One fewer ${ORDINAL[s.level]}-level slot"${n ? '' : ' disabled'}>&minus;</button><b>${n}</b><button type="button" class="flow-btn" data-arc="plus" data-lvl="${s.level}" aria-label="One more ${ORDINAL[s.level]}-level slot"${canAdd ? '' : ' disabled'}>+</button><span>of ${spent} spent</span></div>`;
+  }).join('');
+  return html + `<div class="hd-count"><span>Using ${used} of ${budget}</span><button type="button" class="flow-btn" data-arc="go"${used ? '' : ' disabled'}>Recover</button><button type="button" class="sel-toggle" data-arc="close">Not now</button></div></div>`;
+}
+function arcaneClick(a, lvl){
+  if(a==='plus') arcane.pick[lvl] = (arcane.pick[lvl] || 0) + 1;
+  else if(a==='minus') arcane.pick[lvl] = Math.max(0, (arcane.pick[lvl] || 0) - 1);
+  else if(a==='close'){ arcane.open = false; }
+  else if(a==='go'){
+    const got = [];
+    Object.entries(arcane.pick).forEach(([l, c])=>{ if(c > 0){ spend(slotIdFor(+l), -c); got.push(`${c} ${ORDINAL[l]}-level`); } });
+    spend('feat:Arcane Recovery', 1);
+    arcane.open = false;
+    const msg = document.getElementById('restMsg');
+    const count = Object.values(arcane.pick).reduce((n, c)=>n + c, 0);
+    msg.insertAdjacentHTML('beforeend', ` <span>Arcane Recovery: got back ${got.join(' and ')} slot${count===1 ? '' : 's'}.</span>`);
+  }
+  renderResources();
 }
 function hitDiceClick(a){
   if(a==='toggle'){ hd.open = !hd.open; hd.done = null; }
@@ -5720,9 +5747,12 @@ function takeRest(kind){
     hdText = !hurt ? ' You’re at full HP, so there’s no need to spend Hit Dice.'
       : left ? ` Spend Hit Dice below to heal (${left} left).` : ' You have no Hit Dice left; half come back on a long rest.';
   } else hd.open = false;
-  // Arcane Recovery is used when you finish a short rest (once a day)
-  if(kind==='short' && hasFeature('Arcane Recovery') && remaining('feat:Arcane Recovery') > 0)
-    hdText += ' You can also use Arcane Recovery now (its Roll link in Class Features shows how many slot levels).';
+  // Arcane Recovery is used when you finish a short rest (once a day): open its picker if any slot is spent
+  arcane.open = false; arcane.pick = {};
+  if(kind==='short' && hasFeature('Arcane Recovery') && remaining('feat:Arcane Recovery') > 0 && arcaneLevels().length){
+    arcane.open = true;
+    hdText += ' You can also use Arcane Recovery: pick the slots under Spell slots.';
+  }
   saveTrack(); renderResources(); renderStatus();
   // Name what the rest ended, and anything that lasts until cured
   const nowOn = statusState().on, ended = statusBefore.filter(k=>!nowOn[k]).map(k=>STATUS_BY_KEY[k].name);
@@ -5738,7 +5768,7 @@ function takeRest(kind){
   }
   document.getElementById('restUndo').onclick = ()=>{
     const s = JSON.parse(restUndo); track.hp = s.hp; track.used = s.used; track.fx = s.fx || [];
-    track.death = s.death || {s:0, f:0}; track.combat = s.combat || null; track.temp = s.temp || 0; track.status = s.status || {on:{}, exh:0, bi:6}; track.conc = s.conc || null; track.cast = s.cast || []; restUndo = null;
+    track.death = s.death || {s:0, f:0}; track.combat = s.combat || null; track.temp = s.temp || 0; track.status = s.status || {on:{}, exh:0, bi:6}; track.conc = s.conc || null; track.cast = s.cast || []; restUndo = null; arcane.open = false;
     saveTrack(); renderResources(); renderStatus(); msg.textContent = 'Rest undone.';
   };
 }
@@ -5830,6 +5860,7 @@ function renderResources(){
   const slots = slotTable().filter(s=>s.max>0);
   if(slots.length){
     html += `<div class="res-group">Spell slots</div>` + slots.map(s=>`<div class="res-row"><div class="res-name">${ORDINAL[s.level] || s.level+'th'} level${s.pact ? ' (Pact Magic)' : ''}<small>${remaining(s.id)} of ${s.max} left &middot; back on a ${RECHARGE_TEXT[s.recharge]}</small></div>${pipsHtml(s.id, s.max)}</div>`).join('');
+    if(arcane.open && hasFeature('Arcane Recovery') && remaining('feat:Arcane Recovery') > 0) html += arcaneHtml();
   }
   const res = trackedResources();
   ['Class','Racial','Feats'].forEach(g=>{
@@ -5847,6 +5878,7 @@ function renderResources(){
   rows.innerHTML = html || `<p class="empty-note">No spell slots or limited-use features at this level yet.</p>`;
   rows.querySelectorAll('[data-pip]').forEach(b=>b.addEventListener('click', ()=>spend(b.dataset.pip, b.dataset.on==='true' ? 1 : -1)));
   rows.querySelectorAll('[data-hd]').forEach(b=>b.addEventListener('click', ()=>hitDiceClick(b.dataset.hd)));
+  rows.querySelectorAll('[data-arc]').forEach(b=>b.addEventListener('click', ()=>arcaneClick(b.dataset.arc, +b.dataset.lvl)));
   rows.querySelectorAll('.hd-panel [data-copy]').forEach(b=>b.addEventListener('click', ()=>copyText(b.dataset.copy, b)));
   const hdTotal = document.getElementById('hdTotal');
   if(hdTotal) hdTotal.addEventListener('keydown', e=>{ if(e.key==='Enter') hitDiceClick('spend'); });
@@ -6166,7 +6198,13 @@ document.addEventListener('click', e=>{ if(!e.target.closest('#dicePicker')) sho
 /* Panels in your own order (js/panel-order.js). Saved in this browser for now (one key, to move
    to the player's account when logins come) */
 const PANEL_KEY = 'dndTracker:panels';
-const tkPanels = setupPanelOrder({container:'.wrap', save:o=>{ try{ localStorage.setItem(PANEL_KEY, JSON.stringify(o)); }catch(e){} }});
+// Which panels are collapsed, also kept in this browser. Spells starts collapsed, as it always has
+const FOLD_KEY = 'dndTracker:collapsed';
+let tkFolded = null; try{ tkFolded = JSON.parse(localStorage.getItem(FOLD_KEY) || 'null'); }catch(e){}
+if(!Array.isArray(tkFolded)) tkFolded = wasOpen('spells') ? [] : ['spellsPanel'];
+const tkPanels = setupPanelOrder({container:'.wrap', save:o=>{ try{ localStorage.setItem(PANEL_KEY, JSON.stringify(o)); }catch(e){} },
+  collapsible:true, collapsed:tkFolded,
+  saveCollapsed:ids=>{ try{ localStorage.setItem(FOLD_KEY, JSON.stringify(ids)); }catch(e){} }});
 try{ tkPanels.apply(JSON.parse(localStorage.getItem(PANEL_KEY) || 'null')); }catch(e){}
 document.getElementById('panelReset').addEventListener('click', ()=>tkPanels.reset());
 
