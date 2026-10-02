@@ -6267,8 +6267,7 @@ if(spellBody.classList.contains('open')) renderSpellList();   // Spells was left
 function noteClassTheme(cls){
   window.tkClassKey = cls || null;
   if(cls && currentCharId) storageSet(`dndTracker:classOf:${currentCharId}`, cls);
-  if(savedThemeKey() === 'class') applyTheme('class');
-  renderThemeMenu();
+  themeForSheet(currentCharId);   // this character's own theme (or the main one), and "My class"
 }
 setupSettings({onOpen:()=>{ if(document.getElementById('setDice').open) fillDiceStyleMenu(); }});
 

@@ -46,14 +46,25 @@ const CLASS_THEMES = [
   {key:'class-warlock', name:'Warlock', bg:'#0c1510', accent:'#5cff9c'},
   {key:'class-wizard', name:'Wizard', bg:'#11152f', accent:'#8fb4ff'},
 ];
-const savedThemeKey = ()=>{ try{ return localStorage.getItem('dndTracker:theme') || DEFAULT_THEME; }catch(e){ return DEFAULT_THEME; } };
+/* Each character sheet keeps its own theme (dndTracker:theme:<sheet ID>), so Krunk's tab and
+   Ezlo's tab can look different. A sheet with no pick of its own, the DM Screen and the hub use
+   the browser's main theme (dndTracker:theme). Themes stay in this browser, never shared. */
+function sheetIdNow(){
+  if(window.tkSheetId) return window.tkSheetId;
+  try{ const m = String(new URLSearchParams(location.search).get('sheet') || '').match(/\/d\/([A-Za-z0-9_-]+)/); return m ? m[1] : null; }catch(e){ return null; }
+}
+const themeStoreKey = ()=>{ const id = sheetIdNow(); return id ? 'dndTracker:theme:' + id : 'dndTracker:theme'; };
+const savedThemeKey = ()=>{
+  try{ const id = sheetIdNow(); return (id && localStorage.getItem('dndTracker:theme:' + id)) || localStorage.getItem('dndTracker:theme') || DEFAULT_THEME; }
+  catch(e){ return DEFAULT_THEME; }
+};
 // "My class" (saved as 'class') is the open character's class theme. The class is remembered per
 // sheet (dndTracker:classOf:<sheet ID>), so a sheet draws in it before it has loaded. With no
 // character (the DM Screen), it's the default theme.
 function resolveTheme(key){
   if(key !== 'class') return key;
   let cls = window.tkClassKey || null;
-  if(!cls){ try{ const m = String(new URLSearchParams(location.search).get('sheet') || '').match(/\/d\/([A-Za-z0-9_-]+)/); if(m) cls = localStorage.getItem('dndTracker:classOf:' + m[1]); }catch(e){} }
+  if(!cls){ try{ const id = sheetIdNow(); if(id) cls = localStorage.getItem('dndTracker:classOf:' + id); }catch(e){} }
   return cls ? 'class-' + cls : DEFAULT_THEME;
 }
 function applyTheme(saved){
@@ -69,7 +80,9 @@ function setTheme(key){
   const ok = key === 'class' || THEMES.some(x=>x.key===key) || CLASS_THEMES.some(x=>x.key===key);
   key = ok ? key : THEMES[0].key;
   applyTheme(key);
-  try{ localStorage.setItem('dndTracker:theme', key); }catch(e){}   // saved even for Harbor, since Ember is the default
+  // On a sheet: just this character. Elsewhere: the browser's main theme. Saved even for Harbor,
+  // since Ember is the default.
+  try{ localStorage.setItem(themeStoreKey(), key); }catch(e){}
   renderThemeMenu();
 }
 // Settings → Theme: the themes, then the class themes ("My class" only on a character sheet)
@@ -85,8 +98,13 @@ function renderThemeMenu(){
   menu.querySelectorAll('[data-theme-pick]').forEach(b=>b.addEventListener('click', ()=>setTheme(b.dataset.themePick)));
 }
 applyTheme(savedThemeKey());
-// A theme picked in another tab (tracker, DM Screen or hub) is followed here straight away
-window.addEventListener('storage', e=>{ if(e.key === 'dndTracker:theme'){ applyTheme(e.newValue || DEFAULT_THEME); renderThemeMenu(); } });
+// A theme picked in another tab is followed here straight away: this character's own (another
+// tab of the same sheet), or the main theme when this page has none of its own
+window.addEventListener('storage', e=>{
+  if(e.key === themeStoreKey() || e.key === 'dndTracker:theme'){ applyTheme(savedThemeKey()); renderThemeMenu(); }
+});
+// The tracker calls this once a sheet is open (its ID may not be in the address, e.g. a pasted link)
+function themeForSheet(id){ window.tkSheetId = id || null; applyTheme(savedThemeKey()); renderThemeMenu(); }
 
 /* ---------- Settings (the gear, top right): open and close ----------
    A click elsewhere, Escape or × closes it. It stays open after a pick so themes can be compared.

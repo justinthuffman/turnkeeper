@@ -3,6 +3,13 @@
 What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest first.
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
+## Unreleased
+
+### Changed
+- **Each character keeps its own theme.** Picking a theme on Krunk's sheet changes only Krunk's
+  tabs; Ezlo can be different at the same time. A sheet with no theme of its own, the DM Screen
+  and the hub use the main one. Themes stay in your browser and are never shared with others.
+
 ## 2026-10-02 — DM Screen settings
 
 ### Added
