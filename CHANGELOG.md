@@ -3,6 +3,14 @@
 What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest first.
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
+## Unreleased
+
+### Added
+- **Resistance reminder.** A small line under the Damage button lists what you resist right now,
+  so you halve it before entering it: Bel's fire (Hellish Resistance), all damage while Petrified,
+  and active spells like Blade Ward, Stoneskin, Protection from Energy, Protection from Poison and
+  Fire Shield. Characters with no resistance see nothing.
+
 ## 2026-10-02 — Cast as a ritual
 
 ### Added

@@ -234,6 +234,8 @@ button.build-tag:hover{background:var(--panel2); border-color:var(--sea);}
 .hp-adjust{display:flex; flex-wrap:wrap; align-items:center; gap:8px;}
 .hp-adjust input{width:64px; background:var(--panel2); border:1px solid var(--border); color:var(--ink); padding:7px 8px; border-radius:4px; font-size:0.95rem;}
 .hp-adjust button{padding:7px 12px; font-size:0.85rem;}
+.resist-note{font-size:0.78rem; color:var(--ink-dim); text-align:right; margin:-4px 0 8px;}
+.resist-note b{color:var(--ink); font-weight:600;}
 /* Temporary hit points beside HP */
 .hp-temp{margin-left:8px; padding:1px 4px 1px 9px; border:1px solid var(--sea-dim); border-radius:999px; font-size:0.8rem; color:var(--sea); white-space:nowrap;}
 .hp-temp[hidden]{display:none;}
@@ -652,6 +654,7 @@ applyTheme(savedTheme || DEFAULT_THEME);
       <button type="button" class="sel-toggle" id="hpReset" title="Set hit points back to the value on your sheet">Reset to sheet</button>
     </div>
   </div>
+  <div class="resist-note" id="resistNote" hidden></div>
   <div class="conc-box" id="concBox" hidden></div>
   <div class="death-box" id="deathBox" hidden></div>
   <div id="resRows"><p class="empty-note">Import a sheet to track resources.</p></div>
@@ -2433,7 +2436,28 @@ function endFx(id){
   track.fx = track.fx.filter(x=>x.id!==id); saveTrack(); renderActiveFx();
 }
 function roundsLeft(r){ return track.combat && typeof r==='number' ? ` &middot; ${r} round${r===1 ? '' : 's'} left` : ''; }
+// A small reminder under Damage of what you resist right now (halve that damage before entering it).
+// No damage-type picker on purpose: the player knows the type and does the halving.
+const RESIST_SPELLS = {'Blade Ward':'bludgeoning, piercing and slashing from weapon attacks', 'Stoneskin':'nonmagical bludgeoning, piercing and slashing',
+  'Protection from Energy':'the type you chose', 'Protection from Poison':'poison', 'Fire Shield':'cold (warm shield) or fire (chill shield)'};
+function resistNotes(){
+  if(!currentCharId) return [];
+  if(statusState().on.petrified) return ['all damage (Petrified)'];
+  const out = [];
+  if(hasTrait('Hellish Resistance')) out.push('fire (Hellish Resistance)');
+  if(hasFeature('Aura of Warding')) out.push('damage from spells (Aura of Warding)');
+  if(hasFeature('Spell Resistance')) out.push('damage from spells (Spell Resistance)');
+  const active = new Set([...(track.fx || []).map(e=>e.name), track.conc && track.conc.name].filter(Boolean));
+  Object.entries(RESIST_SPELLS).forEach(([n, t])=>{ if(active.has(n)) out.push(`${t} (${n})`); });
+  return out;
+}
+function renderResistNote(){
+  const el = document.getElementById('resistNote'), list = resistNotes();
+  el.hidden = !list.length;
+  el.innerHTML = list.length ? `<b>Resistant</b> (take half): ${list.map(escapeHtml).join('; ')}` : '';
+}
 function renderActiveFx(){
+  renderResistNote();
   const box = document.getElementById('activeFx'), list = track.fx || [], k = track.conc;
   // Concentration shows as its own chip unless one of the effects is that spell (it already says "concentration")
   const casts = track.cast || [];
