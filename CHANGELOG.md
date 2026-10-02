@@ -3,7 +3,7 @@
 What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest first.
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
-## Unreleased
+## 2026-10-02 — Resistance reminder
 
 ### Added
 - **Resistance reminder.** A small line under the Damage button lists what you resist right now,
