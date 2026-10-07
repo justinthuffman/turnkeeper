@@ -3,6 +3,38 @@
 What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest first.
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
+## 2026-10-07 — V5: characters in Turnkeeper
+
+The start of V5: moving characters off Google Sheets and into Turnkeeper's own database, so
+everything is kept, and editable, in one place. Characters copied into the database open from the
+hub and the DM Screen as before; a character still on a Google Sheet works as it always has.
+
+### Added
+- **Tabs:** Overview, Details, Spells, Inventory and Notes. Drag them into your own order.
+- **Details:** background (a Player's Handbook one or your own), alignment, appearance,
+  personality and story; languages, tools and vehicles, with what your race, class and background
+  give filled in automatically; armor and weapon proficiencies; other speeds.
+- **Level up and Level down.** Experience points show only when the campaign uses them: the DM
+  Screen's Campaign settings has a new Party leveling choice (milestone by default).
+- **Edit Character** (in the Settings gear): name, level, race, class, handedness, ability
+  scores, saving throws and skills. Checks and saves are worked out from these.
+- **Inventory** grouped by type, from the Player's Handbook lists or your own custom items
+  (shared with the campaign), with notes.
+- **Equipment:** armor, and melee and ranged weapons in your main and off hand. Attacks and AC
+  come from what you have equipped. Versatile weapons can be held in both hands.
+- **On hit effects** on weapons (e.g. Bleeding: 2 slashing every turn), applied to the creature
+  you hit, with reminders at the start of a turn.
+- **Gold** with a ledger: every change has a note, and a line added by mistake can be removed.
+  The balance shows next to Inspiration in Resources.
+- **Notes** with simple formatting (bold, italics, quotes, lists and more).
+- **Spells:** click a spell's name to keep its box open, with a link to its full rules.
+
+### Changed
+- **Character Summary** folds everything under the ability scores behind one Expand button.
+  Pinned items still show.
+- **Subclasses** use their full names (Oath of Vengeance, College of Lore).
+- **Import from Google Sheet** moved to the bottom of the Settings gear.
+
 ## 2026-10-07 — First roll on iPhone
 
 ### Fixed
