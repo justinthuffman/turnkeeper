@@ -799,6 +799,7 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
       <button class="ghost" id="clearBtn" type="button">Clear</button>
     </div>
     <div class="status" id="importStatus">Sheet must be shared as "Anyone with the link can view."</div>
+    <div class="import-row" id="dbCopyRow" style="margin-top:8px;" hidden><button type="button" class="ghost" id="dbCopyBtn">Copy this character into the Turnkeeper database</button><span class="status" id="dbCopyMsg"></span></div>
     <div id="rawDumpWrap" style="display:none; margin-top:10px;">
       <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
         <div class="spell-toggle" id="rawDumpToggle" style="font-size:0.85rem;"><span class="arrow">&#9656;</span><span style="color:var(--sea-dim);">Show raw sheet cells (for fixing ranges)</span></div>
@@ -822,6 +823,8 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
 </div>
 
 <script src="js/dice.js"></script>
+<script src="js/data/equipment.js"></script>
+<script src="js/char-store.js"></script>
 <script>
 /* ---------- Spell data (level|Name|School|Casting Time|Range|Duration|Components) ---------- */
 const WIZARD_RAW = `0|Acid Splash|Conjuration|1 Action|60 Feet|Instantaneous|V, S
@@ -4394,9 +4397,9 @@ function applyCore(core, charId){
   ABILITY_KEYS.forEach(a=>{ document.getElementById('s_' + a).value = String(core.scores[a] ?? 10); });
   refreshMods();
   currentCharId = charId;
-  // Character name: the record's, else saved for this sheet in this browser, else the hub link's
+  // Character name: as renamed (saved with the character), else the record's, else the hub link's
   // name. With none of those, ask once; the answer is saved.
-  const charName = core.name || savedName(charId) || importNameHint;
+  const charName = savedName(charId) || core.name || importNameHint;
   importNameHint = '';
   if(charName && !savedName(charId)) saveName(charId, charName);
   setCharName(charName);
@@ -4469,11 +4472,50 @@ async function runImport(){
 
     applyCore(sheetToCore(table), sheetId);
     setStatus('Imported.', 'ok');
+    dbCopyConfirm = false; document.getElementById('dbCopyMsg').textContent = '';
+    document.getElementById('dbCopyRow').hidden = !!charStore.kv || !myCampaignKey();
   }catch(err){
     setStatus('Import failed: ' + err.message, 'err');
   }
 }
 document.getElementById('importBtn').addEventListener('click', runImport);
+
+/* ---------- V5: open a character from the database (turnkeeper.html?char=<id>) ---------- */
+async function openDbCharacter(id, campaignKey){
+  setStatus('Opening the character…');
+  try{
+    const db = await tkDbReady();
+    const rec = await db.getChar(campaignKey, id);
+    if(!rec || !rec.core) throw new Error('That character isn’t in the Turnkeeper database yet.');
+    Object.assign(charStore, {id, campaign:campaignKey, kv:rec.kv || {}, pending:{}});
+    applyCore(rec.core, id);
+    document.getElementById('dbCopyRow').hidden = true;
+    setStatus('Loaded from the Turnkeeper database.', 'ok');
+  }catch(err){ setStatus(err.message, 'err'); }
+}
+// Import day: copy a sheet's character, and what this browser keeps for it, into the database
+// (a local copy of Turnkeeper writes to the test campaign)
+let dbCopyConfirm = false;
+document.getElementById('dbCopyBtn').addEventListener('click', async ()=>{
+  const msg = document.getElementById('dbCopyMsg'), id = currentCharId, c = myCampaignKey();
+  if(!id || !currentCore || !c){ msg.textContent = 'Import a campaign character first.'; return; }
+  try{
+    const db = await tkDbReady();
+    const name = savedName(id) || currentCore.name || 'This character';
+    if(await db.getChar(c, id) && !dbCopyConfirm){ dbCopyConfirm = true; msg.textContent = `${name} is already in the database. Click again to replace it.`; return; }
+    dbCopyConfirm = false;
+    const kv = {};
+    for(let i = 0; i < localStorage.length; i++){
+      const k = localStorage.key(i);
+      if(k && k.startsWith('dndTracker:') && k.includes(id) && !PER_BROWSER_KEY.test(k)) kv[encodeKvKey(k.replace(/^dndTracker:/, '').split(id).join('@'))] = localStorage.getItem(k);
+    }
+    const core = JSON.parse(JSON.stringify({...currentCore, name}));   // no undefined values for Firebase
+    await db.setCore(c, id, core);
+    if(Object.keys(kv).length) await db.updateKv(c, id, kv);
+    const test = new URLSearchParams(location.search).has('test') || ['localhost', '127.0.0.1', '[::1]', ''].includes(location.hostname);
+    msg.textContent = `Copied ${name} into the database${test ? ' (test campaign)' : ''}, with ${Object.keys(kv).length} saved items from this browser.`;
+  }catch(err){ msg.textContent = 'Couldn’t copy: ' + err.message; }
+});
 document.getElementById('clearBtn').addEventListener('click', ()=>{
   document.getElementById('sheetUrl').value='';
   setStatus('Sheet must be shared as "Anyone with the link can view."', '');
@@ -4780,8 +4822,8 @@ function subclassFromText(classKey, cls){
 // Pins live in localStorage, one key per character (sheet ID) per section per item.
 // Storage can be unavailable (private mode, blocked site data), so pins also live in memory.
 let currentCharId = '';
-function storageGet(key){ try{ return localStorage.getItem(key); }catch(e){ return null; } }
-function storageSet(key, val){ try{ if(val===null) localStorage.removeItem(key); else localStorage.setItem(key, val); }catch(e){} noteChange(key); }
+function storageGet(key){ const db = charStoreGet(key); if(db !== undefined) return db; try{ return localStorage.getItem(key); }catch(e){ return null; } }
+function storageSet(key, val){ if(!charStoreSet(key, val)){ try{ if(val===null) localStorage.removeItem(key); else localStorage.setItem(key, val); }catch(e){} } noteChange(key); }
 /* ---------- Character name ----------
    The public v2.1 sheet has no character-name cell, and its structure can't be changed (other
    people use the same template). So the name is remembered per sheet in this browser: from
@@ -6301,7 +6343,11 @@ setupSettings({onOpen:()=>{ if(document.getElementById('setDice').open) fillDice
   const params = new URLSearchParams(window.location.search);
   const sheetParam = params.get('sheet');
   const nameParam = params.get('name');
-  if(sheetParam){
+  const charParam = params.get('char');
+  if(charParam && /^[A-Za-z0-9_-]{6,60}$/.test(charParam)){
+    const camp = params.get('c') || (CAMPAIGNS.find(c=>c.sheets.includes(charParam)) || CAMPAIGNS[0]).key;
+    await openDbCharacter(charParam, camp);
+  } else if(sheetParam){
     document.getElementById('sheetUrl').value = sheetParam;
     importNameHint = (nameParam || '').trim();   // used (and saved) only if this sheet has no saved name yet
     await runImport();
@@ -6459,11 +6505,20 @@ const FBK = key=>TEST_MODE ? 'test' : key;
 const clean = v=>typeof v === 'string' ? v.replace(/[<>"&`]/g, '').slice(0, 200) : Array.isArray(v) ? v.map(clean)
   : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k, x])=>[k.replace(/[<>"&`]/g, ''), clean(x)])) : v;
 try{
-  const [{initializeApp}, {getAuth, signInAnonymously}, {getDatabase, ref, get, set, onValue, onDisconnect, serverTimestamp, runTransaction}] =
+  const [{initializeApp}, {getAuth, signInAnonymously}, {getDatabase, ref, get, set, update, onValue, onDisconnect, serverTimestamp, runTransaction}] =
     await Promise.all(['firebase-app.js', 'firebase-auth.js', 'firebase-database.js'].map(f=>import(FB + f)));
   const app = initializeApp(FIREBASE_CONFIG);
   await signInAnonymously(getAuth(app));
   const db = getDatabase(app);
+  // V5: characters in the database (js/char-store.js). Records come back raw: applyCore and the
+  // tracker's loaders check each value, and kv values are JSON or plain text they parse themselves.
+  const charRef = (c, id, part)=>ref(db, `campaigns/${FBK(c)}/characters/${id}${part ? '/' + part : ''}`);
+  window.tkDb = {
+    getChar: async (c, id)=>(await get(charRef(c, id))).val(),
+    listChars: async c=>(await get(ref(db, `campaigns/${FBK(c)}/characters`))).val() || {},
+    setCore: (c, id, core)=>update(charRef(c, id), {core, t:serverTimestamp()}),
+    updateKv: (c, id, patch)=>update(charRef(c, id), {...Object.fromEntries(Object.entries(patch).map(([k, v])=>['kv/' + k, v])), t:serverTimestamp()}),
+  };
   const compared = new Set(), watched = new Set(), healWatched = new Set();
   // Follow the campaign: the DM's combat, everyone's effects and live state (tkTableUpdate)
   const following = new Set();
