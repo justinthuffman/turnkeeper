@@ -2256,7 +2256,7 @@ function startOfTurn(){
   const c = track.combat;
   if(c.started) c.round += 1;
   Object.assign(c, {started:true, onTurn:true, reaction:false, attacks:0, once:{}});
-  c.msg = `Round ${c.round}: your turn. Your reaction is back.`;
+  c.msg = [`Round ${c.round}: your turn. Your reaction is back.`, ...turnEffectNotes()].join(' ');
   // A new turn: Dash from last turn is over
   dashActive = false; bonusDashActive = false;
   closeDetail();
@@ -2895,7 +2895,7 @@ function openRollPopup(sel, mode){
   hideTooltip();
   Object.assign(rollState, {sel, mode, crit:false, autoCrit:false, smite:0, undead:false, alt:false, sneak:false, savage:false, spendInfo:null, smiteSpent:null,
     fxList:[], fxOn:{}, fxStarted:null, concEnded:[], fxBefore:null, fxUsed:false, healed:null, healBefore:null, healTo:null, healDone:null, tempMsg:'', selfCast:null, statusBefore:null, target:null, castBefore:null, aim:null,
-    insp:false, reactionMarked:false, reactionWasUsed:false, attackNo:0, attackCounted:false});
+    insp:false, reactionMarked:false, reactionWasUsed:false, attackNo:0, attackCounted:false, onHitDone:[]});
   // In combat: a reaction is marked used when its popup opens (Undo on the slot gives it back);
   // an attack from the Attack action is counted when you copy its to-hit command
   if(inCombat()){
@@ -3159,7 +3159,7 @@ function followDmCombat(){
   if(changed){ saveTrack(); renderCombat(); renderActiveFx(); }
   if(active && myTurn && !track.combat.onTurn && tableWas.myTurn !== true){
     startOfTurn();
-    track.combat.round = c.round; track.combat.msg = `Round ${c.round}: your turn. Your reaction is back.`;
+    track.combat.round = c.round; track.combat.msg = [`Round ${c.round}: your turn. Your reaction is back.`, ...turnEffectNotes()].join(' ');
     saveTrack(); renderCombat();
   } else if(active && !myTurn && tableWas.myTurn === true && track.combat.onTurn) endOfTurn();
   tableWas.active = active; tableWas.myTurn = active ? myTurn : null;
@@ -3454,6 +3454,40 @@ function spendLineHtml(){
   if(s.state==='undone') return `<div class="spent-line">Not used: ${s.desc} was given back (${remaining(s.id)} left).</div>`;
   return `<div class="spent-line warn">${cap}: none left. Check with your DM, or restore one in Resources if that’s wrong.</div>`;
 }
+/* V5: a weapon's "On hit" effects (js/inventory.js), applied to the creature you hit. It's shared
+   like a spell you cast on someone (track.cast → effects/<sheet>): it shows on the turn order here
+   and on the DM Screen, a standard condition is ticked on a player it lands on, and it's ended
+   from your Active effects (or runs out, for a set number of turns). */
+function onHitApplyHtml(){
+  const a = rollState.sel && rollState.sel.attack, fx = a && a.onHit;
+  if(!fx || !fx.length || !tkConnected()) return '';
+  const cands = targetCandidates().filter(c=>c.sheet !== currentCharId), done = rollState.onHitDone || [];
+  return `<div class="roll-box target-pick"><div class="roll-box-label">On hit</div>`
+    + fx.map(x=>`<div class="roll-after"><b>${escapeHtml(x.name)}</b>${x.desc ? `: ${escapeHtml(x.desc)}` : ''}</div>`
+      + (cands.length ? `<div class="roll-toggles">${cands.map(c=>{ const on = done.includes(x.name + '|' + c.key);
+          return `<button type="button" class="flow-btn${on ? ' active' : ''}" data-onhit="${escapeHtml(x.name)}" data-who="${escapeHtml(c.key)}"${on ? ' disabled' : ''}>${on ? 'On ' : ''}${escapeHtml(c.name)}</button>`; }).join('')}</div>`
+        : `<p class="empty-note">No one to put it on yet.</p>`)).join('')
+    + `<div class="roll-after">If it hit, put it on the creature you hit. End it from your Active effects.</div></div>`;
+}
+function applyOnHit(name, key){
+  const def = (typeof effectList === 'function' ? effectList() : []).find(e=>e.name === name);
+  const cand = targetCandidates().find(c=>c.key === key); if(!def || !cand) return;
+  const turns = String(def.duration || '').match(/(\d+)\s*turns?/i);
+  track.cast = track.cast || [];
+  track.cast.push({id:'c' + Date.now(), name:def.name, status:def.standard ? def.key : null, conc:false,
+    rounds:turns ? +turns[1] : null, targets:[{id:cand.id, name:cand.name, sheet:cand.sheet}]});
+  rollState.onHitDone = [...(rollState.onHitDone || []), name + '|' + key];
+  saveTrack(); applyIncoming(); renderActiveFx(); renderTable(); renderRollPopup();
+}
+// At the start of your turn: what's on you that hurts each turn (Bleeding: 2 slashing)
+function turnEffectNotes(){
+  if(typeof campaignDefs === 'undefined') return [];
+  const defs = Object.values(campaignDefs.effectDefs || {});
+  return allEffects().filter(e=>e.casterSheet !== currentCharId && arrOf(e.targets).some(t=>t.sheet === currentCharId)).map(e=>{
+    const d = defs.find(x=>x.name === e.name); if(!d || !d.dmg || d.freq !== 'turn') return null;
+    return `${e.name} (from ${e.caster}): take ${d.dmg} ${d.dmgType || ''} damage now, with Damage in Resources${d.endKind && d.endWhat ? `; a DC ${d.endDC || '?'} ${d.endWhat} ${d.endKind} ends it` : ''}${d.duration === 'healed' ? '; it ends once you’re healed' : ''}.`.replace(/\s+/g, ' ');
+  }).filter(Boolean);
+}
 function renderRollPopup(){
   const {sel, mode} = rollState;
   const modeLabel = ROLL_MODES.find(([k])=>k===attackMode())[1];
@@ -3501,6 +3535,7 @@ function renderRollPopup(){
       const notes = dmg.notes.length ? `<ul class="roll-notes">${dmg.notes.map(n=>`<li>${n}</li>`).join('')}</ul>` : '';
       html += cmdBox('Damage', {...dmg, crit:rollState.crit}, toggles + notes);
     }
+    html += onHitApplyHtml();
   }
   document.getElementById('rollBody').innerHTML = html;
 }
@@ -3538,6 +3573,7 @@ rollPopup.addEventListener('click', e=>{
     renderRollPopup();
   }
   else if(t.dataset.target) targetClick(t.dataset.target);
+  else if(t.dataset.onhit) applyOnHit(t.dataset.onhit, t.dataset.who);
   else if(t.dataset.aim) aimClick(t.dataset.aim);
   else if(t.dataset.selfCast) selfCastClick(t.dataset.selfCast);
   else if(t.dataset.statusUsed){ setStatusOn(t.dataset.statusUsed, false); t.closest('li').innerHTML = `${STATUS_BY_KEY[t.dataset.statusUsed].name} removed from Status.`; }

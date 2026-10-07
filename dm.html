@@ -1080,7 +1080,15 @@ function nextTurn(){
     if(!isDown(list[i])) break;
   }
   combat.turn = list[i] ? list[i].id : null;
-  if(list[i]) logLine(`${list[i].name}’s turn`);
+  if(list[i]){
+    logLine(`${list[i].name}’s turn`);
+    // V5: damage each turn from a custom effect on it (Bleeding from Grun's Greataxe). A player's
+    // own Turnkeeper reminds them; for monsters it's here in the log.
+    if(list[i].kind !== 'pc') effectsOn(list[i]).forEach(e=>{
+      const d = (window.dmEffectDefs || {})[e.name];
+      if(d && d.dmg && d.freq === 'turn') logLine(`${list[i].name}: ${e.name} (from ${e.caster || 'a player'}), take ${d.dmg} ${d.dmgType || ''} damage${d.endKind && d.endWhat ? `; a DC ${d.endDC || '?'} ${d.endWhat} ${d.endKind} ends it` : ''}${d.duration === 'healed' ? '; ends when healed' : ''}`.replace(/\s+/g, ' '));
+    });
+  }
   saveCombat(); renderInit();
   const row = document.querySelector('.cbt.turn');
   if(row && row.getBoundingClientRect().top > window.innerHeight - 80) row.scrollIntoView({block:'center', behavior:'smooth'});
@@ -1854,6 +1862,8 @@ try{
     const fail = err=>{ console.warn('Live updates:', err); window.dmLiveStatus('err', err.message); };
     stops.push(onValue(ref(db, `campaigns/${FBK(key)}/live`), snap=>{ window.dmLiveStatus('on'); window.dmLiveUpdate(key, clean(snap.val())); }, fail));
     stops.push(onValue(ref(db, `campaigns/${FBK(key)}/effects`), snap=>window.dmEffectsUpdate(key, clean(snap.val())), fail));
+    // V5: the campaign's custom effects (Bleeding: 2 slashing every turn), for start-of-turn reminders
+    stops.push(onValue(ref(db, `campaigns/${FBK(key)}/effectDefs`), snap=>{ const out = {}; Object.values(snap.val() || {}).forEach(r=>{ try{ const d = JSON.parse(r.json); if(d && r.name) out[String(r.name)] = d; }catch(e){} }); window.dmEffectDefs = out; }, fail));
     stops.push(onValue(ref(db, `campaigns/${FBK(key)}/acts`), snap=>window.dmActsUpdate(key, clean(snap.val())), fail));
     stops.push(onValue(ref(db, `campaigns/${FBK(key)}/allow`), snap=>window.dmAllowUpdate(key, clean(snap.val())), fail));
     // Rolls and settings arrive raw: their links must keep every character (js/dice.js checks every field)
