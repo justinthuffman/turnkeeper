@@ -3,6 +3,16 @@
 What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest first.
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
+## Unreleased
+
+### Fixed
+- **Dice stopped showing on Android tablets** after a few rolls, until the browser was closed.
+  Chrome can take the 3D dice's graphics away (low memory, switching apps, the screen sleeping);
+  Turnkeeper now notices and builds the dice fresh on the next roll.
+- **Dice were laggy with sound on iPhone** (Safari, Firefox and Brave). Each clack now plays from a
+  sound decoded once instead of rewinding an audio clip mid-roll, at most six at a time, and
+  harder hits are louder on iPhone too.
+
 ## 2026-10-02 — Icon on iPhones and iPads
 
 ### Fixed

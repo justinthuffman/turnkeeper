@@ -266,12 +266,13 @@ function diceBox(){
       if(speed < 150) return;
       const list = dice ? (e.diceShape === 'd2' ? this.sounds_dice.coin : this.sounds_dice[this.sound_dieMaterial]) : this.sounds_table[this.surface];
       const a = list && list[Math.floor(Math.random() * list.length)]; if(!a) return;
-      wireDiceAudio(a);
-      a.volume = Math.min(1, Math.max(0.25, speed / 1400));
-      try{ a.currentTime = 0; }catch(err){}
-      a.play().catch(()=>{});
+      playDiceSound(a, Math.min(1, Math.max(0.25, speed / 1400)));
       this.lastSoundType = dice ? 'dice' : 'table'; this.lastSoundStep = e.world.stepnumber; this.lastSound = now + this.soundDelay;
     };
+    // Phones and tablets can take the 3D canvas's graphics away (low memory, switching apps, the
+    // screen sleeping): Chrome on Android does it often. Nothing draws after that, so throw this
+    // box away and build a fresh one on the next roll.
+    box.renderer.domElement.addEventListener('webglcontextlost', e=>{ e.preventDefault(); dropDiceBox(box); }, {once:true});
     return box;
   })().catch(err=>{ console.warn('3D dice unavailable:', err); diceBoxP = null; return null; });
   return diceBoxP;
@@ -285,18 +286,52 @@ function diceAudioOut(){
     const C = window.AudioContext || window.webkitAudioContext; if(!C) return null;
     const ctx = new C(), gain = ctx.createGain();
     gain.connect(ctx.destination);
-    diceAudio = {ctx, gain, wired:new WeakSet()};
+    diceAudio = {ctx, gain};
     const wake = ()=>{ if(ctx.state === 'suspended') ctx.resume().catch(()=>{}); };
     ['pointerdown', 'keydown'].forEach(t=>document.addEventListener(t, wake, {capture:true, passive:true}));
   }
   return diceAudio;
 }
 function setDiceGain(vol){ const o = diceAudioOut(); if(o) o.gain.gain.value = Math.max(0, vol) / 100 * 2.5; }
-function wireDiceAudio(a){
-  const o = diceAudioOut(); if(!o) return;
-  if(!o.wired.has(a)){ try{ o.ctx.createMediaElementSource(a).connect(o.gain); o.wired.add(a); }catch(err){} }
-  if(o.ctx.state === 'suspended') o.ctx.resume().catch(()=>{});
+/* Each clack plays from a sound decoded once (an AudioBuffer), not by rewinding and replaying an
+   audio element: on iPhones every rewind-and-play is slow and runs inside the dice physics, so
+   sound made rolls lag (and iOS ignores an element's volume, so "harder is louder" didn't work).
+   A few clacks at a time at most, so a big handful of dice can't flood it. */
+const diceBuffers = new Map();   // sound file → decoded AudioBuffer (or the promise decoding it)
+let diceVoices = 0;
+const DICE_VOICES_MAX = 6;
+function loadDiceBuffer(src){
+  const o = diceAudioOut(); if(!o || !src || diceBuffers.has(src)) return;
+  diceBuffers.set(src, fetch(src).then(r=>r.arrayBuffer()).then(b=>new Promise((ok, bad)=>o.ctx.decodeAudioData(b, ok, bad)))
+    .then(buf=>{ diceBuffers.set(src, buf); return buf; }).catch(()=>{ diceBuffers.delete(src); }));
 }
+// Decode every dice and floor sound the box has loaded (once each)
+function loadDiceBuffers(box){
+  [...Object.values(box.sounds_dice || {}), ...Object.values(box.sounds_table || {})]
+    .forEach(list=>[].concat(list || []).forEach(a=>a && loadDiceBuffer(a.src)));
+}
+function playDiceSound(a, vol){
+  const o = diceAudioOut(); if(!o) return;
+  if(o.ctx.state === 'suspended') o.ctx.resume().catch(()=>{});
+  const buf = diceBuffers.get(a.src);
+  if(!(buf instanceof AudioBuffer)){ loadDiceBuffer(a.src); return; }   // still decoding: skip this clack
+  if(diceVoices >= DICE_VOICES_MAX) return;
+  const src = o.ctx.createBufferSource(), g = o.ctx.createGain();
+  src.buffer = buf; g.gain.value = vol;
+  src.connect(g).connect(o.gain);
+  diceVoices++;
+  src.onended = ()=>{ diceVoices--; src.disconnect(); g.disconnect(); };
+  src.start();
+}
+// Throw away a dice box whose 3D canvas was lost; the next roll builds a new one
+function dropDiceBox(box){
+  if(box && box.__dropped) return;
+  if(box) box.__dropped = true;
+  diceBoxP = null; diceLook = ''; trayWalls = [];
+  try{ if(box){ box.sounds = false; box.renderer.dispose(); } }catch(err){}
+  const layer = document.getElementById('diceLayer'); if(layer) layer.innerHTML = '';
+}
+const diceCanvasLost = box=>{ try{ const gl = box.renderer.getContext(); return !gl || gl.isContextLost(); }catch(err){ return true; } };
 // Tray size for a shape: width / height (a hexagon is 2 : √3), fitting the screen
 const TRAY_RATIO = {hex:2 / Math.sqrt(3), square:1, rect:1.5, oct:1, round:1};
 function sizeTray(shape, size){
@@ -349,7 +384,7 @@ async function setTray(box, st, strength){
   box.sounds = snd.on && critSettings.diceSound && snd.vol > 0; box.volume = snd.vol;   // the DM can mute dice for the campaign
   if(box.sounds) setDiceGain(snd.vol);   // how loud: up to 2.5× the browser's normal 100%
   box.surface = TRAY_FLOORS[st.floor].sound;
-  if(box.sounds) await box.loadSounds().catch(()=>{});   // fetched once per floor sound
+  if(box.sounds){ await box.loadSounds().catch(()=>{}); loadDiceBuffers(box); }   // fetched and decoded once per sound
 }
 // The library never frees what it draws: each look's face pictures stay cached and each roll
 // leaves its dice behind. Free them here, or memory climbs with every roll and look.
@@ -380,7 +415,10 @@ async function play3d(roll){
   if(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   const shown = roll.dice.filter(d=>SHOWN_SIDES.includes(d.s)).slice(0, 24);
   if(!shown.length) return;
-  const seq = ++dicePlaySeq, box = await diceBox();
+  const seq = ++dicePlaySeq;
+  let box = await diceBox();
+  // A canvas lost while the tab was in the background (its warning missed): start a fresh one
+  if(box && diceCanvasLost(box)){ dropDiceBox(box); box = await diceBox(); }
   if(!box || seq !== dicePlaySeq) return;
   const st = safeDiceStyle(roll.style);
   await setDiceLook(box, st);
@@ -390,6 +428,7 @@ async function play3d(roll){
   if(seq !== dicePlaySeq) return;
   const layer = document.getElementById('diceLayer');
   layer.style.transition = 'none'; layer.style.opacity = '1'; layer.dataset.on = '1';
+  if(box.sounds) loadDiceBuffers(box);   // any sound the library has loaded since (each is decoded once)
   return box.roll(shown.map(d=>'1d' + d.s).join('+') + '@' + shown.map(d=>d.v).join(',')).catch(err=>console.warn('3D dice:', err));   // settles when the dice land
 }
 function clearDice(){
