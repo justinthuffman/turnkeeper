@@ -250,4 +250,4 @@ document.addEventListener('click', e=>{
 document.addEventListener('input', e=>{ if(e.target.id === 'notesText') saveNotes(); });
 
 // Everything above, for the character just shown (called at the end of applyCore)
-window.renderCharSheet = ()=>{ renderDetails(); renderProfs(); renderGold(); renderNotes(); };
+window.renderCharSheet = ()=>{ renderDetails(); renderProfs(); renderGold(); renderNotes(); if(window.renderGear) window.renderGear(); };

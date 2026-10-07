@@ -796,6 +796,21 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
   <div class="panel-head"><h2>Proficiencies &amp; Languages</h2></div>
   <div id="profBody"></div>
 </div>
+<div class="panel" id="equipPanel" hidden>
+  <div class="panel-head"><h2>Equipment</h2></div>
+  <div id="equipBody"></div>
+</div>
+<div class="panel" id="invPanel" hidden>
+  <div class="panel-head"><h2>Inventory</h2><span class="cs-save-msg" id="invTotals"></span></div>
+  <div class="cs-add inv-add">
+    <input type="text" id="invName" list="invNames" maxlength="80" placeholder="Add an item: start typing a name…" aria-label="Item to add">
+    <input type="number" id="invQty" min="1" value="1" aria-label="How many">
+    <button type="button" class="chip-btn" id="invAddBtn">Add</button>
+    <datalist id="invNames"></datalist>
+  </div>
+  <div id="itemForm" class="item-form" hidden></div>
+  <div id="invTable"></div>
+</div>
 <div class="panel" id="goldPanel" hidden>
   <div class="panel-head"><h2>Gold</h2><span class="gold-bal" id="goldBal">0 gp</span></div>
   <div class="gold-row">
@@ -3028,6 +3043,9 @@ function damageCommand(){
     const d = parseDice(e.dice), type = /same type/.test(e.type) ? p.type : e.type;
     return {dice:`${d.n * critX}d${d.s}`, label:`${e.name}${type ? ` (${type})` : ''}`};
   });
+  // V5: a weapon's "On hit" effects (js/inventory.js), e.g. Grun's Greataxe → Bleeding
+  (a.onHit || []).forEach(x=>notes.push(`On hit: <b>${escapeHtml(x.name)}</b>${x.desc ? ` (${escapeHtml(x.desc)})` : ''}. Tell your DM.`));
+  if(a.notProficient) notes.push(`Not proficient with ${escapeHtml(a.name)}: no proficiency bonus on the attack roll.`);
   fxOn().forEach(e=>{
     if(e.hitSave) notes.push(`${e.name}: the target makes a <b>DC ${e.dc} ${ABILITY_TEXT(e.hitSave.save)}</b> save or is ${e.hitSave.effect}.`);
     if(e.until==='hit' && !e.target) notes.push(`${e.name} ends when you copy this damage (it hit).`);
@@ -4458,7 +4476,10 @@ function applyCore(core, charId){
   // Jack of All Trades, which also adds to initiative: it's a Dexterity check)
   const checks = coreChecks(core);
   state.saves = checks.saves; state.skills = checks.skills;
-  state.attacks = (core.attacks || []).map(a=>({...a}));
+  // Attacks: from equipped weapons (js/inventory.js) for a database character, else the imported ones
+  state.attacks = ((typeof equippedAttacks === 'function' && equippedAttacks(core)) || core.attacks || []).map(a=>({...a}));
+  const gearAC = typeof equippedAC === 'function' ? equippedAC(core) : null;
+  if(gearAC !== null){ document.getElementById('f_ac').value = gearAC; statusBaseAC = String(gearAC); }
   document.getElementById('f_init').value = fmtMod(abilityMod(core.scores.dex) + joatBonus());
   basePassive = 10 + checks.skills.find(s=>s.name === 'Perception').mod;
   attackSection.loadPins(); attackSection.render();
@@ -4519,6 +4540,7 @@ async function openDbCharacter(id, campaignKey){
   setStatus('Opening the character…');
   try{
     const db = await tkDbReady();
+    if(window.tkFollowDefs) window.tkFollowDefs(campaignKey);   // the campaign's custom items and effects
     const rec = await db.getChar(campaignKey, id);
     if(!rec || !rec.core) throw new Error('That character isn’t in the Turnkeeper database yet.');
     Object.assign(charStore, {id, campaign:campaignKey, kv:rec.kv || {}, pending:{}});
@@ -6391,6 +6413,7 @@ setupSettings({onOpen:()=>{ if(document.getElementById('setDice').open) fillDice
 <script src="js/panel-order.js"></script>
 <script src="js/char-icons.js"></script>
 <script src="js/char-sheet.js"></script>
+<script src="js/inventory.js"></script>
 <script>
 
 /* ---------- Dice in the tracker (V4) ----------
@@ -6555,6 +6578,15 @@ try{
     // Part of the record: {details:{…}, languages:[…]} → core/details, core/languages
     updateCore: (c, id, patch)=>update(charRef(c, id), {...Object.fromEntries(Object.entries(patch).map(([k, v])=>['core/' + k, v === undefined ? null : v])), t:serverTimestamp()}),
     updateKv: (c, id, patch)=>update(charRef(c, id), {...Object.fromEntries(Object.entries(patch).map(([k, v])=>['kv/' + k, v])), t:serverTimestamp()}),
+    // The campaign's shared custom items (Grun's Greataxe) and effects (Bleeding): {name, json, by, t}
+    saveDef: (c, part, id, name, def, by)=>set(ref(db, `campaigns/${FBK(c)}/${part}/${id}`), {name:String(name).slice(0, part === 'items' ? 80 : 60), json:JSON.stringify(def), by:String(by || '').slice(0, 60), t:serverTimestamp()}),
+  };
+  // Follow a campaign's custom items and effects (every player's list updates as they're added)
+  const defsFollowed = new Set();
+  window.tkFollowDefs = c=>{
+    if(defsFollowed.has(c)) return; defsFollowed.add(c);
+    ['items', 'effectDefs'].forEach(part=>onValue(ref(db, `campaigns/${FBK(c)}/${part}`),
+      s=>{ if(window.tkDefsUpdate) window.tkDefsUpdate(part, s.val() || {}); }, err=>console.warn('Custom items:', err)));
   };
   const compared = new Set(), watched = new Set(), healWatched = new Set();
   // Follow the campaign: the DM's combat, everyone's effects and live state (tkTableUpdate)
