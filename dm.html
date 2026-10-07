@@ -376,6 +376,9 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
 .dice-style-menu .ds-row-full{grid-column:1 / -1; display:flex; gap:8px; align-items:center; flex-wrap:wrap;}
 .dice-style-menu .ds-note{grid-column:1 / -1; color:var(--ink-dim); font-size:0.72rem;}
 </style>
+<script src="js/config.js"></script>
+<script src="js/firebase.js"></script>
+<script src="js/sheet-reader.js"></script>
 <script src="js/themes.js"></script>
 </head>
 <body>
@@ -562,17 +565,7 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
    initiative tracker, 2014 DMG encounter difficulty, a rules reference and session notes.
    Everything the DM enters is saved in this browser, per campaign.
    ============================================================ */
-const SHEET_GID = '359784640';
-// Campaigns and their party. Hard-coded for now (Justin, 2026-09-28): later, players join from
-// their account or the DM's invite link. turnkeeper.html keeps the same list of sheets.
-const CAMPAIGNS = [
-  {key:'waterdeep', name:'Crisis in Waterdeep', party:[
-    {name:'Bel', sheet:'14TFj-bb1ixAUl9bw_tNdcIpWtnYxeV8JW5f2kIbiW_Q', portrait:'portraits/bel.webp'},
-    {name:'Ezlo', sheet:'1GqXXArCfLC42oVTF9XVrbNeKbw868HF1ih2S7VpX8jk', portrait:'portraits/ezlo.webp'},
-    {name:'Krunk', sheet:'1vIvEke6E12m7il5voB2n5rJAqwgJeWf_2BZYJSKpYgU', portrait:'portraits/krunk.jpg'},
-    {name:'Venthor', sheet:'1mS5Z2jgmi4U-bdEPP0JvZIkI-7puhWGjwlF8i6JIYbo', portrait:'portraits/venthor.webp'},
-  ]},
-];
+// The campaigns and their party (and SHEET_GID): js/config.js
 let campaign = CAMPAIGNS[0];
 
 /* ---------- Small helpers ---------- */
@@ -599,10 +592,7 @@ function rollExpr(expr){
 }
 
 /* ---------- Reading the party's sheets (the same cells as the tracker) ---------- */
-const RANGES = {level:'AL2:AL2', race:'T3:T3', class:'T1:T1', ac:'R7:R7', init:'V7:V7', speed:'Z7:Z7', hpmax:'U11:U11', hpcur:'R12:R12',
-  str:'C10:C10', dex:'C15:C15', con:'C20:C20', int:'C25:C25', wis:'C30:C30', cha:'C35:C35'};
-function colToIdx(letters){ let idx = 0; for(const ch of letters) idx = idx*26 + (ch.charCodeAt(0)-64); return idx-1; }
-function cellAt(table, ref){ const m = ref.match(/^([A-Z]+)(\d+)/); const row = table[+m[2]-1]; const v = row ? row[colToIdx(m[1])] : null; return v === null || v === undefined ? '' : String(v).trim(); }
+// RANGES, colToIdx, cellAt and loadSheetJSONP: js/sheet-reader.js
 // Saves (rows 12-17) and skills (rows 20-37): proficiency flag in H, modifier in I, name in J
 function flagRows(table, r1, r2){
   const out = [];
@@ -611,18 +601,6 @@ function flagRows(table, r1, r2){
     out.push({name:String(row[9]).trim(), prof:['1', 'e'].includes(String(row[7] ?? '').trim().toLowerCase()),   /* 1 = proficient, e = expertise */ mod:row[8]===null || row[8]==='' ? null : Number(row[8])});
   }
   return out;
-}
-function loadSheetJSONP(sheetId, gid, range){
-  return new Promise((resolve, reject)=>{
-    const cb = 'gvizCb_' + Math.random().toString(36).slice(2);
-    const script = document.createElement('script');
-    const done = ()=>{ delete window[cb]; script.remove(); clearTimeout(timer); };
-    const timer = setTimeout(()=>{ done(); reject(new Error('Timed out loading the sheet.')); }, 12000);
-    window[cb] = data=>{ done(); resolve(data); };
-    script.src = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json;responseHandler:${cb}&gid=${gid}&range=${range}`;
-    script.onerror = ()=>{ done(); reject(new Error('Could not load the sheet.')); };
-    document.body.appendChild(script);
-  });
 }
 // Class spellcasting ability and the level it starts (2014 PHB)
 function castingFor(cls){
@@ -664,7 +642,7 @@ async function loadPC(pc){
   }
   const data = await loadSheetJSONP(pc.sheet, SHEET_GID, 'A1:BZ120');
   if(!data.table || !data.table.rows) throw new Error('No data: is the sheet shared as “Anyone with the link can view”?');
-  const table = data.table.rows.map(row => (row.c||[]).map(cell => cell ? (cell.v !== null && cell.v !== undefined ? cell.v : cell.f) : null));
+  const table = sheetTable(data);
   const g = k => cellAt(table, RANGES[k]);
   const p = {name:pc.name, level:toNum(g('level')) || 1, race:g('race'), cls:g('class'), ac:toNum(g('ac')), init:toNum(g('init')) ?? 0,
     speed:g('speed'), hpMax:toNum(g('hpmax')), hpCur:toNum(g('hpcur')), scores:{}};
@@ -1840,29 +1818,9 @@ window.dmSettingsUpdate = (key, data)=>{
 <script type="module">
 /* ---------- Live: listening (Firebase Realtime Database) ----------
    Signs in invisibly and follows campaigns/<campaign>/live, handing each change to
-   dmLiveUpdate. Same config as turnkeeper.html. */
-const FIREBASE_CONFIG = {
-  apiKey: 'AIzaSyAuTuvMgF52vRQRyR0psfeyiIv31_svy-Y',
-  authDomain: 'turnkeeper-7b835.firebaseapp.com',
-  databaseURL: 'https://turnkeeper-7b835-default-rtdb.firebaseio.com',
-  projectId: 'turnkeeper-7b835',
-  appId: '1:866334063897:web:feaaa8b817f9b80ee69988',
-};
-const FB = 'https://www.gstatic.com/firebasejs/12.19.0/';
-// Test mode (?test=1 on the address, or any copy on this computer: localhost or a local file):
-// everything goes to a separate 'test' campaign in the
-// database, so testing never touches the real game
-const TEST_MODE = (new URLSearchParams(location.search).has('test') || ['localhost', '127.0.0.1', '[::1]', ''].includes(location.hostname));
-const FBK = key=>TEST_MODE ? 'test' : key;
-// Shared data is untrusted: strip HTML characters from every key and string (same as turnkeeper.html)
-const clean = v=>typeof v === 'string' ? v.replace(/[<>"&`]/g, '').slice(0, 200) : Array.isArray(v) ? v.map(clean)
-  : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k, x])=>[k.replace(/[<>"&`]/g, ''), clean(x)])) : v;
+   dmLiveUpdate. Settings: js/config.js; connecting: js/firebase.js. */
 try{
-  const [{initializeApp}, {getAuth, signInAnonymously}, {getDatabase, ref, get, onValue, set, push, serverTimestamp}] =
-    await Promise.all(['firebase-app.js', 'firebase-auth.js', 'firebase-database.js'].map(f=>import(FB + f)));
-  const app = initializeApp(FIREBASE_CONFIG);
-  await signInAnonymously(getAuth(app));
-  const db = getDatabase(app);
+  const {db, fb:{ref, get, onValue, set, push, serverTimestamp}} = await tkFirebase();
   // V5: a character's record in the Turnkeeper database (its base facts), or null if it isn't there yet
   window.dmGetCore = async (key, id)=>(await get(ref(db, `campaigns/${FBK(key)}/characters/${id}/core`))).val();
   let stops = [];

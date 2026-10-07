@@ -244,6 +244,8 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
 </style>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&display=swap">
 <link rel="stylesheet" href="css/class-themes.css">
+<script src="js/config.js"></script>
+<script src="js/firebase.js"></script>
 <script src="js/themes.js"></script>
 </head>
 <body>
@@ -388,17 +390,12 @@ if(!touchScreen){
 <script type="module">
 // V5: a character already in the Turnkeeper database opens from there (?char=), with its name
 // from the database; the rest still open from their Google Sheet. A copy of the site on this
-// computer uses the test campaign.
-const TEST = new URLSearchParams(location.search).has('test') || ['localhost', '127.0.0.1', '[::1]', ''].includes(location.hostname);
+// computer uses the test campaign. Settings: js/config.js; connecting: js/firebase.js.
 try{
-  const FB = 'https://www.gstatic.com/firebasejs/12.19.0/';
-  const [{initializeApp}, {getAuth, signInAnonymously}, {getDatabase, ref, get}] = await Promise.all(['firebase-app.js', 'firebase-auth.js', 'firebase-database.js'].map(f=>import(FB + f)));
-  const app = initializeApp({apiKey:'AIzaSyAuTuvMgF52vRQRyR0psfeyiIv31_svy-Y', authDomain:'turnkeeper-7b835.firebaseapp.com', databaseURL:'https://turnkeeper-7b835-default-rtdb.firebaseio.com', projectId:'turnkeeper-7b835', appId:'1:866334063897:web:feaaa8b817f9b80ee69988'});
-  await signInAnonymously(getAuth(app));
-  const db = getDatabase(app), camp = TEST ? 'test' : 'waterdeep';
+  const {db, fb:{ref, get}} = await tkFirebase();
   document.querySelectorAll('.roster a.card').forEach(async a=>{
-    const m = decodeURIComponent(a.getAttribute('href')).match(/\/d\/([A-Za-z0-9_-]+)/); if(!m) return;
-    const core = (await get(ref(db, `campaigns/${camp}/characters/${m[1]}/core`))).val();
+    const m = decodeURIComponent(a.getAttribute('href')).match(/\/d\/([A-Za-z0-9_-]+)/), c = m && campaignOfChar(m[1]); if(!c) return;
+    const core = (await get(ref(db, `campaigns/${FBK(c.key)}/characters/${m[1]}/core`))).val();
     if(!core) return;
     a.href = `turnkeeper.html?char=${m[1]}`;
     const name = a.querySelector('.card-name');

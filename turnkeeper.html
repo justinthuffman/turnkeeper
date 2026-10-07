@@ -556,6 +556,9 @@ button.theme-option:hover{background:var(--panel2);}
 button.theme-option[aria-pressed="true"]{font-weight:600;}
 button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box-shadow:0 0 0 2px var(--panel), 0 0 0 3px var(--ink);}
 </style>
+<script src="js/config.js"></script>
+<script src="js/firebase.js"></script>
+<script src="js/sheet-reader.js"></script>
 <script src="js/themes.js"></script>
 </head>
 <body>
@@ -3172,7 +3175,7 @@ const TARGETED = {
 const table = {combat:null, effects:{}, live:{}};
 const tableWas = {active:null, myTurn:null};
 const arrOf = x=>Array.isArray(x) ? x : Object.values(x || {});
-function myCampaignKey(){ const c = CAMPAIGNS.find(c=>c.sheets.includes(currentCharId)); return c ? c.key : null; }
+function myCampaignKey(){ const c = campaignOfChar(currentCharId); return c ? c.key : null; }
 function tableActive(){ return !!(currentCharId && myCampaignKey() && table.combat && table.combat.active); }
 function myName(){ return document.getElementById('f_name').value || 'You'; }
 const tkConnected = ()=>!!(window.tkLive && window.tkLive.connected && myCampaignKey());
@@ -4281,16 +4284,7 @@ function showAttrTooltip(e, itemName, abilityName){
 }
 
 /* ---------- Google Sheet import ---------- */
-function colToIdx(letters){
-  let idx=0;
-  for(let i=0;i<letters.length;i++){ idx = idx*26 + (letters.charCodeAt(i)-64); }
-  return idx-1;
-}
-function idxToCol(idx){
-  let s=''; idx=idx+1;
-  while(idx>0){ const rem=(idx-1)%26; s=String.fromCharCode(65+rem)+s; idx=Math.floor((idx-1)/26); }
-  return s;
-}
+// colToIdx, idxToCol, parseRange, getFirstValue, RANGES and loadSheetJSONP: js/sheet-reader.js
 document.getElementById('rawDumpToggle').addEventListener('click', ()=>{
   document.getElementById('rawDumpToggle').classList.toggle('open');
   document.getElementById('rawDumpBody').classList.toggle('open');
@@ -4331,21 +4325,6 @@ function copyRawDump(){
   }
 }
 document.getElementById('copyDumpBtn').addEventListener('click', copyRawDump);
-function parseRange(r){
-  const m = r.match(/^([A-Z]+)(\d+):([A-Z]+)(\d+)$/);
-  return {c1:colToIdx(m[1]), r1:parseInt(m[2],10)-1, c2:colToIdx(m[3]), r2:parseInt(m[4],10)-1};
-}
-function getFirstValue(table, range){
-  const {c1,r1,c2,r2} = parseRange(range);
-  for(let r=r1;r<=r2;r++){
-    const row = table[r]; if(!row) continue;
-    for(let c=c1;c<=c2;c++){
-      const v = row[c];
-      if(v!==null && v!==undefined && String(v).trim()!==''){ return String(v).trim(); }
-    }
-  }
-  return '';
-}
 const SAVE_NAMES = ['Strength','Dexterity','Constitution','Intelligence','Wisdom','Charisma'];
 const SKILL_NAMES = ['Acrobatics','Animal Handling','Arcana','Athletics','Deception','History','Insight','Intimidation','Investigation','Medicine','Nature','Perception','Performance','Persuasion','Religion','Sleight of Hand','Stealth','Survival'];
 const FILLED = ['◉','●','⬤','✓','✔'];
@@ -4389,23 +4368,8 @@ function extractAttacks(table, range){
   return out;
 }
 
-// Campaigns and their characters' sheets. Hard-coded for now (Justin, 2026-09-28): later, players
-// join a campaign from their account or a DM's invite link. dm.html keeps the same list.
-const CAMPAIGNS = [
-  {key:'waterdeep', name:'Crisis in Waterdeep', sheets:[
-    '14TFj-bb1ixAUl9bw_tNdcIpWtnYxeV8JW5f2kIbiW_Q',   // Bel
-    '1GqXXArCfLC42oVTF9XVrbNeKbw868HF1ih2S7VpX8jk',   // Ezlo
-    '1vIvEke6E12m7il5voB2n5rJAqwgJeWf_2BZYJSKpYgU',   // Krunk
-    '1mS5Z2jgmi4U-bdEPP0JvZIkI-7puhWGjwlF8i6JIYbo',   // Venthor
-  ]},
-];
-function campaignFor(sheetId){ const c = CAMPAIGNS.find(c=>c.sheets.includes(sheetId)); return c ? c.name : 'None'; }
-const RANGES = {
-  insp:'H6:H6',   // the Inspiration box: 1 (shown as ✧) when you have it
-  name:'BZ61:BZ61', level:'AL2:AL2', race:'T3:T3', class:'T1:T1',
-  ac:'R7:R7', init:'V7:V7', speed:'Z7:Z7', hpmax:'U11:U11', hpcur:'R12:R12',
-  str:'C10:C10', dex:'C15:C15', con:'C20:C20', int:'C25:C25', wis:'C30:C30', cha:'C35:C35'
-};
+// The campaigns and their party: js/config.js
+function campaignFor(sheetId){ const c = campaignOfChar(sheetId); return c ? c.name : 'None'; }
 function extractAllFlagList(table, rowStart, rowEnd, flagCol, modCol, nameCol){
   const fC = colToIdx(flagCol), mC = colToIdx(modCol), nC = colToIdx(nameCol);
   const out = [];
@@ -4472,23 +4436,6 @@ function extractAttacksRYAC(table, rowStart, rowEnd){
 function setStatus(msg, cls){
   const el = document.getElementById('importStatus');
   el.textContent = msg; el.className = 'status ' + (cls||'');
-}
-
-function loadSheetJSONP(sheetId, gid, range){
-  return new Promise((resolve, reject)=>{
-    const cbName = 'gvizCb_' + Math.random().toString(36).slice(2);
-    const timeoutId = setTimeout(()=>{ cleanup(); reject(new Error('Timed out loading the sheet — check the link and that it\u2019s shared as "Anyone with the link can view."')); }, 12000);
-    function cleanup(){
-      delete window[cbName];
-      if(script.parentNode) script.parentNode.removeChild(script);
-      clearTimeout(timeoutId);
-    }
-    window[cbName] = (data)=>{ cleanup(); resolve(data); };
-    const script = document.createElement('script');
-    script.src = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json;responseHandler:${cbName}&gid=${gid}&range=${range}`;
-    script.onerror = ()=>{ cleanup(); reject(new Error('Could not load that sheet — check the link and sharing settings.')); };
-    document.body.appendChild(script);
-  });
 }
 
 let lastImportedId = null;
@@ -4632,7 +4579,7 @@ async function runImport(){
   try{
     const data = await loadSheetJSONP(sheetId, gid, 'A1:BZ120');
     if(!data.table || !data.table.rows) throw new Error('No table data returned — check the sheet is shared as "Anyone with the link can view."');
-    const table = data.table.rows.map(row => (row.c||[]).map(cell => cell ? (cell.v!==null && cell.v!==undefined ? cell.v : cell.f) : null));
+    const table = sheetTable(data);
     renderRawDump(table);
 
     flushCharStore(); Object.assign(charStore, {id:null, campaign:null, kv:null, pending:{}}); followCharacter();   // a sheet isn't a database character (stop following one)
@@ -6062,7 +6009,7 @@ function saveTrack(){
 let liveTimer = null;
 function livePush(){ clearTimeout(liveTimer); liveTimer = setTimeout(()=>{ applyIncoming(); if(window.tkDiceRefresh) window.tkDiceRefresh(); if(window.tkCharIcon) window.tkCharIcon(); if(window.tkLive) window.tkLive.push(); }, 400); }
 function liveSnapshot(){
-  const camp = CAMPAIGNS.find(c=>c.sheets.includes(currentCharId));
+  const camp = campaignOfChar(currentCharId);
   if(!currentCharId || !camp) return null;
   const st = statusState(), rounds = st.rounds || {};
   const cur = hpNow(), max = hpMax();
@@ -6624,7 +6571,7 @@ setupSettings({onOpen:()=>{ if(document.getElementById('setDice').open) fillDice
   const nameParam = params.get('name');
   const charParam = params.get('char');
   if(charParam && /^[A-Za-z0-9_-]{6,60}$/.test(charParam)){
-    const camp = params.get('c') || (CAMPAIGNS.find(c=>c.sheets.includes(charParam)) || CAMPAIGNS[0]).key;
+    const camp = params.get('c') || (campaignOfChar(charParam) || CAMPAIGNS[0]).key;
     await openDbCharacter(charParam, camp);
   } else if(sheetParam){
     document.getElementById('sheetUrl').value = sheetParam;
@@ -6769,29 +6716,10 @@ window.tkCharIcon();
    campaigns/<campaign>/live/<sheet ID> whenever tracking changes (livePush, debounced).
    If this browser's copy is older than what's already shared (the character was changed on
    another device), the first send is skipped so it doesn't overwrite the newer one.
-   Anything failing here leaves the tracker working as before. Same config as dm.html. */
-const FIREBASE_CONFIG = {
-  apiKey: 'AIzaSyAuTuvMgF52vRQRyR0psfeyiIv31_svy-Y',
-  authDomain: 'turnkeeper-7b835.firebaseapp.com',
-  databaseURL: 'https://turnkeeper-7b835-default-rtdb.firebaseio.com',
-  projectId: 'turnkeeper-7b835',
-  appId: '1:866334063897:web:feaaa8b817f9b80ee69988',
-};
-const FB = 'https://www.gstatic.com/firebasejs/12.19.0/';
-// Test mode (?test=1 on the address, or any copy on this computer: localhost or a local file):
-// everything goes to a separate 'test' campaign in the
-// database, so testing never touches the real game
-const TEST_MODE = (new URLSearchParams(location.search).has('test') || ['localhost', '127.0.0.1', '[::1]', ''].includes(location.hostname));
-const FBK = key=>TEST_MODE ? 'test' : key;
-// Shared data is untrusted: strip HTML characters from every key and string (same as dm.html)
-const clean = v=>typeof v === 'string' ? v.replace(/[<>"&`]/g, '').slice(0, 200) : Array.isArray(v) ? v.map(clean)
-  : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k, x])=>[k.replace(/[<>"&`]/g, ''), clean(x)])) : v;
+   Anything failing here leaves the tracker working as before. Settings: js/config.js;
+   connecting: js/firebase.js. */
 try{
-  const [{initializeApp}, {getAuth, signInAnonymously}, {getDatabase, ref, get, set, update, onValue, onDisconnect, serverTimestamp, runTransaction}] =
-    await Promise.all(['firebase-app.js', 'firebase-auth.js', 'firebase-database.js'].map(f=>import(FB + f)));
-  const app = initializeApp(FIREBASE_CONFIG);
-  await signInAnonymously(getAuth(app));
-  const db = getDatabase(app);
+  const {db, fb:{ref, get, set, update, onValue, onDisconnect, serverTimestamp, runTransaction}} = await tkFirebase();
   // V5: characters in the database (js/char-store.js). Records come back raw: applyCore and the
   // tracker's loaders check each value, and kv values are JSON or plain text they parse themselves.
   const charRef = (c, id, part)=>ref(db, `campaigns/${FBK(c)}/characters/${id}${part ? '/' + part : ''}`);
