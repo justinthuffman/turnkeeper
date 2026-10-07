@@ -82,3 +82,7 @@ table.inv input[type=checkbox]{width:auto;}
 .eq-ac{margin:10px 0 4px; font-size:0.9rem;}
 .eq-notes{margin:4px 0 6px 18px; padding:0; font-size:0.8rem; color:var(--ink-dim);}
 @media (max-width:640px){ table.inv thead{display:none;} table.inv tr{display:block; border-bottom:1px solid var(--border); padding:6px 0;} table.inv td{display:block; border:none; padding:2px 0;} }
+.cs-granted{font-size:0.84rem; padding:6px 10px; border-left:3px solid var(--sea-dim); background:var(--panel2); border-radius:4px; margin-bottom:6px;}
+.cs-granted span{color:var(--sea); font-size:0.72rem; text-transform:uppercase; letter-spacing:0.05em;}
+.cs-granted .cs-none{margin:4px 0 0;}
+select.build-pick{background:var(--panel2); border:1px solid var(--border); color:var(--ink); border-radius:4px; padding:4px 6px; font-size:0.8rem; margin:2px 4px 2px 0;}

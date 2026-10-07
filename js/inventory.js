@@ -70,7 +70,19 @@ function profSet(kind){
   const add = list=>(list || []).forEach(x=>out.add(String(x).toLowerCase().replace(/ (weapons|armor)$/, '')));
   add((CLASS_PROFS[cf.classKey] || {})[kind]); add((RACE_PROFS[rt.raceKey] || {})[kind]);
   add(((currentCore && currentCore.profs) || {})[kind === 'weapons' ? 'weapons' : 'armor']);
+  add(featProfGrants()[kind]);   // Weapon Master, Lightly/Moderately/Heavily Armored
   return out;
+}
+// What class, race and feats give, for the Proficiencies panel ("From your class: …")
+function grantedProfs(){
+  const cap = s=>String(s)[0].toUpperCase() + String(s).slice(1);
+  const words = list=>(list || []).map(x=>x === 'simple' || x === 'martial' ? cap(x) + ' weapons' : ['light', 'medium', 'heavy'].includes(x) ? cap(x) + ' armor' : x === 'shields' ? 'Shields' : x);
+  const cls = CLASS_PROFS[cf.classKey] || {}, race = RACE_PROFS[rt.raceKey] || {}, feats = featProfGrants();
+  return [
+    ['Your class', [...words(cls.armor), ...words(cls.weapons)]],
+    ['Your race', [...words(race.armor), ...words(race.weapons)]],
+    ['Feats', [...words(feats.armor), ...feats.weapons, ...feats.skills, ...feats.tools, ...feats.languages]],
+  ].filter(([, l])=>l.length);
 }
 function weaponProficient(w){
   const s = profSet('weapons'), base = (w.baseName || w.name || '').toLowerCase();

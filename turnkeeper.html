@@ -4423,8 +4423,9 @@ function sheetToCore(table){
 // (Jack of All Trades adds half proficiency to skills you aren't proficient in)
 function coreChecks(core){
   const prof = proficiencyBonus(), jack = joatBonus(), mod = a=>abilityMod(core.scores[a]);
+  const featSkills = featProfGrants().skills;   // Skilled
   const skills = Object.keys(SKILL_ABILITY).map(name=>{
-    const p = (core.skills || {})[name], a = ABILITY_ABBR[SKILL_ABILITY[name]];
+    const p = (core.skills || {})[name] || (featSkills.includes(name) ? 'p' : ''), a = ABILITY_ABBR[SKILL_ABILITY[name]];
     return {name, prof:!!p, expertise:p === 'e', mod: mod(a) + (p === 'e' ? 2 * prof : p ? prof : jack)};
   });
   const saves = ABILITY_KEYS.map(a=>({name:ABILITY_FULL[a], prof:(core.saves || []).includes(a), expertise:false,
@@ -5068,6 +5069,36 @@ function buildChoices(){
   });
   featItems().filter(t=>t.choose).forEach(t=>
     out.push({key:'choice:'+t.name, label:t.name, value:getChoice(t.name), options:t.tiers.map(x=>x.name), feature:t}));
+  // Feats that grant proficiencies of your choice (Weapon Master, Skilled, Linguist)
+  FEAT_PICKS.filter(fp=>hasFeat(fp.feat)).forEach(fp=>{
+    const picks = Array.from({length:fp.n}, (_, i)=>getChoice(`${fp.feat} pick ${i + 1}`) || '');
+    out.push({key:'featpick:' + fp.feat, label:`${fp.feat} (${fp.n} ${fp.label}s)`, picks, fp, feature:true,
+      value: picks.every(Boolean) ? picks.join(', ') : ''});
+  });
+  return out;
+}
+/* Feats that give proficiencies (2014 PHB). Picks are saved as choices ("Weapon Master pick 1"…);
+   featProfGrants() lists everything feats grant, for attacks, armor, checks and the Proficiencies panel. */
+const FEAT_PICKS = [
+  {feat:'Weapon Master', n:4, label:'weapon', options:()=>WEAPONS.map(w=>w.name)},
+  {feat:'Skilled', n:3, label:'skill or tool', options:()=>[...Object.keys(SKILL_ABILITY), ...TOOL_PROFS]},
+  {feat:'Linguist', n:3, label:'language', options:()=>LANGUAGES},
+];
+function featProfGrants(){
+  const out = {weapons:[], armor:[], skills:[], tools:[], languages:[]};
+  if(!currentCharId) return out;
+  if(hasFeat('Lightly Armored')) out.armor.push('light');
+  if(hasFeat('Moderately Armored')) out.armor.push('medium', 'shields');
+  if(hasFeat('Heavily Armored')) out.armor.push('heavy');
+  if(hasFeat('Tavern Brawler')) out.weapons.push('Improvised weapons');
+  FEAT_PICKS.filter(fp=>hasFeat(fp.feat)).forEach(fp=>{
+    for(let i = 1; i <= fp.n; i++){
+      const v = getChoice(`${fp.feat} pick ${i}`); if(!v) continue;
+      if(fp.feat === 'Weapon Master') out.weapons.push(v);
+      else if(fp.feat === 'Linguist') out.languages.push(v);
+      else if(SKILL_ABILITY[v]) out.skills.push(v); else out.tools.push(v);
+    }
+  });
   return out;
 }
 function renderBuild(){
@@ -5082,6 +5113,9 @@ function renderBuild(){
     html += `<div class="build-pending">${pending.some(c=>!c.value) ? '<div class="build-title">Choices to make</div>' : ''}`
       + pending.map(c=>`<div class="build-row"><span class="build-label">${c.label}:</span>`
         + (c.featSlot ? `<button type="button" class="flow-btn" data-feat-slot="${c.featSlot}">Choose ability score points or a feat</button>` : '')
+        + (c.fp ? c.picks.map((v, i)=>`<select class="build-pick" data-feat-pick="${escapeHtml(c.fp.feat)}" data-i="${i + 1}" aria-label="${escapeHtml(c.fp.feat)} ${c.fp.label} ${i + 1}"><option value="">${c.fp.label[0].toUpperCase() + c.fp.label.slice(1)} ${i + 1}…</option>`
+            + c.fp.options().filter(o=>o === v || !c.picks.includes(o)).map(o=>`<option${o === v ? ' selected' : ''}>${escapeHtml(o)}</option>`).join('') + `</select>`).join('')
+          + (c.value ? `<button type="button" class="flow-btn" data-build-done="${escapeHtml(c.key)}">Done</button>` : '') : '')
         + (c.options||[]).map(o=>`<button type="button" class="flow-btn${c.value===o?' active':''}" data-build="${escapeHtml(c.key)}" data-opt="${escapeHtml(o)}">${o}</button>`).join('')
         + `</div>`).join('') + `</div>`;
   }
@@ -5115,6 +5149,13 @@ function renderBuild(){
     buildEditing.add(key); renderBuild();
   }));
   box.querySelectorAll('[data-feat-slot]').forEach(b=>b.addEventListener('click', ()=>openFeatPicker(+b.dataset.featSlot)));
+  // Feat proficiency picks: saved, then the page is redrawn so attacks, armor and checks follow
+  box.querySelectorAll('[data-feat-pick]').forEach(s=>s.addEventListener('change', ()=>{
+    setChoice(`${s.dataset.featPick} pick ${s.dataset.i}`, s.value || null);
+    buildEditing.add('featpick:' + s.dataset.featPick);
+    if(currentCore){ const y = scrollY; applyCore(currentCore, currentCharId); scrollTo(0, y); } else renderBuild();
+  }));
+  box.querySelectorAll('[data-build-done]').forEach(b=>b.addEventListener('click', ()=>{ buildEditing.delete(b.dataset.buildDone); renderBuild(); }));
 }
 
 const TYPE_LABELS = {action:'Action', bonus:'Bonus Action', reaction:'Reaction'};

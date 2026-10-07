@@ -114,8 +114,10 @@ function renderProfs(){
   const panel = document.getElementById('profPanel'); if(!panel) return;
   panel.hidden = !csDb(); if(!csDb()) return;
   const sp = currentCore.speeds || {};
+  const granted = typeof grantedProfs === 'function' ? grantedProfs() : [];
   document.getElementById('profBody').innerHTML =
-    PROF_LISTS.map(([k, label, opts])=>chipEditorHtml(k, label, profValues(k), opts)).join('')
+    (granted.length ? `<div class="cs-granted">${granted.map(([from, list])=>`<div><span>${from}:</span> ${list.map(csEsc).join(', ')}</div>`).join('')}<p class="cs-none">These come automatically. Add anything else below.</p></div>` : '')
+    + PROF_LISTS.map(([k, label, opts])=>chipEditorHtml(k, label, profValues(k), opts)).join('')
     + chipEditorHtml('languages', 'Languages', profValues('languages'), LANGUAGES)
     + `<div class="cs-sub">Other Speeds</div><div class="cs-grid cs-scores">`
     + [['fly', 'Fly'], ['swim', 'Swim'], ['climb', 'Climb'], ['burrow', 'Burrow']].map(([k, l])=>`<label class="cs-field cs-num" for="csp_${k}"><span>${l} (ft)</span><input id="csp_${k}" data-speed="${k}" type="number" min="0" max="300" value="${sp[k] || ''}"></label>`).join('')
