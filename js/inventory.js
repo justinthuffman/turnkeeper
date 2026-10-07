@@ -170,7 +170,7 @@ function equippedAttacks(core){
     const it = items.find(x=>x.id === id), d = it && itemDef(it.name);
     if(isWeapon(d)) out.push(weaponAttackFor(it, d, pair === 'melee' ? handsFor(e, pair, id) : (d.twoHanded ? 2 : 1), core.scores || {}));
   }));
-  return out.length ? out : null;
+  return out;   // nothing equipped: no weapon attacks (Unarmed Strike is always there)
 }
 
 /* ---------- Armor Class from equipped armor and shield (2014) ---------- */

@@ -4585,7 +4585,8 @@ function applyCore(core, charId){
   // Jack of All Trades, which also adds to initiative: it's a Dexterity check)
   const checks = coreChecks(core);
   state.saves = checks.saves; state.skills = checks.skills;
-  // Attacks: from equipped weapons (js/inventory.js) for a database character, else the imported ones
+  // Attacks: from equipped weapons (js/inventory.js) for a database character (none equipped: none),
+  // else the imported ones
   state.attacks = ((typeof equippedAttacks === 'function' && equippedAttacks(core)) || core.attacks || []).map(a=>({...a}));
   const gearAC = typeof equippedAC === 'function' ? equippedAC(core) : null;
   if(gearAC !== null){ document.getElementById('f_ac').value = gearAC; statusBaseAC = String(gearAC); }
@@ -5401,7 +5402,8 @@ function escapeHtml(s){
 const attackSection = makePinSection({
   prefix:'at', store:'attackPin',
   items: ()=>state.attacks.map(a=>({name:escapeHtml(a.name), desc:`${escapeHtml(a.bonus||'—')} to hit &middot; ${escapeHtml(a.damage||'—')}`})),
-  emptyText: ()=>document.getElementById('f_class').value.trim() ? 'No attacks found on the sheet.' : 'Import a sheet to see attacks.',
+  emptyText: ()=>charStore.kv ? 'No weapons equipped. Equip one in the Inventory tab (Unarmed Strike is always in the Combat Menu).'
+    : document.getElementById('f_class').value.trim() ? 'No attacks found on the sheet.' : 'Import a sheet to see attacks.',
 });
 
 // V5: equipped armor and shield (js/inventory.js), pinnable like attacks
