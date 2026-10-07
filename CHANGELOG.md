@@ -3,6 +3,18 @@
 What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest first.
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
+## 2026-10-07 — Campaign effects for the DM, attacks need a weapon
+
+### Fixed
+- **Attacks need an equipped weapon.** A character copied into Turnkeeper with nothing equipped
+  showed the attacks from their old Google Sheet. Now only equipped weapons give attacks;
+  Unarmed Strike is always in the Combat Menu.
+
+### Added
+- **The DM can add the campaign's custom effects** (like Bleeding) to anyone in combat, from the
+  Condition or effect list. Effects that do damage every turn show a reminder in the combat log
+  at the start of that creature's turn.
+
 ## 2026-10-07 — V5: characters in Turnkeeper
 
 The start of V5: moving characters off Google Sheets and into Turnkeeper's own database, so
