@@ -49,3 +49,31 @@ function tkDbReady(timeoutMs){
     }, 100);
   });
 }
+
+/* Live sync: the open character follows its record, so a change made on another device (or in
+   another tab, or by the DM) shows here and isn't undone by this page's next save. Keys this page
+   is still saving keep this page's value; everything else takes the database's. The page redraws
+   (window.tkRemoteRefresh, js/char-sheet.js) once the player isn't in the middle of something. */
+let charFollowStop = null;
+function followCharacter(){
+  if(charFollowStop){ charFollowStop(); charFollowStop = null; }
+  const id = charStore.id, c = charStore.campaign; if(!id || !charStore.kv) return;
+  tkDbReady().then(db=>{
+    if(charStore.id !== id || !db.followChar) return;
+    charFollowStop = db.followChar(c, id, rec=>remoteCharUpdate(id, rec));
+  }).catch(err=>console.warn('Following the character:', err));
+}
+function remoteCharUpdate(id, rec){
+  if(!rec || charStore.id !== id || !charStore.kv) return;
+  const kv = rec.kv || {};
+  let changed = false;
+  new Set([...Object.keys(kv), ...Object.keys(charStore.kv)]).forEach(k=>{
+    if(k in charStore.pending) return;   // this page's own change, on its way
+    const remote = kv[k] ?? null, local = charStore.kv[k] ?? null;
+    if(remote === local) return;
+    changed = true;
+    if(remote === null) delete charStore.kv[k]; else charStore.kv[k] = String(remote);
+  });
+  const coreChanged = !!(rec.core && window.tkMergeRemoteCore && window.tkMergeRemoteCore(rec.core));
+  if((changed || coreChanged) && window.tkRemoteRefresh) window.tkRemoteRefresh();
+}

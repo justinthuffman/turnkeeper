@@ -4635,7 +4635,7 @@ async function runImport(){
     const table = data.table.rows.map(row => (row.c||[]).map(cell => cell ? (cell.v!==null && cell.v!==undefined ? cell.v : cell.f) : null));
     renderRawDump(table);
 
-    flushCharStore(); Object.assign(charStore, {id:null, campaign:null, kv:null, pending:{}});   // a sheet isn't a database character
+    flushCharStore(); Object.assign(charStore, {id:null, campaign:null, kv:null, pending:{}}); followCharacter();   // a sheet isn't a database character (stop following one)
     applyCore(sheetToCore(table), sheetId);
     lastSheet = {id:sheetId, table};   // for its gear, if it gets copied into the database
     setStatus('Imported.', 'ok');
@@ -4656,6 +4656,7 @@ async function openDbCharacter(id, campaignKey){
     const rec = await db.getChar(campaignKey, id);
     if(!rec || !rec.core) throw new Error('That character isn’t in the Turnkeeper database yet.');
     Object.assign(charStore, {id, campaign:campaignKey, kv:rec.kv || {}, pending:{}});
+    followCharacter();   // changes made elsewhere show here (js/char-store.js)
     applyCore(rec.core, id);
     document.getElementById('dbCopyRow').hidden = true;
     setStatus('Loaded from the Turnkeeper database.', 'ok');
@@ -6796,6 +6797,8 @@ try{
   const charRef = (c, id, part)=>ref(db, `campaigns/${FBK(c)}/characters/${id}${part ? '/' + part : ''}`);
   window.tkDb = {
     getChar: async (c, id)=>(await get(charRef(c, id))).val(),
+    // Live sync (js/char-store.js): the whole record whenever it changes; returns a stop function
+    followChar: (c, id, cb)=>onValue(charRef(c, id), s=>cb(s.val()), err=>console.warn('Following the character:', err)),
     listChars: async c=>(await get(ref(db, `campaigns/${FBK(c)}/characters`))).val() || {},
     setCore: (c, id, core)=>update(charRef(c, id), {core, t:serverTimestamp()}),
     // Part of the record: {details:{…}, languages:[…]} → core/details, core/languages

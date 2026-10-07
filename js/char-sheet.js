@@ -19,17 +19,64 @@ const LIFESTYLES = ['Wretched', 'Squalid', 'Poor', 'Modest', 'Comfortable', 'Wea
 const campaignTracks = what=>what === 'xp' ? (typeof critSettings === 'object' && critSettings.leveling === 'xp') : false;
 
 // Save part of the record (debounced per key), then optionally redraw the page from it
-const csTimers = {};
+const csTimers = {}, csCorePending = new Set();   // keys typed here and not sent yet (live sync keeps them)
 function csSaveCore(key, value, redraw){
   currentCore[key] = value;
-  clearTimeout(csTimers[key]);
+  clearTimeout(csTimers[key]); csCorePending.add(key);
   csTimers[key] = setTimeout(()=>{
+    csCorePending.delete(key);
     if(!window.tkDb) return;
     window.tkDb.updateCore(charStore.campaign, charStore.id, {[key]: JSON.parse(JSON.stringify(value ?? null))})
       .catch(err=>{ console.warn('Saving the character:', err); csFlash('Couldn’t save that change. Check your connection.', true); });
   }, 500);
   if(redraw){ const y = scrollY; applyCore(currentCore, currentCharId); scrollTo(0, y); }
 }
+
+/* Live sync (js/char-store.js): the record changed somewhere else */
+// Values compared the way Firebase keeps them: keys in any order, and empty lists, empty objects
+// and missing values all the same
+function csCanon(v){
+  if(v === undefined || v === null || v === '') return null;
+  if(Array.isArray(v)){ const a = v.map(csCanon); return a.length ? a : null; }
+  if(typeof v === 'object'){
+    const keys = Object.keys(v).filter(k=>csCanon(v[k]) !== null).sort();
+    return keys.length ? Object.fromEntries(keys.map(k=>[k, csCanon(v[k])])) : null;
+  }
+  return v;
+}
+const csSame = (a, b)=>JSON.stringify(csCanon(a)) === JSON.stringify(csCanon(b));
+// Take the database's core, except keys this page is still saving; true if anything changed
+window.tkMergeRemoteCore = remote=>{
+  if(!currentCore) return false;
+  let changed = false;
+  new Set([...Object.keys(remote), ...Object.keys(currentCore)]).forEach(k=>{
+    if(csCorePending.has(k) || csSame(remote[k], currentCore[k])) return;
+    changed = true;
+    if(remote[k] === undefined) delete currentCore[k]; else currentCore[k] = remote[k];
+  });
+  return changed;
+};
+// Redraw from the updated record, once the player isn't typing or in a roll, cast or dialog
+// (their own unsaved work is never redrawn away); tries again each second until then
+let csRefreshTimer = null;
+function csBusy(){
+  const a = document.activeElement;
+  if(a && a.matches && a.matches('textarea, select, input:not([type=checkbox]):not([type=radio]):not([type=button])')) return true;
+  if(typeof rollPopup !== 'undefined' && !rollPopup.hidden) return true;
+  if(typeof openAct !== 'undefined' && openAct) return true;
+  return [...document.querySelectorAll('#editChar, #itemForm, #effectForm')].some(d=>!d.hidden);
+}
+window.tkRemoteRefresh = ()=>{
+  clearTimeout(csRefreshTimer);
+  csRefreshTimer = setTimeout(function again(){
+    if(!currentCore || !charStore.kv) return;
+    if(csBusy()){ csRefreshTimer = setTimeout(again, 1000); return; }
+    // Forget what this page remembered, so everything is read again from the record
+    [preparedMem, bookMem, choiceMem, featMem].forEach(m=>m.clear()); nameMem.delete(currentCharId);
+    const y = scrollY; applyCore(currentCore, currentCharId); scrollTo(0, y);
+    csFlash('Updated with changes from another device.');
+  }, 250);
+};
 function csFlash(text, err){
   const dlg = document.getElementById('editChar'), el = document.getElementById(dlg && !dlg.hidden ? 'csSaveMsg2' : 'csSaveMsg'); if(!el) return;
   el.textContent = text; el.classList.toggle('err', !!err);
