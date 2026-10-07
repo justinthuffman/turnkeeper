@@ -4347,6 +4347,113 @@ function loadSheetJSONP(sheetId, gid, range){
 }
 
 let lastImportedId = null;
+/* ---------- V5: a character as a plain record ("core") ----------
+   The sheet is read into one (sheetToCore), the database stores one, and applyCore shows it.
+   The record keeps base facts only (scores, proficient saves and skills, level, HP max…);
+   Turnkeeper works out modifiers, saves, skills, initiative and passive Perception itself
+   (2014 rules), then applyFeatStats layers ASIs and feats on top as before. */
+const ABILITY_KEYS = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
+function sheetToCore(table){
+  const v = r=>getFirstValue(table, RANGES[r]);
+  const num = x=>{ const n = parseInt(String(x ?? '').replace(/[^\d-]/g, ''), 10); return isNaN(n) ? null : n; };
+  const saves = extractAllFlagList(table, 12, 17, 'H', 'I', 'J'), skills = extractAllFlagList(table, 20, 37, 'H', 'I', 'J');
+  return {
+    name: String(v('name') || '').trim(), level: num(v('level')) || 1, race: String(v('race') || '').trim(), cls: String(v('class') || '').trim(),
+    ac: num(v('ac')), speed: num(v('speed')) || 30, hpMax: num(v('hpmax')), hpCur: num(v('hpcur')), insp: parseFloat(v('insp')) > 0,
+    scores: Object.fromEntries(ABILITY_KEYS.map(a=>[a, num(v(a)) || 10])),
+    saves: saves.filter(s=>s.prof).map(s=>ABILITY_ABBR[s.name]).filter(Boolean),
+    skills: Object.fromEntries(skills.filter(s=>s.prof && SKILL_ABILITY[s.name]).map(s=>[s.name, s.expertise ? 'e' : 'p'])),
+    attacks: extractAttacksRYAC(table, 27, 32),
+  };
+}
+// Saves and skills with their modifiers, from the record's scores and proficiencies
+// (Jack of All Trades adds half proficiency to skills you aren't proficient in)
+function coreChecks(core){
+  const prof = proficiencyBonus(), jack = joatBonus(), mod = a=>abilityMod(core.scores[a]);
+  const skills = Object.keys(SKILL_ABILITY).map(name=>{
+    const p = (core.skills || {})[name], a = ABILITY_ABBR[SKILL_ABILITY[name]];
+    return {name, prof:!!p, expertise:p === 'e', mod: mod(a) + (p === 'e' ? 2 * prof : p ? prof : jack)};
+  });
+  const saves = ABILITY_KEYS.map(a=>({name:ABILITY_FULL[a], prof:(core.saves || []).includes(a), expertise:false,
+    mod: mod(a) + ((core.saves || []).includes(a) ? prof : 0)}));
+  return {skills, saves};
+}
+let currentCore = null;
+// Show a character record: the summary, scores, checks, features, spells and tracking
+function applyCore(core, charId){
+  currentCore = core;
+  const cls = core.cls;
+  document.getElementById('f_level').value = core.level;
+  document.getElementById('f_race').value = core.race;
+  document.getElementById('f_class').value = cls;
+  document.getElementById('f_campaign').value = campaignFor(charId);
+  document.getElementById('f_ac').value = core.ac ?? '';
+  statusBaseAC = document.getElementById('f_ac').value;   // Status (Haste, Shield of Faith…) adjusts from this
+  document.getElementById('f_speed').value = `${core.speed} ft`;
+  document.getElementById('f_hp').value = (core.hpCur ?? '?') + ' / ' + (core.hpMax ?? '?');
+  ABILITY_KEYS.forEach(a=>{ document.getElementById('s_' + a).value = String(core.scores[a] ?? 10); });
+  refreshMods();
+  currentCharId = charId;
+  // Character name: the record's, else saved for this sheet in this browser, else the hub link's
+  // name. With none of those, ask once; the answer is saved.
+  const charName = core.name || savedName(charId) || importNameHint;
+  importNameHint = '';
+  if(charName && !savedName(charId)) saveName(charId, charName);
+  setCharName(charName);
+  showNameAsk(!charName ? 'ask' : null);
+  document.getElementById('nameEdit').hidden = false;
+  // A new character: close any open Combat Menu panel/popup so nothing stale stays on screen
+  if(!rollPopup.hidden) closeRollPopup();
+  dashActive = false;
+  if(openAct) closeDetail();
+  attackFlow.choice = null; attackFlow.mode = 'normal'; attackFlow.power = false;
+  checkFlow.act = null;
+  checksFlow.type = null; checksFlow.key = null; checksFlow.mode = 'normal';
+  Object.assign(reactFlow, {pick:null, weapon:null, mode:'normal', power:false});
+  castFlow.name = null; featureFlow.name = null;
+  bonusFlow.pick = null; bonusFlow.weapon = null; bonusFlow.mode = 'normal'; bonusFlow.cunning = null; bonusFlow.cmode = 'normal';
+  bonusDashActive = false;
+  // Prepared spells are saved per character; load this one's
+  loadPrepared();
+  loadBook();
+  lastImportedId = charId;
+  rt.raceKey = raceKeyFrom(core.race);
+  setupClassFeatures(cls);
+  // Checks, initiative and passive Perception, worked out from the record (needs the class for
+  // Jack of All Trades, which also adds to initiative: it's a Dexterity check)
+  const checks = coreChecks(core);
+  state.saves = checks.saves; state.skills = checks.skills;
+  state.attacks = (core.attacks || []).map(a=>({...a}));
+  document.getElementById('f_init').value = fmtMod(abilityMod(core.scores.dex) + joatBonus());
+  basePassive = 10 + checks.skills.find(s=>s.name === 'Perception').mod;
+  attackSection.loadPins(); attackSection.render();
+  skillPins.load(); skillPins.render();
+  savePins.load(); savePins.render();
+  racialSection.loadPins(); racialSection.render();
+  featSection.loadPins(); featSection.render();
+  updateSenses();
+  updateSpellStats();
+  // Resource tracking: the record's HP is the starting point; tracking is saved per character
+  track.sheetHp = {cur:core.hpCur ?? null, max:core.hpMax ?? null};
+  // Keep the record's numbers, then show them with ASI and feat bonuses added
+  captureSheetBase();
+  applyFeatStats();
+  loadTrack();
+  syncInspiration(!!core.insp);
+  renderResources();
+  renderStatus();
+  concUi.check = null; renderConc();   // no save waiting for a freshly loaded character
+  document.getElementById('restMsg').textContent = '';
+  document.getElementById('backupMsg').textContent = '';
+  closeClipPanel(); clipBox.value = ''; restoreConfirm = null;
+  updateMoveLine();
+  const key = (cls || '').toLowerCase();
+  const matchedKey = ['wizard','paladin','bard','rogue'].find(k=>key.includes(k));
+  if(matchedKey){ document.getElementById('spellClassSelect').value = matchedKey; renderSpellList(); }
+  livePush();
+  tableWas.active = tableWas.myTurn = null; followDmCombat(); applyIncoming(); renderTable();   // a new character: follow the DM's combat afresh
+}
+
 async function runImport(){
   const url = document.getElementById('sheetUrl').value.trim();
   const idm = url.match(/\/d\/([a-zA-Z0-9-_]+)/);
@@ -4360,95 +4467,8 @@ async function runImport(){
     const table = data.table.rows.map(row => (row.c||[]).map(cell => cell ? (cell.v!==null && cell.v!==undefined ? cell.v : cell.f) : null));
     renderRawDump(table);
 
-    const sheetName = String(getFirstValue(table, RANGES.name) || '').trim();   // usually blank on the v2.1 template
-    document.getElementById('f_level').value = getFirstValue(table, RANGES.level);
-    document.getElementById('f_race').value = getFirstValue(table, RANGES.race);
-    const cls = getFirstValue(table, RANGES.class);
-    document.getElementById('f_class').value = cls;
-    document.getElementById('f_campaign').value = campaignFor(sheetId);
-    document.getElementById('f_ac').value = getFirstValue(table, RANGES.ac);
-    statusBaseAC = document.getElementById('f_ac').value;   // Status (Haste, Shield of Faith…) adjusts from this
-    document.getElementById('f_init').value = getFirstValue(table, RANGES.init);
-    document.getElementById('f_speed').value = getFirstValue(table, RANGES.speed);
-    const hpMax = getFirstValue(table, RANGES.hpmax), hpCur = getFirstValue(table, RANGES.hpcur);
-    const inspCell = getFirstValue(table, RANGES.insp);
-    document.getElementById('f_hp').value = (hpCur||'?') + ' / ' + (hpMax||'?');
-
-    document.getElementById('s_str').value = getFirstValue(table, RANGES.str) || '10';
-    document.getElementById('s_dex').value = getFirstValue(table, RANGES.dex) || '10';
-    document.getElementById('s_con').value = getFirstValue(table, RANGES.con) || '10';
-    document.getElementById('s_int').value = getFirstValue(table, RANGES.int) || '10';
-    document.getElementById('s_wis').value = getFirstValue(table, RANGES.wis) || '10';
-    document.getElementById('s_cha').value = getFirstValue(table, RANGES.cha) || '10';
-    refreshMods();
-
-    state.saves = extractAllFlagList(table, 12, 17, 'H', 'I', 'J');
-    state.skills = extractAllFlagList(table, 20, 37, 'H', 'I', 'J');
-    state.attacks = extractAttacksRYAC(table, 27, 32);
-
-    const perceptionMod = findSkillModifier(table, 20, 37, 'Perception', 'I', 'J');
-    basePassive = perceptionMod !== null ? 10 + perceptionMod : null;
-    currentCharId = sheetId;
-    // Character name: saved for this sheet in this browser, else the hub link's name, else the
-    // sheet (usually blank). With none of those, ask once; the answer is saved for this sheet.
-    const charName = savedName(sheetId) || importNameHint || sheetName;
-    importNameHint = '';
-    if(charName && !savedName(sheetId)) saveName(sheetId, charName);
-    setCharName(charName);
-    showNameAsk(!charName ? 'ask' : null);
-    document.getElementById('nameEdit').hidden = false;
-    // A new character: close any open Combat Menu panel/popup so nothing stale stays on screen
-    if(!rollPopup.hidden) closeRollPopup();
-    dashActive = false;
-    if(openAct) closeDetail();
-    attackFlow.choice = null; attackFlow.mode = 'normal'; attackFlow.power = false;
-    checkFlow.act = null;
-    checksFlow.type = null; checksFlow.key = null; checksFlow.mode = 'normal';
-    Object.assign(reactFlow, {pick:null, weapon:null, mode:'normal', power:false});
-    castFlow.name = null; featureFlow.name = null;
-    bonusFlow.pick = null; bonusFlow.weapon = null; bonusFlow.mode = 'normal'; bonusFlow.cunning = null; bonusFlow.cmode = 'normal';
-    bonusDashActive = false;
-    // Prepared spells are saved per character; load this one's
-    loadPrepared();
-    loadBook();
-    lastImportedId = sheetId;
-    dashActive = false;
-    attackSection.loadPins();
-    attackSection.render();
-    skillPins.load(); skillPins.render();
-    savePins.load(); savePins.render();
-    rt.raceKey = raceKeyFrom(document.getElementById('f_race').value);
-    racialSection.loadPins();
-    racialSection.render();
-    setupClassFeatures(cls);
-    featSection.loadPins(); featSection.render();
-    updateSenses();
-    updateSpellStats();
-
-    // Resource tracking: sheet HP is the starting point; tracked values are saved per character
-    const toNum = v=>{ const n = parseInt(String(v||'').replace(/[^\d-]/g,''),10); return isNaN(n) ? null : n; };
-    track.sheetHp = {cur: toNum(hpCur), max: toNum(hpMax)};
-    // Keep the sheet's numbers, then show them with ASI and feat bonuses added
-    captureSheetBase();
-    applyFeatStats();
-    loadTrack();
-    syncInspiration(parseFloat(inspCell) > 0);
-    renderResources();
-    renderStatus();
-    concUi.check = null; renderConc();   // no save waiting for a freshly loaded character
-    document.getElementById('restMsg').textContent = '';
-    document.getElementById('backupMsg').textContent = '';
-    closeClipPanel(); clipBox.value = ''; restoreConfirm = null;
-
-    updateMoveLine();
-
-    const key = (cls||'').toLowerCase();
-    const matchedKey = ['wizard','paladin','bard','rogue'].find(k=>key.includes(k));
-    if(matchedKey){ document.getElementById('spellClassSelect').value = matchedKey; renderSpellList(); }
-
+    applyCore(sheetToCore(table), sheetId);
     setStatus('Imported.', 'ok');
-    livePush();
-    tableWas.active = tableWas.myTurn = null; followDmCombat(); applyIncoming(); renderTable();   // a new character: follow the DM's combat afresh
   }catch(err){
     setStatus('Import failed: ' + err.message, 'err');
   }
