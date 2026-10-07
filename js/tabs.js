@@ -1,14 +1,15 @@
 /* ---------- V5: the character page in tabs ----------
-   Overview (summary, resources, status, combat, notes), Details, Spells and Inventory. Only the
+   Overview (summary, resources, status, combat), Details, Spells, Inventory and Notes. Only the
    chosen tab's panels show; within a tab, panels still drag into your own order (js/panel-order.js).
    Tabs drag into your own order too (or move with the arrow keys while one has focus). Which tab is
-   open and the tab order are kept in this browser (dndTracker:tabs). Details and Inventory are for
+   open and the tab order are kept in this browser (dndTracker:tabs). Details, Inventory and Notes are for
    characters in the Turnkeeper database; a character still on a Google Sheet doesn't show them. */
 const TK_TABS = [
-  {key:'overview', label:'Overview', panels:['tablePanel', 'summaryPanel', 'resourcesPanel', 'statusPanel', 'combatPanel', 'notesPanel']},
+  {key:'overview', label:'Overview', panels:['tablePanel', 'summaryPanel', 'resourcesPanel', 'statusPanel', 'combatPanel']},
   {key:'details', label:'Details', panels:['detailsPanel', 'profPanel', 'armsPanel'], db:true},
   {key:'spells', label:'Spells', panels:['spellsPanel']},
   {key:'inventory', label:'Inventory', panels:['goldPanel', 'gearPanel', 'invPanel'], db:true},
+  {key:'notes', label:'Notes', panels:['notesPanel'], db:true},
 ];
 const TABS_KEY = 'dndTracker:tabs';
 const tabPrefs = (()=>{ try{ return JSON.parse(localStorage.getItem(TABS_KEY) || 'null') || {}; }catch(e){ return {}; } })();
