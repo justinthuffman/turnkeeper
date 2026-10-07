@@ -635,8 +635,33 @@ function castingFor(cls){
   if(/arcane trickster|eldritch knight/.test(c)) return {ab:'int', from:3};
   return null;
 }
-const party = {};   // name -> what the sheet says, once loaded
+const party = {};   // name -> what the sheet (or the database) says, once loaded
+/* V5: a character moved into the Turnkeeper database is read from there (its base facts); saves,
+   passives, initiative and spell DC are worked out by the 2014 rules, as the tracker does (Jack of
+   All Trades for bards from level 2). What the player is tracking still arrives live and wins. */
+function dmDbReady(){
+  return new Promise(ok=>{ const t0 = Date.now(), iv = setInterval(()=>{ if(window.dmGetCore || Date.now() - t0 > 8000){ clearInterval(iv); ok(!!window.dmGetCore); } }, 100); });
+}
+const ABIL_FULL = {str:'Strength', dex:'Dexterity', con:'Constitution', int:'Intelligence', wis:'Wisdom', cha:'Charisma'};
+function pcFromCore(pc, core){
+  const level = Math.min(20, Math.max(1, Number(core.level) || 1)), prof = profFor(level), sc = {};
+  ABILS.forEach(a=>{ sc[a] = Number((core.scores || {})[a]) || 10; });
+  const jack = /bard/i.test(core.cls || '') && level >= 2 ? Math.floor(prof / 2) : 0;
+  const skills = core.skills || {}, saves = Array.isArray(core.saves) ? core.saves : Object.values(core.saves || {});
+  const skillMod = (name, ab)=>abilMod(sc[ab]) + (skills[name] === 'e' ? 2 * prof : skills[name] ? prof : jack);
+  const p = {name:String(core.name || pc.name).slice(0, 40), level, race:String(core.race || ''), cls:String(core.cls || ''), ac:toNum(core.ac), init:abilMod(sc.dex) + jack,
+    speed:`${toNum(core.speed) ?? 30} ft`, hpMax:toNum(core.hpMax), hpCur:toNum(core.hpCur), scores:sc, fromDb:true};
+  p.saves = ABILS.map(a=>({name:ABIL_FULL[a], prof:saves.includes(a), mod:abilMod(sc[a]) + (saves.includes(a) ? prof : 0)}));
+  p.passive = {perception:10 + skillMod('Perception', 'wis'), investigation:10 + skillMod('Investigation', 'int'), insight:10 + skillMod('Insight', 'wis')};
+  const cast = castingFor(p.cls);
+  if(cast && p.level >= cast.from) p.spellDc = 8 + prof + abilMod(p.scores[cast.ab]);
+  return p;
+}
 async function loadPC(pc){
+  if(await dmDbReady()){
+    try{ const core = await window.dmGetCore(campaign.key, pc.sheet); if(core && core.scores) return pcFromCore(pc, core); }
+    catch(err){ console.warn('Reading the character from the database:', err); }
+  }
   const data = await loadSheetJSONP(pc.sheet, SHEET_GID, 'A1:BZ120');
   if(!data.table || !data.table.rows) throw new Error('No data: is the sheet shared as “Anyone with the link can view”?');
   const table = data.table.rows.map(row => (row.c||[]).map(cell => cell ? (cell.v !== null && cell.v !== undefined ? cell.v : cell.f) : null));
@@ -787,18 +812,20 @@ function statsOf(pc){
   const speedSheet = toNum(p.speed);
   const out = {ac:num(s.ac) ?? p.ac, init:num(s.init) ?? p.init, dc:num(s.dc) ?? p.spellDc ?? null,
     speed:num(s.speed) ?? speedSheet, speedSheet, hpMax:L.hp && num(L.hp.max) !== null ? L.hp.max : p.hpMax, notes:[]};
-  out.acTitle = out.ac !== p.ac ? `${p.ac} on the sheet${s.acWhy ? `: ${s.acWhy}` : ''}` : '';
+  out.acTitle = out.ac !== p.ac ? `${p.ac} ${p.fromDb ? 'base' : 'on the sheet'}${s.acWhy ? `: ${s.acWhy}` : ''}` : '';
   if(out.ac !== p.ac && p.ac !== null) out.notes.push(`AC ${fmtMod(out.ac - p.ac)}: ${s.acWhy || 'changed in their Turnkeeper'}`);
-  out.speedTitle = out.speed !== speedSheet ? `${speedSheet} ft on the sheet${s.speedWhy ? `: ${s.speedWhy}` : ''}` : 'Feet';
-  if(out.speed !== speedSheet && speedSheet !== null) out.notes.push(`Speed ${out.speed} ft (${speedSheet} on the sheet): ${s.speedWhy || 'changed in their Turnkeeper'}`);
-  out.hpTitle = out.hpMax !== p.hpMax ? `${p.hpMax} on the sheet${L.exh >= 4 ? `: Exhaustion ${L.exh} halves it` : ''}` : 'Maximum hit points on the sheet';
-  if(out.hpMax !== p.hpMax && p.hpMax !== null) out.notes.push(`Max HP ${out.hpMax} (${p.hpMax} on the sheet)${L.exh >= 4 ? `: Exhaustion ${L.exh}` : ''}`);
+  out.speedTitle = out.speed !== speedSheet ? `${speedSheet} ft ${p.fromDb ? 'base' : 'on the sheet'}${s.speedWhy ? `: ${s.speedWhy}` : ''}` : 'Feet';
+  if(out.speed !== speedSheet && speedSheet !== null) out.notes.push(`Speed ${out.speed} ft (${speedSheet} ${p.fromDb ? 'base' : 'on the sheet'}): ${s.speedWhy || 'changed in their Turnkeeper'}`);
+  out.hpTitle = out.hpMax !== p.hpMax ? `${p.hpMax} ${p.fromDb ? 'base' : 'on the sheet'}${L.exh >= 4 ? `: Exhaustion ${L.exh} halves it` : ''}` : `Maximum hit points${p.fromDb ? '' : ' on the sheet'}`;
+  if(out.hpMax !== p.hpMax && p.hpMax !== null) out.notes.push(`Max HP ${out.hpMax} (${p.hpMax} ${p.fromDb ? 'base' : 'on the sheet'})${L.exh >= 4 ? `: Exhaustion ${L.exh}` : ''}`);
   return out;
 }
 function pcCard(pc){
   const p = party[pc.name];
-  const link = `turnkeeper.html?sheet=${encodeURIComponent(`https://docs.google.com/spreadsheets/d/${pc.sheet}/edit?gid=${SHEET_GID}#gid=${SHEET_GID}`)}&name=${encodeURIComponent(pc.name)}`;
-  const links = `<div class="pc-links"><a href="${link}" target="_blank" rel="noopener">Open in Turnkeeper</a><a href="https://docs.google.com/spreadsheets/d/${pc.sheet}/edit?gid=${SHEET_GID}" target="_blank" rel="noopener">Google Sheet</a></div>`;
+  // A character in the Turnkeeper database opens from there; the rest still from their Google Sheet
+  const link = p && p.fromDb ? `turnkeeper.html?char=${encodeURIComponent(pc.sheet)}`
+    : `turnkeeper.html?sheet=${encodeURIComponent(`https://docs.google.com/spreadsheets/d/${pc.sheet}/edit?gid=${SHEET_GID}#gid=${SHEET_GID}`)}&name=${encodeURIComponent(pc.name)}`;
+  const links = `<div class="pc-links"><a href="${link}" target="_blank" rel="noopener">Open in Turnkeeper</a>${p && p.fromDb ? '' : `<a href="https://docs.google.com/spreadsheets/d/${pc.sheet}/edit?gid=${SHEET_GID}" target="_blank" rel="noopener">Google Sheet</a>`}</div>`;
   // Rolling: in combat the player whose turn it is may roll; otherwise only those the DM clicked
   const may = !!allowed[pc.sheet], cur = combat.round ? byId(combat.turn) : null;
   const turnNow = !may && !!(cur && cur.kind === 'pc' && cur.name === pc.name);
@@ -1814,11 +1841,13 @@ const FBK = key=>TEST_MODE ? 'test' : key;
 const clean = v=>typeof v === 'string' ? v.replace(/[<>"&`]/g, '').slice(0, 200) : Array.isArray(v) ? v.map(clean)
   : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k, x])=>[k.replace(/[<>"&`]/g, ''), clean(x)])) : v;
 try{
-  const [{initializeApp}, {getAuth, signInAnonymously}, {getDatabase, ref, onValue, set, push, serverTimestamp}] =
+  const [{initializeApp}, {getAuth, signInAnonymously}, {getDatabase, ref, get, onValue, set, push, serverTimestamp}] =
     await Promise.all(['firebase-app.js', 'firebase-auth.js', 'firebase-database.js'].map(f=>import(FB + f)));
   const app = initializeApp(FIREBASE_CONFIG);
   await signInAnonymously(getAuth(app));
   const db = getDatabase(app);
+  // V5: a character's record in the Turnkeeper database (its base facts), or null if it isn't there yet
+  window.dmGetCore = async (key, id)=>(await get(ref(db, `campaigns/${FBK(key)}/characters/${id}/core`))).val();
   let stops = [];
   window.dmLiveWatch = key=>{
     stops.forEach(f=>f()); stops = [];
