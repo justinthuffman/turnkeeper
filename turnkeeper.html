@@ -17,6 +17,7 @@
 <link rel="stylesheet" href="css/char-icons.css">
 <link rel="stylesheet" href="css/class-themes.css">
 <link rel="stylesheet" href="css/settings.css">
+<link rel="stylesheet" href="css/char-sheet.css">
 <style>
 *{box-sizing:border-box;}
 body{
@@ -784,6 +785,37 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
     <p class="prep-hint">Tick the box next to each spell you have prepared. Checked spells appear under <b>Cast Prepared Spell</b> in the Combat Menu. <button type="button" class="sel-toggle" id="spellsSelAll"></button></p>
     <div id="spellListArea"></div>
   </div>
+</div>
+
+<!-- V5: the character's own sheet (js/char-sheet.js), for characters opened from the database -->
+<div class="panel" id="detailsPanel" hidden>
+  <div class="panel-head"><h2>Character Details</h2><span class="cs-save-msg" id="csSaveMsg" aria-live="polite"></span></div>
+  <div id="detailsBody"></div>
+</div>
+<div class="panel" id="profPanel" hidden>
+  <div class="panel-head"><h2>Proficiencies &amp; Languages</h2></div>
+  <div id="profBody"></div>
+</div>
+<div class="panel" id="goldPanel" hidden>
+  <div class="panel-head"><h2>Gold</h2><span class="gold-bal" id="goldBal">0 gp</span></div>
+  <div class="gold-row">
+    <input type="number" id="goldAmt" min="0.01" step="any" value="1" aria-label="Amount of gold">
+    <input type="text" id="goldNote" maxlength="200" placeholder="What's it for? e.g. won from gambling" aria-label="What the gold is for">
+    <button type="button" data-gold="add" disabled title="Add this amount (write a note first)">+</button>
+    <button type="button" data-gold="sub" disabled title="Spend this amount (write a note first)">&minus;</button>
+  </div>
+  <div id="goldLedger"></div>
+</div>
+<div class="panel" id="notesPanel" hidden>
+  <div class="panel-head"><h2>Notes</h2><span class="cs-save-msg" id="notesMsg" aria-live="polite"></span></div>
+  <div class="notes-tabs"><button type="button" class="chip-btn" data-notes-tab="write" aria-pressed="true">Write</button><button type="button" class="chip-btn" data-notes-tab="preview" aria-pressed="false">Preview</button></div>
+  <div id="notesWrite">
+    <div class="notes-tools" role="toolbar" aria-label="Formatting">
+      <button type="button" data-mark="bold" title="Bold"><b>B</b></button><button type="button" data-mark="italic" title="Italic"><i>I</i></button><button type="button" data-mark="underline" title="Underline"><u>U</u></button><button type="button" data-mark="strike" title="Strikethrough"><s>S</s></button><button type="button" data-mark="heading" title="Heading">H</button><button type="button" data-mark="quote" title="Quote">&ldquo;</button><button type="button" data-mark="list" title="List">&bull;</button><button type="button" data-mark="code" title="Code">&lt;/&gt;</button><button type="button" data-mark="block" title="Code block">{ }</button>
+    </div>
+    <textarea id="notesText" rows="10" aria-label="Notes" placeholder="Anything you want to remember. **bold**, *italic*, __underline__, ~~strike~~, > quote, - list"></textarea>
+  </div>
+  <div class="notes-preview" id="notesPreview" hidden></div>
 </div>
 
 <footer>Spell lists sourced from the "core" class lists at dnd5e.wikidot.com. Hover details are brief paraphrased summaries, not the original text &mdash; use the linked page for full rules text.</footer>
@@ -4455,6 +4487,7 @@ function applyCore(core, charId){
   if(matchedKey){ document.getElementById('spellClassSelect').value = matchedKey; renderSpellList(); }
   livePush();
   tableWas.active = tableWas.myTurn = null; followDmCombat(); applyIncoming(); renderTable();   // a new character: follow the DM's combat afresh
+  if(window.renderCharSheet) window.renderCharSheet();   // V5 panels (js/char-sheet.js)
 }
 
 async function runImport(){
@@ -4470,6 +4503,7 @@ async function runImport(){
     const table = data.table.rows.map(row => (row.c||[]).map(cell => cell ? (cell.v!==null && cell.v!==undefined ? cell.v : cell.f) : null));
     renderRawDump(table);
 
+    flushCharStore(); Object.assign(charStore, {id:null, campaign:null, kv:null, pending:{}});   // a sheet isn't a database character
     applyCore(sheetToCore(table), sheetId);
     setStatus('Imported.', 'ok');
     dbCopyConfirm = false; document.getElementById('dbCopyMsg').textContent = '';
@@ -6356,6 +6390,7 @@ setupSettings({onOpen:()=>{ if(document.getElementById('setDice').open) fillDice
 </script>
 <script src="js/panel-order.js"></script>
 <script src="js/char-icons.js"></script>
+<script src="js/char-sheet.js"></script>
 <script>
 
 /* ---------- Dice in the tracker (V4) ----------
@@ -6517,6 +6552,8 @@ try{
     getChar: async (c, id)=>(await get(charRef(c, id))).val(),
     listChars: async c=>(await get(ref(db, `campaigns/${FBK(c)}/characters`))).val() || {},
     setCore: (c, id, core)=>update(charRef(c, id), {core, t:serverTimestamp()}),
+    // Part of the record: {details:{…}, languages:[…]} → core/details, core/languages
+    updateCore: (c, id, patch)=>update(charRef(c, id), {...Object.fromEntries(Object.entries(patch).map(([k, v])=>['core/' + k, v === undefined ? null : v])), t:serverTimestamp()}),
     updateKv: (c, id, patch)=>update(charRef(c, id), {...Object.fromEntries(Object.entries(patch).map(([k, v])=>['kv/' + k, v])), t:serverTimestamp()}),
   };
   const compared = new Set(), watched = new Set(), healWatched = new Set();
