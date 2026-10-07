@@ -3,6 +3,13 @@
 What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest first.
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
+## Unreleased
+
+### Fixed
+- **The first roll on iPhone did nothing** (a faint empty tray, no dice, no sound) on a freshly opened
+  page, in every iOS browser. The dice library waited for its sounds to load, and iPhones don't
+  load audio before a tap. Sounds now load in the background and a roll never waits for them.
+
 ## 2026-10-07 — Dice on phones
 
 ### Fixed

@@ -269,6 +269,20 @@ function diceBox(){
       playDiceSound(a, Math.min(1, Math.max(0.25, speed / 1400)));
       this.lastSoundType = dice ? 'dice' : 'table'; this.lastSoundStep = e.world.stepnumber; this.lastSound = now + this.soundDelay;
     };
+    // Loading sounds. The library makes an audio element per sound and waits until the browser
+    // says it can play. iPhones (every iOS browser) don't load audio before a tap, so that wait
+    // never ended and the first roll on a fresh page got stuck: a faint, empty tray and no dice.
+    // Instead list the sound files (playDiceSound only needs .src) and decode them in the
+    // background (loadDiceBuffer); a roll never waits for them.
+    const SOUND_FILES = {table:{felt:7, wood_table:7, wood_tray:7, metal:9}, dice:{coin:6, metal:12, plastic:15, wood:12}};
+    box.loadSounds = async function(){
+      const mat = ((this.colorData && this.colorData.texture && this.colorData.texture.material) || '').match(/wood|metal/);
+      this.sound_dieMaterial = mat ? mat[0] : 'plastic';
+      const list = (kind, name)=>Array.from({length:SOUND_FILES[kind][name] || 0}, (_, i)=>({src:`${this.assetPath}sounds/${kind === 'table' ? 'surfaces/surface_' : 'dicehit/dicehit_'}${name}${i + 1}.mp3`}));
+      if(!this.sounds_table[this.surface]) this.sounds_table[this.surface] = list('table', this.surface);
+      ['coin', this.sound_dieMaterial].forEach(m=>{ if(!this.sounds_dice[m]) this.sounds_dice[m] = list('dice', m); });
+      loadDiceBuffers(this);
+    };
     // Phones and tablets can take the 3D canvas's graphics away (low memory, switching apps, the
     // screen sleeping): Chrome on Android does it often. Nothing draws after that, so throw this
     // box away and build a fresh one on the next roll.
@@ -384,7 +398,7 @@ async function setTray(box, st, strength){
   box.sounds = snd.on && critSettings.diceSound && snd.vol > 0; box.volume = snd.vol;   // the DM can mute dice for the campaign
   if(box.sounds) setDiceGain(snd.vol);   // how loud: up to 2.5× the browser's normal 100%
   box.surface = TRAY_FLOORS[st.floor].sound;
-  if(box.sounds){ await box.loadSounds().catch(()=>{}); loadDiceBuffers(box); }   // fetched and decoded once per sound
+  if(box.sounds) box.loadSounds().catch(()=>{});   // listed now, decoded in the background (never waited on)
 }
 // The library never frees what it draws: each look's face pictures stay cached and each roll
 // leaves its dice behind. Free them here, or memory climbs with every roll and look.
