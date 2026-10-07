@@ -3,7 +3,7 @@
 What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest first.
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
-## Unreleased
+## 2026-10-07 — First roll on iPhone
 
 ### Fixed
 - **The first roll on iPhone did nothing** (a faint empty tray, no dice, no sound) on a freshly opened
