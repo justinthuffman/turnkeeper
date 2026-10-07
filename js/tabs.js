@@ -50,12 +50,12 @@ let tabDrag = null;
 const tabButtons = ()=>[...document.querySelectorAll('#tkTabs [data-tab]')];
 function slideTabs(fn){   // move a tab, animating the others from where they were (FLIP)
   if(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches){ fn(); return; }
-  const before = new Map(tabButtons().map(b=>[b, b.getBoundingClientRect().left]));
+  const before = new Map(tabButtons().map(b=>{ const r = b.getBoundingClientRect(); return [b, [r.left, r.top]]; }));
   fn();
-  before.forEach((left, b)=>{
+  before.forEach(([left, top], b)=>{
     if(b === tabDrag.btn) return;
-    const dx = left - b.getBoundingClientRect().left; if(!dx) return;
-    b.style.transition = 'none'; b.style.transform = `translateX(${dx}px)`;
+    const r = b.getBoundingClientRect(), dx = left - r.left, dy = top - r.top; if(!dx && !dy) return;
+    b.style.transition = 'none'; b.style.transform = `translate(${dx}px, ${dy}px)`;
     requestAnimationFrame(()=>{ b.style.transition = 'transform 0.16s ease'; b.style.transform = ''; });
   });
 }
@@ -92,7 +92,13 @@ document.addEventListener('pointermove', e=>{
   // The slot goes before the first tab whose middle is right of the pointer
   const mid = e.clientX;
   const bar = document.getElementById('tkTabs'), others = tabButtons().filter(b=>b !== tabDrag.btn);
-  const target = others.find(b=>{ const r = b.getBoundingClientRect(); return mid < r.left + r.width / 2; }) || null;
+  // Where each tab really sits, not mid-slide (measuring mid-slide made the slot flicker). On a
+  // phone the tabs wrap onto two rows: the slot goes before the first tab in reading order that
+  // is on a later row than the pointer, or on its row and right of it.
+  const settled = b=>{ const t = getComputedStyle(b).transform, m = t && t !== 'none' ? new DOMMatrixReadOnly(t) : {m41:0, m42:0}, r = b.getBoundingClientRect();
+    return {top:r.top - m.m42, bottom:r.bottom - m.m42, mid:r.left - m.m41 + r.width / 2}; };
+  const y = e.clientY;
+  const target = others.find(b=>{ const r = settled(b); return r.top > y || (y >= r.top && y <= r.bottom && mid < r.mid); }) || null;
   const before = target || document.getElementById('manualRollBtn');   // Manual Roll stays last
   if(tabDrag.btn.nextElementSibling !== before) slideTabs(()=>bar.insertBefore(tabDrag.btn, before));
 });

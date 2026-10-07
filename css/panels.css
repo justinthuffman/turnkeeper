@@ -27,3 +27,7 @@ html .wrap > .panel button.panel-fold{background:none !important; border:none !i
 .panel-head:has(> .panel-fold) > .panel-fold-title{margin-right:auto;}
 .wrap > .panel.panel-collapsed > :not(.panel-head):not(.panel-grip){display:none !important;}
 .wrap > .panel.panel-collapsed > .panel-head{margin-bottom:0;}
+/* Fingers: a bigger grip to grab (the ⠿ itself stays small) */
+@media (pointer: coarse){
+  button.panel-grip{width:30px; height:44px; top:8px; left:-4px; opacity:0.6;}
+}
