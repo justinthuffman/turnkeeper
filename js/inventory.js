@@ -199,6 +199,13 @@ function itemAttrs(d, it){
   if(isShield(d)) return `+${2 + (parseInt(d.magic, 10) || 0)} AC`;
   return d.attrs || '';
 }
+// "Equipped: Right hand" next to an item in the list (equipping is done in Equipment above)
+function equippedTag(it, e){
+  const where = [];
+  if(e.armor === it.id) where.push('worn');
+  ['melee', 'ranged'].forEach(p=>{ const hs = ['L', 'R'].filter(h=>e[p][h] === it.id); if(hs.length) where.push(hs.length === 2 ? 'both hands' : HAND_NAME[hs[0]].toLowerCase()); });
+  return where.length ? `<div class="inv-tag">Equipped: ${where.join(', ')}</div>` : '';
+}
 function equipButtons(it, d, e){
   if(isArmor(d)) return e.armor === it.id ? `<button type="button" class="chip-btn on" data-unequip="${it.id}">Worn</button>` : `<button type="button" class="chip-btn" data-equip="${it.id}" data-slot="armor">Wear</button>`;
   if(isShield(d)) return e.shield === it.id ? `<button type="button" class="chip-btn on" data-unequip="${it.id}">Shield (${handLabel(e.shieldHand)})</button>`
@@ -222,11 +229,11 @@ function renderInventory(){
     + items.map(it=>{
       const d = itemDef(it.name) || {type:'Other', cost:'', weight:0};
       const fx = [...effectsFor(d.onHit).map(x=>`On hit: ${x.name}`), ...effectsFor(d.whileEquipped).map(x=>`While equipped: ${x.name}`)];
-      return `<tr><td><b>${csEsc(it.name)}</b>${d.custom ? ` <small class="inv-custom" title="A custom item for this campaign${d.baseName ? ', built on a ' + csEsc(d.baseName) : ''}">custom</small>` : ''}${d.attune ? ` <label class="inv-attune"><input type="checkbox" data-attune="${it.id}"${it.attuned ? ' checked' : ''}> attuned</label>` : ''}<div class="inv-eq">${equipButtons(it, d, e)}</div></td>`
+      return `<tr><td><b>${csEsc(it.name)}</b>${d.custom ? ` <small class="inv-custom" title="A custom item for this campaign${d.baseName ? ', built on a ' + csEsc(d.baseName) : ''}">custom</small>` : ''}${d.attune ? ` <label class="inv-attune"><input type="checkbox" data-attune="${it.id}"${it.attuned ? ' checked' : ''}> attuned</label>` : ''}${equippedTag(it, e)}</td>`
         + `<td>${csEsc(d.type)}</td><td>${csEsc(d.cost)}</td>${w ? `<td>${d.weight ? d.weight + ' lb' : '—'}</td>` : ''}`
         + `<td>${csEsc(itemAttrs(d, it))}${fx.length ? `<div class="inv-fx">${fx.map(csEsc).join('<br>')}</div>` : ''}${d.notes ? `<div class="inv-defnote">${csEsc(d.notes)}</div>` : ''}</td>`
         + `<td><input type="text" class="inv-note" data-inv-note="${it.id}" value="${csEsc(it.notes || '')}" placeholder="Your notes" aria-label="Notes for ${csEsc(it.name)}"></td>`
-        + `<td><input type="number" class="inv-qty" data-inv-qty="${it.id}" min="0" value="${it.qty ?? 1}" aria-label="How many ${csEsc(it.name)}"></td>`
+        + `<td>${isWeapon(d) || isArmor(d) || isShield(d) ? '<span class="cs-none">—</span>' : `<input type="number" class="inv-qty" data-inv-qty="${it.id}" min="0" value="${it.qty ?? 1}" aria-label="How many ${csEsc(it.name)}">`}</td>`
         + `<td>${d.custom ? `<button type="button" class="sel-toggle" data-edit-item="${csEsc(d.id)}">Edit</button> ` : ''}<button type="button" class="sel-toggle" data-inv-del="${it.id}" aria-label="Remove ${csEsc(it.name)}">Remove</button></td></tr>`;
     }).join('') + `</tbody></table>`
     : `<p class="cs-none">Nothing yet. Type an item's name above (from the Player's Handbook lists, or anything new), then Add.</p>`;
@@ -376,30 +383,120 @@ async function saveEffectForm(){
   }catch(err){ csFlash('Couldn’t save the effect: ' + err.message, true); }
 }
 
-/* ---------- Equipment panel: what's in each slot, and the AC it gives ---------- */
+/* ---------- Equipment (Inventory tab): Armor, Melee and Ranged dropdowns ----------
+   Armor: what you wear. Melee and Ranged: your main hand first (Right unless the character is
+   left-handed, in Edit Character), then your other hand, each with its attack numbers. A
+   two-handed weapon in the main hand greys out the other hand; a versatile one can be held in both
+   (its bigger die). Shields go in the off hand. Each dropdown lists your own items first, then the
+   Player's Handbook list: picking one you don't have adds it to your inventory. */
+const mainHand = ()=>(currentCore && currentCore.hand === 'L') ? 'L' : 'R';
+const offHand = ()=>mainHand() === 'R' ? 'L' : 'R';
+const HAND_NAME = {L:'Left hand', R:'Right hand'};
+// Equipped armor and shield for Character Summary's Armor list (pinnable like attacks)
+function equippedArmorItems(){
+  if(!csDb()) return [];
+  const e = equipState(), items = invItems(), out = [];
+  [e.armor, e.shield].forEach(id=>{
+    const it = items.find(x=>x.id === id), d = it && itemDef(it.name); if(!d) return;
+    out.push({name:csEsc(it.name), desc:csEsc(itemAttrs(d)) + (armorProficient(d) ? '' : ' &middot; not proficient')});
+  });
+  const ac = equippedAC(currentCore);
+  if(out.length && ac !== null) out[0].desc += ` &middot; AC ${ac} in total`;
+  return out;
+}
+const slotFits = (kind, d)=>!!d && (kind === 'armor' ? isArmor(d) : kind === 'melee' ? (isWeapon(d) && d.melee)
+  : kind === 'meleeOff' ? ((isWeapon(d) && d.melee) || isShield(d)) : (isWeapon(d) && d.ranged));
+function slotOptions(kind, current){
+  const items = invItems(), seen = {};
+  const own = items.filter(it=>slotFits(kind, itemDef(it.name))).map(it=>{
+    seen[it.name] = (seen[it.name] || 0) + 1;
+    return {id:it.id, label:it.name + (items.filter(x=>x.name === it.name).length > 1 ? ` (${seen[it.name]})` : '')};
+  });
+  const list = [...customItems().map(c=>itemDef(c.name)), ...EQUIPMENT].filter(d=>slotFits(kind, d)).filter((d, i, a)=>a.findIndex(x=>x.name === d.name) === i);
+  return `<option value="">— None —</option>`
+    + (own.length ? `<optgroup label="Yours">${own.map(o=>`<option value="inv:${o.id}"${o.id === current ? ' selected' : ''}>${csEsc(o.label)}</option>`).join('')}</optgroup>` : '')
+    + `<optgroup label="Add from the list">${list.map(d=>`<option value="new:${csEsc(d.name)}">${csEsc(d.name)}</option>`).join('')}</optgroup>`;
+}
+// The line under a slot: an armor's attributes, or a weapon's attack (the page's own attack, so
+// feats and magic are included)
+function slotStats(id, offhand){
+  if(!id) return '';
+  const it = invItems().find(x=>x.id === id), d = it && itemDef(it.name); if(!d) return '';
+  if(isShield(d) || isArmor(d)) return `<div class="gear-stats">${csEsc(itemAttrs(d))}${armorProficient(d) ? '' : ' · <b>not proficient</b>'}</div>`;
+  const a = state.attacks.find(x=>x.itemId === id); if(!a) return '';
+  const p = parseWeaponDamage(a.damage);
+  let dmg = a.damage.split(' · ')[0];
+  if(offhand && p && p.mod > 0) dmg = dmg.replace(/[+]\s*\d+/, '');   // two-weapon fighting: no positive modifier on off-hand damage
+  const fx = (a.onHit || []).map(x=>`On hit: ${csEsc(x.name)}`);
+  return `<div class="gear-stats"><b>${csEsc(a.bonus)}</b> to hit · <b>${csEsc(dmg)}</b>${weaponPropsText(d) ? ' · ' + csEsc(weaponPropsText(d)) : ''}${a.notProficient ? ' · not proficient' : ''}`
+    + (offhand ? `<div class="gear-note">Off-hand attack: a bonus action after you attack with your main hand. Two-weapon fighting needs light weapons in both hands, and adds no ability modifier to the damage unless it's negative.</div>` : '')
+    + (fx.length ? `<div class="gear-note">${fx.join(' · ')}</div>` : '') + `</div>`;
+}
+// Proficiencies with armor or weapons, from class, race and feats ("Your class: Light armor, …")
+function grantedLine(kind){
+  const isArmorProf = x=>/armor|Shields/.test(x), isWeaponProf = x=>/weapons/.test(x) || WEAPONS.some(w=>w.name === x);
+  return (typeof grantedProfs === 'function' ? grantedProfs() : []).map(([from, l])=>{
+    const mine = l.filter(kind === 'armor' ? isArmorProf : isWeaponProf);
+    return mine.length ? `${from}: ${mine.join(', ')}` : '';
+  }).filter(Boolean).join(' · ');
+}
 function renderEquipment(){
-  const panel = document.getElementById('equipPanel'); if(!panel) return;
+  const panel = document.getElementById('gearPanel'); if(!panel) return;
   panel.hidden = !csDb(); if(!csDb()) return;
-  const e = equipState(), items = invItems(), nameOf = id=>{ const it = items.find(x=>x.id === id); return it ? csEsc(it.name) : '<span class="cs-none">empty</span>'; };
-  const slot = (label, id)=>`<div class="eq-slot"><span class="eq-label">${label}</span><span class="eq-item">${id ? nameOf(id) : '<span class="cs-none">empty</span>'}</span></div>`;
-  const ac = equippedAC(currentCore), armor = e.armor && itemDef((items.find(x=>x.id === e.armor) || {}).name);
-  const notes = [];
-  if(armor && !armorProficient(armor)) notes.push(`Not proficient with ${armor.category} armor: disadvantage on Strength and Dexterity checks, saves and attacks, and you can't cast spells.`);
+  const e = equipState(), mh = mainHand(), oh = offHand(), items = invItems();
+  const defOf = id=>id ? itemDef((items.find(x=>x.id === id) || {}).name) : null;
+  const both = pair=>!!(e[pair][mh] && e[pair][mh] === e[pair][oh]);
+  const sel = (pair, which, id, kind, disabled)=>`<select data-gear="${pair}" data-which="${which}"${disabled ? ' disabled' : ''} aria-label="${pair} ${which}">${slotOptions(kind, id)}</select>`;
+  const pairHtml = (pair, label)=>{
+    const mainId = e[pair][mh], blocked = both(pair), offId = blocked ? null : e[pair][oh], md = defOf(mainId);
+    const grip = pair === 'melee' && md && md.versatile && !md.twoHanded && !offId
+      ? `<label class="cs-check gear-grip"><input type="checkbox" data-grip="${mainId}"${blocked ? ' checked' : ''}> Hold in both hands (${csEsc(md.versatile)})</label>` : '';
+    return `<div class="gear-group"><div class="cs-sub">${label}</div>`
+      + `<div class="gear-row"><span class="gear-hand">${HAND_NAME[mh]} <small>(main)</small></span><div>${sel(pair, 'main', mainId, pair, false)}${grip}${slotStats(mainId, false)}</div></div>`
+      + `<div class="gear-row${blocked ? ' gear-off' : ''}"><span class="gear-hand">${HAND_NAME[oh]}</span><div>${sel(pair, 'off', offId, pair === 'melee' ? 'meleeOff' : pair, blocked)}`
+      + (blocked ? `<div class="gear-note">${csEsc(md ? md.name : 'Your weapon')} takes both hands.</div>` : slotStats(offId, !!(offId && !isShield(defOf(offId))))) + `</div></div></div>`;
+  };
+  const ac = equippedAC(currentCore), armor = defOf(e.armor), notes = [];
   if(armor && armor.str && (currentCore.scores || {}).str < armor.str) notes.push(`${armor.name} needs Strength ${armor.str}: your speed drops by 10 feet.`);
   if(armor && armor.stealthDis) notes.push(`${armor.name}: disadvantage on Stealth checks.`);
-  const shield = e.shield && itemDef((items.find(x=>x.id === e.shield) || {}).name);
-  if(shield && !armorProficient(shield)) notes.push('Not proficient with shields: disadvantage on Strength and Dexterity checks, saves and attacks, and no spellcasting.');
-  equippedList().forEach(({it, def})=>{
-    if(isWeapon(def) && !weaponProficient(def)) notes.push(`Not proficient with ${it.name}: no proficiency bonus on its attack rolls.`);
-    effectsFor(def && def.whileEquipped).forEach(x=>notes.push(`While equipped, ${it.name}: ${x.name}${x.desc ? ' (' + x.desc + ')' : ''}.`));
-  });
-  document.getElementById('equipBody').innerHTML =
-    `<div class="eq-grid"><div><div class="cs-sub">Melee</div>${slot('Left hand', e.melee.L)}${slot('Right hand', e.melee.R)}</div>`
-    + `<div><div class="cs-sub">Ranged</div>${slot('Left hand', e.ranged.L)}${slot('Right hand', e.ranged.R)}</div>`
-    + `<div><div class="cs-sub">Armor</div>${slot('Body', e.armor)}${slot('Shield', e.shield)}</div></div>`
-    + `<p class="eq-ac">${ac !== null ? `Armor Class from your gear: <b>${ac}</b>` : `No armor or shield equipped: AC is the number in Character Details.`}</p>`
-    + (notes.length ? `<ul class="eq-notes">${notes.map(n=>`<li>${csEsc(n)}</li>`).join('')}</ul>` : '')
-    + `<p class="cs-none">Equip weapons, armor and shields from the Inventory below (Left, Right, Both, Wear).</p>`;
+  if(armor && !armorProficient(armor)) notes.push(`Not proficient with ${armor.category} armor: disadvantage on Strength and Dexterity checks, saves and attacks, and you can't cast spells.`);
+  equippedList().forEach(({it, def})=>effectsFor(def && def.whileEquipped).forEach(x=>notes.push(`While equipped, ${it.name}: ${x.name}${x.desc ? ' (' + x.desc + ')' : ''}.`)));
+  document.getElementById('gearBody').innerHTML =
+    `<div class="gear-group"><div class="cs-sub">Armor</div><div class="gear-row"><span class="gear-hand">Worn</span><div>${sel('armor', 'main', e.armor, 'armor', false)}${slotStats(e.armor)}</div></div>`
+    + `<p class="eq-ac">${ac !== null ? `Armor Class: <b>${ac}</b>` : `No armor or shield: AC ${csEsc(currentCore.ac ?? '—')} (set in Edit Character).`}</p>`
+    + (notes.length ? `<ul class="eq-notes">${notes.map(n=>`<li>${csEsc(n)}</li>`).join('')}</ul>` : '') + `</div>`
+    + pairHtml('melee', 'Melee') + pairHtml('ranged', 'Ranged')
+    + `<details class="cs-sec gear-profs"><summary>Armor &amp; Weapon Proficiencies</summary>`
+    + `<p class="cs-none">${csEsc(grantedLine('armor') || 'No armor proficiencies from class, race or feats.')}</p>${chipEditorHtml('armor', 'Extra armor proficiencies', profValues('armor'), ARMOR_PROFS)}`
+    + `<p class="cs-none">${csEsc(grantedLine('weapons') || 'No weapon proficiencies from class, race or feats.')}</p>${chipEditorHtml('weapons', 'Extra weapon proficiencies', profValues('weapons'), [...WEAPON_PROF_GROUPS, ...WEAPONS.map(w=>w.name)])}</details>`;
 }
+// A dropdown pick: equip it (adding it to the inventory first if it's new), or empty the slot
+function newInventoryItem(name){ const items = invItems(), id = newId(); items.push({id, name, qty:1, notes:''}); saveInv(items); return id; }
+document.addEventListener('change', e=>{
+  const t = e.target; if(!csDb() || !t.dataset) return;
+  if(t.dataset.grip){ equipItem(t.dataset.grip, 'melee', t.checked ? 'both' : mainHand()); return; }
+  if(!t.dataset.gear) return;
+  const pair = t.dataset.gear, v = t.value;
+  const id = v.startsWith('new:') ? newInventoryItem(v.slice(4)) : v.startsWith('inv:') ? v.slice(4) : null;
+  const st = equipState();
+  if(pair === 'armor'){
+    if(st.armor) unequipQuiet(st.armor, st);
+    saveEquip(st);
+    if(id) equipItem(id, 'armor'); else afterGearChange();
+    return;
+  }
+  const hand = t.dataset.which === 'main' ? mainHand() : offHand();
+  if(!id){
+    const x = st[pair][hand];
+    if(x){
+      if(st[pair].L === x && st[pair].R === x){ delete st[pair].L; delete st[pair].R; } else delete st[pair][hand];
+      if(x === st.shield){ delete st.shield; delete st.shieldHand; }
+    }
+    saveEquip(st); afterGearChange(); return;
+  }
+  const d = itemDef((invItems().find(x=>x.id === id) || {}).name);
+  if(isShield(d)) equipItem(id, 'shield', hand);
+  else equipItem(id, pair, d && d.twoHanded ? 'both' : hand);
+});
 
 window.renderGear = ()=>{ renderInventory(); renderEquipment(); syncGearStatuses(); };

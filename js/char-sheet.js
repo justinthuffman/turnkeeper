@@ -29,14 +29,14 @@ function csSaveCore(key, value, redraw){
   if(redraw){ const y = scrollY; applyCore(currentCore, currentCharId); scrollTo(0, y); }
 }
 function csFlash(text, err){
-  const el = document.getElementById('csSaveMsg'); if(!el) return;
+  const dlg = document.getElementById('editChar'), el = document.getElementById(dlg && !dlg.hidden ? 'csSaveMsg2' : 'csSaveMsg'); if(!el) return;
   el.textContent = text; el.classList.toggle('err', !!err);
   clearTimeout(el._t); el._t = setTimeout(()=>{ el.textContent = ''; }, 4000);
 }
 
 /* ---------- Character Details ---------- */
 const DETAIL_GROUPS = [
-  ['Identity', [['player', 'Player'], ['background', 'Background'], ['alignment', 'Alignment', 'align'], ['xp', 'Experience points', 'number'], ['lifestyle', 'Lifestyle', 'lifestyle'], ['bgFeature', 'Background feature', 'area']]],
+  ['Identity', [['background', 'Background'], ['alignment', 'Alignment', 'align'], ['xp', 'Experience points', 'number'], ['lifestyle', 'Lifestyle', 'lifestyle'], ['bgFeature', 'Background feature', 'area']]],
   ['Appearance', [['age', 'Age'], ['height', 'Height'], ['weight', 'Weight'], ['eyes', 'Eyes'], ['skin', 'Skin'], ['hair', 'Hair'], ['look', 'Appearance', 'area']]],
   ['Personality', [['traits', 'Personality traits', 'area'], ['ideals', 'Ideals', 'area'], ['bonds', 'Bonds', 'area'], ['flaws', 'Flaws', 'area']]],
   ['Story', [['backstory', 'Backstory', 'area'], ['allies', 'Allies & organizations', 'area'], ['symbol', 'Symbol (allies & organizations)'], ['extraFeatures', 'Additional features & traits', 'area']]],
@@ -58,6 +58,7 @@ function basicsHtml(c){
     + `<label class="cs-field" for="cb_name"><span>Name</span><input id="cb_name" data-basic="name" type="text" value="${csEsc(c.name || savedName(currentCharId) || '')}"></label>`
     + `<label class="cs-field" for="cb_cls"><span>Class</span><input id="cb_cls" data-basic="cls" type="text" value="${csEsc(c.cls)}" placeholder="e.g. Vengeance Paladin"></label>`
     + `<label class="cs-field" for="cb_race"><span>Race</span><input id="cb_race" data-basic="race" type="text" value="${csEsc(c.race)}"></label>`
+    + `<label class="cs-field" for="cb_hand"><span>Handedness</span><select id="cb_hand" data-basic="hand"><option value="R"${c.hand === 'L' ? '' : ' selected'}>Right-handed</option><option value="L"${c.hand === 'L' ? ' selected' : ''}>Left-handed</option></select></label>`
     + num('level', 'Level', c.level, 1, 20) + num('hpMax', 'HP max', c.hpMax, 1, 999) + num('speed', 'Speed (ft)', c.speed, 0, 200) + num('ac', 'AC (until armor is equipped)', c.ac, 0, 40)
     + `</div><div class="cs-sub">Ability Scores</div><div class="cs-grid cs-scores">`
     + ABILITY_KEYS.map(a=>`<label class="cs-field cs-num" for="cb_s_${a}"><span>${ABILITY_FULL[a]}</span><input id="cb_s_${a}" data-score="${a}" type="number" min="1" max="30" value="${sc[a] ?? 10}"></label>`).join('')
@@ -72,11 +73,27 @@ function renderDetails(){
   panel.hidden = !csDb(); if(!csDb()) return;
   const d = currentCore.details || {};
   document.getElementById('detailsBody').innerHTML =
-    `<details class="cs-sec" open><summary>Basics</summary>${basicsHtml(currentCore)}</details>`
-    + DETAIL_GROUPS.map(([title, fields])=>`<details class="cs-sec"${title === 'Identity' ? ' open' : ''}><summary>${title}</summary><div class="cs-grid">${fields.map(f=>detailFieldHtml(f, d)).join('')}</div></details>`).join('');
+    DETAIL_GROUPS.map(([title, fields])=>`<details class="cs-sec"${title === 'Identity' ? ' open' : ''}><summary>${title}</summary><div class="cs-grid">${fields.map(f=>detailFieldHtml(f, d)).join('')}</div></details>`).join('');
 }
+/* Edit Character: the set-once basics, behind a button in Settings (a window over the page) */
+function openEditChar(){
+  if(!csDb()) return;
+  let dlg = document.getElementById('editChar');
+  if(!dlg){
+    dlg = document.createElement('div'); dlg.id = 'editChar'; dlg.className = 'cs-modal'; dlg.setAttribute('role', 'dialog'); dlg.setAttribute('aria-modal', 'true'); dlg.setAttribute('aria-label', 'Edit character');
+    document.body.appendChild(dlg);
+    dlg.addEventListener('click', e=>{ if(e.target === dlg || e.target.closest('[data-edit-close]')) closeEditChar(); });
+  }
+  dlg.innerHTML = `<div class="cs-modal-box"><div class="cs-modal-head"><h2>Edit Character</h2><span class="cs-save-msg" id="csSaveMsg2" aria-live="polite"></span><button type="button" class="roll-close" data-edit-close aria-label="Close">&times;</button></div>`
+    + `<p class="cs-none">These are set when a character is made and rarely change. Everything on the sheet updates as you change them.</p>${basicsHtml(currentCore)}</div>`;
+  dlg.hidden = false;
+  document.getElementById('cb_name').focus();
+}
+function closeEditChar(){ const d = document.getElementById('editChar'); if(d) d.hidden = true; }
+document.addEventListener('keydown', e=>{ if(e.key === 'Escape'){ const d = document.getElementById('editChar'); if(d && !d.hidden) closeEditChar(); } });
+document.addEventListener('click', e=>{ if(e.target.closest && e.target.closest('#editCharBtn')) openEditChar(); });
 document.addEventListener('change', e=>{
-  const t = e.target; if(!csDb() || !t.closest || !t.closest('#detailsPanel')) return;
+  const t = e.target; if(!csDb() || !t.closest || !t.closest('#detailsPanel, #editChar')) return;
   if(t.dataset.detail){ csSaveCore('details', {...(currentCore.details || {}), [t.dataset.detail]: t.type === 'number' ? (parseInt(t.value, 10) || 0) : t.value}); csFlash('Saved.'); return; }
   if(t.dataset.basic === 'name'){ const n = t.value.trim(); if(n){ saveName(currentCharId, n); setCharName(n); csSaveCore('name', n); csFlash('Saved.'); } return; }
   if(t.dataset.basic){
@@ -94,7 +111,7 @@ document.addEventListener('change', e=>{
 /* ---------- Proficiencies & Languages ---------- */
 // Chip lists: pick from a list or type your own; × removes
 const PROF_LISTS = [
-  ['armor', 'Armor', ARMOR_PROFS], ['weapons', 'Weapons', [...WEAPON_PROF_GROUPS, ...WEAPONS.map(w=>w.name)]],
+  // Armor and weapon proficiencies are with Equipment in the Inventory tab (js/inventory.js)
   ['vehicles', 'Vehicles', VEHICLE_PROFS], ['tools', 'Tools', TOOL_PROFS], ['other', 'Other', []],
 ];
 function chipEditorHtml(key, label, values, options){
@@ -107,14 +124,17 @@ function chipEditorHtml(key, label, values, options){
 const profValues = key=>key === 'languages' ? (currentCore.languages || []) : ((currentCore.profs || {})[key] || []);
 function setProfValues(key, list){
   if(key === 'languages') csSaveCore('languages', list);
-  else csSaveCore('profs', {...(currentCore.profs || {}), [key]: list});
-  renderProfs();
+  // Armor and weapon proficiencies change attacks and armor penalties: redraw the page for those
+  else csSaveCore('profs', {...(currentCore.profs || {}), [key]: list}, key === 'armor' || key === 'weapons');
+  renderProfs(); if(window.renderGear) window.renderGear();
 }
 function renderProfs(){
   const panel = document.getElementById('profPanel'); if(!panel) return;
   panel.hidden = !csDb(); if(!csDb()) return;
   const sp = currentCore.speeds || {};
-  const granted = typeof grantedProfs === 'function' ? grantedProfs() : [];
+  // What class, race and feats give here (armor and weapons are shown with Equipment instead)
+  const armsProf = x=>/armor|Shields|weapons/.test(x) || WEAPONS.some(w=>w.name === x);
+  const granted = (typeof grantedProfs === 'function' ? grantedProfs() : []).map(([f, l])=>[f, l.filter(x=>!armsProf(x))]).filter(([, l])=>l.length);
   document.getElementById('profBody').innerHTML =
     (granted.length ? `<div class="cs-granted">${granted.map(([from, list])=>`<div><span>${from}:</span> ${list.map(csEsc).join(', ')}</div>`).join('')}<p class="cs-none">These come automatically. Add anything else below.</p></div>` : '')
     + PROF_LISTS.map(([k, label, opts])=>chipEditorHtml(k, label, profValues(k), opts)).join('')
@@ -252,4 +272,4 @@ document.addEventListener('click', e=>{
 document.addEventListener('input', e=>{ if(e.target.id === 'notesText') saveNotes(); });
 
 // Everything above, for the character just shown (called at the end of applyCore)
-window.renderCharSheet = ()=>{ renderDetails(); renderProfs(); renderGold(); renderNotes(); if(window.renderGear) window.renderGear(); };
+window.renderCharSheet = ()=>{ const sc = document.getElementById('setChar'); if(sc) sc.hidden = !csDb(); renderDetails(); renderProfs(); renderGold(); renderNotes(); if(window.renderGear) window.renderGear(); if(window.tkTabsRefresh) window.tkTabsRefresh(); };

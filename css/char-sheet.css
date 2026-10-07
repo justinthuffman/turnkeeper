@@ -86,3 +86,34 @@ table.inv input[type=checkbox]{width:auto;}
 .cs-granted span{color:var(--sea); font-size:0.72rem; text-transform:uppercase; letter-spacing:0.05em;}
 .cs-granted .cs-none{margin:4px 0 0;}
 select.build-pick{background:var(--panel2); border:1px solid var(--border); color:var(--ink); border-radius:4px; padding:4px 6px; font-size:0.8rem; margin:2px 4px 2px 0;}
+/* Tabs (js/tabs.js) */
+.tk-tabs{display:flex; flex-wrap:wrap; gap:4px; margin:-6px 0 16px; border-bottom:1px solid var(--border);}
+.tk-tab{background:none; border:1px solid transparent; border-bottom:none; border-radius:8px 8px 0 0; padding:8px 18px; margin-bottom:-1px;
+  color:var(--ink-dim); font-family:var(--font-display); font-size:0.95rem; box-shadow:none; text-shadow:none; cursor:pointer; touch-action:none; user-select:none;}
+.tk-tab:hover{background:none; color:var(--ink);}
+.tk-tab[aria-selected="true"]{color:var(--sea); background:var(--panel); border-color:var(--border); border-bottom:1px solid var(--panel);}
+body.tabs-dragging .tk-tab{cursor:grabbing;}
+.wrap > .panel.tab-off{display:none !important;}
+/* Edit Character window */
+.cs-modal{position:fixed; inset:0; z-index:120; background:var(--backdrop); display:flex; align-items:flex-start; justify-content:center; padding:5vh 16px; overflow-y:auto;}
+.cs-modal[hidden]{display:none;}
+.cs-modal-box{background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:16px 18px; width:min(760px, 100%); box-shadow:0 16px 40px rgba(0,0,0,0.55);}
+.cs-modal-head{display:flex; align-items:center; gap:12px; margin-bottom:6px;}
+.cs-modal-head h2{margin:0; color:var(--sea); font-size:1.15rem;}
+.cs-modal-head .roll-close{margin-left:auto;}
+.cs-modal-head .cs-save-msg{margin-left:0;}
+/* Equipment in the Inventory tab */
+.gear-group{border-top:1px solid var(--border); padding:8px 0;}
+.gear-group:first-child{border-top:none; padding-top:0;}
+.gear-row{display:grid; grid-template-columns:130px 1fr; gap:10px; align-items:start; padding:4px 0;}
+.gear-row select{background:var(--panel2); border:1px solid var(--border); color:var(--ink); border-radius:4px; padding:5px 8px; font-size:0.88rem; width:min(320px, 100%);}
+.gear-row select:disabled{opacity:0.45;}
+.gear-off .gear-hand{opacity:0.5;}
+.gear-hand{font-size:0.85rem; color:var(--ink-dim); padding-top:6px;}
+.gear-hand small{font-size:0.7rem;}
+.gear-stats{font-size:0.84rem; margin-top:4px;}
+.gear-note{font-size:0.76rem; color:var(--ink-dim); margin-top:3px;}
+.gear-grip{margin-top:4px; font-size:0.8rem;}
+.gear-profs{margin-top:4px;}
+.inv-tag{font-size:0.72rem; color:var(--sea); margin-top:3px;}
+@media (max-width:560px){ .gear-row{grid-template-columns:1fr; gap:2px;} .gear-hand{padding-top:0;} }

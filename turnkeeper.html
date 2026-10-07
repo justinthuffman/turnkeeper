@@ -561,6 +561,10 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
       <details class="set-sec" id="setDice"><summary>Dice and Tray</summary>
         <div class="dice-style-menu" id="diceStyleMenu" role="group" aria-label="Dice style"></div>
       </details>
+      <details class="set-sec" id="setChar" hidden><summary>Character</summary>
+        <p class="set-note">Name, class, race, level, handedness, ability scores and proficiencies: set when the character is made.</p>
+        <div class="restore-actions"><button type="button" class="chip-btn" id="editCharBtn">Edit character…</button></div>
+      </details>
       <details class="set-sec" id="setPanels"><summary>Panels</summary>
         <p class="set-note">Drag a panel by its ⠿ grip to move it, and click its title to fold it.</p>
         <div class="restore-actions"><button type="button" class="chip-btn" id="panelReset">Reset panel order</button><button type="button" class="chip-btn" id="panelOpenAll">Open every panel</button></div>
@@ -590,6 +594,8 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
     </div>
   </div>
 </header>
+<!-- V5: tabs (js/tabs.js) -->
+<nav class="tk-tabs" id="tkTabs" role="tablist" aria-label="Character sheet"></nav>
 
 <div class="combat-banner" id="combatBanner" role="button" tabindex="0" title="Show the turn order" hidden></div>
 <!-- INITIATIVE (the DM's, while the DM Screen is in combat) -->
@@ -694,6 +700,16 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
       <div id="atList"></div>
     </div>
   </div>
+
+  <div class="racial" id="arWrap" hidden>
+    <div class="rt-toggle" id="arToggle" role="button" tabindex="0" aria-expanded="false"><span class="arrow">&#9656;</span><span class="subhead" style="margin:0;">Armor</span></div>
+    <div class="rt-hint" id="arHint">Expand to see your armor.</div>
+    <div id="arPinned"></div>
+    <div class="rt-body" id="arBody">
+      <p class="rt-note"><span>Tick a box to pin your armor to your character sheet. Change it in the Inventory tab.</span><button type="button" class="sel-toggle" id="arSelAll"></button></p>
+      <div id="arList"></div>
+    </div>
+  </div>
 </div>
 
 <!-- RESOURCES: hit points, spell slots, limited-use features, rests -->
@@ -796,9 +812,19 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
   <div class="panel-head"><h2>Proficiencies &amp; Languages</h2></div>
   <div id="profBody"></div>
 </div>
-<div class="panel" id="equipPanel" hidden>
+<div class="panel" id="goldPanel" hidden>
+  <div class="panel-head"><h2>Gold</h2><span class="gold-bal" id="goldBal">0 gp</span></div>
+  <div class="gold-row">
+    <input type="number" id="goldAmt" min="0.01" step="any" value="1" aria-label="Amount of gold">
+    <input type="text" id="goldNote" maxlength="200" placeholder="What's it for? e.g. won from gambling" aria-label="What the gold is for">
+    <button type="button" data-gold="add" disabled title="Add this amount (write a note first)">+</button>
+    <button type="button" data-gold="sub" disabled title="Spend this amount (write a note first)">&minus;</button>
+  </div>
+  <div id="goldLedger"></div>
+</div>
+<div class="panel" id="gearPanel" hidden>
   <div class="panel-head"><h2>Equipment</h2></div>
-  <div id="equipBody"></div>
+  <div id="gearBody"></div>
 </div>
 <div class="panel" id="invPanel" hidden>
   <div class="panel-head"><h2>Inventory</h2><span class="cs-save-msg" id="invTotals"></span></div>
@@ -810,16 +836,6 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
   </div>
   <div id="itemForm" class="item-form" hidden></div>
   <div id="invTable"></div>
-</div>
-<div class="panel" id="goldPanel" hidden>
-  <div class="panel-head"><h2>Gold</h2><span class="gold-bal" id="goldBal">0 gp</span></div>
-  <div class="gold-row">
-    <input type="number" id="goldAmt" min="0.01" step="any" value="1" aria-label="Amount of gold">
-    <input type="text" id="goldNote" maxlength="200" placeholder="What's it for? e.g. won from gambling" aria-label="What the gold is for">
-    <button type="button" data-gold="add" disabled title="Add this amount (write a note first)">+</button>
-    <button type="button" data-gold="sub" disabled title="Spend this amount (write a note first)">&minus;</button>
-  </div>
-  <div id="goldLedger"></div>
 </div>
 <div class="panel" id="notesPanel" hidden>
   <div class="panel-head"><h2>Notes</h2><span class="cs-save-msg" id="notesMsg" aria-live="polite"></span></div>
@@ -4521,6 +4537,7 @@ function applyCore(core, charId){
   document.getElementById('f_init').value = fmtMod(abilityMod(core.scores.dex) + joatBonus());
   basePassive = 10 + checks.skills.find(s=>s.name === 'Perception').mod;
   attackSection.loadPins(); attackSection.render();
+  document.getElementById('arWrap').hidden = !charStore.kv; armorSection.loadPins(); armorSection.render();
   skillPins.load(); skillPins.render();
   savePins.load(); savePins.render();
   racialSection.loadPins(); racialSection.render();
@@ -5314,6 +5331,13 @@ const attackSection = makePinSection({
   prefix:'at', store:'attackPin',
   items: ()=>state.attacks.map(a=>({name:escapeHtml(a.name), desc:`${escapeHtml(a.bonus||'—')} to hit &middot; ${escapeHtml(a.damage||'—')}`})),
   emptyText: ()=>document.getElementById('f_class').value.trim() ? 'No attacks found on the sheet.' : 'Import a sheet to see attacks.',
+});
+
+// V5: equipped armor and shield (js/inventory.js), pinnable like attacks
+const armorSection = makePinSection({
+  prefix:'ar', store:'armorPin',
+  items: ()=>typeof equippedArmorItems === 'function' ? equippedArmorItems() : [],
+  emptyText: ()=>'No armor or shield equipped. Choose them in the Inventory tab.',
 });
 
 const rt = {raceKey:null};
@@ -6508,6 +6532,7 @@ setupSettings({onOpen:()=>{ if(document.getElementById('setDice').open) fillDice
 <script src="js/char-icons.js"></script>
 <script src="js/char-sheet.js"></script>
 <script src="js/inventory.js"></script>
+<script src="js/tabs.js"></script>
 <script>
 
 /* ---------- Dice in the tracker (V4) ----------
