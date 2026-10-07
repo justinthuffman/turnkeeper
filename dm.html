@@ -1082,9 +1082,11 @@ function nextTurn(){
   combat.turn = list[i] ? list[i].id : null;
   if(list[i]){
     logLine(`${list[i].name}’s turn`);
-    // V5: damage each turn from a custom effect on it (Bleeding from Grun's Greataxe). A player's
-    // own Turnkeeper reminds them; for monsters it's here in the log.
-    if(list[i].kind !== 'pc') effectsOn(list[i]).forEach(e=>{
+    // V5: damage each turn from a custom effect (Bleeding from Grun's Greataxe), logged here. Ones a
+    // player applied: monsters only (a player's own Turnkeeper reminds them). Ones the DM added here
+    // (Condition or effect): anyone, since the player's page doesn't know about them.
+    const dmAdded = (list[i].conds || []).map(x=>({name:x.name, caster:'the DM'}));
+    (list[i].kind !== 'pc' ? [...effectsOn(list[i]), ...dmAdded] : dmAdded).forEach(e=>{
       const d = (window.dmEffectDefs || {})[e.name];
       if(d && d.dmg && d.freq === 'turn') logLine(`${list[i].name}: ${e.name} (from ${e.caster || 'a player'}), take ${d.dmg} ${d.dmgType || ''} damage${d.endKind && d.endWhat ? `; a DC ${d.endDC || '?'} ${d.endWhat} ${d.endKind} ends it` : ''}${d.duration === 'healed' ? '; ends when healed' : ''}`.replace(/\s+/g, ' '));
     });
@@ -1162,6 +1164,11 @@ function conSaveMod(c){
 
 const CONDITIONS = ['Blinded','Charmed','Deafened','Frightened','Grappled','Incapacitated','Invisible','Paralyzed','Petrified','Poisoned','Prone','Restrained','Stunned','Unconscious'];
 const EFFECTS = ['Bane','Bless','Dodging','Faerie Fire','Hasted','Hexed','Hidden','Hunter’s Mark','Marked (Vow of Enmity)','On fire','Raging','Slowed','Turned'];
+// V5: the campaign's custom effects (made by players in the Inventory tab, e.g. Bleeding), for the
+// Condition or effect list; updated live (window.dmEffectDefs, from Firebase)
+const customEffectNames = ()=>Object.keys(window.dmEffectDefs || {}).filter(n=>!CONDITIONS.includes(n) && !EFFECTS.includes(n)).sort((a, b)=>a.localeCompare(b));
+// A new one shows in an open row's list (unless the DM is using that row right now)
+window.dmEffectDefsChanged = ()=>{ const a = document.activeElement; if(!(a && a.closest && a.closest('.cbt-more'))) renderInit(); };
 function hpBar(c){
   if(c.max === null || c.max === undefined) return `<div class="hp-text"><span>HP —</span></div>`;
   const pct = c.max ? Math.max(0, Math.min(100, Math.round(c.hp / c.max * 100))) : 0;
@@ -1197,7 +1204,7 @@ function combatantHtml(c, i, list){
       <button type="button" class="chip-btn" data-act="conc-kept">Kept it</button><button type="button" class="chip-btn" data-act="conc-lost">Lost it</button></div>`; })() : '';
   const more = openRow === c.id ? `<div class="cbt-more">
       <div class="grp"><span class="lbl">Condition or effect</span>
-        <div class="row"><select data-field="condPick"><optgroup label="Conditions">${CONDITIONS.map(n=>`<option>${n}</option>`).join('')}</optgroup><optgroup label="Effects">${EFFECTS.map(n=>`<option>${n}</option>`).join('')}</optgroup><option value="__other">Other…</option></select>
+        <div class="row"><select data-field="condPick"><optgroup label="Conditions">${CONDITIONS.map(n=>`<option>${n}</option>`).join('')}</optgroup><optgroup label="Effects">${EFFECTS.map(n=>`<option>${n}</option>`).join('')}</optgroup>${customEffectNames().length ? `<optgroup label="Campaign effects">${customEffectNames().map(n=>`<option>${esc(n)}</option>`).join('')}</optgroup>` : ''}<option value="__other">Other…</option></select>
         <input type="number" min="1" max="999" placeholder="rounds" data-field="condRounds" title="Rounds it lasts (counts down at the end of this creature’s turns). Blank: until removed. 1 minute = 10 rounds.">
         <button type="button" class="chip-btn" data-act="cond-add">Add</button></div></div>
       <div class="grp"><span class="lbl">Concentrating on</span>
@@ -1865,7 +1872,7 @@ try{
     stops.push(onValue(ref(db, `campaigns/${FBK(key)}/live`), snap=>{ window.dmLiveStatus('on'); window.dmLiveUpdate(key, clean(snap.val())); }, fail));
     stops.push(onValue(ref(db, `campaigns/${FBK(key)}/effects`), snap=>window.dmEffectsUpdate(key, clean(snap.val())), fail));
     // V5: the campaign's custom effects (Bleeding: 2 slashing every turn), for start-of-turn reminders
-    stops.push(onValue(ref(db, `campaigns/${FBK(key)}/effectDefs`), snap=>{ const out = {}; Object.values(snap.val() || {}).forEach(r=>{ try{ const d = JSON.parse(r.json); if(d && r.name) out[String(r.name)] = d; }catch(e){} }); window.dmEffectDefs = out; }, fail));
+    stops.push(onValue(ref(db, `campaigns/${FBK(key)}/effectDefs`), snap=>{ const out = {}; Object.values(snap.val() || {}).forEach(r=>{ try{ const d = JSON.parse(r.json); if(d && r.name) out[String(r.name)] = d; }catch(e){} }); window.dmEffectDefs = out; if(window.dmEffectDefsChanged) window.dmEffectDefsChanged(); }, fail));
     stops.push(onValue(ref(db, `campaigns/${FBK(key)}/acts`), snap=>window.dmActsUpdate(key, clean(snap.val())), fail));
     stops.push(onValue(ref(db, `campaigns/${FBK(key)}/allow`), snap=>window.dmAllowUpdate(key, clean(snap.val())), fail));
     // Rolls and settings arrive raw: their links must keep every character (js/dice.js checks every field)
