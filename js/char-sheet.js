@@ -172,9 +172,11 @@ function goldLog(){ try{ const g = JSON.parse(storageGet(goldKey()) || 'null'); 
 const goldBalance = log=>Math.round(log.reduce((n, x)=>n + (+x.d || 0), 0) * 100) / 100;
 function renderGold(){
   const panel = document.getElementById('goldPanel'); if(!panel) return;
-  panel.hidden = !csDb(); if(!csDb()) return;
+  panel.hidden = !csDb(); if(!csDb()){ const rg = document.getElementById('resGold'); if(rg) rg.hidden = true; return; }
   const log = goldLog(), bal = goldBalance(log);
   document.getElementById('goldBal').textContent = `${bal.toLocaleString()} gp`;
+  // The total also shows in Resources on the Overview tab (clicking it opens the Inventory tab)
+  const rg = document.getElementById('resGold'); if(rg){ rg.hidden = false; document.getElementById('resGoldAmt').textContent = bal.toLocaleString(); }
   const note = document.getElementById('goldNote'), ok = !!note.value.trim();
   document.querySelectorAll('[data-gold]').forEach(b=>{ b.disabled = !ok; });
   let run = 0;
@@ -273,3 +275,9 @@ document.addEventListener('input', e=>{ if(e.target.id === 'notesText') saveNote
 
 // Everything above, for the character just shown (called at the end of applyCore)
 window.renderCharSheet = ()=>{ const sc = document.getElementById('setChar'); if(sc) sc.hidden = !csDb(); renderDetails(); renderProfs(); renderGold(); renderNotes(); if(window.renderGear) window.renderGear(); if(window.tkTabsRefresh) window.tkTabsRefresh(); };
+// The gold total in Resources opens the Inventory tab at the Gold panel
+document.addEventListener('click', e=>{
+  if(!(e.target.closest && e.target.closest('#resGold'))) return;
+  if(window.showTab) window.showTab('inventory');
+  const p = document.getElementById('goldPanel'); if(p) p.scrollIntoView({behavior:'smooth', block:'start'});
+});

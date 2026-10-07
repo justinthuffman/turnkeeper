@@ -117,3 +117,13 @@ body.tabs-dragging .tk-tab{cursor:grabbing;}
 .gear-profs{margin-top:4px;}
 .inv-tag{font-size:0.72rem; color:var(--sea); margin-top:3px;}
 @media (max-width:560px){ .gear-row{grid-template-columns:1fr; gap:2px;} .gear-hand{padding-top:0;} }
+/* Gold total in Resources (Overview) */
+button.res-gold{display:inline-flex; align-items:center; gap:5px; margin-left:8px; padding:2px 10px 2px 4px; border-radius:999px; background:var(--panel2);
+  border:1px solid var(--border); color:var(--ink); font-size:0.9rem; font-weight:700; box-shadow:none; text-shadow:none; cursor:pointer; vertical-align:middle;}
+button.res-gold:hover{border-color:#c8962e; background:var(--panel2);}
+button.res-gold small{font-weight:400; color:var(--ink-dim); font-size:0.75rem;}
+.coin-gp{width:20px; height:20px; filter:drop-shadow(0 1px 1px rgba(0,0,0,0.4));}
+.gear-grip{display:flex; flex-wrap:wrap; gap:4px 14px; margin-top:4px; font-size:0.82rem;}
+.gear-grip label{display:inline-flex; align-items:center; gap:4px; cursor:pointer;}
+table.inv tr.inv-group th{text-align:left; padding:10px 6px 4px; font-family:var(--font-display); font-size:0.85rem; color:var(--sea); text-transform:none; letter-spacing:0.02em; border-bottom:1px solid var(--sea-dim);}
+@media (max-width:640px){ table.inv tr.inv-group{display:block;} table.inv tr.inv-group th{display:block;} }

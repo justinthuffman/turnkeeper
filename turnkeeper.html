@@ -720,7 +720,7 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
   <div class="rest-msg" id="restMsg" aria-live="polite"></div>
   <div class="hp-row">
     <div class="hp-now"><span class="res-label">Hit Points</span> <span id="hpNow">&mdash;</span><span class="hp-max"> / <span id="hpMax">&mdash;</span></span>
-      <span class="hp-temp" id="hpTemp" hidden></span><button type="button" class="insp-btn" id="inspBtn" hidden></button></div>
+      <span class="hp-temp" id="hpTemp" hidden></span><button type="button" class="insp-btn" id="inspBtn" hidden></button><button type="button" class="res-gold" id="resGold" hidden title="Gold: change it in the Inventory tab"><svg class="coin-gp" viewBox="0 0 24 24" aria-hidden="true"><defs><radialGradient id="gpFace" cx="40%" cy="35%" r="70%"><stop offset="0" stop-color="#fff3b0"/><stop offset=".45" stop-color="#f2c14e"/><stop offset="1" stop-color="#a8741a"/></radialGradient></defs><circle cx="12" cy="12" r="10.5" fill="#8a5a12"/><circle cx="12" cy="12" r="9.2" fill="url(#gpFace)"/><circle cx="12" cy="12" r="6.6" fill="none" stroke="#a8741a" stroke-width="1" stroke-dasharray="1.2 1.4"/><text x="12" y="15.2" text-anchor="middle" font-size="8" font-weight="700" font-family="Georgia, serif" fill="#7a4e0c">gp</text></svg><span id="resGoldAmt">0</span> <small>gp</small></button></div>
     <div class="hp-adjust">
       <input type="number" id="hpAmount" min="1" value="1" aria-label="Amount of damage, healing or temporary hit points">
       <button type="button" id="hpDamage">Damage</button>
@@ -811,6 +811,10 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
 <div class="panel" id="profPanel" hidden>
   <div class="panel-head"><h2>Proficiencies &amp; Languages</h2></div>
   <div id="profBody"></div>
+</div>
+<div class="panel" id="armsPanel" hidden>
+  <div class="panel-head"><h2>Armor &amp; Weapon Proficiencies</h2></div>
+  <div id="armsBody"></div>
 </div>
 <div class="panel" id="goldPanel" hidden>
   <div class="panel-head"><h2>Gold</h2><span class="gold-bal" id="goldBal">0 gp</span></div>

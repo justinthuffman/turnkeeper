@@ -217,6 +217,26 @@ function equipButtons(it, d, e){
   return ['L', 'R'].map(h=>`<button type="button" class="chip-btn" data-equip="${it.id}" data-slot="${pair}" data-hand="${h}">${handLabel(h)}</button>`).join('')
     + (d.versatile && d.melee ? `<button type="button" class="chip-btn" data-equip="${it.id}" data-slot="${pair}" data-hand="both" title="Versatile: ${d.versatile} in two hands">Both</button>` : '');
 }
+// The list in groups by type (Weapons, Armor, Adventuring Gear, Tools…), each sorted by name
+const INV_GROUP_ORDER = ['Weapons', 'Armor', 'Shields', 'Ammunition', 'Potions', 'Adventuring Gear', 'Equipment Packs', 'Tools', 'Spellcasting Focuses', 'Gemstones', 'Magic Items', 'Treasure', 'Other'];
+function invGroupOf(d){
+  const t = (d && d.type) || 'Other';
+  if(t === 'Weapon') return 'Weapons';
+  if(t === 'Shield') return 'Shields';
+  if(t === 'Potion') return 'Potions';
+  if(t === 'Equipment Pack') return 'Equipment Packs';
+  if(t === 'Gemstone') return 'Gemstones';
+  if(t === 'Magic Item') return 'Magic Items';
+  if(/Tool|Gaming Set|Musical Instrument/.test(t)) return 'Tools';
+  if(/Focus|Holy Symbol/.test(t)) return 'Spellcasting Focuses';
+  return INV_GROUP_ORDER.includes(t) ? t : (t === 'Adventuring Gear' ? t : 'Other');
+}
+function invGroups(items){
+  const groups = {};
+  items.forEach(it=>{ const g = invGroupOf(itemDef(it.name)); (groups[g] = groups[g] || []).push(it); });
+  return Object.keys(groups).sort((a, b)=>INV_GROUP_ORDER.indexOf(a) - INV_GROUP_ORDER.indexOf(b))
+    .map(g=>[g, groups[g].sort((a, b)=>a.name.localeCompare(b.name))]);
+}
 function renderInventory(){
   const panel = document.getElementById('invPanel'); if(!panel) return;
   panel.hidden = !csDb(); if(!csDb()) return;
@@ -226,7 +246,7 @@ function renderInventory(){
   const total = items.reduce((n, it)=>{ const d = itemDef(it.name); return n + (d && d.weight ? d.weight * (it.qty || 1) : 0); }, 0);
   document.getElementById('invTotals').textContent = items.length ? `${items.length} item${items.length === 1 ? '' : 's'}${w ? ` · ${Math.round(total * 100) / 100} lb carried` : ''}` : '';
   document.getElementById('invTable').innerHTML = items.length ? `<table class="inv"><thead><tr><th>Item</th><th>Type</th><th>Cost</th>${w ? '<th>Weight</th>' : ''}<th>Attributes</th><th>Notes</th><th>Qty</th><th></th></tr></thead><tbody>`
-    + items.map(it=>{
+    + invGroups(items).map(([group, list])=>`<tr class="inv-group"><th colspan="${w ? 8 : 7}">${csEsc(group)}</th></tr>` + list.map(it=>{
       const d = itemDef(it.name) || {type:'Other', cost:'', weight:0};
       const fx = [...effectsFor(d.onHit).map(x=>`On hit: ${x.name}`), ...effectsFor(d.whileEquipped).map(x=>`While equipped: ${x.name}`)];
       return `<tr><td><b>${csEsc(it.name)}</b>${d.custom ? ` <small class="inv-custom" title="A custom item for this campaign${d.baseName ? ', built on a ' + csEsc(d.baseName) : ''}">custom</small>` : ''}${d.attune ? ` <label class="inv-attune"><input type="checkbox" data-attune="${it.id}"${it.attuned ? ' checked' : ''}> attuned</label>` : ''}${equippedTag(it, e)}</td>`
@@ -235,7 +255,7 @@ function renderInventory(){
         + `<td><input type="text" class="inv-note" data-inv-note="${it.id}" value="${csEsc(it.notes || '')}" placeholder="Your notes" aria-label="Notes for ${csEsc(it.name)}"></td>`
         + `<td>${isWeapon(d) || isArmor(d) || isShield(d) ? '<span class="cs-none">—</span>' : `<input type="number" class="inv-qty" data-inv-qty="${it.id}" min="0" value="${it.qty ?? 1}" aria-label="How many ${csEsc(it.name)}">`}</td>`
         + `<td>${d.custom ? `<button type="button" class="sel-toggle" data-edit-item="${csEsc(d.id)}">Edit</button> ` : ''}<button type="button" class="sel-toggle" data-inv-del="${it.id}" aria-label="Remove ${csEsc(it.name)}">Remove</button></td></tr>`;
-    }).join('') + `</tbody></table>`
+    }).join('')).join('') + `</tbody></table>`
     : `<p class="cs-none">Nothing yet. Type an item's name above (from the Player's Handbook lists, or anything new), then Add.</p>`;
 }
 function addToInventory(name, qty){
@@ -243,7 +263,7 @@ function addToInventory(name, qty){
   const same = items.find(x=>x.name.toLowerCase() === name.toLowerCase() && !isWeapon(itemDef(x.name)) && !isArmor(itemDef(x.name)) && !isShield(itemDef(x.name)));
   if(same) same.qty = (same.qty || 1) + n;   // stack plain gear; weapons and armor stay separate (each can be equipped)
   else items.push({id:newId(), name:(itemDef(name) || {name}).name || name, qty:n, notes:''});
-  saveInv(items); renderInventory();
+  saveInv(items); renderInventory(); renderEquipment();   // the Equipment dropdowns list the inventory
 }
 document.addEventListener('click', e=>{
   const t = e.target.closest && e.target.closest('button'); if(!t || !csDb()) return;
@@ -305,10 +325,45 @@ function openItemForm(d, isNew){
     + `<label class="cs-field cs-wide"><span>Attributes</span><input id="if_attrs" type="text" maxlength="200" value="${csEsc(d.attrs || '')}" placeholder="Anything special about it"></label>`
     + `<label class="cs-field cs-wide"><span>Notes</span><textarea id="if_notes" rows="2" maxlength="1000">${csEsc(d.notes || '')}</textarea></label>`
     + `<label class="cs-check"><input type="checkbox" id="if_attune"${d.attune ? ' checked' : ''}> Requires attunement</label>`
-    + `</div><div id="itemFormFx"></div>`
+    + `</div><div id="ifWeapon"></div><div id="itemFormFx"></div>`
     + `<div class="cs-add" style="max-width:none;"><button type="button" class="chip-btn" id="itemSave">${isNew ? 'Save and add to inventory' : 'Save'}</button><button type="button" class="chip-btn" id="itemCancel">Cancel</button></div>`;
+  itemForm.weapon = d;
+  drawItemFormWeapon();
   drawItemFormFx();
   f.scrollIntoView({block:'nearest'});
+}
+/* A weapon's own stats in the item form: what it inherits when it's built on a standard weapon,
+   or its own (melee or ranged, simple or martial, damage, one-handed / two-handed / versatile,
+   finesse, light, reach, range) when it isn't */
+function drawItemFormWeapon(){
+  const box = document.getElementById('ifWeapon'); if(!box || !itemForm) return;
+  const base = document.getElementById('if_base').value, baseDef = base ? equipmentByName(base) : null;
+  const type = baseDef ? baseDef.type : document.getElementById('if_type').value;
+  if(baseDef){ box.innerHTML = `<p class="cs-none">Built on a ${csEsc(baseDef.name)}: ${csEsc(itemAttrs(baseDef))}.</p>`; return; }
+  if(type !== 'Weapon'){ box.innerHTML = ''; return; }
+  const w = itemForm.weapon || {}, hands = w.twoHanded ? 'two' : w.versatile ? 'versatile' : 'one';
+  const opt = (v, l, cur)=>`<option value="${v}"${v === cur ? ' selected' : ''}>${l}</option>`;
+  box.innerHTML = `<div class="cs-sub">Weapon</div><div class="cs-grid">`
+    + `<label class="cs-field"><span>Kind</span><select id="iw_cat">${['simple melee', 'martial melee', 'simple ranged', 'martial ranged'].map(c=>opt(c, c[0].toUpperCase() + c.slice(1), w.category || 'martial melee')).join('')}</select></label>`
+    + `<label class="cs-field"><span>Damage dice</span><input id="iw_dice" type="text" maxlength="12" value="${csEsc(w.dice || '1d8')}"></label>`
+    + `<label class="cs-field"><span>Damage type</span><select id="iw_type">${DAMAGE_TYPES.map(t=>opt(t, t, w.dmgType || 'slashing')).join('')}</select></label>`
+    + `<label class="cs-field"><span>Hands</span><select id="iw_hands">${opt('one', 'One-handed', hands)}${opt('two', 'Two-handed', hands)}${opt('versatile', 'Versatile (one or two)', hands)}</select></label>`
+    + `<label class="cs-field"><span>Two-handed damage (versatile)</span><input id="iw_vers" type="text" maxlength="12" value="${csEsc(w.versatile || '')}" placeholder="e.g. 1d10"></label>`
+    + `<label class="cs-field"><span>Range (thrown or ranged)</span><input id="iw_range" type="text" maxlength="12" value="${csEsc(w.range || '')}" placeholder="e.g. 20/60"></label>`
+    + `</div><div class="cs-checks">${[['finesse', 'Finesse'], ['light', 'Light'], ['heavy', 'Heavy'], ['reach', 'Reach'], ['thrown', 'Thrown'], ['loading', 'Loading'], ['ammunition', 'Ammunition']]
+      .map(([k, l])=>`<label class="cs-check"><input type="checkbox" id="iw_${k}"${w[k] ? ' checked' : ''}> ${l}</label>`).join('')}</div>`;
+}
+document.addEventListener('change', e=>{ if(itemForm && (e.target.id === 'if_type' || e.target.id === 'if_base')) drawItemFormWeapon(); });
+// The weapon fields as stats (for a weapon not built on a standard one)
+function readItemFormWeapon(){
+  const g = id=>document.getElementById(id);
+  if(!g('iw_cat')) return null;
+  const cat = g('iw_cat').value, hands = g('iw_hands').value, out = {category:cat, melee:/melee/.test(cat), ranged:/ranged/.test(cat), martial:/martial/.test(cat),
+    dice:g('iw_dice').value.trim().slice(0, 12) || '1d4', dmgType:g('iw_type').value, twoHanded:hands === 'two'};
+  if(hands === 'versatile') out.versatile = g('iw_vers').value.trim().slice(0, 12) || out.dice;
+  const range = g('iw_range').value.trim().slice(0, 12); if(range) out.range = range;
+  ['finesse', 'light', 'heavy', 'reach', 'thrown', 'loading', 'ammunition'].forEach(k=>{ if(g('iw_' + k).checked) out[k] = true; });
+  return out;
 }
 function drawItemFormFx(){
   const box = document.getElementById('itemFormFx'); if(!box || !itemForm) return;
@@ -335,6 +390,7 @@ async function saveItemForm(){
     magic: parseInt(v('if_magic'), 10) || 0, attune: document.getElementById('if_attune').checked, onHit:itemForm.onHit, whileEquipped:itemForm.whileEquipped};
   const wt = parseFloat(v('if_weight')); if(!isNaN(wt)) def.weight = wt; else if(baseDef) def.weight = baseDef.weight;
   if(!def.cost && baseDef) def.cost = baseDef.cost;
+  if(!baseDef && def.type === 'Weapon') Object.assign(def, readItemFormWeapon() || {});
   const clash = customItems().find(x=>x.name.toLowerCase() === name.toLowerCase() && x.id !== itemForm.id) || (!itemForm.id && equipmentByName(name));
   if(clash){ csFlash(`There’s already an item called ${name}.`, true); return; }
   const id = itemForm.id || newId();
@@ -387,8 +443,8 @@ async function saveEffectForm(){
    Armor: what you wear. Melee and Ranged: your main hand first (Right unless the character is
    left-handed, in Edit Character), then your other hand, each with its attack numbers. A
    two-handed weapon in the main hand greys out the other hand; a versatile one can be held in both
-   (its bigger die). Shields go in the off hand. Each dropdown lists your own items first, then the
-   Player's Handbook list: picking one you don't have adds it to your inventory. */
+   (its bigger die). Shields go in the off hand. Each dropdown lists only what's in your inventory:
+   equipment is what you're wearing or holding, out of what you carry. */
 const mainHand = ()=>(currentCore && currentCore.hand === 'L') ? 'L' : 'R';
 const offHand = ()=>mainHand() === 'R' ? 'L' : 'R';
 const HAND_NAME = {L:'Left hand', R:'Right hand'};
@@ -406,16 +462,15 @@ function equippedArmorItems(){
 }
 const slotFits = (kind, d)=>!!d && (kind === 'armor' ? isArmor(d) : kind === 'melee' ? (isWeapon(d) && d.melee)
   : kind === 'meleeOff' ? ((isWeapon(d) && d.melee) || isShield(d)) : (isWeapon(d) && d.ranged));
+// A slot's dropdown: only what's in the inventory (add things in the list below first)
 function slotOptions(kind, current){
   const items = invItems(), seen = {};
   const own = items.filter(it=>slotFits(kind, itemDef(it.name))).map(it=>{
     seen[it.name] = (seen[it.name] || 0) + 1;
     return {id:it.id, label:it.name + (items.filter(x=>x.name === it.name).length > 1 ? ` (${seen[it.name]})` : '')};
   });
-  const list = [...customItems().map(c=>itemDef(c.name)), ...EQUIPMENT].filter(d=>slotFits(kind, d)).filter((d, i, a)=>a.findIndex(x=>x.name === d.name) === i);
-  return `<option value="">— None —</option>`
-    + (own.length ? `<optgroup label="Yours">${own.map(o=>`<option value="inv:${o.id}"${o.id === current ? ' selected' : ''}>${csEsc(o.label)}</option>`).join('')}</optgroup>` : '')
-    + `<optgroup label="Add from the list">${list.map(d=>`<option value="new:${csEsc(d.name)}">${csEsc(d.name)}</option>`).join('')}</optgroup>`;
+  const none = {armor:'No armor in your inventory', ranged:'No ranged weapons in your inventory'}[kind] || 'No melee weapons in your inventory';
+  return `<option value="">${own.length ? '— None —' : none}</option>` + own.map(o=>`<option value="inv:${o.id}"${o.id === current ? ' selected' : ''}>${csEsc(o.label)}</option>`).join('');
 }
 // The line under a slot: an armor's attributes, or a weapon's attack (the page's own attack, so
 // feats and magic are included)
@@ -449,8 +504,11 @@ function renderEquipment(){
   const sel = (pair, which, id, kind, disabled)=>`<select data-gear="${pair}" data-which="${which}"${disabled ? ' disabled' : ''} aria-label="${pair} ${which}">${slotOptions(kind, id)}</select>`;
   const pairHtml = (pair, label)=>{
     const mainId = e[pair][mh], blocked = both(pair), offId = blocked ? null : e[pair][oh], md = defOf(mainId);
-    const grip = pair === 'melee' && md && md.versatile && !md.twoHanded && !offId
-      ? `<label class="cs-check gear-grip"><input type="checkbox" data-grip="${mainId}"${blocked ? ' checked' : ''}> Hold in both hands (${csEsc(md.versatile)})</label>` : '';
+    // A versatile weapon: one hand or two (two needs the other hand free)
+    const grip = pair === 'melee' && md && md.versatile && !md.twoHanded
+      ? (offId ? `<div class="gear-note">Versatile: empty your other hand to hold it in two hands (${csEsc(md.versatile)}).</div>`
+        : `<div class="gear-grip" role="radiogroup" aria-label="How you hold it"><label><input type="radio" name="grip_${mainId}" data-grip="${mainId}" value="1"${blocked ? '' : ' checked'}> One hand (${csEsc(md.dice)})</label>`
+          + `<label><input type="radio" name="grip_${mainId}" data-grip="${mainId}" value="2"${blocked ? ' checked' : ''}> Two hands (${csEsc(md.versatile)})</label></div>`) : '';
     return `<div class="gear-group"><div class="cs-sub">${label}</div>`
       + `<div class="gear-row"><span class="gear-hand">${HAND_NAME[mh]} <small>(main)</small></span><div>${sel(pair, 'main', mainId, pair, false)}${grip}${slotStats(mainId, false)}</div></div>`
       + `<div class="gear-row${blocked ? ' gear-off' : ''}"><span class="gear-hand">${HAND_NAME[oh]}</span><div>${sel(pair, 'off', offId, pair === 'melee' ? 'meleeOff' : pair, blocked)}`
@@ -465,16 +523,13 @@ function renderEquipment(){
     `<div class="gear-group"><div class="cs-sub">Armor</div><div class="gear-row"><span class="gear-hand">Worn</span><div>${sel('armor', 'main', e.armor, 'armor', false)}${slotStats(e.armor)}</div></div>`
     + `<p class="eq-ac">${ac !== null ? `Armor Class: <b>${ac}</b>` : `No armor or shield: AC ${csEsc(currentCore.ac ?? '—')} (set in Edit Character).`}</p>`
     + (notes.length ? `<ul class="eq-notes">${notes.map(n=>`<li>${csEsc(n)}</li>`).join('')}</ul>` : '') + `</div>`
-    + pairHtml('melee', 'Melee') + pairHtml('ranged', 'Ranged')
-    + `<details class="cs-sec gear-profs"><summary>Armor &amp; Weapon Proficiencies</summary>`
-    + `<p class="cs-none">${csEsc(grantedLine('armor') || 'No armor proficiencies from class, race or feats.')}</p>${chipEditorHtml('armor', 'Extra armor proficiencies', profValues('armor'), ARMOR_PROFS)}`
-    + `<p class="cs-none">${csEsc(grantedLine('weapons') || 'No weapon proficiencies from class, race or feats.')}</p>${chipEditorHtml('weapons', 'Extra weapon proficiencies', profValues('weapons'), [...WEAPON_PROF_GROUPS, ...WEAPONS.map(w=>w.name)])}</details>`;
+    + pairHtml('melee', 'Melee') + pairHtml('ranged', 'Ranged');
 }
 // A dropdown pick: equip it (adding it to the inventory first if it's new), or empty the slot
 function newInventoryItem(name){ const items = invItems(), id = newId(); items.push({id, name, qty:1, notes:''}); saveInv(items); return id; }
 document.addEventListener('change', e=>{
   const t = e.target; if(!csDb() || !t.dataset) return;
-  if(t.dataset.grip){ equipItem(t.dataset.grip, 'melee', t.checked ? 'both' : mainHand()); return; }
+  if(t.dataset.grip){ equipItem(t.dataset.grip, 'melee', t.value === '2' ? 'both' : mainHand()); return; }
   if(!t.dataset.gear) return;
   const pair = t.dataset.gear, v = t.value;
   const id = v.startsWith('new:') ? newInventoryItem(v.slice(4)) : v.startsWith('inv:') ? v.slice(4) : null;
@@ -499,4 +554,12 @@ document.addEventListener('change', e=>{
   else equipItem(id, pair, d && d.twoHanded ? 'both' : hand);
 });
 
-window.renderGear = ()=>{ renderInventory(); renderEquipment(); syncGearStatuses(); };
+/* Armor & Weapon Proficiencies (Details tab): what class, race and feats give, plus any extras */
+function renderArmsProfs(){
+  const panel = document.getElementById('armsPanel'); if(!panel) return;
+  panel.hidden = !csDb(); if(!csDb()) return;
+  document.getElementById('armsBody').innerHTML =
+    `<p class="cs-none">${csEsc(grantedLine('armor') || 'No armor proficiencies from class, race or feats.')}</p>${chipEditorHtml('armor', 'Extra armor proficiencies', profValues('armor'), ARMOR_PROFS)}`
+    + `<p class="cs-none">${csEsc(grantedLine('weapons') || 'No weapon proficiencies from class, race or feats.')}</p>${chipEditorHtml('weapons', 'Extra weapon proficiencies', profValues('weapons'), [...WEAPON_PROF_GROUPS, ...WEAPONS.map(w=>w.name)])}`;
+}
+window.renderGear = ()=>{ renderInventory(); renderEquipment(); renderArmsProfs(); syncGearStatuses(); };

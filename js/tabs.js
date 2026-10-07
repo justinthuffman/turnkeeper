@@ -6,7 +6,7 @@
    characters in the Turnkeeper database; a character still on a Google Sheet doesn't show them. */
 const TK_TABS = [
   {key:'overview', label:'Overview', panels:['tablePanel', 'summaryPanel', 'resourcesPanel', 'statusPanel', 'combatPanel', 'notesPanel']},
-  {key:'details', label:'Details', panels:['detailsPanel', 'profPanel'], db:true},
+  {key:'details', label:'Details', panels:['detailsPanel', 'profPanel', 'armsPanel'], db:true},
   {key:'spells', label:'Spells', panels:['spellsPanel']},
   {key:'inventory', label:'Inventory', panels:['goldPanel', 'gearPanel', 'invPanel'], db:true},
 ];
@@ -75,4 +75,5 @@ document.addEventListener('keydown', e=>{
 });
 // Called when a character is shown (database characters get Details and Inventory)
 window.tkTabsRefresh = renderTabs;
+window.showTab = showTab;
 renderTabs();
