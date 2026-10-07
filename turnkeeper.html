@@ -109,6 +109,14 @@ button.ghost:hover{color:var(--ink); border-color:var(--sea-dim);}
 .rt-toggle{cursor:pointer; display:inline-flex; align-items:center; gap:6px; user-select:none;}
 .rt-toggle .arrow{transition:transform .15s; color:var(--sea-dim); font-size:0.8rem;}
 .rt-toggle.open .arrow{transform:rotate(90deg);}
+/* Character Summary: everything under the ability scores folds behind one button; pinned items still show */
+.sum-more-btn{display:flex; align-items:baseline; gap:8px; width:100%; margin:12px 0 2px; padding:8px 10px; background:var(--panel2); border:1px solid var(--border); border-radius:8px; color:var(--ink); font-weight:600; text-align:left; cursor:pointer; box-shadow:none;}
+.sum-more-btn small{color:var(--ink-dim); font-weight:400;}
+.sum-more-btn .arrow{transition:transform .15s; color:var(--sea-dim); font-size:0.8rem;}
+.sum-more-btn[aria-expanded="true"] .arrow{transform:rotate(90deg);}
+.sum-collapsed .rt-body, .sum-collapsed .rt-hint, .sum-collapsed .racial:not(.has-pins){display:none !important;}
+.sum-collapsed .pinned-chips{display:flex !important;}
+.sum-collapsed #rtPinned, .sum-collapsed #cfPinned, .sum-collapsed #fePinned, .sum-collapsed #atPinned, .sum-collapsed #arPinned{display:block !important;}
 .rt-hint{font-size:0.78rem; color:var(--ink-dim); font-style:italic; margin-top:2px;}
 /* Expand/collapse slides: .rt-body, .spell-body and .slide animate between 0 and their
    real height (grid-rows trick; their children are wrapped in .slide-inner at load) */
@@ -591,6 +599,23 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
         <label class="set-check"><input type="checkbox" id="askBackup"> Ask before I close or leave the page if I haven’t backed up my latest changes</label>
         <p class="set-note">Your browser shows its own “Leave site?” box; choose Cancel, then back up here.</p>
       </details>
+      <!-- The old way in, kept for now: rarely needed now that characters live in the database -->
+      <details class="set-sec" id="setImport"><summary>Import from Google Sheet</summary>
+        <div class="import-row" style="margin-top:8px;">
+      <input type="text" id="sheetUrl" placeholder="Paste the public Google Sheet link here">
+      <button id="importBtn">Import</button>
+      <button class="ghost" id="clearBtn" type="button">Clear</button>
+    </div>
+    <div class="status" id="importStatus">Sheet must be shared as "Anyone with the link can view."</div>
+    <div class="import-row" id="dbCopyRow" style="margin-top:8px;" hidden><button type="button" class="ghost" id="dbCopyBtn">Copy this character into the Turnkeeper database</button><span class="status" id="dbCopyMsg"></span></div>
+    <div id="rawDumpWrap" style="display:none; margin-top:10px;">
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+        <div class="spell-toggle" id="rawDumpToggle" style="font-size:0.85rem;"><span class="arrow">&#9656;</span><span style="color:var(--sea-dim);">Show raw sheet cells (for fixing ranges)</span></div>
+        <button class="ghost" id="copyDumpBtn" type="button" style="font-size:0.75rem; padding:4px 10px; white-space:nowrap;">Copy dump</button>
+      </div>
+      <div id="rawDumpBody" class="spell-body"><div id="rawDumpText" style="font-family:monospace; font-size:0.75rem; color:var(--ink-dim); max-height:320px; overflow-y:auto; background:var(--panel2); border:1px solid var(--border); border-radius:4px; padding:8px 10px; margin-top:8px; white-space:pre-wrap;"></div></div>
+    </div>
+      </details>
     </div>
   </div>
 </header>
@@ -644,6 +669,8 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
     <div class="stat-box"><div class="abbr">CHA</div><input id="s_cha" type="text" value="10" readonly><div class="mod" id="m_cha">+0</div></div>
   </div>
 
+<button type="button" class="sum-more-btn" id="sumMoreBtn" aria-expanded="false" aria-controls="sumMore"><span class="arrow">&#9656;</span><span id="sumMoreLabel">Expand</span><small>racial traits, class features, feats, saving throws, skills, attacks and armor</small></button>
+<div class="sum-more sum-collapsed" id="sumMore">
   <div class="racial">
     <div class="rt-toggle" id="rtToggle" role="button" tabindex="0" aria-expanded="false"><span class="arrow">&#9656;</span><span class="subhead" style="margin:0;">Racial Traits</span></div>
     <div class="rt-hint" id="rtHint">Expand to see full list of racial traits.</div>
@@ -710,6 +737,7 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
       <div id="arList"></div>
     </div>
   </div>
+</div>
 </div>
 
 <!-- RESOURCES: hit points, spell slots, limited-use features, rests -->
@@ -859,26 +887,6 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
 
 
 
-<!-- IMPORT (moved to bottom, collapsed and de-emphasized) -->
-<div style="margin-top:22px; padding-top:14px; border-top:1px solid var(--border);">
-  <div class="spell-toggle" id="importToggle" style="font-size:0.78rem; opacity:0.75;"><span class="arrow">&#9656;</span><span style="color:var(--ink-dim);">Import from Google Sheet</span></div>
-  <div class="spell-body" id="importBody">
-    <div class="import-row" style="margin-top:8px;">
-      <input type="text" id="sheetUrl" placeholder="Paste the public Google Sheet link here">
-      <button id="importBtn">Import</button>
-      <button class="ghost" id="clearBtn" type="button">Clear</button>
-    </div>
-    <div class="status" id="importStatus">Sheet must be shared as "Anyone with the link can view."</div>
-    <div class="import-row" id="dbCopyRow" style="margin-top:8px;" hidden><button type="button" class="ghost" id="dbCopyBtn">Copy this character into the Turnkeeper database</button><span class="status" id="dbCopyMsg"></span></div>
-    <div id="rawDumpWrap" style="display:none; margin-top:10px;">
-      <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
-        <div class="spell-toggle" id="rawDumpToggle" style="font-size:0.85rem;"><span class="arrow">&#9656;</span><span style="color:var(--sea-dim);">Show raw sheet cells (for fixing ranges)</span></div>
-        <button class="ghost" id="copyDumpBtn" type="button" style="font-size:0.75rem; padding:4px 10px; white-space:nowrap;">Copy dump</button>
-      </div>
-      <div id="rawDumpBody" class="spell-body"><div id="rawDumpText" style="font-family:monospace; font-size:0.75rem; color:var(--ink-dim); max-height:320px; overflow-y:auto; background:var(--panel2); border:1px solid var(--border); border-radius:4px; padding:8px 10px; margin-top:8px; white-space:pre-wrap;"></div></div>
-    </div>
-  </div>
-</div>
 </div>
 
 <div id="tooltip"></div>
@@ -894,6 +902,7 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
 
 <script src="js/dice.js"></script>
 <script src="js/data/equipment.js"></script>
+<script src="js/data/backgrounds.js"></script>
 <script src="js/char-store.js"></script>
 <script>
 /* ---------- Spell data (level|Name|School|Casting Time|Range|Duration|Components) ---------- */
@@ -4259,10 +4268,7 @@ document.getElementById('rawDumpToggle').addEventListener('click', ()=>{
   document.getElementById('rawDumpToggle').classList.toggle('open');
   document.getElementById('rawDumpBody').classList.toggle('open');
 });
-document.getElementById('importToggle').addEventListener('click', ()=>{
-  document.getElementById('importToggle').classList.toggle('open');
-  document.getElementById('importBody').classList.toggle('open');
-});
+
 function renderRawDump(table){
   const lines = [];
   for(let r=0;r<table.length;r++){
@@ -4476,7 +4482,22 @@ function sheetToCore(table){
     saves: saves.filter(s=>s.prof).map(s=>ABILITY_ABBR[s.name]).filter(Boolean),
     skills: Object.fromEntries(skills.filter(s=>s.prof && SKILL_ABILITY[s.name]).map(s=>[s.name, s.expertise ? 'e' : 'p'])),
     attacks: extractAttacksRYAC(table, 27, 32),
+    details: sheetDetails(table),
   };
+}
+// The sheet's background, alignment, experience and personality (each personality box is a few
+// lines of cells: joined with line breaks)
+function sheetDetails(table){
+  const lines = range=>{ const {c1, r1, r2} = parseRange(range), out = [];
+    for(let r = r1; r <= r2; r++){ const x = (table[r] || [])[c1]; if(x !== null && x !== undefined && String(x).trim() && String(x).trim() !== '-') out.push(String(x).trim()); }
+    return out.join('\n'); };
+  const xp = parseInt(String(getFirstValue(table, 'AE3:AE3') ?? '').replace(/[^\d]/g, ''), 10);
+  const d = {background:lines('AJ6:AJ6'), alignment:lines('AJ23:AJ23'), traits:lines('AE7:AE9'), ideals:lines('AE11:AE13'),
+    bonds:lines('AE15:AE17'), flaws:lines('AE19:AE21')};
+  const al = d.alignment.toLowerCase().replace(/^neutral$/, 'true neutral');
+  d.alignment = (typeof ALIGNMENTS === 'object' && ALIGNMENTS.find(a=>a.toLowerCase() === al)) || d.alignment;
+  if(xp >= 0) d.xp = xp;
+  return Object.fromEntries(Object.entries(d).filter(([, x])=>x !== ''));
 }
 // Saves and skills with their modifiers, from the record's scores and proficiencies
 // (Jack of All Trades adds half proficiency to skills you aren't proficient in)
@@ -4928,6 +4949,19 @@ function classKeyFrom(cls){
 function subclassPrefix(classKey, cls){
   const c = String(cls||''), i = classKey ? c.toLowerCase().indexOf(classKey) : -1;
   return i > 0 ? c.slice(0, i).trim() : '';
+}
+// A subclass's full Player's Handbook name from the sheet's short word ("Vengeance" → "Oath of
+// Vengeance", "Moon" → "Circle of the Moon", "Fiend" → "The Fiend")
+const SUBCLASS_STYLE = {
+  barbarian:w=>`Path of the ${w}`, bard:w=>`College of ${w}`, cleric:w=>`${w} Domain`, druid:w=>`Circle of the ${w}`,
+  monk:w=>`Way of the ${w}`, paladin:w=>/^ancients?$/i.test(w) ? 'Oath of the Ancients' : `Oath of ${w}`,
+  sorcerer:w=>/^draconic$/i.test(w) ? 'Draconic Bloodline' : w, warlock:w=>`The ${w}`, wizard:w=>`School of ${w}`,
+};
+function fullSubclassName(classKey, cls){
+  const known = subclassFromText(classKey, cls); if(known) return known;
+  const w = subclassPrefix(classKey, cls); if(!w) return '';
+  if(/^(path|college|circle|way|oath|school|the)\b|\b(domain|bloodline)$/i.test(w)) return w;
+  return SUBCLASS_STYLE[classKey] ? SUBCLASS_STYLE[classKey](w) : w;
 }
 // That subclass as Turnkeeper names it (e.g. "Assassin Rogue" → "Assassin")
 function subclassFromText(classKey, cls){
@@ -5416,7 +5450,7 @@ function dropChoicesAboveLevel(){
 function updateClassFields(){
   const entry = CLASS_FEATURES[cf.classKey], clsEl = document.getElementById('f_class'), subEl = document.getElementById('f_subclass');
   clsEl.value = cf.classKey ? cf.classKey.charAt(0).toUpperCase() + cf.classKey.slice(1) : cf.sheetText;
-  subEl.value = cf.subclass || subclassPrefix(cf.classKey, cf.sheetText) || (cf.sheetText ? '—' : '');
+  subEl.value = cf.subclass || fullSubclassName(cf.classKey, cf.sheetText) || (cf.sheetText ? '—' : '');
   const fromSheet = !cf.subclass && subclassPrefix(cf.classKey, cf.sheetText);
   subEl.title = !entry ? '' : cf.subclass ? `${entry.subclassLabel}. Change it in Class Features.`
     : fromSheet && charLevel() < entry.subclassLevel ? `${entry.subclassLabel} from your sheet. Its features start at level ${entry.subclassLevel}.`
@@ -6506,6 +6540,30 @@ document.querySelectorAll('.collapsible').forEach(wrap=>{
   toggleEl.addEventListener('click', toggle);
   toggleEl.addEventListener('keydown', e=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); toggle(); } });
 });
+
+// Character Summary's "Expand": everything under the ability scores folds away (remembered in this
+// browser). Folded, only sections with pinned items show, with just those items; clicking one of
+// their headings unfolds everything.
+(()=>{
+  const more = document.getElementById('sumMore'), btn = document.getElementById('sumMoreBtn'), KEY = 'dndTracker:summaryOpen';
+  const setMore = open=>{
+    more.classList.toggle('sum-collapsed', !open); btn.setAttribute('aria-expanded', String(open));
+    document.getElementById('sumMoreLabel').textContent = open ? 'Collapse' : 'Expand';
+    try{ localStorage.setItem(KEY, open ? '1' : ''); }catch(e){}
+  };
+  const markPins = ()=>more.querySelectorAll('.racial').forEach(s=>{
+    const pins = s.querySelector('[id$="Pinned"]');
+    s.classList.toggle('has-pins', !!(pins && pins.querySelector('.chip, .rt-item, li, div, span')));
+  });
+  btn.addEventListener('click', ()=>setMore(more.classList.contains('sum-collapsed')));
+  more.addEventListener('click', e=>{
+    const t = e.target.closest('.rt-toggle'); if(!t || !more.classList.contains('sum-collapsed')) return;
+    setMore(true); if(t.getAttribute('aria-expanded') === 'true') e.stopPropagation();   // already open: just show it
+  }, true);
+  new MutationObserver(markPins).observe(more, {childList:true, subtree:true});
+  let open = false; try{ open = localStorage.getItem(KEY) === '1'; }catch(e){}
+  setMore(open); markPins();
+})();
 
 renderChips('savesChips', []); renderChips('skillsChips', []); renderAttacksList();
 racialSection.render(); classSection.render(); featSection.render();

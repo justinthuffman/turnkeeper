@@ -28,6 +28,8 @@
 .cs-chip{display:inline-flex; align-items:center; gap:4px; padding:3px 4px 3px 10px; border-radius:999px; background:var(--panel2); border:1px solid var(--border); font-size:0.8rem;}
 .cs-chip button{background:none; border:none; color:var(--ink-dim); padding:0 4px; font-size:1rem; line-height:1; box-shadow:none; cursor:pointer;}
 .cs-chip button:hover{color:var(--danger); background:none;}
+.cs-chip-auto{padding-right:10px; border-style:dashed;}
+.cs-chip-auto small{color:var(--ink-dim); font-size:0.7rem; margin-left:2px;}
 .cs-add{display:flex; gap:6px; margin-top:6px; max-width:420px;}
 .cs-add .chip-btn, .notes-tabs .chip-btn{background:var(--panel2); border:1px solid var(--border); border-radius:999px; color:var(--ink); padding:4px 14px; font-size:0.8rem;}
 /* Gold */
@@ -93,6 +95,10 @@ select.build-pick{background:var(--panel2); border:1px solid var(--border); colo
 .tk-tab:hover{background:none; color:var(--ink);}
 .tk-tab[aria-selected="true"]{color:var(--sea); background:var(--panel); border-color:var(--border); border-bottom:1px solid var(--panel);}
 body.tabs-dragging .tk-tab{cursor:grabbing;}
+.tk-tab.tab-slot{background:transparent; border:2px dashed var(--sea); color:transparent;}
+.tab-held{position:fixed; z-index:600; margin:0; pointer-events:none; color:var(--sea); background:var(--panel); border:2px solid var(--sea) !important; border-radius:8px; box-shadow:0 12px 30px rgba(0,0,0,0.5); transform:rotate(-1.5deg) scale(1.05); opacity:0.97;}
+@media (prefers-reduced-motion: reduce){ .tab-held{transform:none;} }
+body.tabs-dragging{user-select:none;}
 .wrap > .panel.tab-off{display:none !important;}
 /* Edit Character window */
 .cs-modal{position:fixed; inset:0; z-index:120; background:var(--backdrop); display:flex; align-items:flex-start; justify-content:center; padding:5vh 16px; overflow-y:auto;}
@@ -136,3 +142,4 @@ table.inv tr.inv-group th{text-align:left; padding:10px 6px 4px; font-family:var
 .rest-row + .rest-msg:not(:empty){margin:8px 0 0;}
 .spell-source{font-size:0.75rem; color:var(--ink-dim); margin:14px 0 0; text-align:center;}
 .item-form .chip-btn.item-del{border-color:var(--danger); color:var(--danger); margin-left:auto;}
+.ledger-del{background:none; border:none; color:var(--ink-dim); font-size:1rem; padding:0 4px; box-shadow:none; cursor:pointer;} .ledger-del:hover{color:var(--danger); background:none;} .ledger-del.sure{color:var(--danger); font-size:0.75rem;}

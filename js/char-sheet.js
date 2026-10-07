@@ -44,7 +44,11 @@ const DETAIL_GROUPS = [
 function detailFieldHtml([key, label, kind], d){
   const v = d[key] ?? '', id = 'cd_' + key;
   if(kind === 'lifestyle' && !campaignTracks('lifestyle')) return '';
-  const input = kind === 'area' ? `<textarea id="${id}" data-detail="${key}" rows="3">${csEsc(v)}</textarea>`
+  // A Player's Handbook background suggests its feature (shown until the player writes their own)
+  const bg = key === 'bgFeature' && typeof backgroundOf === 'function' ? backgroundOf(d.background) : null;
+  if(key === 'background') return `<label class="cs-field" for="${id}"><span>${label}</span><input id="${id}" data-detail="${key}" type="text" list="bgList" value="${csEsc(v)}">`
+    + `<datalist id="bgList">${Object.keys(typeof BACKGROUNDS === 'object' ? BACKGROUNDS : {}).map(b=>`<option value="${b}"></option>`).join('')}</datalist></label>`;
+  const input = kind === 'area' ? `<textarea id="${id}" data-detail="${key}" rows="3"${bg ? ` placeholder="${csEsc(bg.feature)} (from the ${csEsc(bg.name)} background)"` : ''}>${csEsc(v)}</textarea>`
     : kind === 'align' ? `<select id="${id}" data-detail="${key}"><option value=""></option>${ALIGNMENTS.map(a=>`<option${a === v ? ' selected' : ''}>${a}</option>`).join('')}</select>`
     : kind === 'lifestyle' ? `<select id="${id}" data-detail="${key}"><option value=""></option>${LIFESTYLES.map(a=>`<option${a === v ? ' selected' : ''}>${a}</option>`).join('')}</select>`
     : `<input id="${id}" data-detail="${key}" type="${kind === 'number' ? 'number' : 'text'}" value="${csEsc(v)}"${kind === 'number' ? ' min="0"' : ''}>`;
@@ -94,7 +98,7 @@ document.addEventListener('keydown', e=>{ if(e.key === 'Escape'){ const d = docu
 document.addEventListener('click', e=>{ if(e.target.closest && e.target.closest('#editCharBtn')) openEditChar(); });
 document.addEventListener('change', e=>{
   const t = e.target; if(!csDb() || !t.closest || !t.closest('#detailsPanel, #editChar')) return;
-  if(t.dataset.detail){ csSaveCore('details', {...(currentCore.details || {}), [t.dataset.detail]: t.type === 'number' ? (parseInt(t.value, 10) || 0) : t.value}); csFlash('Saved.'); return; }
+  if(t.dataset.detail){ csSaveCore('details', {...(currentCore.details || {}), [t.dataset.detail]: t.type === 'number' ? (parseInt(t.value, 10) || 0) : t.value}); if(t.dataset.detail === 'background'){ renderDetails(); renderProfs(); } csFlash('Saved.'); return; }
   if(t.dataset.basic === 'name'){ const n = t.value.trim(); if(n){ saveName(currentCharId, n); setCharName(n); csSaveCore('name', n); csFlash('Saved.'); } return; }
   if(t.dataset.basic){
     const k = t.dataset.basic, num = ['level', 'hpMax', 'speed', 'ac'].includes(k);
@@ -114,12 +118,15 @@ const PROF_LISTS = [
   // Armor and weapon proficiencies are with Equipment in the Inventory tab (js/inventory.js)
   ['vehicles', 'Vehicles', VEHICLE_PROFS], ['tools', 'Tools', TOOL_PROFS], ['other', 'Other', []],
 ];
-function chipEditorHtml(key, label, values, options){
-  const listId = 'cl_' + key;
+function chipEditorHtml(key, label, values, options, auto){
+  // auto: [[name, where it comes from]], shown first and not removable
+  const listId = 'cl_' + key, autoList = auto || [], isAuto = v=>autoList.some(([n])=>n.toLowerCase() === String(v).toLowerCase());
+  const chips = autoList.map(([n, from])=>`<span class="cs-chip cs-chip-auto" title="From ${csEsc(from.replace(/^Your/, 'your'))}">${csEsc(n)}<small>${csEsc(from)}</small></span>`)
+    .concat(values.map((v, i)=>isAuto(v) ? '' : `<span class="cs-chip">${csEsc(v)}<button type="button" data-chip-del="${key}" data-i="${i}" aria-label="Remove ${csEsc(v)}">&times;</button></span>`)).filter(Boolean);
   return `<div class="cs-chiprow"><div class="cs-sub">${label}</div><div class="cs-chips">`
-    + (values.length ? values.map((v, i)=>`<span class="cs-chip">${csEsc(v)}<button type="button" data-chip-del="${key}" data-i="${i}" aria-label="Remove ${csEsc(v)}">&times;</button></span>`).join('') : '<span class="cs-none">None yet</span>')
+    + (chips.length ? chips.join('') : '<span class="cs-none">None yet</span>')
     + `</div><div class="cs-add"><input type="text" list="${listId}" data-chip-input="${key}" placeholder="Add ${label.toLowerCase()}…" aria-label="Add ${csEsc(label)}"><button type="button" class="chip-btn" data-chip-add="${key}">Add</button>`
-    + `<datalist id="${listId}">${options.filter(o=>!values.includes(o)).map(o=>`<option value="${csEsc(o)}"></option>`).join('')}</datalist></div></div>`;
+    + `<datalist id="${listId}">${options.filter(o=>!values.includes(o) && !isAuto(o)).map(o=>`<option value="${csEsc(o)}"></option>`).join('')}</datalist></div></div>`;
 }
 const profValues = key=>key === 'languages' ? (currentCore.languages || []) : ((currentCore.profs || {})[key] || []);
 function setProfValues(key, list){
@@ -132,13 +139,17 @@ function renderProfs(){
   const panel = document.getElementById('profPanel'); if(!panel) return;
   panel.hidden = !csDb(); if(!csDb()) return;
   const sp = currentCore.speeds || {};
-  // What class, race and feats give here (armor and weapons are shown with Equipment instead)
+  // Languages, tools and vehicles from race, class, background and feats show as automatic chips.
+  // Above them: anything else that comes automatically (feat skills; armor and weapons are with
+  // Armor & Weapon Proficiencies) and the "of your choice" reminders.
   const armsProf = x=>/armor|Shields|weapons/.test(x) || WEAPONS.some(w=>w.name === x);
-  const granted = (typeof grantedProfs === 'function' ? grantedProfs() : []).map(([f, l])=>[f, l.filter(x=>!armsProf(x))]).filter(([, l])=>l.length);
+  const auto = typeof autoProfs === 'function' ? autoProfs() : {languages:[], tools:[], vehicles:[], notes:[]};
+  const chipped = [...auto.languages, ...auto.tools, ...auto.vehicles].map(([n])=>n);
+  const granted = (typeof grantedProfs === 'function' ? grantedProfs() : []).map(([f, l])=>[f, l.filter(x=>!armsProf(x) && !chipped.includes(x))]).filter(([, l])=>l.length);
   document.getElementById('profBody').innerHTML =
-    (granted.length ? `<div class="cs-granted">${granted.map(([from, list])=>`<div><span>${from}:</span> ${list.map(csEsc).join(', ')}</div>`).join('')}<p class="cs-none">These come automatically. Add anything else below.</p></div>` : '')
-    + PROF_LISTS.map(([k, label, opts])=>chipEditorHtml(k, label, profValues(k), opts)).join('')
-    + chipEditorHtml('languages', 'Languages', profValues('languages'), LANGUAGES)
+    (granted.length || auto.notes.length ? `<div class="cs-granted">${granted.map(([from, list])=>`<div><span>${from}:</span> ${list.map(csEsc).join(', ')}</div>`).join('')}${auto.notes.map(x=>`<div>${csEsc(x)}</div>`).join('')}</div>` : '')
+    + PROF_LISTS.map(([k, label, opts])=>chipEditorHtml(k, label, profValues(k), opts, auto[k])).join('')
+    + chipEditorHtml('languages', 'Languages', profValues('languages'), LANGUAGES, auto.languages)
     + `<div class="cs-sub">Other Speeds</div><div class="cs-grid cs-scores">`
     + [['fly', 'Fly'], ['swim', 'Swim'], ['climb', 'Climb'], ['burrow', 'Burrow']].map(([k, l])=>`<label class="cs-field cs-num" for="csp_${k}"><span>${l} (ft)</span><input id="csp_${k}" data-speed="${k}" type="number" min="0" max="300" value="${sp[k] || ''}"></label>`).join('')
     + `</div>`;
@@ -182,8 +193,8 @@ function renderGold(){
   let run = 0;
   const rows = log.map(x=>{ run = Math.round((run + (+x.d || 0)) * 100) / 100; return {...x, after:run}; }).reverse();
   document.getElementById('goldLedger').innerHTML = rows.length
-    ? `<table class="ledger"><thead><tr><th>When</th><th>Change</th><th>Note</th><th>Balance</th></tr></thead><tbody>`
-      + rows.map(x=>`<tr><td>${new Date(x.t).toLocaleDateString(undefined, {month:'short', day:'numeric'})}</td><td class="${x.d < 0 ? 'neg' : 'pos'}">${x.d < 0 ? '−' : '+'}${Math.abs(x.d).toLocaleString()}</td><td>${csEsc(x.note)}</td><td>${x.after.toLocaleString()}</td></tr>`).join('')
+    ? `<table class="ledger"><thead><tr><th>When</th><th>Change</th><th>Note</th><th>Balance</th><th></th></tr></thead><tbody>`
+      + rows.map(x=>`<tr><td>${new Date(x.t).toLocaleDateString(undefined, {month:'short', day:'numeric'})}</td><td class="${x.d < 0 ? 'neg' : 'pos'}">${x.d < 0 ? '−' : '+'}${Math.abs(x.d).toLocaleString()}</td><td>${csEsc(x.note)}</td><td>${x.after.toLocaleString()}</td><td>${goldDelAsk === x.t ? `<button type="button" class="sel-toggle ledger-del sure" data-gold-del="${x.t}">Remove?</button>` : `<button type="button" class="ledger-del" data-gold-del="${x.t}" title="Remove this line (it was a mistake)" aria-label="Remove this line">&times;</button>`}</td></tr>`).join('')
       + `</tbody></table>`
     : `<p class="cs-none">No entries yet. Add your starting gold with a note like “Starting gold”, then +.</p>`;
 }
@@ -198,6 +209,16 @@ function goldChange(sign){
   renderGold(); noteEl.focus();
 }
 document.addEventListener('click', e=>{ const b = e.target.closest && e.target.closest('[data-gold]'); if(b && !b.disabled) goldChange(b.dataset.gold === 'add' ? 1 : -1); });
+// Removing a ledger line added by mistake: × asks "Remove?", a second click removes it (the balance follows)
+let goldDelAsk = null;
+document.addEventListener('click', e=>{
+  const b = e.target.closest && e.target.closest('[data-gold-del]'); if(!b){ if(goldDelAsk !== null && !(e.target.closest && e.target.closest('#goldLedger'))){ goldDelAsk = null; renderGold(); } return; }
+  const t = +b.dataset.goldDel;
+  if(goldDelAsk !== t){ goldDelAsk = t; renderGold(); return; }
+  goldDelAsk = null;
+  storageSet(goldKey(), JSON.stringify({log:goldLog().filter(x=>x.t !== t)}));
+  renderGold();
+});
 document.addEventListener('input', e=>{ if(e.target.id === 'goldNote') document.querySelectorAll('[data-gold]').forEach(b=>{ b.disabled = !e.target.value.trim(); }); });
 document.addEventListener('keydown', e=>{ if(e.key === 'Enter' && e.target.id === 'goldNote'){ e.preventDefault(); } });
 

@@ -84,6 +84,29 @@ function grantedProfs(){
     ['Feats', [...words(feats.armor), ...feats.weapons, ...feats.skills, ...feats.tools, ...feats.languages]],
   ].filter(([, l])=>l.length);
 }
+// Languages, tools and vehicles that come with race, class, background and feats, for the Details
+// tab ({languages:[[name, from]], tools, vehicles, notes:[lines]}); the player adds the rest
+function autoProfs(){
+  const out = {languages:[], tools:[], vehicles:[], notes:[]};
+  if(!currentCore) return out;
+  const add = (kind, list, from)=>(list || []).forEach(x=>{ if(!out[kind].some(([n])=>n.toLowerCase() === x.toLowerCase())) out[kind].push([x, from]); });
+  const race = raceLanguages(currentCore.race), sub = cf.subclass || (typeof fullSubclassName === 'function' ? fullSubclassName(cf.classKey, currentCore.cls) : '');
+  const cls = classLanguagesTools(cf.classKey, sub, currentCore.level || 1);
+  const bg = backgroundOf((currentCore.details || {}).background), feats = featProfGrants();
+  add('languages', race.languages, 'Your race'); add('tools', race.tools, 'Your race');
+  add('languages', cls.languages, 'Your class'); add('tools', cls.tools, 'Your class');
+  if(bg){ add('tools', bg.tools, `${bg.name} background`); add('vehicles', bg.vehicles, `${bg.name} background`); }
+  add('languages', feats.languages, 'A feat'); add('tools', feats.tools, 'A feat');
+  const n = x=>x === 1 ? 'one more language' : `${x} more languages`;
+  if(race.extra) out.notes.push(`Your race: ${n(race.extra)} of your choice.`);
+  cls.choose.forEach(c=>out.notes.push(`Your class: ${c} of your choice.`));
+  if(bg){
+    if(bg.languages) out.notes.push(`${bg.name} background: ${n(bg.languages)} of your choice.`);
+    (bg.choose || []).forEach(c=>out.notes.push(`${bg.name} background: ${c} of your choice.`));
+    out.notes.push(`${bg.name} background skills: ${bg.skills.join(', ')}.`);
+  }
+  return out;
+}
 function weaponProficient(w){
   const s = profSet('weapons'), base = (w.baseName || w.name || '').toLowerCase();
   return s.has(w.martial ? 'martial' : 'simple') || s.has(base) || s.has(base + 's') || s.has(String(w.name).toLowerCase());
@@ -303,7 +326,7 @@ document.addEventListener('change', e=>{
       if(t.checked && items.filter(x=>x.attuned).length >= 3){ t.checked = false; csFlash('You can be attuned to at most three magic items at once.', true); return; }
       it.attuned = t.checked;
     }
-    saveInv(items); if(t.dataset.attune) renderInventory();
+    saveInv(items); if(t.dataset.attune) renderInventory(); if(t.dataset.invNote) renderEquipment();   // the dropdowns show notes
   }
 });
 
@@ -483,7 +506,8 @@ function slotOptions(kind, current){
   const items = invItems(), seen = {};
   const own = items.filter(it=>slotFits(kind, itemDef(it.name))).map(it=>{
     seen[it.name] = (seen[it.name] || 0) + 1;
-    return {id:it.id, label:it.name + (items.filter(x=>x.name === it.name).length > 1 ? ` (${seen[it.name]})` : '')};
+    // "Dagger (2) — the silvered one": a note you wrote beside it in the list helps tell items apart
+    return {id:it.id, label:it.name + (items.filter(x=>x.name === it.name).length > 1 ? ` (${seen[it.name]})` : '') + (it.notes ? ` — ${it.notes.slice(0, 40)}` : '')};
   });
   const none = {armor:'No armor in your inventory', ranged:'No ranged weapons in your inventory'}[kind] || 'No melee weapons in your inventory';
   return `<option value="">${own.length ? '— None —' : none}</option>` + own.map(o=>`<option value="inv:${o.id}"${o.id === current ? ' selected' : ''}>${csEsc(o.label)}</option>`).join('');
