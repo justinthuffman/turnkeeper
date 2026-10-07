@@ -4448,9 +4448,10 @@ function applyCore(core, charId){
   ABILITY_KEYS.forEach(a=>{ document.getElementById('s_' + a).value = String(core.scores[a] ?? 10); });
   refreshMods();
   currentCharId = charId;
-  // Character name: as renamed (saved with the character), else the record's, else the hub link's
+  // Character name: a database character's own name field (core.name); a sheet character's as
+  // renamed in this browser, else the hub link's
   // name. With none of those, ask once; the answer is saved.
-  const charName = savedName(charId) || core.name || importNameHint;
+  const charName = charStore.kv ? (core.name || savedName(charId) || '') : (savedName(charId) || core.name || importNameHint);
   importNameHint = '';
   if(charName && !savedName(charId)) saveName(charId, charName);
   setCharName(charName);
@@ -4888,7 +4889,11 @@ function storageSet(key, val){ if(!charStoreSet(key, val)){ try{ if(val===null) 
 let importNameHint = '';
 const nameMem = new Map();
 function savedName(id){ return nameMem.get(id) || storageGet(`dndTracker:charName:${id}`) || ''; }
-function saveName(id, name){ nameMem.set(id, name); storageSet(`dndTracker:charName:${id}`, name || null); }
+function saveName(id, name){
+  nameMem.set(id, name); storageSet(`dndTracker:charName:${id}`, name || null);
+  // V5: a database character's name is its own field in the record
+  if(charStore.kv && charStore.id === id && currentCore && name && currentCore.name !== name){ currentCore.name = name; tkDbReady().then(d=>d.updateCore(charStore.campaign, id, {name})).catch(err=>console.warn('Saving the name:', err)); }
+}
 function setCharName(name){
   document.getElementById('f_name').value = name;
   if(currentCharId) livePush();

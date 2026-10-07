@@ -55,7 +55,7 @@ function basicsHtml(c){
   const sc = c.scores || {}, saves = c.saves || [], skills = c.skills || {};
   const num = (key, label, val, min, max)=>`<label class="cs-field cs-num" for="cb_${key}"><span>${label}</span><input id="cb_${key}" data-basic="${key}" type="number" value="${csEsc(val ?? '')}" min="${min}" max="${max}"></label>`;
   return `<div class="cs-grid">`
-    + `<label class="cs-field" for="cb_name"><span>Name</span><input id="cb_name" data-basic="name" type="text" value="${csEsc(savedName(currentCharId) || c.name || '')}"></label>`
+    + `<label class="cs-field" for="cb_name"><span>Name</span><input id="cb_name" data-basic="name" type="text" value="${csEsc(c.name || savedName(currentCharId) || '')}"></label>`
     + `<label class="cs-field" for="cb_cls"><span>Class</span><input id="cb_cls" data-basic="cls" type="text" value="${csEsc(c.cls)}" placeholder="e.g. Vengeance Paladin"></label>`
     + `<label class="cs-field" for="cb_race"><span>Race</span><input id="cb_race" data-basic="race" type="text" value="${csEsc(c.race)}"></label>`
     + num('level', 'Level', c.level, 1, 20) + num('hpMax', 'HP max', c.hpMax, 1, 999) + num('speed', 'Speed (ft)', c.speed, 0, 200) + num('ac', 'AC (until armor is equipped)', c.ac, 0, 40)
