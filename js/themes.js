@@ -47,15 +47,20 @@ const CLASS_THEMES = [
   {key:'class-wizard', name:'Wizard', bg:'#11152f', accent:'#8fb4ff'},
 ];
 /* Each character sheet keeps its own theme (dndTracker:theme:<sheet ID>), so Krunk's tab and
-   Ezlo's tab can look different. A sheet with no pick of its own, the DM Screen and the hub use
-   the browser's main theme (dndTracker:theme). Themes stay in this browser, never shared. */
+   Ezlo's tab can look different. A sheet with no pick of its own and the hub use the browser's
+   main theme (dndTracker:theme), which stays in this browser, so each player picks their own.
+   The DM Screen has its own (window.TK_THEME_KEY = dndTracker:dm:theme), saved to the DM's
+   account with the rest of the DM's preferences (js/dm-store.js). */
 function sheetIdNow(){
   if(window.tkSheetId) return window.tkSheetId;
   try{ const m = String(new URLSearchParams(location.search).get('sheet') || '').match(/\/d\/([A-Za-z0-9_-]+)/); return m ? m[1] : null; }catch(e){ return null; }
 }
-const themeStoreKey = ()=>{ const id = sheetIdNow(); return id ? 'dndTracker:theme:' + id : 'dndTracker:theme'; };
+const themeStoreKey = ()=>{ if(window.TK_THEME_KEY) return window.TK_THEME_KEY; const id = sheetIdNow(); return id ? 'dndTracker:theme:' + id : 'dndTracker:theme'; };
 const savedThemeKey = ()=>{
-  try{ const id = sheetIdNow(); return (id && localStorage.getItem('dndTracker:theme:' + id)) || localStorage.getItem('dndTracker:theme') || DEFAULT_THEME; }
+  try{
+    if(window.TK_THEME_KEY) return localStorage.getItem(window.TK_THEME_KEY) || DEFAULT_THEME;
+    const id = sheetIdNow(); return (id && localStorage.getItem('dndTracker:theme:' + id)) || localStorage.getItem('dndTracker:theme') || DEFAULT_THEME;
+  }
   catch(e){ return DEFAULT_THEME; }
 };
 // "My class" (saved as 'class') is the open character's class theme. The class is remembered per
@@ -101,7 +106,7 @@ applyTheme(savedThemeKey());
 // A theme picked in another tab is followed here straight away: this character's own (another
 // tab of the same sheet), or the main theme when this page has none of its own
 window.addEventListener('storage', e=>{
-  if(e.key === themeStoreKey() || e.key === 'dndTracker:theme'){ applyTheme(savedThemeKey()); renderThemeMenu(); }
+  if(e.key === themeStoreKey() || (!window.TK_THEME_KEY && e.key === 'dndTracker:theme')){ applyTheme(savedThemeKey()); renderThemeMenu(); }
 });
 // The tracker calls this once a sheet is open (its ID may not be in the address, e.g. a pasted link)
 function themeForSheet(id){ window.tkSheetId = id || null; applyTheme(savedThemeKey()); renderThemeMenu(); }

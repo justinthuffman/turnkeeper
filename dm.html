@@ -17,6 +17,7 @@
 <link rel="stylesheet" href="css/char-icons.css">
 <link rel="stylesheet" href="css/class-themes.css">
 <link rel="stylesheet" href="css/settings.css">
+<link rel="stylesheet" href="css/char-sheet.css">
 <style>
 *{box-sizing:border-box;}
 body{
@@ -336,6 +337,13 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
 .dm-test{display:flex; flex-wrap:wrap; gap:6px 8px; align-items:center; margin-top:10px; font-size:0.85rem;}
 .dm-test-note{font-size:0.75rem; color:var(--ink-dim);}
 /* Monsters & encounters (js/dm-library.js) */
+.dm-items{list-style:none; margin:0; padding:0;}
+.dm-items li{display:flex; align-items:center; gap:10px; padding:6px 0; border-bottom:1px dotted var(--border);}
+.dm-items li.is-hidden .dm-item-main{opacity:0.6;}
+.dm-item-main{flex:1; min-width:0;}
+.dm-item-main small{color:var(--ink-dim);}
+.dm-item-attrs{font-size:0.78rem; color:var(--ink-dim);}
+.dm-vis{font-size:0.8rem; color:var(--ink-dim); display:flex; align-items:center; gap:4px; white-space:nowrap;}
 .lib-cols{display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:14px;}
 .lib-head{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:6px;}
 .lib-head h3{font-family:var(--font-display); color:var(--sea); font-size:1.05rem; margin:0 auto 0 0; font-weight:normal;}
@@ -364,6 +372,8 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
 #rollsBox{margin-top:12px;}
 #rollsList li.n20{color:#f2c14e;}
 #rollsList li.n1{color:var(--danger);}
+#rollsList li.roll-day{margin:10px 0 2px; padding:6px 0 2px; border-top:1px solid var(--border); border-bottom:none; color:var(--ink-dim); font-size:0.75rem; font-weight:normal;}
+#rollsList li.roll-day:first-child{margin-top:0; padding-top:0; border-top:none;}
 .dm-clip{display:flex; flex-direction:column; gap:8px; margin-top:8px;}
 .dm-clip[hidden]{display:none;}
 .dm-clip textarea{width:100%;}
@@ -379,6 +389,9 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
 <script src="js/config.js"></script>
 <script src="js/firebase.js"></script>
 <script src="js/sheet-reader.js"></script>
+<!-- The DM's own theme and preferences, saved to the DM account (js/dm-store.js) -->
+<script>window.TK_THEME_KEY = 'dndTracker:dm:theme';</script>
+<script src="js/dm-store.js"></script>
 <script src="js/themes.js"></script>
 </head>
 <body>
@@ -403,7 +416,7 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
         <div class="set-actions"><button type="button" class="chip-btn" id="panelReset">Reset panel order</button><button type="button" class="chip-btn" id="panelOpenAll">Open every panel</button></div>
       </details>
       <details class="set-sec" id="setBackup"><summary>Backup</summary>
-        <p class="set-note">This screen’s settings in this browser: theme, panel order and folding, your dice and throw, sounds, the campaign you last opened, and your Session Notes. Monsters, encounters and Campaign settings are saved with the campaign already.</p>
+        <p class="set-note">Your theme, panel order and folding, dice and throw, Session Notes and fight are saved to your DM account automatically, so they follow you to any device. This backup is an extra copy (it also has this browser’s sounds). Monsters, encounters and Campaign settings are saved with the campaign.</p>
         <div class="set-actions">
           <button type="button" class="chip-btn" id="dmBackupTxt">Back up to .txt</button>
           <button type="button" class="chip-btn" id="dmRestoreTxt">Restore from .txt</button>
@@ -420,7 +433,7 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
   </div></div>
 </header>
 <nav class="jump" aria-label="Sections">
-  <a href="#partyPanel">Party</a><a href="#initPanel">Initiative</a><a href="#libPanel">Monsters &amp; Encounters</a><a href="#dicePanel">Dice</a><a href="#encPanel">Encounter Difficulty</a><a href="#refPanel">Rules Reference</a><a href="#notesPanel">Session Notes</a>
+  <a href="#partyPanel">Party</a><a href="#initPanel">Initiative</a><a href="#libPanel">Monsters &amp; Encounters</a><a href="#itemsPanel">Items &amp; Effects</a><a href="#dicePanel">Dice</a><a href="#encPanel">Encounter Difficulty</a><a href="#refPanel">Rules Reference</a><a href="#notesPanel">Session Notes</a>
 </nav>
 
 <!-- PARTY -->
@@ -499,6 +512,25 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
   <div class="msg" id="libMsg" aria-live="polite"></div>
 </section>
 
+<!-- CAMPAIGN ITEMS AND EFFECTS (the forms: js/item-forms.js, shared with the tracker) -->
+<section class="panel" id="itemsPanel">
+  <div class="panel-head"><h2>Campaign Items &amp; Effects</h2><span class="live-state">Saved for this campaign</span></div>
+  <p class="panel-note">Weapons, armor and gear made for this campaign, and effects like Bleeding. Your new items start <b>hidden</b>: players can’t see or add them until you tick <b>Visible</b> (say, when the party loots it). Then they can add it to their inventory and equip it. Items and effects players make show here too.</p>
+  <div class="lib-cols">
+    <div class="lib-col">
+      <div class="lib-head"><h3>Items</h3><button type="button" class="ghost" id="dmNewItem">New item</button></div>
+      <div id="dmItemList"></div>
+    </div>
+    <div class="lib-col">
+      <div class="lib-head"><h3>Effects</h3><button type="button" class="ghost" id="dmNewEffect">New effect</button></div>
+      <div id="dmEffectList"></div>
+      <div id="fxFormSolo" class="fx-form" hidden></div>
+    </div>
+  </div>
+  <div id="itemForm" class="item-form" hidden></div>
+  <div class="msg" id="dmItemMsg" aria-live="polite"></div>
+</section>
+
 <!-- DICE (the DM's own rolls: private) -->
 <section class="panel" id="dicePanel">
   <div class="panel-head"><h2>Your Dice</h2><span class="live-state">Only you see these rolls</span></div>
@@ -531,7 +563,7 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
 <section class="panel" id="notesPanel">
   <div class="panel-head"><h2>Session Notes</h2><span class="msg" id="notesMsg" style="margin:0"></span></div>
   <textarea id="notesBox" placeholder="NPCs, clues, loot, what happened this session…"></textarea>
-  <p class="panel-note" style="margin:6px 0 0;">Saved in this browser as you type.</p>
+  <p class="panel-note" style="margin:6px 0 0;">Saved to your DM account as you type.</p>
 </section>
 
 </div>
@@ -1489,6 +1521,8 @@ let savedCampaign = null;
 try{ savedCampaign = localStorage.getItem('dndTracker:dm:campaign'); }catch(e){}
 setCampaign(savedCampaign || CAMPAIGNS[0].key);
 </script>
+<script src="js/data/equipment.js"></script>
+<script src="js/item-forms.js"></script>
 <script src="js/dm-library.js"></script>
 <script src="js/panel-order.js"></script>
 <script>
@@ -1518,7 +1552,7 @@ $('panelOpenAll').addEventListener('click', ()=>dmPanels.collapsed().forEach(id=
    each campaign's Session Notes.
    (Monsters, encounters and Campaign settings live with the campaign in Firebase. The Campaign
    settings unlock isn't included.) A code TKDM1:<base64 JSON>; restoring reloads the page. */
-const DM_BACKUP_GLOBAL = ['dndTracker:theme', 'dndTracker:diceSound', 'dndTracker:critFx'];
+const DM_BACKUP_GLOBAL = ['dndTracker:diceSound', 'dndTracker:critFx'];   // the DM's theme is dndTracker:dm:theme
 // Not the live fight or roll log (restoring an old one would overwrite the current game), nor the unlock
 const dmBackable = k=>(k.startsWith('dndTracker:dm:') && k !== CS_UNLOCK_KEY && !/:(combat|rolls)$/.test(k)) || DM_BACKUP_GLOBAL.includes(k);
 function dmBackupKeys(){
@@ -1626,7 +1660,13 @@ function noteRoll(r){
 }
 function renderRecentRolls(){
   const list = loadJSON(storeKey('rolls'), []);
-  $('rollsList').innerHTML = list.map(l=>`<li class="${l.nat ? 'n' + l.nat : ''}"><b>${new Date(l.t).toLocaleTimeString([], {hour:'numeric', minute:'2-digit'})}</b>${l.round ? ` · R${l.round}` : ''} ${esc(l.text)}</li>`).join('')
+  // A quiet line with the day above each day's rolls ("Wednesday, October 7, 2026")
+  let day = '';
+  $('rollsList').innerHTML = list.map(l=>{
+    const d = new Date(l.t).toLocaleDateString([], {weekday:'long', month:'long', day:'numeric', year:'numeric'});
+    const head = d !== day ? `<li class="roll-day">${esc(d)}</li>` : ''; day = d;
+    return head + `<li class="${l.nat ? 'n' + l.nat : ''}"><b>${new Date(l.t).toLocaleTimeString([], {hour:'numeric', minute:'2-digit'})}</b>${l.round ? ` · R${l.round}` : ''} ${esc(l.text)}</li>`;
+  }).join('')
     || '<li>No rolls yet. Players’ rolls show here (and in the combat log during a fight).</li>';
 }
 window.renderRecentRolls = renderRecentRolls;
@@ -1815,6 +1855,51 @@ window.dmSettingsUpdate = (key, data)=>{
   if(!$('csBackdrop').hidden) renderSettings();
 };
 </script>
+<script>
+/* ---------- Campaign Items & Effects ----------
+   The campaign's custom items (with a Visible switch for each) and effects. New and edited items
+   use the same forms as a player's Inventory tab (js/item-forms.js). */
+const dmItemMsg = (t, err)=>{ $('dmItemMsg').textContent = t || ''; $('dmItemMsg').classList.toggle('err', !!err); };
+window.itemFormHost = {
+  dm:true, campaign:()=>campaign.key, by:()=>'DM', flash:dmItemMsg,
+  standardEffects:()=>[...CONDITIONS, ...EFFECTS].map(n=>({name:n, standard:true, desc:''})),
+  db:()=>dmDbReady().then(ok=>{ if(!ok || !window.dmDefs) throw new Error('Can’t reach the database right now.'); return window.dmDefs; }),
+  saved:(name, wasNew)=>{ dmItemMsg(`Saved ${name}.`); renderDmItems(); },
+  deleted:name=>{ dmItemMsg(name ? `Deleted ${name}.` : ''); renderDmItems(); },
+  effectSaved:name=>{ dmItemMsg(`Saved ${name}.`); renderDmItems(); },
+};
+function renderDmItems(){
+  const items = customItems().sort((a, b)=>a.name.localeCompare(b.name));
+  $('dmItemList').innerHTML = items.length ? `<ul class="dm-items">${items.map(d=>{
+      const full = itemDef(d.name) || d, fx = [...(d.onHit || []).map(n=>'On hit: ' + n), ...(d.whileEquipped || []).map(n=>'While equipped: ' + n)];
+      return `<li class="${d.hidden ? 'is-hidden' : ''}"><div class="dm-item-main"><b>${esc(d.name)}</b> <small>${esc(full.type || '')}${d.by && d.by !== 'DM' ? ` · by ${esc(d.by)}` : ''}</small>`
+        + `<div class="dm-item-attrs">${esc(itemAttrs(full))}${fx.length ? ` · ${esc(fx.join(', '))}` : ''}</div></div>`
+        + `<label class="dm-vis" title="Players can see and add it"><input type="checkbox" data-dm-vis="${esc(d.id)}"${d.hidden ? '' : ' checked'}> Visible</label>`
+        + `<button type="button" class="chip-btn" data-dm-edit="${esc(d.id)}">Edit</button></li>`;
+    }).join('')}</ul>` : '<p class="panel-note">No custom items yet.</p>';
+  const fx = Object.values(campaignDefs.effectDefs).sort((a, b)=>a.name.localeCompare(b.name));
+  $('dmEffectList').innerHTML = fx.length ? `<ul class="dm-items">${fx.map(d=>`<li><div class="dm-item-main"><b>${esc(d.name)}</b>${d.by && d.by !== 'DM' ? ` <small>by ${esc(d.by)}</small>` : ''}<div class="dm-item-attrs">${esc(effectText(d))}</div></div></li>`).join('')}</ul>`
+    : '<p class="panel-note">No custom effects yet.</p>';
+}
+// From the module script: the campaign's items and effects as they change
+window.dmDefsUpdate = (part, raw)=>{ campaignDefs[part] = parseDefs(raw); renderDmItems(); };
+$('dmNewItem').addEventListener('click', ()=>{ dmItemMsg(''); openItemForm({name:''}, true); });
+$('dmNewEffect').addEventListener('click', ()=>{ dmItemMsg(''); openEffectForm(''); });
+$('itemsPanel').addEventListener('click', e=>{
+  const b = e.target.closest('[data-dm-edit]'); if(!b) return;
+  const d = campaignDefs.items[b.dataset.dmEdit]; if(d){ dmItemMsg(''); openItemForm(d, false); }
+});
+// Visible: the item shows in players' lists (when the party finds it)
+$('itemsPanel').addEventListener('change', async e=>{
+  const id = e.target.dataset && e.target.dataset.dmVis; if(!id) return;
+  const d = campaignDefs.items[id]; if(!d) return;
+  const {id:_, name, by, ...def} = d;
+  if(e.target.checked) delete def.hidden; else def.hidden = true;
+  try{ await (await itemFormHost.db()).saveDef(campaign.key, 'items', id, name, def, by || 'DM'); campaignDefs.items[id] = {...d, hidden:def.hidden}; renderDmItems(); dmItemMsg(`${name} is now ${e.target.checked ? 'visible to players' : 'hidden from players'}.`); }
+  catch(err){ e.target.checked = !e.target.checked; dmItemMsg('Couldn’t save: ' + err.message, true); }
+});
+renderDmItems();
+</script>
 <script type="module">
 /* ---------- Live: listening (Firebase Realtime Database) ----------
    Signs in invisibly and follows campaigns/<campaign>/live, handing each change to
@@ -1822,6 +1907,11 @@ window.dmSettingsUpdate = (key, data)=>{
 try{
   const {db, fb:{ref, get, onValue, set, push, serverTimestamp}} = await tkFirebase();
   // V5: a character's record in the Turnkeeper database (its base facts), or null if it isn't there yet
+  // The campaign's custom items and effects (js/item-forms.js saves through these)
+  window.dmDefs = {
+    saveDef:(c, part, id, name, def, by)=>set(ref(db, `campaigns/${FBK(c)}/${part}/${id}`), {name:String(name).slice(0, part === 'items' ? 80 : 60), json:JSON.stringify(def), by:String(by || '').slice(0, 60), t:serverTimestamp()}),
+    deleteDef:(c, part, id)=>set(ref(db, `campaigns/${FBK(c)}/${part}/${id}`), null),
+  };
   window.dmGetCore = async (key, id)=>(await get(ref(db, `campaigns/${FBK(key)}/characters/${id}/core`))).val();
   let stops = [];
   window.dmLiveWatch = key=>{
@@ -1830,7 +1920,8 @@ try{
     stops.push(onValue(ref(db, `campaigns/${FBK(key)}/live`), snap=>{ window.dmLiveStatus('on'); window.dmLiveUpdate(key, clean(snap.val())); }, fail));
     stops.push(onValue(ref(db, `campaigns/${FBK(key)}/effects`), snap=>window.dmEffectsUpdate(key, clean(snap.val())), fail));
     // V5: the campaign's custom effects (Bleeding: 2 slashing every turn), for start-of-turn reminders
-    stops.push(onValue(ref(db, `campaigns/${FBK(key)}/effectDefs`), snap=>{ const out = {}; Object.values(snap.val() || {}).forEach(r=>{ try{ const d = JSON.parse(r.json); if(d && r.name) out[String(r.name)] = d; }catch(e){} }); window.dmEffectDefs = out; if(window.dmEffectDefsChanged) window.dmEffectDefsChanged(); }, fail));
+    stops.push(onValue(ref(db, `campaigns/${FBK(key)}/effectDefs`), snap=>{ const out = {}; Object.values(snap.val() || {}).forEach(r=>{ try{ const d = JSON.parse(r.json); if(d && r.name) out[String(r.name)] = d; }catch(e){} }); window.dmEffectDefs = out; if(window.dmDefsUpdate) window.dmDefsUpdate('effectDefs', snap.val()); if(window.dmEffectDefsChanged) window.dmEffectDefsChanged(); }, fail));
+    stops.push(onValue(ref(db, `campaigns/${FBK(key)}/items`), snap=>{ if(window.dmDefsUpdate) window.dmDefsUpdate('items', snap.val()); }, fail));
     stops.push(onValue(ref(db, `campaigns/${FBK(key)}/acts`), snap=>window.dmActsUpdate(key, clean(snap.val())), fail));
     stops.push(onValue(ref(db, `campaigns/${FBK(key)}/allow`), snap=>window.dmAllowUpdate(key, clean(snap.val())), fail));
     // Rolls and settings arrive raw: their links must keep every character (js/dice.js checks every field)

@@ -148,3 +148,12 @@ table.inv tr.inv-group th{text-align:left; padding:10px 6px 4px; font-family:var
 .cs-level > span:first-child{font-family:var(--font-display); font-size:1.05rem; margin-right:4px;}
 .cs-level .cs-none{flex-basis:100%;}
 .cs-xp{display:block; color:var(--ink-dim); font-size:0.75rem; margin-top:4px;}
+/* Manual Roll: a small button at the far right of the tabs row, and its roller (js/manual-roll.js) */
+.tk-tabs .tk-manual{margin:0 0 4px auto; align-self:center; background:none; border:1px solid var(--border); border-radius:999px; padding:4px 12px; font-size:0.78rem; color:var(--ink-dim); box-shadow:none; cursor:pointer;}
+.tk-tabs .tk-manual:hover, .tk-tabs .tk-manual[aria-expanded="true"]{color:var(--sea); border-color:var(--sea-dim); background:none;}
+.manual-roll{position:absolute; z-index:500; background:var(--panel); border:1px solid var(--sea-dim); border-radius:10px; padding:10px 12px; box-shadow:0 10px 30px rgba(0,0,0,0.45);}
+.manual-roll .mr-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; font-family:var(--font-display);}
+.manual-roll .mr-close{background:none; border:none; box-shadow:none; color:var(--ink-dim); font-size:1.2rem; padding:0 4px; cursor:pointer;}
+.manual-roll .mr-dice{display:flex; flex-wrap:wrap; gap:4px; margin-bottom:8px;}
+.manual-roll .roll-edit{width:100%;}
+.manual-roll .mr-hint{margin:6px 0 0; color:var(--ink-dim); font-size:0.72rem;}

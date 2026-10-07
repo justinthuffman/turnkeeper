@@ -17,25 +17,20 @@
               in Status while the item is equipped.
    Saved with the character: kv "inv:@" {items:[{id, name, qty, notes, attuned}]} and "equip:@"
    {melee:{L, R}, ranged:{L, R}, armor, shield, applied:[status keys turned on by gear]}. */
-const campaignDefs = {items:{}, effectDefs:{}};   // id → definition, from Firebase
+// campaignDefs, customItems, itemDef, isWeapon/isArmor/isShield, itemAttrs, effectList and the
+// item and effect forms: js/item-forms.js (shared with the DM Screen)
 window.tkDefsUpdate = (part, raw)=>{
-  const out = {};
-  Object.entries(raw || {}).forEach(([id, r])=>{ try{ const d = JSON.parse(r.json); if(d && r.name) out[id] = {...d, name:String(r.name), id, by:r.by || ''}; }catch(e){} });
-  campaignDefs[part] = out;
+  campaignDefs[part] = parseDefs(raw);
   if(typeof csDb === 'function' && csDb()){ renderInventory(); renderEquipment(); }
 };
-const DAMAGE_TYPES = ['acid', 'bludgeoning', 'cold', 'fire', 'force', 'lightning', 'necrotic', 'piercing', 'poison', 'psychic', 'radiant', 'slashing', 'thunder'];
-const customItems = ()=>Object.values(campaignDefs.items);
-// An item's full definition: a campaign custom item (built on its base) or a standard one
-function itemDef(name){
-  const n = String(name || '').toLowerCase();
-  const c = customItems().find(x=>x.name.toLowerCase() === n);
-  if(c){ const base = c.base ? equipmentByName(c.base) : null; return {...(base || {}), ...c, custom:true, baseName:c.base || ''}; }
-  return equipmentByName(name);
-}
-const isWeapon = d=>!!(d && d.type === 'Weapon' && d.category);
-const isArmor = d=>!!(d && d.type === 'Armor');
-const isShield = d=>!!(d && d.type === 'Shield');
+window.itemFormHost = {
+  campaign:()=>charStore.campaign, by:()=>savedName(currentCharId), flash:(m, err)=>csFlash(m, err),
+  standardEffects:()=>STATUS_DEFS.map(s=>({name:s.name, key:s.key, standard:true, desc:s.desc})),
+  db:()=>tkDbReady(),
+  saved:(name, wasNew)=>{ if(wasNew){ addToInventory(name, 1); document.getElementById('invName').value = ''; } afterGearChange(); },
+  // Out of this character's inventory and slots too
+  deleted:name=>{ if(name){ const st = equipState(); invItems().filter(x=>x.name === name).forEach(x=>unequipQuiet(x.id, st)); saveEquip(st); saveInv(invItems().filter(x=>x.name !== name)); } afterGearChange(); },
+};
 
 /* Inventory and equipment, saved with the character */
 const invKey = ()=>`dndTracker:inv:${currentCharId}`, equipKey = ()=>`dndTracker:equip:${currentCharId}`;
@@ -44,8 +39,6 @@ const invItems = ()=>readJSON(invKey(), {items:[]}).items || [];
 const saveInv = items=>storageSet(invKey(), JSON.stringify({items}));
 const equipState = ()=>({melee:{}, ranged:{}, applied:[], ...readJSON(equipKey(), {})});
 const saveEquip = e=>storageSet(equipKey(), JSON.stringify(e));
-const newId = ()=>'i' + Date.now().toString(36) + Math.floor(Math.random() * 1e4).toString(36);
-
 /* ---------- Proficiencies (2014): class and race, plus the Proficiencies list ---------- */
 const CLASS_PROFS = {
   barbarian:{weapons:['simple', 'martial'], armor:['light', 'medium', 'shields']},
@@ -186,20 +179,6 @@ function equippedAC(core){
 }
 
 /* ---------- Effects: standard statuses, and the campaign's custom ones ---------- */
-const effectList = ()=>[
-  ...STATUS_DEFS.map(s=>({name:s.name, key:s.key, standard:true, desc:s.desc})),
-  ...Object.values(campaignDefs.effectDefs).map(d=>({...d, custom:true, desc:effectText(d)})),
-];
-function effectText(d){
-  const parts = [];
-  if(d.dmg) parts.push(`${d.dmg} ${d.dmgType || ''} damage${d.freq === 'turn' ? ' at the start of each of its turns' : d.freq === 'once' ? ' once' : ''}`.replace(/\s+/g, ' '));
-  if(d.duration) parts.push(d.duration === 'healed' ? 'until healed' : d.duration === 'removed' ? 'until removed' : d.duration);
-  if(d.endKind && d.endWhat) parts.push(`ends on a DC ${d.endDC || '?'} ${d.endWhat} ${d.endKind}`);
-  if(d.desc) parts.push(d.desc);
-  return parts.join('; ');
-}
-const effectsFor = names=>(names || []).map(n=>effectList().find(x=>x.name === n)).filter(Boolean);
-
 // A standard status worn "While equipped" is switched on in Status while its item is equipped
 function syncGearStatuses(){
   if(!csDb()) return;
@@ -215,13 +194,6 @@ function syncGearStatuses(){
 
 /* ---------- Inventory panel ---------- */
 const weightOn = ()=>campaignTracks('weight');
-function itemAttrs(d, it){
-  if(!d) return '';
-  if(isWeapon(d)) return [d.dice && `${d.dice} ${d.dmgType}`, weaponPropsText(d), d.magic && `+${d.magic} magic`].filter(Boolean).join('; ');
-  if(isArmor(d)) return [`AC ${d.ac}${d.dex ? (d.dexMax != null ? ` + Dex (max ${d.dexMax})` : ' + Dex') : ''}`, d.str && `Str ${d.str}`, d.stealthDis && 'stealth disadvantage', d.magic && `+${d.magic} magic`].filter(Boolean).join('; ');
-  if(isShield(d)) return `+${2 + (parseInt(d.magic, 10) || 0)} AC`;
-  return d.attrs || '';
-}
 // "Equipped: Right hand" next to an item in the list (equipping is done in Equipment above)
 function equippedTag(it, e){
   const where = [];
@@ -264,7 +236,7 @@ function renderInventory(){
   const panel = document.getElementById('invPanel'); if(!panel) return;
   panel.hidden = !csDb(); if(!csDb()) return;
   const items = invItems(), e = equipState(), w = weightOn();
-  const names = [...new Set([...customItems().map(x=>x.name), ...EQUIPMENT.map(x=>x.name)])];
+  const names = [...new Set([...offeredItems().map(x=>x.name), ...EQUIPMENT.map(x=>x.name)])];
   document.getElementById('invNames').innerHTML = names.map(n=>`<option value="${csEsc(n)}"></option>`).join('');
   const total = items.reduce((n, it)=>{ const d = itemDef(it.name); return n + (d && d.weight ? d.weight * (it.qty || 1) : 0); }, 0);
   document.getElementById('invTotals').textContent = items.length ? `${items.length} item${items.length === 1 ? '' : 's'}${w ? ` · ${Math.round(total * 100) / 100} lb carried` : ''}` : '';
@@ -292,20 +264,13 @@ document.addEventListener('click', e=>{
   const t = e.target.closest && e.target.closest('button'); if(!t || !csDb()) return;
   if(t.id === 'invAddBtn'){
     const input = document.getElementById('invName'), name = input.value.trim().slice(0, 80); if(!name) return;
-    if(itemDef(name)){ addToInventory(name, document.getElementById('invQty').value); input.value = ''; document.getElementById('invQty').value = 1; input.focus(); }
+    if(offeredDef(name)){ addToInventory(name, document.getElementById('invQty').value); input.value = ''; document.getElementById('invQty').value = 1; input.focus(); }
     else openItemForm({name}, true);
   }
   else if(t.dataset.invDel){ const id = t.dataset.invDel; unequipQuiet(id); saveInv(invItems().filter(x=>x.id !== id)); afterGearChange(); }
   else if(t.dataset.equip) equipItem(t.dataset.equip, t.dataset.slot, t.dataset.hand);
   else if(t.dataset.unequip) unequip(t.dataset.unequip);
   else if(t.dataset.editItem){ const d = campaignDefs.items[t.dataset.editItem]; if(d) openItemForm(d, false); }
-  else if(t.id === 'itemSave') saveItemForm();
-  else if(t.id === 'itemCancel') closeItemForm();
-  else if(t.id === 'fxNewBtn') openEffectForm();
-  else if(t.id === 'fxSave') saveEffectForm();
-  else if(t.id === 'fxCancel') document.getElementById('fxForm').hidden = true;
-  else if(t.dataset.fxAdd){ itemFormFx(t.dataset.fxAdd); }
-  else if(t.dataset.fxDel){ const [list, i] = t.dataset.fxDel.split(':'); itemForm[list].splice(+i, 1); drawItemFormFx(); }
 });
 // Take an item out of every slot (pass an equip state to change it without saving)
 function unequipQuiet(id, state){
@@ -329,154 +294,6 @@ document.addEventListener('change', e=>{
     saveInv(items); if(t.dataset.attune) renderInventory(); if(t.dataset.invNote) renderEquipment();   // the dropdowns show notes
   }
 });
-
-/* ---------- New or edited custom item (saved for the whole campaign) ---------- */
-let itemForm = null;
-function openItemForm(d, isNew){
-  itemForm = {id:d.id || null, isNew, onHit:[...(d.onHit || [])], whileEquipped:[...(d.whileEquipped || [])]};
-  const f = document.getElementById('itemForm'); f.hidden = false;
-  const types = ITEM_TYPES, bases = [...WEAPONS, ...ARMOR].map(x=>x.name);
-  f.innerHTML = `<div class="cs-sub">${isNew ? 'New item for the campaign' : 'Edit ' + csEsc(d.name)}</div>`
-    + `<p class="cs-none">${isNew ? `“${csEsc(d.name)}” isn’t on the lists yet. Describe it once and everyone in the campaign can pick it.` : 'Changes show for everyone in the campaign.'}</p>`
-    + `<div class="cs-grid">`
-    + `<label class="cs-field"><span>Name</span><input id="if_name" type="text" maxlength="80" value="${csEsc(d.name)}"></label>`
-    + `<label class="cs-field"><span>Type</span><select id="if_type">${types.map(t=>`<option${t === (d.type || 'Adventuring Gear') ? ' selected' : ''}>${csEsc(t)}</option>`).join('')}</select></label>`
-    + `<label class="cs-field"><span>Built on (weapons and armor)</span><select id="if_base"><option value="">—</option>${bases.map(b=>`<option${b === (d.base || '') ? ' selected' : ''}>${csEsc(b)}</option>`).join('')}</select></label>`
-    + `<label class="cs-field"><span>Cost</span><input id="if_cost" type="text" maxlength="30" value="${csEsc(d.cost || '')}" placeholder="e.g. 150 gp"></label>`
-    + `<label class="cs-field"><span>Weight (lb)</span><input id="if_weight" type="number" min="0" step="any" value="${d.weight ?? ''}"></label>`
-    + `<label class="cs-field"><span>Magic bonus (+ to hit and damage, or AC)</span><input id="if_magic" type="number" min="0" max="5" value="${d.magic || ''}"></label>`
-    + `<label class="cs-field cs-wide"><span>Attributes</span><input id="if_attrs" type="text" maxlength="200" value="${csEsc(d.attrs || '')}" placeholder="Anything special about it"></label>`
-    + `<label class="cs-field cs-wide"><span>Notes</span><textarea id="if_notes" rows="2" maxlength="1000">${csEsc(d.notes || '')}</textarea></label>`
-    + `<label class="cs-check"><input type="checkbox" id="if_attune"${d.attune ? ' checked' : ''}> Requires attunement</label>`
-    + `</div><div id="ifWeapon"></div><div id="itemFormFx"></div>`
-    + `<div class="cs-add" style="max-width:none;"><button type="button" class="chip-btn" id="itemSave">${isNew ? 'Save and add to inventory' : 'Save'}</button><button type="button" class="chip-btn" id="itemCancel">Cancel</button>`
-    + (isNew ? '' : `<button type="button" class="chip-btn item-del" id="itemDelete">Delete from campaign</button><span class="cs-none" id="itemDelMsg"></span>`) + `</div>`;
-  itemForm.weapon = d;
-  drawItemFormWeapon();
-  drawItemFormFx();
-  f.scrollIntoView({block:'nearest'});
-}
-/* A weapon's own stats in the item form: what it inherits when it's built on a standard weapon,
-   or its own (melee or ranged, simple or martial, damage, one-handed / two-handed / versatile,
-   finesse, light, reach, range) when it isn't */
-function drawItemFormWeapon(){
-  const box = document.getElementById('ifWeapon'); if(!box || !itemForm) return;
-  const base = document.getElementById('if_base').value, baseDef = base ? equipmentByName(base) : null;
-  const type = baseDef ? baseDef.type : document.getElementById('if_type').value;
-  if(baseDef){ box.innerHTML = `<p class="cs-none">Built on a ${csEsc(baseDef.name)}: ${csEsc(itemAttrs(baseDef))}.</p>`; return; }
-  if(type !== 'Weapon'){ box.innerHTML = ''; return; }
-  const w = itemForm.weapon || {}, hands = w.twoHanded ? 'two' : w.versatile ? 'versatile' : 'one';
-  const opt = (v, l, cur)=>`<option value="${v}"${v === cur ? ' selected' : ''}>${l}</option>`;
-  box.innerHTML = `<div class="cs-sub">Weapon</div><div class="cs-grid">`
-    + `<label class="cs-field"><span>Kind</span><select id="iw_cat">${['simple melee', 'martial melee', 'simple ranged', 'martial ranged'].map(c=>opt(c, c[0].toUpperCase() + c.slice(1), w.category || 'martial melee')).join('')}</select></label>`
-    + `<label class="cs-field"><span>Damage dice</span><input id="iw_dice" type="text" maxlength="12" value="${csEsc(w.dice || '1d8')}"></label>`
-    + `<label class="cs-field"><span>Damage type</span><select id="iw_type">${DAMAGE_TYPES.map(t=>opt(t, t, w.dmgType || 'slashing')).join('')}</select></label>`
-    + `<label class="cs-field"><span>Hands</span><select id="iw_hands">${opt('one', 'One-handed', hands)}${opt('two', 'Two-handed', hands)}${opt('versatile', 'Versatile (one or two)', hands)}</select></label>`
-    + `<label class="cs-field"><span>Two-handed damage (versatile)</span><input id="iw_vers" type="text" maxlength="12" value="${csEsc(w.versatile || '')}" placeholder="e.g. 1d10"></label>`
-    + `<label class="cs-field"><span>Range (thrown or ranged)</span><input id="iw_range" type="text" maxlength="12" value="${csEsc(w.range || '')}" placeholder="e.g. 20/60"></label>`
-    + `</div><div class="cs-checks">${[['finesse', 'Finesse'], ['light', 'Light'], ['heavy', 'Heavy'], ['reach', 'Reach'], ['thrown', 'Thrown'], ['loading', 'Loading'], ['ammunition', 'Ammunition']]
-      .map(([k, l])=>`<label class="cs-check"><input type="checkbox" id="iw_${k}"${w[k] ? ' checked' : ''}> ${l}</label>`).join('')}</div>`;
-}
-document.addEventListener('change', e=>{ if(itemForm && (e.target.id === 'if_type' || e.target.id === 'if_base')) drawItemFormWeapon(); });
-// The weapon fields as stats (for a weapon not built on a standard one)
-function readItemFormWeapon(){
-  const g = id=>document.getElementById(id);
-  if(!g('iw_cat')) return null;
-  const cat = g('iw_cat').value, hands = g('iw_hands').value, out = {category:cat, melee:/melee/.test(cat), ranged:/ranged/.test(cat), martial:/martial/.test(cat),
-    dice:g('iw_dice').value.trim().slice(0, 12) || '1d4', dmgType:g('iw_type').value, twoHanded:hands === 'two'};
-  if(hands === 'versatile') out.versatile = g('iw_vers').value.trim().slice(0, 12) || out.dice;
-  const range = g('iw_range').value.trim().slice(0, 12); if(range) out.range = range;
-  ['finesse', 'light', 'heavy', 'reach', 'thrown', 'loading', 'ammunition'].forEach(k=>{ if(g('iw_' + k).checked) out[k] = true; });
-  return out;
-}
-function drawItemFormFx(){
-  const box = document.getElementById('itemFormFx'); if(!box || !itemForm) return;
-  const names = effectList().map(x=>x.name);
-  const list = (key, label, hint)=>`<div class="cs-sub">${label}</div><p class="cs-none">${hint}</p><div class="cs-chips">${itemForm[key].length ? itemForm[key].map((n, i)=>`<span class="cs-chip">${csEsc(n)}<button type="button" data-fx-del="${key}:${i}" aria-label="Remove ${csEsc(n)}">&times;</button></span>`).join('') : '<span class="cs-none">None</span>'}</div>`
-    + `<div class="cs-add"><input type="text" list="fxNames" id="fxIn_${key}" placeholder="Pick an effect…" aria-label="${label}"><button type="button" class="chip-btn" data-fx-add="${key}">Add</button></div>`;
-  box.innerHTML = `<datalist id="fxNames">${names.map(n=>`<option value="${csEsc(n)}"></option>`).join('')}</datalist>`
-    + list('onHit', 'On Hit', 'What a hit does to the target (e.g. Bleeding, Paralyzed).')
-    + list('whileEquipped', 'While Equipped', 'What it does to whoever has it equipped (e.g. Enlarged, Bless).')
-    + `<div class="cs-add"><button type="button" class="chip-btn" id="fxNewBtn">New effect…</button></div><div id="fxForm" class="fx-form" hidden></div>`;
-}
-function itemFormFx(key){
-  const input = document.getElementById('fxIn_' + key), name = input.value.trim(); if(!name) return;
-  const known = effectList().find(x=>x.name.toLowerCase() === name.toLowerCase());
-  if(!known){ openEffectForm(name, key); return; }
-  if(!itemForm[key].includes(known.name)) itemForm[key].push(known.name);
-  drawItemFormFx();
-}
-async function saveItemForm(){
-  const v = id=>document.getElementById(id).value.trim();
-  const name = v('if_name').slice(0, 80); if(!name){ document.getElementById('if_name').focus(); return; }
-  const base = v('if_base'), baseDef = base ? equipmentByName(base) : null;
-  const def = {type: baseDef ? baseDef.type : v('if_type'), base, cost:v('if_cost'), attrs:v('if_attrs'), notes:document.getElementById('if_notes').value.trim().slice(0, 1000),
-    magic: parseInt(v('if_magic'), 10) || 0, attune: document.getElementById('if_attune').checked, onHit:itemForm.onHit, whileEquipped:itemForm.whileEquipped};
-  const wt = parseFloat(v('if_weight')); if(!isNaN(wt)) def.weight = wt; else if(baseDef) def.weight = baseDef.weight;
-  if(!def.cost && baseDef) def.cost = baseDef.cost;
-  if(!baseDef && def.type === 'Weapon') Object.assign(def, readItemFormWeapon() || {});
-  const clash = customItems().find(x=>x.name.toLowerCase() === name.toLowerCase() && x.id !== itemForm.id) || (!itemForm.id && equipmentByName(name));
-  if(clash){ csFlash(`There’s already an item called ${name}.`, true); return; }
-  const id = itemForm.id || newId();
-  try{
-    await (await tkDbReady()).saveDef(charStore.campaign, 'items', id, name, def, savedName(currentCharId));
-    campaignDefs.items[id] = {...def, name, id};   // show it now; the database update follows
-    const wasNew = itemForm.isNew; closeItemForm();
-    if(wasNew){ addToInventory(name, 1); document.getElementById('invName').value = ''; }
-    afterGearChange();
-  }catch(err){ csFlash('Couldn’t save the item: ' + err.message, true); }
-}
-function closeItemForm(){ itemForm = null; const f = document.getElementById('itemForm'); f.hidden = true; f.innerHTML = ''; }
-// Delete a custom item from the campaign (asks once). It comes out of this character's inventory
-// and slots; anyone else who has it keeps a plain entry with its name and no stats.
-async function deleteItemForm(){
-  if(!itemForm || !itemForm.id) return;
-  const d = campaignDefs.items[itemForm.id], msg = document.getElementById('itemDelMsg');
-  if(!itemForm.confirmDelete){ itemForm.confirmDelete = true; msg.textContent = `Delete ${d ? d.name : 'this item'} for everyone in the campaign? Click again to delete.`; return; }
-  try{
-    await (await tkDbReady()).deleteDef(charStore.campaign, 'items', itemForm.id);
-    const name = d && d.name;
-    delete campaignDefs.items[itemForm.id];
-    if(name){ const st = equipState(); invItems().filter(x=>x.name === name).forEach(x=>unequipQuiet(x.id, st)); saveEquip(st); saveInv(invItems().filter(x=>x.name !== name)); }
-    closeItemForm(); afterGearChange();
-  }catch(err){ csFlash('Couldn’t delete the item: ' + err.message, true); }
-}
-document.addEventListener('click', e=>{ if(e.target.closest && e.target.closest('#itemDelete')) deleteItemForm(); });
-
-/* ---------- New custom effect (saved for the whole campaign) ---------- */
-let fxFor = null;
-function openEffectForm(name, forList){
-  fxFor = forList || null;
-  const f = document.getElementById('fxForm'); f.hidden = false;
-  f.innerHTML = `<div class="cs-sub">New effect for the campaign</div><div class="cs-grid">`
-    + `<label class="cs-field"><span>Name</span><input id="xf_name" type="text" maxlength="60" value="${csEsc(name || '')}" placeholder="e.g. Bleeding"></label>`
-    + `<label class="cs-field"><span>Damage (dice or number)</span><input id="xf_dmg" type="text" maxlength="20" placeholder="e.g. 2 or 1d4"></label>`
-    + `<label class="cs-field"><span>Damage type</span><select id="xf_type"><option value=""></option>${DAMAGE_TYPES.map(t=>`<option>${t}</option>`).join('')}</select></label>`
-    + `<label class="cs-field"><span>How often</span><select id="xf_freq"><option value="turn">Every turn (start of its turn)</option><option value="once">Once</option><option value="">No damage</option></select></label>`
-    + `<label class="cs-field"><span>Lasts</span><select id="xf_dur"><option value="healed">Until healed</option><option value="1 minute (10 turns)">1 minute (10 turns)</option><option value="removed">Until removed</option><option value="custom">Other…</option></select></label>`
-    + `<label class="cs-field"><span>Other duration</span><input id="xf_durText" type="text" maxlength="60" placeholder="e.g. 3 turns"></label>`
-    + `<label class="cs-field"><span>Ends early on a</span><select id="xf_endKind"><option value="">—</option><option value="save">Saving throw</option><option value="check">Check</option></select></label>`
-    + `<label class="cs-field"><span>Using (ability or skill)</span><input id="xf_endWhat" type="text" list="xfWhat" maxlength="30" placeholder="e.g. Constitution, Athletics"><datalist id="xfWhat">${[...Object.values(ABILITY_FULL), ...Object.keys(SKILL_ABILITY)].map(x=>`<option value="${x}"></option>`).join('')}</datalist></label>`
-    + `<label class="cs-field"><span>DC</span><input id="xf_dc" type="number" min="1" max="30"></label>`
-    + `<label class="cs-field cs-wide"><span>Description (optional)</span><input id="xf_desc" type="text" maxlength="200"></label>`
-    + `</div><div class="cs-add" style="max-width:none;"><button type="button" class="chip-btn" id="fxSave">Save effect</button><button type="button" class="chip-btn" id="fxCancel">Cancel</button></div>`;
-  document.getElementById(name ? 'xf_dmg' : 'xf_name').focus();
-}
-async function saveEffectForm(){
-  const v = id=>document.getElementById(id).value.trim();
-  const name = v('xf_name').slice(0, 60); if(!name){ document.getElementById('xf_name').focus(); return; }
-  if(effectList().some(x=>x.name.toLowerCase() === name.toLowerCase())){ csFlash(`There’s already an effect called ${name}.`, true); return; }
-  const dur = v('xf_dur') === 'custom' ? v('xf_durText') : v('xf_dur');
-  const def = {dmg:v('xf_dmg'), dmgType:v('xf_type'), freq:v('xf_dmg') ? v('xf_freq') : '', duration:dur, endKind:v('xf_endKind'), endWhat:v('xf_endWhat'), endDC:parseInt(v('xf_dc'), 10) || null, desc:v('xf_desc')};
-  const id = newId();
-  try{
-    await (await tkDbReady()).saveDef(charStore.campaign, 'effectDefs', id, name, def, savedName(currentCharId));
-    campaignDefs.effectDefs[id] = {...def, name, id};
-    document.getElementById('fxForm').hidden = true;
-    if(itemForm && fxFor && !itemForm[fxFor].includes(name)) itemForm[fxFor].push(name);
-    drawItemFormFx();
-  }catch(err){ csFlash('Couldn’t save the effect: ' + err.message, true); }
-}
 
 /* ---------- Equipment (Inventory tab): Armor, Melee and Ranged dropdowns ----------
    Armor: what you wear. Melee and Ranged: your main hand first (Right unless the character is

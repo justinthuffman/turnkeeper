@@ -29,7 +29,9 @@ function showTab(key){
 }
 function renderTabs(){
   const bar = document.getElementById('tkTabs'); if(!bar) return;
-  bar.innerHTML = tabOrder().filter(tabAvailable).map(t=>`<button type="button" role="tab" class="tk-tab" data-tab="${t.key}" aria-selected="false" title="Drag to reorder">${t.label}</button>`).join('');
+  bar.innerHTML = tabOrder().filter(tabAvailable).map(t=>`<button type="button" role="tab" class="tk-tab" data-tab="${t.key}" aria-selected="false" title="Drag to reorder">${t.label}</button>`).join('')
+    // Far right: Manual Roll (js/manual-roll.js), any dice, for whatever the tracker doesn't cover
+    + `<button type="button" class="tk-manual" id="manualRollBtn" aria-haspopup="dialog" aria-expanded="false">Manual Roll</button>`;
   showTab(tabPrefs.active || 'overview');
 }
 // Moving a tab: by dragging, or with arrow keys (Alt+arrow) while it has focus
@@ -91,7 +93,8 @@ document.addEventListener('pointermove', e=>{
   const mid = e.clientX;
   const bar = document.getElementById('tkTabs'), others = tabButtons().filter(b=>b !== tabDrag.btn);
   const target = others.find(b=>{ const r = b.getBoundingClientRect(); return mid < r.left + r.width / 2; }) || null;
-  if(tabDrag.btn.nextElementSibling !== target) slideTabs(()=>bar.insertBefore(tabDrag.btn, target));
+  const before = target || document.getElementById('manualRollBtn');   // Manual Roll stays last
+  if(tabDrag.btn.nextElementSibling !== before) slideTabs(()=>bar.insertBefore(tabDrag.btn, before));
 });
 document.addEventListener('pointerup', e=>{
   if(!tabDrag || e.pointerId !== tabDrag.id) return;

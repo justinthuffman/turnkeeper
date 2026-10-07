@@ -512,7 +512,7 @@ function cleanRoll(r){
     .map(d=>({s:d.s, v:d.v, ...(Number.isInteger(d.c) ? {c:d.c} : {}), ...(d.x === true ? {x:true} : {})}));
   return {id:String(r.id || ''), name:String(r.name || ''), label:String(r.label || ''), notation:String(r.notation || ''),
     total:typeof r.total === 'number' && Number.isFinite(r.total) ? r.total : 0, dice, nat:r.nat === 20 || r.nat === 1 ? r.nat : 0, style:safeDiceStyle(r.style),
-    kind:CRIT_ROWS.some(x=>x[0] === r.kind) ? r.kind : '', fx:cleanFx(r.fx), throw:safeThrow(r.throw)};
+    kind:CRIT_ROWS.some(x=>x[0] === r.kind) || r.kind === 'free' ? r.kind : '', fx:cleanFx(r.fx), throw:safeThrow(r.throw)};
 }
 // Make a roll from a row's dice: {roll} or {error}
 function makeRoll(text, name, label, style, kind, strength){
@@ -552,6 +552,7 @@ function cleanCritSettings(raw){
 let critSettings = cleanCritSettings(null);
 // What a crit shows: {gif, text, side} or null. who replaces {who} in flavor text.
 function pickCritFx(kind, nat, who){
+  if(kind === 'free') kind = 'hit';   // a Free Roll (the tabs row's Manual Roll) uses the To Hit pool
   if(!(nat === 20 || nat === 1) || !CRIT_ROWS.some(x=>x[0] === kind)) return null;
   const side = nat === 20 ? 'success' : 'fail', hit = critSettings.gifs.hit[side], row = critSettings.gifs[kind];
   const from = key=>(!row.useHit && row[side][key].length ? row[side][key] : hit[key]);
