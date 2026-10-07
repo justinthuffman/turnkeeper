@@ -3,6 +3,14 @@
 What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest first.
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
+## 2026-10-07 — Gear from the sheet
+
+### Added
+- **Copying a character from a Google Sheet brings their gear:** the weapons in the sheet's
+  attack list and the armor and clothes in its Equipped Items go in the inventory, equipped
+  (armor worn, a melee weapon in the main hand, a second light one in the off hand, a ranged
+  weapon ready). Potions, gold and other notes are still entered by hand.
+
 ## 2026-10-07 — Campaign effects for the DM, attacks need a weapon
 
 ### Fixed

@@ -4637,6 +4637,7 @@ async function runImport(){
 
     flushCharStore(); Object.assign(charStore, {id:null, campaign:null, kv:null, pending:{}});   // a sheet isn't a database character
     applyCore(sheetToCore(table), sheetId);
+    lastSheet = {id:sheetId, table};   // for its gear, if it gets copied into the database
     setStatus('Imported.', 'ok');
     dbCopyConfirm = false; document.getElementById('dbCopyMsg').textContent = '';
     document.getElementById('dbCopyRow').hidden = !!charStore.kv || !myCampaignKey();
@@ -4662,7 +4663,7 @@ async function openDbCharacter(id, campaignKey){
 }
 // Import day: copy a sheet's character, and what this browser keeps for it, into the database
 // (a local copy of Turnkeeper writes to the test campaign)
-let dbCopyConfirm = false;
+let dbCopyConfirm = false, lastSheet = null;
 document.getElementById('dbCopyBtn').addEventListener('click', async ()=>{
   const msg = document.getElementById('dbCopyMsg'), id = currentCharId, c = myCampaignKey();
   if(!id || !currentCore || !c){ msg.textContent = 'Import a campaign character first.'; return; }
@@ -4677,10 +4678,16 @@ document.getElementById('dbCopyBtn').addEventListener('click', async ()=>{
       if(k && k.startsWith('dndTracker:') && k.includes(id) && !PER_BROWSER_KEY.test(k)) kv[encodeKvKey(k.replace(/^dndTracker:/, '').split(id).join('@'))] = localStorage.getItem(k);
     }
     const core = JSON.parse(JSON.stringify({...currentCore, name}));   // no undefined values for Firebase
+    // Its weapons and armor from the sheet, in the inventory and equipped (unless this browser has some)
+    let gear = 0;
+    if(lastSheet && lastSheet.id === id && !kv[encodeKvKey('inv:@')] && typeof gearFromSheet === 'function'){
+      const g = gearFromSheet(lastSheet.table, currentCore.hand);
+      if(g.items.length){ kv[encodeKvKey('inv:@')] = JSON.stringify({items:g.items}); kv[encodeKvKey('equip:@')] = JSON.stringify(g.equip); gear = g.items.length; }
+    }
     await db.setCore(c, id, core);
     if(Object.keys(kv).length) await db.updateKv(c, id, kv);
     const test = new URLSearchParams(location.search).has('test') || ['localhost', '127.0.0.1', '[::1]', ''].includes(location.hostname);
-    msg.textContent = `Copied ${name} into the database${test ? ' (test campaign)' : ''}, with ${Object.keys(kv).length} saved items from this browser.`;
+    msg.textContent = `Copied ${name} into the database${test ? ' (test campaign)' : ''}, with ${gear ? `${gear} items from the sheet and ` : ''}${Object.keys(kv).length - (gear ? 2 : 0)} saved items from this browser.`;
   }catch(err){ msg.textContent = 'Couldn’t copy: ' + err.message; }
 });
 document.getElementById('clearBtn').addEventListener('click', ()=>{

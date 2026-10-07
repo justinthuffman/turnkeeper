@@ -603,3 +603,39 @@ function renderArmsProfs(){
     + `<p class="cs-none">${csEsc(grantedLine('weapons') || 'No weapon proficiencies from class, race or feats.')}</p>${chipEditorHtml('weapons', 'Extra weapon proficiencies', profValues('weapons'), [...WEAPON_PROF_GROUPS, ...WEAPONS.map(w=>w.name)])}`;
 }
 window.renderGear = ()=>{ renderInventory(); renderEquipment(); renderArmsProfs(); syncGearStatuses(); };
+
+/* ---------- Gear from a Google Sheet (copying a character into the database) ----------
+   The weapons in the sheet's attack list and the items in its Equipped Items list go in the
+   inventory (only ones Turnkeeper knows: notes like potions and gold are left for the player).
+   Armor is worn and a shield held; the first melee weapon goes in the main hand (with a second
+   light one in the off hand if the first is light too), and the first ranged weapon is ready.
+   "Two-Handed Quarterstaff" is a quarterstaff held in both hands. Returns {items, equip}. */
+function gearFromSheet(table, hand){
+  const cell = (c, r)=>{ const v = (table[r] || [])[colToIdx(c)]; return v === null || v === undefined ? '' : String(v).trim(); };
+  const names = [];
+  for(let r = 26; r <= 31; r++){ const n = cell('R', r); if(n && n !== '-') names.push(n); }        // R27:R32, attacks
+  for(let r = 38; r <= 46; r++){ const n = cell('AC', r); if(/^equipped items$/i.test(n)) break; if(n && n !== '-') names.push(n); }   // AC39 down
+  const items = [], picked = [];
+  names.forEach(raw=>{
+    const both = /^two[- ]handed\s+/i.test(raw), name = raw.replace(/^two[- ]handed\s+/i, '');
+    // "Common Clothes" on the sheet is "Clothes, Common" in the Player's Handbook list
+    const d = itemDef(name) || itemDef(name.replace(/^(\w+(?:'s)?) clothes$/i, 'Clothes, $1')); if(!d) return;
+    const it = {id:newId() + items.length, name:d.name, qty:1, notes:''};
+    items.push(it); picked.push({it, d, both:both && !!d.versatile});
+  });
+  const mh = hand === 'L' ? 'L' : 'R', oh = mh === 'R' ? 'L' : 'R';
+  const e = {melee:{}, ranged:{}, applied:[]};
+  const armor = picked.find(x=>isArmor(x.d)), shield = picked.find(x=>isShield(x.d));
+  const melee = picked.filter(x=>isWeapon(x.d) && x.d.melee), ranged = picked.filter(x=>isWeapon(x.d) && !x.d.melee && x.d.ranged);
+  if(armor) e.armor = armor.it.id;
+  const m1 = melee[0];
+  if(m1 && (m1.d.twoHanded || m1.both)){ e.melee.L = m1.it.id; e.melee.R = m1.it.id; }
+  else {
+    if(m1) e.melee[mh] = m1.it.id;
+    if(shield){ e.shield = shield.it.id; e.shieldHand = oh; e.melee[oh] = shield.it.id; }
+    else if(m1 && m1.d.light && melee[1] && melee[1].d.light) e.melee[oh] = melee[1].it.id;
+  }
+  const r1 = ranged[0];
+  if(r1){ if(r1.d.twoHanded){ e.ranged.L = r1.it.id; e.ranged.R = r1.it.id; } else e.ranged[mh] = r1.it.id; }
+  return {items, equip:e};
+}
