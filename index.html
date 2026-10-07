@@ -219,6 +219,21 @@ h1{
 }
 footer{margin-top:56px; font-size:0.75rem; color:var(--ink-dim); text-align:center;}
 /* The DM's way in: quiet, under the footer */
+/* V5 flow: Player or DM, then the party */
+.role-pick{display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:22px; width:100%; max-width:620px;}
+.role-btn{display:flex; flex-direction:column; align-items:center; gap:6px; padding:34px 18px; border:1px solid var(--border); border-radius:14px;
+  background:var(--panel); color:var(--ink); text-decoration:none; box-shadow:0 10px 24px rgba(0,0,0,0.35); transition:transform .18s, border-color .18s, box-shadow .18s;}
+.role-btn:hover, .role-btn:focus-visible{transform:translateY(-3px); border-color:var(--sea); box-shadow:0 14px 30px rgba(0,0,0,0.45);}
+.role-name{font-family:var(--font-display); font-size:1.6rem; color:var(--sea);}
+.role-sub{font-size:0.85rem; color:var(--ink-dim);}
+.player-head{display:flex; align-items:baseline; gap:16px; width:100%; max-width:920px; margin-bottom:14px; font-size:0.9rem; color:var(--ink-dim);}
+.back-link{color:var(--ink-dim); text-decoration:none;}
+.back-link:hover{color:var(--sea);}
+.roster[hidden], .role-pick[hidden], .player-head[hidden], .new-char[hidden], .dm-link[hidden], footer[hidden]{display:none;}
+.new-char{margin-top:22px;}
+.new-char button{background:none; border:1px dashed var(--border); color:var(--ink-dim); padding:12px 22px; border-radius:10px; font-size:0.95rem; cursor:not-allowed; font-family:var(--font-body);}
+.new-char small{margin-left:6px; font-size:0.72rem; text-transform:uppercase; letter-spacing:0.06em;}
+@media (max-width:560px){ .role-pick{grid-template-columns:1fr; max-width:340px;} }
 .dm-link{margin-top:10px; font-size:0.75rem; text-align:center;}
 .dm-link a{color:var(--ink-dim); text-decoration:underline; text-underline-offset:2px;}
 .dm-link a:hover{color:var(--sea);}
@@ -254,7 +269,14 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
   <div class="subtitle">the party</div>
 </div>
 
-<div class="roster">
+
+<!-- V5 flow: Player or DM first; players then pick a character (logins come later) -->
+<nav class="role-pick" id="rolePick" aria-label="Who's playing">
+  <a class="role-btn" href="#player"><span class="role-name">Player</span><span class="role-sub">Open your character</span></a>
+  <a class="role-btn" href="dm.html"><span class="role-name">Dungeon Master</span><span class="role-sub">Open the DM Screen</span></a>
+</nav>
+<div class="player-head" id="playerHead" hidden><a href="#" class="back-link">&larr; Player or DM</a><span>Choose your character</span></div>
+<div class="roster" id="roster" hidden>
   <a class="card card-bard" href="turnkeeper.html?sheet=https%3A%2F%2Fdocs.google.com%2Fspreadsheets%2Fd%2F14TFj-bb1ixAUl9bw_tNdcIpWtnYxeV8JW5f2kIbiW_Q%2Fedit%3Fgid%3D359784640%23gid%3D359784640&name=Bel" target="_blank" rel="noopener">
     <div class="card-art">
       <img src="portraits/bel.webp" alt="Portrait of Bel">
@@ -331,8 +353,9 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
   </a>
 </div>
 
-<footer>Click a character to open their sheet.</footer>
-<div class="dm-link"><a href="dm.html">DM Screen</a></div>
+<div class="new-char" id="newChar" hidden><button type="button" disabled title="Coming soon">+ Create New Character <small>coming soon</small></button></div>
+<footer id="hubFoot" hidden>Click a character to open their sheet.</footer>
+<div class="dm-link" id="dmLink" hidden><a href="dm.html">DM Screen</a></div>
 <div class="theme-picker" id="themePicker">
   <button type="button" class="theme-toggle" id="themeToggle" aria-expanded="false" aria-controls="themeMenu" title="Change the color theme"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 3a9 9 0 0 0 0 18c1.1 0 1.8-.8 1.8-1.7 0-.5-.2-.9-.5-1.2-.3-.3-.5-.7-.5-1.2 0-.9.8-1.7 1.7-1.7H16a5 5 0 0 0 5-5C21 6.4 17 3 12 3zm-5.5 9a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm3-4a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm3 4a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg><span>Theme</span></button>
   <div class="theme-menu" id="themeMenu" role="group" aria-label="Color theme" hidden></div>
@@ -384,6 +407,33 @@ if(!touchScreen){
   document.addEventListener('click', e=>{ if(!e.target.closest('.card')) select(null); });
   document.querySelector('footer').textContent = 'Tap a character to see them, then tap again to open their sheet.';
 }
+</script>
+<script>
+// V5 flow: Player or DM first (#player shows the party). Logins come later.
+function showRole(){
+  const player = location.hash === '#player';
+  document.getElementById('rolePick').hidden = player;
+  ['roster', 'playerHead', 'newChar', 'hubFoot', 'dmLink'].forEach(id=>{ document.getElementById(id).hidden = !player; });
+  document.querySelector('.subtitle').textContent = player ? 'the party' : 'who’s playing?';
+}
+addEventListener('hashchange', showRole);
+showRole();
+</script>
+<script type="module">
+// A character already moved into the Turnkeeper database opens from there (?char=); the rest
+// still open from their Google Sheet. A copy of the site on this computer uses the test campaign.
+const TEST = new URLSearchParams(location.search).has('test') || ['localhost', '127.0.0.1', '[::1]', ''].includes(location.hostname);
+try{
+  const FB = 'https://www.gstatic.com/firebasejs/12.19.0/';
+  const [{initializeApp}, {getAuth, signInAnonymously}, {getDatabase, ref, get}] = await Promise.all(['firebase-app.js', 'firebase-auth.js', 'firebase-database.js'].map(f=>import(FB + f)));
+  const app = initializeApp({apiKey:'AIzaSyAuTuvMgF52vRQRyR0psfeyiIv31_svy-Y', authDomain:'turnkeeper-7b835.firebaseapp.com', databaseURL:'https://turnkeeper-7b835-default-rtdb.firebaseio.com', projectId:'turnkeeper-7b835', appId:'1:866334063897:web:feaaa8b817f9b80ee69988'});
+  await signInAnonymously(getAuth(app));
+  const chars = (await get(ref(getDatabase(app), `campaigns/${TEST ? 'test' : 'waterdeep'}/characters`))).val() || {};
+  document.querySelectorAll('.roster a.card').forEach(a=>{
+    const m = decodeURIComponent(a.getAttribute('href')).match(/\/d\/([A-Za-z0-9_-]+)/);
+    if(m && chars[m[1]]) a.href = `turnkeeper.html?char=${m[1]}`;
+  });
+}catch(err){ console.warn('Character list:', err); }
 </script>
 </body>
 </html>
