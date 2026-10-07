@@ -14,7 +14,9 @@ const csEsc = s=>String(s ?? '').replace(/[&<>"']/g, c=>({'&':'&amp;', '<':'&lt;
 const csDb = ()=>!!(charStore.kv && currentCore && currentCharId);
 const ALIGNMENTS = ['Lawful Good', 'Neutral Good', 'Chaotic Good', 'Lawful Neutral', 'True Neutral', 'Chaotic Neutral', 'Lawful Evil', 'Neutral Evil', 'Chaotic Evil', 'Unaligned'];
 const LIFESTYLES = ['Wretched', 'Squalid', 'Poor', 'Modest', 'Comfortable', 'Wealthy', 'Aristocratic'];
-const campaignTracks = what=>false;   // the future Campaign settings toggles (lifestyle, weight, currencies): all off for now
+// The Campaign settings toggles: XP leveling (the DM Screen's Party leveling); lifestyle, weight
+// and currencies are future toggles, off for now
+const campaignTracks = what=>what === 'xp' ? (typeof critSettings === 'object' && critSettings.leveling === 'xp') : false;
 
 // Save part of the record (debounced per key), then optionally redraw the page from it
 const csTimers = {};
@@ -36,23 +38,52 @@ function csFlash(text, err){
 
 /* ---------- Character Details ---------- */
 const DETAIL_GROUPS = [
-  ['Identity', [['background', 'Background'], ['alignment', 'Alignment', 'align'], ['xp', 'Experience points', 'number'], ['lifestyle', 'Lifestyle', 'lifestyle'], ['bgFeature', 'Background feature', 'area']]],
+  ['Identity', [['background', 'Background', 'bg'], ['alignment', 'Alignment', 'align'], ['xp', 'Experience points', 'xp'], ['lifestyle', 'Lifestyle', 'lifestyle'], ['bgFeature', 'Background feature', 'area']]],
   ['Appearance', [['age', 'Age'], ['height', 'Height'], ['weight', 'Weight'], ['eyes', 'Eyes'], ['skin', 'Skin'], ['hair', 'Hair'], ['look', 'Appearance', 'area']]],
   ['Personality', [['traits', 'Personality traits', 'area'], ['ideals', 'Ideals', 'area'], ['bonds', 'Bonds', 'area'], ['flaws', 'Flaws', 'area']]],
   ['Story', [['backstory', 'Backstory', 'area'], ['allies', 'Allies & organizations', 'area'], ['symbol', 'Symbol (allies & organizations)'], ['extraFeatures', 'Additional features & traits', 'area']]],
 ];
+// Experience needed for each level (Player's Handbook, 2014): XP_FOR[n] reaches level n + 1
+const XP_FOR = [0, 300, 900, 2700, 6500, 14000, 23000, 34000, 48000, 64000, 85000, 100000, 120000, 140000, 165000, 195000, 225000, 265000, 305000, 355000];
+function xpLine(xp, level){
+  if(level >= 20) return `${xp.toLocaleString()} XP: level 20 is the highest.`;
+  const need = XP_FOR[level];
+  return xp >= need ? `${xp.toLocaleString()} XP: enough for level ${level + 1}. Level up when your DM says so.`
+    : `${xp.toLocaleString()} XP: ${(need - xp).toLocaleString()} more to reach level ${level + 1} (${need.toLocaleString()}).`;
+}
+// Background: a Player's Handbook one from the list, or your own (a name and what it is)
+let bgCustomOpen = false;
+function backgroundHtml(d){
+  const names = Object.keys(typeof BACKGROUNDS === 'object' ? BACKGROUNDS : {}), v = d.background || '';
+  const custom = bgCustomOpen || (v !== '' && !names.includes(v));
+  return `<label class="cs-field" for="cd_bgPick"><span>Background</span><select id="cd_bgPick" data-bg-pick="1"><option value=""></option>`
+    + names.map(b=>`<option${!custom && b === v ? ' selected' : ''}>${b}</option>`).join('')
+    + `<option value="__custom"${custom ? ' selected' : ''}>Your own…</option></select></label>`
+    + (custom ? `<label class="cs-field" for="cd_background"><span>Your background's name</span><input id="cd_background" data-detail="background" type="text" maxlength="60" value="${csEsc(v)}" placeholder="e.g. Dock Rat"></label>`
+      + `<label class="cs-field cs-wide" for="cd_bgDesc"><span>What it is</span><textarea id="cd_bgDesc" data-detail="bgDesc" rows="3" placeholder="Where you come from and what you did before adventuring">${csEsc(d.bgDesc || '')}</textarea></label>` : '');
+}
 function detailFieldHtml([key, label, kind], d){
   const v = d[key] ?? '', id = 'cd_' + key;
   if(kind === 'lifestyle' && !campaignTracks('lifestyle')) return '';
+  if(kind === 'xp' && !campaignTracks('xp')) return '';
+  if(kind === 'bg') return backgroundHtml(d);
   // A Player's Handbook background suggests its feature (shown until the player writes their own)
   const bg = key === 'bgFeature' && typeof backgroundOf === 'function' ? backgroundOf(d.background) : null;
-  if(key === 'background') return `<label class="cs-field" for="${id}"><span>${label}</span><input id="${id}" data-detail="${key}" type="text" list="bgList" value="${csEsc(v)}">`
-    + `<datalist id="bgList">${Object.keys(typeof BACKGROUNDS === 'object' ? BACKGROUNDS : {}).map(b=>`<option value="${b}"></option>`).join('')}</datalist></label>`;
   const input = kind === 'area' ? `<textarea id="${id}" data-detail="${key}" rows="3"${bg ? ` placeholder="${csEsc(bg.feature)} (from the ${csEsc(bg.name)} background)"` : ''}>${csEsc(v)}</textarea>`
     : kind === 'align' ? `<select id="${id}" data-detail="${key}"><option value=""></option>${ALIGNMENTS.map(a=>`<option${a === v ? ' selected' : ''}>${a}</option>`).join('')}</select>`
     : kind === 'lifestyle' ? `<select id="${id}" data-detail="${key}"><option value=""></option>${LIFESTYLES.map(a=>`<option${a === v ? ' selected' : ''}>${a}</option>`).join('')}</select>`
-    : `<input id="${id}" data-detail="${key}" type="${kind === 'number' ? 'number' : 'text'}" value="${csEsc(v)}"${kind === 'number' ? ' min="0"' : ''}>`;
-  return `<label class="cs-field${kind === 'area' ? ' cs-wide' : ''}" for="${id}"><span>${label}</span>${input}</label>`;
+    : `<input id="${id}" data-detail="${key}" type="${kind === 'number' || kind === 'xp' ? 'number' : 'text'}" value="${csEsc(v)}"${kind === 'number' || kind === 'xp' ? ' min="0"' : ''}>`;
+  return `<label class="cs-field${kind === 'area' ? ' cs-wide' : ''}" for="${id}"><span>${label}</span>${input}`
+    + (kind === 'xp' ? `<small class="cs-xp" id="cdXpLine">${csEsc(xpLine(parseInt(v, 10) || 0, currentCore.level || 1))}</small>` : '') + `</label>`;
+}
+// Level up and down (milestone: when the DM says; with XP, when you have enough)
+function levelHtml(){
+  const lv = currentCore.level || 1, xp = parseInt((currentCore.details || {}).xp, 10) || 0;
+  const ready = campaignTracks('xp') && lv < 20 && xp >= XP_FOR[lv];
+  return `<div class="cs-level"><span>Level <b>${lv}</b></span>`
+    + `<button type="button" class="ghost" data-level-step="-1"${lv <= 1 ? ' disabled' : ''}>Level down</button>`
+    + `<button type="button" class="${ready ? '' : 'ghost'}" data-level-step="1"${lv >= 20 ? ' disabled' : ''}>Level up</button>`
+    + `<span class="cs-none" id="cdLevelMsg">${campaignTracks('xp') ? '' : 'Milestone leveling: level up when your DM says so.'}</span></div>`;
 }
 // The basics: what the rest of the page is worked out from
 function basicsHtml(c){
@@ -76,7 +107,7 @@ function renderDetails(){
   const panel = document.getElementById('detailsPanel'); if(!panel) return;
   panel.hidden = !csDb(); if(!csDb()) return;
   const d = currentCore.details || {};
-  document.getElementById('detailsBody').innerHTML =
+  document.getElementById('detailsBody').innerHTML = levelHtml() +
     DETAIL_GROUPS.map(([title, fields])=>`<details class="cs-sec"${title === 'Identity' ? ' open' : ''}><summary>${title}</summary><div class="cs-grid">${fields.map(f=>detailFieldHtml(f, d)).join('')}</div></details>`).join('');
 }
 /* Edit Character: the set-once basics, behind a button in Settings (a window over the page) */
@@ -96,9 +127,37 @@ function openEditChar(){
 function closeEditChar(){ const d = document.getElementById('editChar'); if(d) d.hidden = true; }
 document.addEventListener('keydown', e=>{ if(e.key === 'Escape'){ const d = document.getElementById('editChar'); if(d && !d.hidden) closeEditChar(); } });
 document.addEventListener('click', e=>{ if(e.target.closest && e.target.closest('#editCharBtn')) openEditChar(); });
+// Level up / Level down (Details): the whole page follows the new level
+document.addEventListener('click', e=>{
+  const b = e.target.closest && e.target.closest('[data-level-step]'); if(!b || !csDb() || b.disabled) return;
+  const lv = Math.min(20, Math.max(1, (currentCore.level || 1) + Number(b.dataset.levelStep)));
+  if(lv === currentCore.level) return;
+  const up = lv > currentCore.level;
+  csSaveCore('level', lv, true);
+  const m = document.getElementById('cdLevelMsg');
+  if(m) m.textContent = up ? `Now level ${lv}. Raise your hit point maximum in Edit Character, and pick any new features or spells.` : `Back to level ${lv}. Lower your hit point maximum in Edit Character if it went up.`;
+  csFlash('Saved.');
+});
+// The DM changed the Campaign settings (e.g. Party leveling): redraw what depends on them
+window.tkSettingsChanged = ()=>{ if(csDb()) renderDetails(); };
 document.addEventListener('change', e=>{
   const t = e.target; if(!csDb() || !t.closest || !t.closest('#detailsPanel, #editChar')) return;
-  if(t.dataset.detail){ csSaveCore('details', {...(currentCore.details || {}), [t.dataset.detail]: t.type === 'number' ? (parseInt(t.value, 10) || 0) : t.value}); if(t.dataset.detail === 'background'){ renderDetails(); renderProfs(); } csFlash('Saved.'); return; }
+  if(t.dataset.bgPick){
+    // "Your own…" opens a name and a description; picking a listed one replaces it
+    bgCustomOpen = t.value === '__custom';
+    const d = {...(currentCore.details || {})};
+    if(bgCustomOpen){ if(backgroundOf(d.background)) d.background = ''; }
+    else { d.background = t.value; delete d.bgDesc; }
+    csSaveCore('details', d); renderDetails(); renderProfs(); csFlash('Saved.');
+    if(bgCustomOpen){ const n = document.getElementById('cd_background'); if(n) n.focus(); }
+    return;
+  }
+  if(t.dataset.detail){
+    csSaveCore('details', {...(currentCore.details || {}), [t.dataset.detail]: t.type === 'number' ? (parseInt(t.value, 10) || 0) : t.value});
+    if(t.dataset.detail === 'background') renderProfs();
+    if(t.dataset.detail === 'xp') renderDetails();   // the XP line and whether Level up lights up
+    csFlash('Saved.'); return;
+  }
   if(t.dataset.basic === 'name'){ const n = t.value.trim(); if(n){ saveName(currentCharId, n); setCharName(n); csSaveCore('name', n); csFlash('Saved.'); } return; }
   if(t.dataset.basic){
     const k = t.dataset.basic, num = ['level', 'hpMax', 'speed', 'ac'].includes(k);

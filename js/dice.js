@@ -546,7 +546,8 @@ function cleanCritSettings(raw){
     const side = s=>({links:list(s && s.links, safeUrl), flavor:list(s && s.flavor, v=>typeof v === 'string' ? v.slice(0, 80) : '')});
     gifs[k] = {useHit:k !== 'hit' && r.useHit === true, success:side(r.success), fail:side(r.fail)};
   });
-  return {sound:raw.sound === true, diceSound:raw.diceSound !== false, gifs};
+  // leveling: how the party levels up (Campaign settings): 'milestone' (the DM says when) or 'xp'
+  return {sound:raw.sound === true, diceSound:raw.diceSound !== false, leveling:raw.leveling === 'xp' ? 'xp' : 'milestone', gifs};
 }
 let critSettings = cleanCritSettings(null);
 // What a crit shows: {gif, text, side} or null. who replaces {who} in flavor text.

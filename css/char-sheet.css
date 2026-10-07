@@ -143,3 +143,8 @@ table.inv tr.inv-group th{text-align:left; padding:10px 6px 4px; font-family:var
 .spell-source{font-size:0.75rem; color:var(--ink-dim); margin:14px 0 0; text-align:center;}
 .item-form .chip-btn.item-del{border-color:var(--danger); color:var(--danger); margin-left:auto;}
 .ledger-del{background:none; border:none; color:var(--ink-dim); font-size:1rem; padding:0 4px; box-shadow:none; cursor:pointer;} .ledger-del:hover{color:var(--danger); background:none;} .ledger-del.sure{color:var(--danger); font-size:0.75rem;}
+/* Details: level up and down, and the XP line under Experience points */
+.cs-level{display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:0 0 12px;}
+.cs-level > span:first-child{font-family:var(--font-display); font-size:1.05rem; margin-right:4px;}
+.cs-level .cs-none{flex-basis:100%;}
+.cs-xp{display:block; color:var(--ink-dim); font-size:0.75rem; margin-top:4px;}

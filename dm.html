@@ -1763,6 +1763,7 @@ function renderSettings(){
       <label><input type="checkbox" id="csDiceSound"${critSettings.diceSound ? ' checked' : ''}> Dice sounds on every screen</label>
       <label><input type="checkbox" id="csSound"${critSettings.sound ? ' checked' : ''}> Play sound from clips (MP4 and WebM) on every screen</label>
       <label><input type="checkbox" id="csFx"${critFxOn() ? ' checked' : ''}> Show crit GIFs on this screen</label>
+      <label>Party leveling <select id="csLeveling"><option value="milestone"${critSettings.leveling === 'xp' ? '' : ' selected'}>Milestone (you say when)</option><option value="xp"${critSettings.leveling === 'xp' ? ' selected' : ''}>Experience points</option></select></label>
       <button type="button" class="ghost" id="csSeed">Add the old !tk GIFs to To Hit</button></div>
     <p class="cs-tip">On a natural 20 or 1, a player’s roll shows one GIF or clip and one flavor line from its row, on every screen, after the dice land. <b>{who}</b> in flavor text becomes the roller’s name. A row with “Use the To Hit pool” ticked, or with nothing in its own pool, uses To Hit’s. Paste the GIF’s own address (ending in .gif, .mp4 or .webm): on Tenor or Giphy, right-click the GIF, open it in a new tab, and copy that tab’s address. Links that won’t show are marked <span class="cs-bad">bad link</span>.</p>
     <div class="cs-msg" id="csMsg"></div>
@@ -1813,6 +1814,7 @@ $('csBody').addEventListener('click', async e=>{
 $('csBody').addEventListener('change', e=>{
   if(e.target.id === 'csSound') csWrite('sound', e.target.checked);
   else if(e.target.id === 'csDiceSound') csWrite('diceSound', e.target.checked);
+  else if(e.target.id === 'csLeveling') csWrite('leveling', e.target.value);
   else if(e.target.id === 'csFx') setCritFxOn(e.target.checked);
   else if(e.target.dataset.csUsehit) csWrite(`gifs/${e.target.dataset.csUsehit}/useHit`, e.target.checked);
 });

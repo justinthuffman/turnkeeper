@@ -117,6 +117,7 @@ button.ghost:hover{color:var(--ink); border-color:var(--sea-dim);}
 .sum-collapsed .rt-body, .sum-collapsed .rt-hint, .sum-collapsed .racial:not(.has-pins){display:none !important;}
 .sum-collapsed .pinned-chips{display:flex !important;}
 .sum-collapsed #rtPinned, .sum-collapsed #cfPinned, .sum-collapsed #fePinned, .sum-collapsed #atPinned, .sum-collapsed #arPinned{display:block !important;}
+.pins-hidden{display:none;}
 .rt-hint{font-size:0.78rem; color:var(--ink-dim); font-style:italic; margin-top:2px;}
 /* Expand/collapse slides: .rt-body, .spell-body and .slide animate between 0 and their
    real height (grid-rows trick; their children are wrapped in .slide-inner at load) */
@@ -481,7 +482,7 @@ button.flow-btn .src-tag{color:var(--ink); border-color:rgba(255,255,255,0.6);}
 .spell-row{display:flex; align-items:center; gap:8px; padding:4px 2px; border-radius:4px; position:relative;}
 .spell-row:hover{background:var(--panel);}
 .spell-row input[type=checkbox]{accent-color:var(--orange);}
-.spell-row .sname{cursor:default; border-bottom:1px dotted currentColor; opacity:0.9;}
+.spell-row .sname{cursor:pointer; border-bottom:1px dotted currentColor; opacity:0.9;}
 .spell-row .sname:hover{opacity:1;}
 .prep-hint{font-size:0.85rem; color:var(--ink-dim); margin:10px 0 12px;}
 .prep-hint b{color:var(--orange); font-weight:600;}
@@ -525,6 +526,10 @@ button.flow-btn .src-tag{color:var(--ink); border-color:rgba(255,255,255,0.6);}
 #tooltip b{color:var(--sea); display:block; margin-bottom:4px; font-family:var(--font-display); font-size:0.9rem;}
 #tooltip .meta{color:var(--ink-dim); line-height:1.5;}
 #tooltip a{color:var(--sea); pointer-events:auto;}
+#tooltip.tip-held{pointer-events:auto; border-color:var(--sea);}
+#tooltip .tip-link{margin-top:8px; display:flex; flex-direction:column; gap:2px;}
+#tooltip .tip-hint{color:var(--ink-dim); font-size:0.72rem; font-style:italic;}
+#tooltip.tip-held .tip-hint{display:none;}
 
 footer{text-align:center; color:var(--ink-dim); font-size:0.75rem; margin-top:30px;}
 /* Theme picker: a small, quiet "Theme" button that opens a menu of the themes
@@ -3690,6 +3695,7 @@ function featureMeta(t){
   return `${t.feat ? 'Feat' : t.racial ? 'Racial trait' : `Class feature (level ${t.level})`}${TYPE_LABELS[t.type] ? ' &middot; ' + TYPE_LABELS[t.type] : ''}`;
 }
 function showFeatureTooltip(e, t){
+  if(tipHeld) return;
   tooltip.innerHTML = `<b>${t.name}</b><div class="meta">${featureMeta(t)}</div><div class="meta" style="margin-top:6px; color:var(--ink);">${t.desc}</div>`;
   tooltip.style.display='block';
   moveTooltip(e);
@@ -4201,6 +4207,7 @@ function renderSpellList(){
       sname.addEventListener('mouseenter', e=>showTooltip(e, sp));
       sname.addEventListener('mousemove', moveTooltip);
       sname.addEventListener('mouseleave', hideTooltip);
+      sname.addEventListener('click', e=>holdTooltip(e, sp));
       group.appendChild(row);
       if(bookAsk === sp.name){
         const ask = document.createElement('div'); ask.className = 'book-ask';
@@ -4216,15 +4223,26 @@ function renderSpellList(){
   });
 }
 
-/* ---------- Tooltip ---------- */
+/* ---------- Tooltip ----------
+   Hovering a spell shows its summary. Clicking the spell's name holds the box in place so its
+   "Full rules" link can be clicked; clicking anywhere else lets it go. */
 const tooltip = document.getElementById('tooltip');
+let tipHeld = false;
 function showTooltip(e, sp, extra){
+  if(tipHeld) return;
+  const holdable = !!(e && e.currentTarget && e.currentTarget.classList && e.currentTarget.classList.contains('sname'));
   tooltip.innerHTML = `<b>${sp.name}</b><div class="meta">${sp.school} &middot; ${sp.time}${sp.ritual?' (Ritual)':''}<br>Range: ${sp.range} &middot; Duration: ${sp.duration}<br>Components: ${sp.comp}</div><div class="meta" style="margin-top:6px; color:var(--ink);">${sp.desc}</div>`
-    + (extra ? `<div class="meta" style="margin-top:6px; color:var(--racial);">${extra}</div>` : '');
+    + (extra ? `<div class="meta" style="margin-top:6px; color:var(--racial);">${extra}</div>` : '')
+    + `<div class="tip-link"><a href="https://dnd5e.wikidot.com/spell:${slugify(sp.name)}" target="_blank" rel="noopener">Full rules on dnd5e.wikidot.com ↗</a>${holdable ? `<span class="tip-hint">Click the spell to keep this open</span>` : ``}</div>`;
   tooltip.style.display='block';
   moveTooltip(e);
 }
+function holdTooltip(e, sp, extra){
+  tipHeld = false; showTooltip(e, sp, extra);
+  tipHeld = true; tooltip.classList.add('tip-held');
+}
 function moveTooltip(e){
+  if(tipHeld) return;
   const pad=14;
   const rect = tooltip.getBoundingClientRect();
   const w = rect.width || 280, h = rect.height || 80;
@@ -4237,13 +4255,22 @@ function moveTooltip(e){
   if(y + h + pad > window.innerHeight) y = Math.max(pad, window.innerHeight - h - pad);
   tooltip.style.left = x+'px'; tooltip.style.top = y+'px';
 }
-function hideTooltip(){ tooltip.style.display='none'; }
+function hideTooltip(force){
+  if(tipHeld && force !== true) return;
+  tipHeld = false; tooltip.classList.remove('tip-held'); tooltip.style.display='none';
+}
+// A click outside the held box lets it go (a click on a spell's name holds that one instead)
+document.addEventListener('click', e=>{
+  if(tipHeld && !tooltip.contains(e.target) && !e.target.closest('.sname')) hideTooltip(true);
+});
+document.addEventListener('keydown', e=>{ if(tipHeld && e.key === 'Escape') hideTooltip(true); });
 document.addEventListener('touchstart', (e)=>{
-  if(tooltip.style.display === 'block' && !tooltip.contains(e.target)){
-    hideTooltip();
+  if(tooltip.style.display === 'block' && !tooltip.contains(e.target) && !e.target.closest('.sname')){
+    hideTooltip(true);
   }
 }, {passive:true});
 function showAttrTooltip(e, itemName, abilityName){
+  if(tipHeld) return;
   const info = ABILITY_INFO[abilityName];
   if(!info) return;
   const tomato = SKILL_TOMATO[itemName] || info.tomato;
@@ -5125,6 +5152,7 @@ function wireSpellTooltip(el, sp, extra){
   el.addEventListener('mouseenter', e=>showTooltip(e, sp, extra));
   el.addEventListener('mousemove', moveTooltip);
   el.addEventListener('mouseleave', hideTooltip);
+  if(el.classList.contains('sname')) el.addEventListener('click', e=>holdTooltip(e, sp, extra));   // the Spells list: click holds it open
 }
 
 // "Pick one" features (e.g. Fighting Style): the chosen option is saved per character, like pins
@@ -5352,8 +5380,10 @@ function makePinSection(cfg){
       return;
     }
     if(!cfg.renderList) items.forEach(t=>list.appendChild(featureRow(section, t, true)));
-    // Pinned items show only while collapsed; the expanded list already shows them ticked
-    if(!section.open) items.filter(t=>section.pins.has(t.name)).forEach(t=>pinned.appendChild(featureRow(section, t, false)));
+    // Pinned items show only while collapsed (the expanded list already shows them ticked), and
+    // always while the whole summary is folded (CSS)
+    items.filter(t=>section.pins.has(t.name)).forEach(t=>pinned.appendChild(featureRow(section, t, false)));
+    pinned.classList.toggle('pins-hidden', section.open);
   };
   const toggle = ()=>{ section.open = !section.open; rememberOpen(cfg.prefix, section.open); section.render(); };
   $('Toggle').addEventListener('click', toggle);
@@ -6668,7 +6698,7 @@ window.onDiceRoll = btn=>{
 
 /* Rolls and permissions from the table (the module script calls this) */
 window.tkDiceUpdate = (part, data)=>{
-  if(part === 'settings'){ critSettings = cleanCritSettings(data); return; }
+  if(part === 'settings'){ critSettings = cleanCritSettings(data); if(window.tkSettingsChanged) window.tkSettingsChanged(); return; }
   if(part === 'allow'){ diceTable.allow = data && typeof data === 'object' ? data : {}; window.tkDiceRefresh(); return; }
   if(part !== 'rolls') return;
   const all = data && typeof data === 'object' ? data : {};
