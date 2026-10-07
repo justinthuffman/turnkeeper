@@ -6216,23 +6216,33 @@ function backupKeys(id){
       if(k.includes(id) || BACKUP_GLOBAL.includes(k) || k.startsWith('dndTracker:open:')) out[k.split(id).join('@')] = localStorage.getItem(k);
     }
   }catch(e){}
+  // V5: a database character's saved data (kv keys are already "track:@" form)
+  if(charStore.kv && charStore.id === id) Object.entries(charStore.kv).forEach(([k, v])=>{ try{ out['dndTracker:' + decodeURIComponent(k)] = v; }catch(e){} });
   return out;
 }
-// Replace what this browser keeps for a character (and the settings) with `keys`, then reload
+// Replace what this browser keeps for a character (and the settings) with `keys`. For a database
+// character, its keys go to the database (returns that write's promise); the rest stay in the browser.
 function writeBackupKeys(id, keys){
-  Object.keys(backupKeys(id)).forEach(k=>localStorage.removeItem(k.split('@').join(id)));
-  Object.entries(keys || {}).forEach(([k, v])=>{
-    if(typeof v === 'string' && /^dndTracker:[^<>]{1,200}$/.test(k) && !k.startsWith('dndTracker:dm:')) localStorage.setItem(k.split('@').join(id), v);
-  });
+  const ok = k=>/^dndTracker:[^<>]{1,200}$/.test(k) && !k.startsWith('dndTracker:dm:');
+  const db = charStore.kv && charStore.id === id;
+  const isChar = k=>k.includes('@');
+  Object.keys(backupKeys(id)).forEach(k=>{ if(!(db && isChar(k))) localStorage.removeItem(k.split('@').join(id)); });
+  Object.entries(keys || {}).forEach(([k, v])=>{ if(typeof v === 'string' && ok(k) && !(db && isChar(k))) localStorage.setItem(k.split('@').join(id), v); });
+  if(!db) return Promise.resolve();
+  const patch = {};
+  Object.keys(charStore.kv).forEach(k=>{ patch[k] = null; });
+  Object.entries(keys || {}).forEach(([k, v])=>{ if(typeof v === 'string' && ok(k) && isChar(k) && !PER_BROWSER_KEY.test(k)) patch[encodeKvKey(k.replace(/^dndTracker:/, ''))] = v; });
+  clearTimeout(charStore.timer); charStore.pending = {};
+  return tkDbReady().then(d=>d.updateKv(charStore.campaign, charStore.id, patch));
 }
-function restoreFull(parsed){
+async function restoreFull(parsed){
   try{
-    // Undo: what this browser had, kept in this tab until it's used or the tab closes
+    // Undo: what this character had, kept in this tab until it's used or the tab closes
     sessionStorage.setItem('dndTracker:undoRestore', JSON.stringify({c:currentCharId, k:backupKeys()}));
-    writeBackupKeys(currentCharId, parsed.keys);
+    await writeBackupKeys(currentCharId, parsed.keys);
     storageSet(backupAtKey(), String(Date.now()));
     sessionStorage.setItem('dndTracker:restoredFrom', parsed.name || '');
-  }catch(e){ setBackupMsg('Couldn’t restore: this browser isn’t letting Turnkeeper save.', true); return false; }
+  }catch(e){ setBackupMsg('Couldn’t restore: ' + (e.message || 'this browser isn’t letting Turnkeeper save.'), true); return false; }
   leavingOk = true; location.reload();
   return true;
 }
@@ -6245,10 +6255,10 @@ function showRestoredMsg(){
   box.innerHTML = `Restored everything from your backup${from ? ` of ${escapeHtml(from)}` : ''}. <button type="button" class="sel-toggle" id="restoreUndo">Undo</button> <button type="button" class="sel-toggle" id="restoreOk">OK</button>`;
   document.querySelector('header.top').after(box);
   document.getElementById('restoreOk').onclick = ()=>box.remove();
-  document.getElementById('restoreUndo').onclick = ()=>{
+  document.getElementById('restoreUndo').onclick = async ()=>{
     try{
       const u = JSON.parse(sessionStorage.getItem('dndTracker:undoRestore') || 'null'); if(!u) return;
-      writeBackupKeys(u.c, u.k); sessionStorage.removeItem('dndTracker:undoRestore');
+      await writeBackupKeys(u.c, u.k); sessionStorage.removeItem('dndTracker:undoRestore');
     }catch(e){ return; }
     leavingOk = true; location.reload();
   };
@@ -6259,6 +6269,8 @@ var leavingOk = false, lastChange = 0, userActed = false;   // var: storageSet c
 ['pointerdown', 'keydown'].forEach(t=>addEventListener(t, ()=>{ userActed = true; }, {capture:true, once:true}));
 function noteChange(key){ if(userActed && currentCharId && key.includes(currentCharId) && !key.startsWith('dndTracker:backupAt:')) lastChange = Date.now(); }
 addEventListener('beforeunload', e=>{
+  // A database character saves to the server as it changes, so there's nothing to lose by leaving
+  if(charStore.kv){ flushCharStore(); return; }
   if(leavingOk || !currentCharId || !lastChange || storageGet('dndTracker:askBackup') === 'off') return;
   if(lastChange > (+storageGet(backupAtKey()) || 0)){
     e.preventDefault(); e.returnValue = '';
