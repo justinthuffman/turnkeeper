@@ -715,12 +715,12 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
 <!-- RESOURCES: hit points, spell slots, limited-use features, rests -->
 <div class="panel" id="resourcesPanel">
   <div class="panel-head"><h2>Resources</h2>
-    <div class="rest-btns"><button type="button" class="ghost" id="shortRestBtn">Short Rest</button><button type="button" class="ghost" id="longRestBtn">Long Rest</button></div>
+    <div class="res-badges"><button type="button" class="insp-btn" id="inspBtn" hidden></button><button type="button" class="res-gold" id="resGold" hidden title="Gold: change it in the Inventory tab"><svg class="coin-gp" viewBox="0 0 24 24" aria-hidden="true"><defs><radialGradient id="gpFace" cx="40%" cy="35%" r="70%"><stop offset="0" stop-color="#fff3b0"/><stop offset=".45" stop-color="#f2c14e"/><stop offset="1" stop-color="#a8741a"/></radialGradient></defs><circle cx="12" cy="12" r="10.5" fill="#8a5a12"/><circle cx="12" cy="12" r="9.2" fill="url(#gpFace)"/><circle cx="12" cy="12" r="6.6" fill="none" stroke="#a8741a" stroke-width="1" stroke-dasharray="1.2 1.4"/><text x="12" y="15.2" text-anchor="middle" font-size="8" font-weight="700" font-family="Georgia, serif" fill="#7a4e0c">gp</text></svg><span id="resGoldAmt">0</span> <small>gp</small></button></div>
   </div>
-  <div class="rest-msg" id="restMsg" aria-live="polite"></div>
+
   <div class="hp-row">
     <div class="hp-now"><span class="res-label">Hit Points</span> <span id="hpNow">&mdash;</span><span class="hp-max"> / <span id="hpMax">&mdash;</span></span>
-      <span class="hp-temp" id="hpTemp" hidden></span><button type="button" class="insp-btn" id="inspBtn" hidden></button><button type="button" class="res-gold" id="resGold" hidden title="Gold: change it in the Inventory tab"><svg class="coin-gp" viewBox="0 0 24 24" aria-hidden="true"><defs><radialGradient id="gpFace" cx="40%" cy="35%" r="70%"><stop offset="0" stop-color="#fff3b0"/><stop offset=".45" stop-color="#f2c14e"/><stop offset="1" stop-color="#a8741a"/></radialGradient></defs><circle cx="12" cy="12" r="10.5" fill="#8a5a12"/><circle cx="12" cy="12" r="9.2" fill="url(#gpFace)"/><circle cx="12" cy="12" r="6.6" fill="none" stroke="#a8741a" stroke-width="1" stroke-dasharray="1.2 1.4"/><text x="12" y="15.2" text-anchor="middle" font-size="8" font-weight="700" font-family="Georgia, serif" fill="#7a4e0c">gp</text></svg><span id="resGoldAmt">0</span> <small>gp</small></button></div>
+      <span class="hp-temp" id="hpTemp" hidden></span></div>
     <div class="hp-adjust">
       <input type="number" id="hpAmount" min="1" value="1" aria-label="Amount of damage, healing or temporary hit points">
       <button type="button" id="hpDamage">Damage</button>
@@ -733,6 +733,9 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
   <div class="conc-box" id="concBox" hidden></div>
   <div class="death-box" id="deathBox" hidden></div>
   <div id="resRows"><p class="empty-note">Import a sheet to track resources.</p></div>
+  <!-- Resting: at the bottom, apart from Inspiration and gold (in the header) -->
+  <div class="rest-row"><span class="res-label">Rest</span><div class="rest-btns"><button type="button" class="ghost" id="shortRestBtn">Short Rest</button><button type="button" class="ghost" id="longRestBtn">Long Rest</button></div></div>
+  <div class="rest-msg" id="restMsg" aria-live="polite"></div>
 </div>
 
 <!-- STATUS: conditions and magic on you; they change your rolls, speed, HP and AC -->
@@ -800,6 +803,7 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
     </div>
     <p class="prep-hint">Tick the box next to each spell you have prepared. Checked spells appear under <b>Cast Prepared Spell</b> in the Combat Menu. <button type="button" class="sel-toggle" id="spellsSelAll"></button></p>
     <div id="spellListArea"></div>
+    <p class="spell-source">Spell lists sourced from the "core" class lists at dnd5e.wikidot.com. Hover details are brief paraphrased summaries, not the original text &mdash; use the linked page for full rules text.</p>
   </div>
 </div>
 
@@ -853,7 +857,6 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
   <div class="notes-preview" id="notesPreview" hidden></div>
 </div>
 
-<footer>Spell lists sourced from the "core" class lists at dnd5e.wikidot.com. Hover details are brief paraphrased summaries, not the original text &mdash; use the linked page for full rules text.</footer>
 
 
 <!-- IMPORT (moved to bottom, collapsed and de-emphasized) -->
@@ -6702,6 +6705,7 @@ try{
     updateCore: (c, id, patch)=>update(charRef(c, id), {...Object.fromEntries(Object.entries(patch).map(([k, v])=>['core/' + k, v === undefined ? null : v])), t:serverTimestamp()}),
     updateKv: (c, id, patch)=>update(charRef(c, id), {...Object.fromEntries(Object.entries(patch).map(([k, v])=>['kv/' + k, v])), t:serverTimestamp()}),
     // The campaign's shared custom items (Grun's Greataxe) and effects (Bleeding): {name, json, by, t}
+    deleteDef: (c, part, id)=>set(ref(db, `campaigns/${FBK(c)}/${part}/${id}`), null),
     saveDef: (c, part, id, name, def, by)=>set(ref(db, `campaigns/${FBK(c)}/${part}/${id}`), {name:String(name).slice(0, part === 'items' ? 80 : 60), json:JSON.stringify(def), by:String(by || '').slice(0, 60), t:serverTimestamp()}),
   };
   // Follow a campaign's custom items and effects (every player's list updates as they're added)

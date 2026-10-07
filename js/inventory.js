@@ -326,7 +326,8 @@ function openItemForm(d, isNew){
     + `<label class="cs-field cs-wide"><span>Notes</span><textarea id="if_notes" rows="2" maxlength="1000">${csEsc(d.notes || '')}</textarea></label>`
     + `<label class="cs-check"><input type="checkbox" id="if_attune"${d.attune ? ' checked' : ''}> Requires attunement</label>`
     + `</div><div id="ifWeapon"></div><div id="itemFormFx"></div>`
-    + `<div class="cs-add" style="max-width:none;"><button type="button" class="chip-btn" id="itemSave">${isNew ? 'Save and add to inventory' : 'Save'}</button><button type="button" class="chip-btn" id="itemCancel">Cancel</button></div>`;
+    + `<div class="cs-add" style="max-width:none;"><button type="button" class="chip-btn" id="itemSave">${isNew ? 'Save and add to inventory' : 'Save'}</button><button type="button" class="chip-btn" id="itemCancel">Cancel</button>`
+    + (isNew ? '' : `<button type="button" class="chip-btn item-del" id="itemDelete">Delete from campaign</button><span class="cs-none" id="itemDelMsg"></span>`) + `</div>`;
   itemForm.weapon = d;
   drawItemFormWeapon();
   drawItemFormFx();
@@ -403,6 +404,21 @@ async function saveItemForm(){
   }catch(err){ csFlash('Couldn’t save the item: ' + err.message, true); }
 }
 function closeItemForm(){ itemForm = null; const f = document.getElementById('itemForm'); f.hidden = true; f.innerHTML = ''; }
+// Delete a custom item from the campaign (asks once). It comes out of this character's inventory
+// and slots; anyone else who has it keeps a plain entry with its name and no stats.
+async function deleteItemForm(){
+  if(!itemForm || !itemForm.id) return;
+  const d = campaignDefs.items[itemForm.id], msg = document.getElementById('itemDelMsg');
+  if(!itemForm.confirmDelete){ itemForm.confirmDelete = true; msg.textContent = `Delete ${d ? d.name : 'this item'} for everyone in the campaign? Click again to delete.`; return; }
+  try{
+    await (await tkDbReady()).deleteDef(charStore.campaign, 'items', itemForm.id);
+    const name = d && d.name;
+    delete campaignDefs.items[itemForm.id];
+    if(name){ const st = equipState(); invItems().filter(x=>x.name === name).forEach(x=>unequipQuiet(x.id, st)); saveEquip(st); saveInv(invItems().filter(x=>x.name !== name)); }
+    closeItemForm(); afterGearChange();
+  }catch(err){ csFlash('Couldn’t delete the item: ' + err.message, true); }
+}
+document.addEventListener('click', e=>{ if(e.target.closest && e.target.closest('#itemDelete')) deleteItemForm(); });
 
 /* ---------- New custom effect (saved for the whole campaign) ---------- */
 let fxFor = null;

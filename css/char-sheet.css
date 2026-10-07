@@ -127,3 +127,12 @@ button.res-gold small{font-weight:400; color:var(--ink-dim); font-size:0.75rem;}
 .gear-grip label{display:inline-flex; align-items:center; gap:4px; cursor:pointer;}
 table.inv tr.inv-group th{text-align:left; padding:10px 6px 4px; font-family:var(--font-display); font-size:0.85rem; color:var(--sea); text-transform:none; letter-spacing:0.02em; border-bottom:1px solid var(--sea-dim);}
 @media (max-width:640px){ table.inv tr.inv-group{display:block;} table.inv tr.inv-group th{display:block;} }
+/* Resources header: Inspiration and gold stand out on their own; resting sits at the bottom */
+.res-badges{display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-left:auto;}
+.res-badges button.insp-btn, .res-badges button.res-gold{margin-left:0; font-size:0.95rem; padding:4px 12px;}
+.res-badges button.res-gold{padding:3px 12px 3px 5px;}
+.res-badges .coin-gp{width:22px; height:22px;}
+.rest-row{display:flex; align-items:center; gap:12px; margin-top:12px; padding-top:10px; border-top:1px solid var(--border);}
+.rest-row + .rest-msg:not(:empty){margin:8px 0 0;}
+.spell-source{font-size:0.75rem; color:var(--ink-dim); margin:14px 0 0; text-align:center;}
+.item-form .chip-btn.item-del{border-color:var(--danger); color:var(--danger); margin-left:auto;}
