@@ -337,6 +337,13 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
 .dm-test{display:flex; flex-wrap:wrap; gap:6px 8px; align-items:center; margin-top:10px; font-size:0.85rem;}
 .dm-test-note{font-size:0.75rem; color:var(--ink-dim);}
 /* Monsters & encounters (js/dm-library.js) */
+.dm-prompt{position:fixed; right:16px; bottom:16px; z-index:700; width:min(380px, calc(100vw - 32px)); background:var(--panel); border:2px solid var(--sea); border-radius:10px; padding:12px 14px; box-shadow:0 14px 40px rgba(0,0,0,0.55); font-size:0.9rem;}
+.dm-prompt p{margin:0 0 6px;}
+.dm-prompt .dp-q{font-weight:600; margin-top:8px;}
+.dm-prompt .dp-note{font-size:0.78rem; color:var(--ink-dim);}
+.dm-prompt .dp-roll.hit{color:var(--green, #5fd38a);} .dm-prompt .dp-roll.tie{color:#f2c14e;} .dm-prompt .dp-roll.miss{color:var(--danger);}
+.dm-prompt .dp-btns{display:flex; gap:8px; align-items:center; margin-top:8px;}
+.dm-prompt .dp-more{margin-left:auto; font-size:0.75rem; color:var(--ink-dim);}
 .dm-items{list-style:none; margin:0; padding:0;}
 .dm-items li{display:flex; align-items:center; gap:10px; padding:6px 0; border-bottom:1px dotted var(--border);}
 .dm-items li.is-hidden .dm-item-main{opacity:0.6;}
@@ -729,6 +736,23 @@ window.dmEffectsUpdate = (key, data)=>{
    spell at; 'turnEnd' = they clicked End my turn, which moves the order on if it's still their
    turn. Only what happens after this page opened is acted on. */
 const actsSeen = {}; let actsReady = false, lastAct = null;
+/* ---------- Questions for the DM (On hit statuses, damage or healing each turn) ----------
+   A small card at the bottom right, one question at a time, with Yes and No. */
+const dmPrompts = [];
+function dmPrompt(q){ dmPrompts.push(q); showDmPrompt(); }
+function showDmPrompt(){
+  let box = document.getElementById('dmPrompt');
+  if(!dmPrompts.length){ if(box) box.remove(); return; }
+  if(!box){ box = document.createElement('div'); box.id = 'dmPrompt'; box.className = 'dm-prompt'; box.setAttribute('role', 'alertdialog'); box.setAttribute('aria-live', 'assertive'); document.body.appendChild(box); }
+  const q = dmPrompts[0];
+  box.innerHTML = q.html + `<div class="dp-btns"><button type="button" data-dp="yes">Yes</button><button type="button" class="ghost" data-dp="no">No</button>${dmPrompts.length > 1 ? `<span class="dp-more">${dmPrompts.length - 1} more</span>` : ''}</div>`;
+  box.querySelector('[data-dp="yes"]').focus({preventScroll:true});
+}
+document.addEventListener('click', e=>{
+  const b = e.target.closest && e.target.closest('#dmPrompt [data-dp]'); if(!b) return;
+  const q = dmPrompts.shift(); if(q) (b.dataset.dp === 'yes' ? q.yes : q.no)();
+  showDmPrompt();
+});
 window.dmActsUpdate = (key, data)=>{
   if(key !== campaign.key) return;
   Object.entries(data || {}).forEach(([char, acts])=>{
@@ -741,6 +765,24 @@ window.dmActsUpdate = (key, data)=>{
       if(kind === 'turnEnd'){
         const cur = byId(combat.turn);
         if(combat.round && cur && cur.id === a.turn && cur.kind === 'pc' && cur.name === name){ logLine(`${name} ended their turn`); nextTurn(); }
+      } else if(kind === 'hit'){
+        // "Krunk attacks with Grun's Greataxe, which applies Bleeding on hit." The roll is green
+        // over the AC, yellow on it exactly (a hit, but the DM may say it doesn't take), red under
+        const fx = arr(a.onHit).filter(Boolean), total = Number(a.total);
+        if(!fx.length || !combat.round) return;
+        arr(a.targets).forEach(t=>{
+          const c = t.char ? combat.list.find(x=>x.kind === 'pc' && (campaign.party.find(p=>p.char === t.char) || {}).name === x.name) : byId(t.id);
+          if(!c) return;
+          const ac = toNum(c.ac), nat = Number(a.nat);
+          const cls = nat === 20 ? 'hit' : nat === 1 ? 'miss' : ac === null ? '' : total > ac ? 'hit' : total === ac ? 'tie' : 'miss';
+          dmPrompt({
+            html:`<p><b>${esc(name)}</b> attacks with <b>${esc(a.what)}</b>, which applies <b>${esc(fx.join(', '))}</b> on hit.</p>`
+              + `<p>${esc(c.name)} has ${ac === null ? 'no AC set' : `an AC of <b>${ac}</b>`}. ${esc(name)} rolled <b class="dp-roll ${cls}">${esc(total)}</b>${nat === 20 ? ' (a natural 20)' : nat === 1 ? ' (a natural 1)' : ''}.</p>`
+              + `<p class="dp-q">Apply ${esc(fx.join(' and '))} to ${esc(c.name)}?</p>`,
+            yes:()=>{ const x = byId(c.id); if(!x) return; fx.forEach(n=>{ if(!x.conds.some(k=>k.name === n)) x.conds.push({name:n, rounds:null}); }); logLine(`${x.name}: ${fx.join(', ')} (from ${name}’s ${a.what})`); saveCombat(); renderInit(); },
+            no:()=>logLine(`${c.name}: ${fx.join(', ')} didn’t take hold`),
+          });
+        });
       } else if(kind === 'last'){
         const targets = arr(a.targets), names = targets.map(t=>t.name).join(', ');
         lastAct = {text:`${name} → ${names} · ${a.what}`, t:a.t, keys:targets.map(t=>t.char ? 's:' + t.char : 'c:' + t.id)};
@@ -1064,13 +1106,23 @@ function nextTurn(){
   combat.turn = list[i] ? list[i].id : null;
   if(list[i]){
     logLine(`${list[i].name}’s turn`);
-    // V5: damage each turn from a custom effect (Bleeding from Grun's Greataxe), logged here. Ones a
-    // player applied: monsters only (a player's own Turnkeeper reminds them). Ones the DM added here
-    // (Condition or effect): anyone, since the player's page doesn't know about them.
-    const dmAdded = (list[i].conds || []).map(x=>({name:x.name, caster:'the DM'}));
-    (list[i].kind !== 'pc' ? [...effectsOn(list[i]), ...dmAdded] : dmAdded).forEach(e=>{
+    // Damage or healing each turn from a custom effect (Bleeding from Grun's Greataxe, a healing
+    // aura). A monster: the DM is asked, and Yes changes its hit points. A character: their own
+    // Turnkeeper applies it at the start of their turn (with a screen effect), so it's only noted.
+    const cur = list[i], on = [...(cur.kind !== 'pc' ? effectsOn(cur) : []), ...(cur.conds || []).map(x=>({name:x.name, caster:'you'}))];
+    on.forEach(e=>{
       const d = (window.dmEffectDefs || {})[e.name];
-      if(d && d.dmg && d.freq === 'turn') logLine(`${list[i].name}: ${e.name} (from ${e.caster || 'a player'}), take ${d.dmg} ${d.dmgType || ''} damage${d.endKind && d.endWhat ? `; a DC ${d.endDC || '?'} ${d.endWhat} ${d.endKind} ends it` : ''}${d.duration === 'healed' ? '; ends when healed' : ''}`.replace(/\s+/g, ' '));
+      if(!d || !d.dmg || d.freq !== 'turn') return;
+      if(cur.kind === 'pc'){ logLine(`${cur.name}: ${e.name} (${d.kind === 'heal' ? 'heals' : 'damages'} them in their Turnkeeper)`); return; }
+      const dice = readDice(d.dmg), n = Math.max(0, dice ? rollTerms(dice.terms).total : (parseInt(d.dmg, 10) || 0)), rolled = dice && !/^\d+$/.test(String(d.dmg).trim());
+      const heal = d.kind === 'heal', amount = `${n} HP${rolled ? ` (${d.dmg})` : ''}`;
+      dmPrompt({
+        html:`<p><b>${esc(cur.name)}</b> has <b>${esc(e.name)}</b>${e.caster && e.caster !== 'you' ? ` (from ${esc(e.caster)})` : ''}.</p>`
+          + `<p class="dp-q">${heal ? 'Heal' : 'Damage'} ${esc(cur.name)} for <b>${esc(amount)}</b> from ${esc(e.name)}?</p>`${!heal && d.dmgType ? `<p class="dp-note">${esc(d.dmgType)} damage</p>` : ''}
+          + (!heal && d.endKind && d.endWhat ? `<p class="dp-note">A DC ${esc(d.endDC || '?')} ${esc(d.endWhat)} ${esc(d.endKind)} ends it.</p>` : ''),
+        yes:()=>{ const c = byId(cur.id); if(!c) return; heal ? applyHeal(c, n) : applyDamage(c, n); logLine(`${c.name}: ${e.name}`); saveCombat(); renderInit(); renderEncounter(); },
+        no:()=>logLine(`${cur.name}: ${e.name} skipped this turn`),
+      });
     });
   }
   saveCombat(); renderInit();

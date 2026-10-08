@@ -56,7 +56,8 @@ const effectList = ()=>[
 ];
 function effectText(d){
   const parts = [];
-  if(d.dmg) parts.push(`${d.dmg} ${d.dmgType || ''} damage${d.freq === 'turn' ? ' at the start of each of its turns' : d.freq === 'once' ? ' once' : ''}`.replace(/\s+/g, ' '));
+  const when = d.freq === 'turn' ? ' at the start of each of its turns' : d.freq === 'once' ? ' once' : '';
+  if(d.dmg) parts.push(d.kind === 'heal' ? `heals ${d.dmg}${when}` : `${d.dmg} ${d.dmgType || ''} damage${when}`.replace(/\s+/g, ' '));
   if(d.duration) parts.push(d.duration === 'healed' ? 'until healed' : d.duration === 'removed' ? 'until removed' : d.duration);
   if(d.endKind && d.endWhat) parts.push(`ends on a DC ${d.endDC || '?'} ${d.endWhat} ${d.endKind}`);
   if(d.desc) parts.push(d.desc);
@@ -189,9 +190,10 @@ function openEffectForm(name, forList){
   const f = fxBox; if(!f) return; f.hidden = false;
   f.innerHTML = `<div class="cs-sub">New effect for the campaign</div><div class="cs-grid">`
     + `<label class="cs-field"><span>Name</span><input id="xf_name" type="text" maxlength="60" value="${ifEsc(name || '')}" placeholder="e.g. Bleeding"></label>`
-    + `<label class="cs-field"><span>Damage (dice or number)</span><input id="xf_dmg" type="text" maxlength="20" placeholder="e.g. 2 or 1d4"></label>`
+    + `<label class="cs-field"><span>Hurts or heals</span><select id="xf_kind"><option value="">Damage</option><option value="heal">Healing</option></select></label>`
+    + `<label class="cs-field"><span>Amount (dice or number)</span><input id="xf_dmg" type="text" maxlength="20" placeholder="e.g. 2 or 1d4"></label>`
     + `<label class="cs-field"><span>Damage type</span><select id="xf_type"><option value=""></option>${DAMAGE_TYPES.map(t=>`<option>${t}</option>`).join('')}</select></label>`
-    + `<label class="cs-field"><span>How often</span><select id="xf_freq"><option value="turn">Every turn (start of its turn)</option><option value="once">Once</option><option value="">No damage</option></select></label>`
+    + `<label class="cs-field"><span>How often</span><select id="xf_freq"><option value="turn">Every turn (start of its turn)</option><option value="once">Once</option><option value="">Neither (no damage or healing)</option></select></label>`
     + `<label class="cs-field"><span>Lasts</span><select id="xf_dur"><option value="healed">Until healed</option><option value="1 minute (10 turns)">1 minute (10 turns)</option><option value="removed">Until removed</option><option value="custom">Other…</option></select></label>`
     + `<label class="cs-field"><span>Other duration</span><input id="xf_durText" type="text" maxlength="60" placeholder="e.g. 3 turns"></label>`
     + `<label class="cs-field"><span>Ends early on a</span><select id="xf_endKind"><option value="">—</option><option value="save">Saving throw</option><option value="check">Check</option></select></label>`
@@ -207,7 +209,7 @@ async function saveEffectForm(){
   const name = v('xf_name').slice(0, 60); if(!name){ document.getElementById('xf_name').focus(); return; }
   if(effectList().some(x=>x.name.toLowerCase() === name.toLowerCase())){ formFlash(`There’s already an effect called ${name}.`, true); return; }
   const dur = v('xf_dur') === 'custom' ? v('xf_durText') : v('xf_dur');
-  const def = {dmg:v('xf_dmg'), dmgType:v('xf_type'), freq:v('xf_dmg') ? v('xf_freq') : '', duration:dur, endKind:v('xf_endKind'), endWhat:v('xf_endWhat'), endDC:parseInt(v('xf_dc'), 10) || null, desc:v('xf_desc')};
+  const def = {kind:v('xf_kind'), dmg:v('xf_dmg'), dmgType:v('xf_kind') === 'heal' ? '' : v('xf_type'), freq:v('xf_dmg') ? v('xf_freq') : '', duration:dur, endKind:v('xf_endKind'), endWhat:v('xf_endWhat'), endDC:parseInt(v('xf_dc'), 10) || null, desc:v('xf_desc')};
   const id = newId();
   try{
     await (await host().db()).saveDef(host().campaign(), 'effectDefs', id, name, def, host().by ? host().by() : '');

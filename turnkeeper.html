@@ -555,6 +555,36 @@ button.theme-option:hover{background:var(--panel2);}
 .theme-dot{width:16px; height:16px; border-radius:50%; border:1.5px solid var(--border); flex:0 0 auto;}
 button.theme-option[aria-pressed="true"]{font-weight:600;}
 button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box-shadow:0 0 0 2px var(--panel), 0 0 0 3px var(--ink);}
+/* Damage waits for the to-hit roll (the Damage rows look dimmed until then) */
+#rollBody.await-hit .roll-box:has(button[data-roll^="Damage"]){opacity:0.55;}
+.roll-box.need-pick{outline:2px solid var(--danger); outline-offset:2px; animation:needPick 0.5s;}
+/* Hurt by an effect at the start of your turn (showDamageFx): like the golden heal, in the
+   damage's colors. --g glow, --b1/--b2 the bits, --t1/--t2 the message box, --e its edge */
+.dmg-fx{position:fixed; inset:0; z-index:300; pointer-events:none; overflow:hidden;
+  --g:rgba(170,10,10,0.6); --b1:#ff6b6b; --b2:#8b0000; --t1:rgba(110,8,8,0.93); --t2:rgba(50,2,2,0.93); --e:#e0413a; --ink:#ffe3e0;}
+.dmg-fire{--g:rgba(255,110,10,0.6); --b1:#fff1a8; --b2:#ff5a00; --t1:rgba(150,52,4,0.93); --t2:rgba(70,18,2,0.93); --e:#ff8a2a; --ink:#fff1d6;}
+.dmg-cold{--g:rgba(120,200,255,0.55); --b1:#ffffff; --b2:#8fd3ff; --t1:rgba(20,70,120,0.93); --t2:rgba(6,30,60,0.93); --e:#9fdcff; --ink:#eaf7ff;}
+.dmg-poison{--g:rgba(80,200,40,0.5); --b1:#d8ff9a; --b2:#3fa51a; --t1:rgba(36,88,12,0.93); --t2:rgba(12,40,4,0.93); --e:#8fe04a; --ink:#f0ffe0;}
+.dmg-necrotic{--g:rgba(80,20,110,0.65); --b1:#c39bff; --b2:#2a0838; --t1:rgba(48,12,70,0.94); --t2:rgba(14,2,22,0.94); --e:#9b5fd6; --ink:#efe3ff;}
+.dmg-radiant{--g:rgba(255,250,210,0.6); --b1:#ffffff; --b2:#ffe27a; --t1:rgba(140,112,30,0.93); --t2:rgba(70,54,8,0.93); --e:#fff0a8; --ink:#fffbe6;}
+.dmg-storm{--g:rgba(90,160,255,0.55); --b1:#ffffff; --b2:#5aa8ff; --t1:rgba(20,50,120,0.93); --t2:rgba(6,16,50,0.93); --e:#8cc4ff; --ink:#eef6ff;}
+.dmg-arcane{--g:rgba(200,80,220,0.5); --b1:#ffd0ff; --b2:#b04bd6; --t1:rgba(84,22,100,0.93); --t2:rgba(34,6,44,0.93); --e:#e08cff; --ink:#fbeaff;}
+.dmg-glow{position:absolute; inset:0; box-shadow:inset 0 0 160px 60px var(--g); animation:healGlow 5.2s ease-out forwards;}
+.dmg-blood .dmg-glow, .dmg-necrotic .dmg-glow{animation:dmgPulse 5.2s ease-out forwards;}
+@keyframes dmgPulse{0%{opacity:0;} 6%{opacity:1;} 14%{opacity:0.6;} 22%{opacity:1;} 70%{opacity:0.8;} 100%{opacity:0;}}
+.dmg-bit{position:absolute; bottom:-16px; width:var(--s); height:var(--s); border-radius:50%; opacity:0;
+  background:radial-gradient(circle, var(--b1) 0 22%, var(--b2) 55%, transparent 72%); animation:healSpark var(--d) ease-out var(--delay) forwards;}
+.dmg-bit.fall{bottom:auto; top:-16px; animation-name:dmgFall;}
+.dmg-blood .dmg-bit{border-radius:50% 50% 50% 50% / 60% 60% 40% 40%; background:radial-gradient(circle at 40% 35%, #ff8a8a 0 12%, #b00000 45%, #5a0000 70%, transparent 72%);}
+@keyframes dmgFall{0%{opacity:0; transform:translate(0,0) scale(0.6);} 10%{opacity:1;} 100%{opacity:0; transform:translate(var(--dx), 92vh) scale(1.1);}}
+.dmg-storm .dmg-glow{animation:dmgFlash 5.2s ease-out forwards;}
+@keyframes dmgFlash{0%{opacity:0;} 4%{opacity:1;} 7%{opacity:0.2;} 10%{opacity:1;} 14%{opacity:0.4;} 60%{opacity:0.8;} 100%{opacity:0;}}
+.dmg-text{position:absolute; left:50%; top:58%; transform:translate(-50%, 0); max-width:calc(100vw - 32px); box-sizing:border-box; text-align:center;
+  padding:14px 26px; border-radius:12px; border:2px solid var(--e); color:var(--ink); font-family:var(--font-display);
+  background:linear-gradient(180deg, var(--t1), var(--t2)); box-shadow:0 0 0 4px rgba(0,0,0,0.25), 0 0 34px var(--g); text-shadow:0 0 8px rgba(0,0,0,0.7);
+  animation:healText 5.2s ease-out forwards;}
+.dmg-text .heal-amt{color:var(--ink);}
+@media (prefers-reduced-motion: reduce){ .dmg-bit{display:none;} .dmg-glow, .dmg-text{animation-duration:0.01s; animation-fill-mode:none;} }
 </style>
 <script src="js/config.js"></script>
 <script src="js/firebase.js"></script>
@@ -1559,6 +1589,33 @@ function showHealFx(line, amount, after){
   document.body.appendChild(box);
   setTimeout(()=>box.remove(), 5600);
 }
+/* Hurt by an effect at the start of your turn: like the golden heal, but in the damage's colors.
+   Blood runs down for Bleeding and slashing, piercing and bludgeoning; embers rise for fire;
+   frost falls for cold; green bubbles for poison and acid; shadow for necrotic; light for radiant;
+   sparks for lightning and thunder; violet for psychic and force. */
+function damageTheme(d, name){
+  const t = String((d && d.dmgType) || '').toLowerCase(), n = String(name || '').toLowerCase();
+  if(/bleed|blood|wound/.test(n)) return 'blood';
+  if(/burn|fire|flame|ablaze/.test(n) || t === 'fire') return 'fire';
+  if(t === 'cold' || /frost|freez|ice/.test(n)) return 'cold';
+  if(t === 'poison' || t === 'acid' || /poison|acid/.test(n)) return 'poison';
+  if(t === 'necrotic') return 'necrotic';
+  if(t === 'radiant') return 'radiant';
+  if(t === 'lightning' || t === 'thunder') return 'storm';
+  if(t === 'psychic' || t === 'force') return 'arcane';
+  return 'blood';
+}
+function showDamageFx(theme, line, amount, after){
+  document.querySelectorAll('.dmg-fx').forEach(x=>x.remove());
+  const box = document.createElement('div');
+  box.className = 'dmg-fx dmg-' + theme; box.setAttribute('role', 'status'); box.setAttribute('aria-live', 'polite');
+  const falls = ['blood', 'cold'].includes(theme);   // drips and frost come down; embers, bubbles and sparks go up
+  let bits = '';
+  for(let i = 0; i < 30; i++) bits += `<span class="dmg-bit${falls ? ' fall' : ''}" style="left:${(Math.random() * 100).toFixed(1)}%; --s:${5 + Math.random() * 10}px; --d:${(2.2 + Math.random() * 2.2).toFixed(2)}s; --delay:${(Math.random() * 1.4).toFixed(2)}s; --dx:${(Math.random() * 60 - 30).toFixed(0)}px;"></span>`;
+  box.innerHTML = `<div class="dmg-glow"></div>${bits}<div class="dmg-text"><div class="heal-line">${escapeHtml(line)}</div><div class="heal-amt">${escapeHtml(amount)}</div><div class="heal-after">${escapeHtml(after)}</div></div>`;
+  document.body.appendChild(box);
+  setTimeout(()=>box.remove(), 5600);
+}
 function healSelf(n){
   if(!(n > 0) || hpNow() === null) return 0;
   rollState.healBefore = {hp:track.hp, death:{...track.death}};
@@ -1968,7 +2025,7 @@ function openRollPopup(sel, mode){
   hideTooltip();
   Object.assign(rollState, {sel, mode, crit:false, autoCrit:false, smite:0, undead:false, alt:false, sneak:false, savage:false, spendInfo:null, smiteSpent:null,
     fxList:[], fxOn:{}, fxStarted:null, concEnded:[], fxBefore:null, fxUsed:false, healed:null, healBefore:null, healTo:null, healDone:null, tempMsg:'', selfCast:null, statusBefore:null, target:null, castBefore:null, aim:null,
-    insp:false, reactionMarked:false, reactionWasUsed:false, attackNo:0, attackCounted:false, onHitDone:[]});
+    insp:false, reactionMarked:false, reactionWasUsed:false, attackNo:0, attackCounted:false, onHitDone:[], hitRolled:false});
   // In combat: a reaction is marked used when its popup opens (Undo on the slot gives it back);
   // an attack from the Attack action is counted when you copy its to-hit command
   if(inCombat()){
@@ -2232,7 +2289,7 @@ function followDmCombat(){
   if(changed){ saveTrack(); renderCombat(); renderActiveFx(); }
   if(active && myTurn && !track.combat.onTurn && tableWas.myTurn !== true){
     startOfTurn();
-    track.combat.round = c.round; track.combat.msg = [`Round ${c.round}: your turn. Your reaction is back.`, ...turnEffectNotes()].join(' ');
+    track.combat.round = c.round; track.combat.msg = [`Round ${c.round}: your turn. Your reaction is back.`, ...applyTurnEffects(c, me)].join(' ');
     saveTrack(); renderCombat();
   } else if(active && !myTurn && tableWas.myTurn === true && track.combat.onTurn) endOfTurn();
   tableWas.active = active; tableWas.myTurn = active ? myTurn : null;
@@ -2534,6 +2591,10 @@ function spendLineHtml(){
 function onHitApplyHtml(){
   const a = rollState.sel && rollState.sel.attack, fx = a && a.onHit;
   if(!fx || !fx.length || !tkConnected()) return '';
+  // In the DM's combat, your DM sees your to-hit roll against the target's AC and decides
+  if(tableActive()) return `<div class="roll-box"><div class="roll-box-label">On hit</div>`
+    + fx.map(x=>`<div class="roll-after"><b>${escapeHtml(x.name)}</b>${x.desc ? `: ${escapeHtml(x.desc)}` : ''}</div>`).join('')
+    + `<div class="roll-after">Pick who you’re attacking and roll to hit: your DM sees the roll against its AC and decides whether it takes hold.</div></div>`;
   const cands = targetCandidates().filter(c=>c.char !== currentCharId), done = rollState.onHitDone || [];
   return `<div class="roll-box target-pick"><div class="roll-box-label">On hit</div>`
     + fx.map(x=>`<div class="roll-after"><b>${escapeHtml(x.name)}</b>${x.desc ? `: ${escapeHtml(x.desc)}` : ''}</div>`
@@ -2552,7 +2613,39 @@ function applyOnHit(name, key){
   rollState.onHitDone = [...(rollState.onHitDone || []), name + '|' + key];
   saveTrack(); applyIncoming(); renderActiveFx(); renderTable(); renderRollPopup();
 }
-// At the start of your turn: what's on you that hurts each turn (Bleeding: 2 slashing)
+/* At the start of your turn in the DM's combat: effects on you that hurt or heal each turn (a
+   player's Bleeding from Grun's Greataxe, or one your DM put on you) happen by themselves, with a
+   screen effect for each (blood for Bleeding, fire for Burning…). Once per turn, even with
+   Turnkeeper open on two devices or reloaded (track.combat.turnFx). */
+function effectsOnMe(me){
+  const out = allEffects().filter(e=>e.casterChar !== currentCharId && arrOf(e.targets).some(t=>t.char === currentCharId)).map(e=>({name:e.name, from:e.caster}));
+  arrOf(me && me.conds).forEach(k=>{ if(k && k.name) out.push({name:k.name, from:'your DM'}); });
+  return out;
+}
+function applyTurnEffects(c, me){
+  if(typeof campaignDefs === 'undefined' || !track.combat) return [];
+  const key = `${c.round}:${me.id}`; if(track.combat.turnFx === key) return [];
+  track.combat.turnFx = key;
+  const defs = Object.values(campaignDefs.effectDefs || {}), lines = [], shows = [];
+  effectsOnMe(me).forEach(({name, from})=>{
+    const d = defs.find(x=>x.name === name); if(!d || !d.dmg || d.freq !== 'turn' || hpNow() === null) return;
+    const dice = readDice(d.dmg), n = Math.max(0, dice ? rollTerms(dice.terms).total : (parseInt(d.dmg, 10) || 0)); if(!n) return;
+    const who = from ? ` (from ${from})` : '';
+    if(d.kind === 'heal'){
+      setHp(hpNow() + n);
+      lines.push(`${name}${who}: you heal ${n} HP.`);
+      shows.push(()=>showHealFx(`${name} heals you`, `+${n} HP`, `now ${hpNow()} / ${hpMax()}`));
+    } else {
+      takeDamage(n);
+      const ends = d.endKind && d.endWhat ? `; a DC ${d.endDC || '?'} ${d.endWhat} ${d.endKind} ends it` : d.duration === 'healed' ? '; it ends when you’re healed' : '';
+      lines.push(`${name}${who}: you take ${n} ${d.dmgType || ''} damage${ends}.`.replace(/\s+/g, ' '));
+      shows.push(()=>showDamageFx(damageTheme(d, name), `${name}${who}`, `−${n} HP`, `${d.dmgType ? d.dmgType + ' damage · ' : ''}now ${hpNow()} / ${hpMax()}`));
+    }
+  });
+  shows.forEach((f, i)=>setTimeout(f, i * 5800));
+  return lines;
+}
+// Notes for Turnkeeper's own turn cycle (outside the DM's combat): what's on you each turn
 function turnEffectNotes(){
   if(typeof campaignDefs === 'undefined') return [];
   const defs = Object.values(campaignDefs.effectDefs || {});
@@ -2611,6 +2704,23 @@ function renderRollPopup(){
     html += onHitApplyHtml();
   }
   document.getElementById('rollBody').innerHTML = html;
+  syncAwaitHit();
+}
+// The Damage rows look dimmed until the to-hit roll is made
+function syncAwaitHit(){
+  const body = document.getElementById('rollBody');
+  body.classList.toggle('await-hit', !rollState.hitRolled && !!body.querySelector('button[data-roll="To hit"], button[data-roll="Spell attack"]'));
+}
+/* A to-hit roll with a weapon that does something on a hit (Grun's Greataxe: Bleeding), in the
+   DM's combat with a target picked: the DM gets a popup with the target's AC and the roll, and
+   chooses whether it takes hold (campaigns/<c>/acts/<char>/hit). */
+function sendHitToDm(roll){
+  const sel = rollState.sel, fx = sel && sel.kind === 'weapon' && sel.attack && sel.attack.onHit;
+  if(!fx || !fx.length || !tableActive() || !window.tkSendAct) return;
+  const cands = targetCandidates();
+  const targets = (rollState.aim || []).map(k=>cands.find(c=>c.key === k)).filter(Boolean).map(c=>({id:c.id, name:c.name, char:c.char}));
+  if(!targets.length) return;
+  window.tkSendAct('hit', {what:String(sel.attack.name || sel.label).slice(0, 80), onHit:fx.map(x=>String(x.name).slice(0, 60)).slice(0, 6), total:roll.total, nat:roll.nat || 0, targets});
 }
 
 // Popup events: toggles re-render; copy; click outside, the ×, or Escape closes
@@ -5030,6 +5140,15 @@ window.onDiceRoll = btn=>{
     if(box){ box.classList.remove('need-pick'); void box.offsetWidth; box.classList.add('need-pick'); box.scrollIntoView({block:'nearest', behavior:'smooth'}); }
     return;
   }
+  // Damage waits for the to-hit roll (an attack or a spell attack in this popup), so it only
+  // counts when it hits. A spell with no attack roll (a save, Magic Missile) can roll damage
+  // straight away. (Game night, 2026-10-02.)
+  const hitRow = btn.closest('#rollPopup') && document.querySelector('#rollPopup button[data-roll="To hit"], #rollPopup button[data-roll="Spell attack"]');
+  if(hitRow && /^Damage/.test(btn.dataset.roll || '') && !rollState.hitRolled){
+    rowWarn(row, 'Roll to hit first. Damage only counts if the attack hits.');
+    hitRow.closest('.roll-box').classList.remove('need-pick'); void hitRow.offsetWidth; hitRow.closest('.roll-box').classList.add('need-pick');
+    return;
+  }
   // In the roll popup, say what it's for: "Greatsword: To hit"
   const title = btn.closest('#rollPopup') ? document.getElementById('rollTitle').textContent.trim() : '';
   const what = btn.dataset.roll || 'Roll';   // not "Perception check: Perception check"
@@ -5042,6 +5161,13 @@ window.onDiceRoll = btn=>{
   diceTable.seen.add(roll.id);
   showRoll(roll);
   if(myCampaignKey() && window.tkSendRoll) window.tkSendRoll(roll);
+  if(btn.closest('#rollPopup')){
+    if(/^(To hit|Spell attack)$/.test(btn.dataset.roll || '')){ rollState.hitRolled = true; sendHitToDm(roll); }
+    // One damage roll per hit: the next attack from this popup rolls to hit again (a spell with
+    // several damage rows keeps them all open)
+    else if(/^Damage/.test(btn.dataset.roll || '') && document.querySelectorAll('#rollPopup button[data-roll^="Damage"]').length === 1) rollState.hitRolled = false;
+    syncAwaitHit();
+  }
   // A natural 20 on an attack turns Crit on for the damage (untick it to undo); a later
   // attack roll that isn't a 20 turns an automatic Crit back off
   if(btn.closest('#rollPopup') && /^(To hit|Spell attack)$/.test(btn.dataset.roll || '')){
