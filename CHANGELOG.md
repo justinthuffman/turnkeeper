@@ -3,7 +3,7 @@
 What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest first.
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
-## Unreleased — DM items, Manual Roll, every character in Turnkeeper
+## 2026-10-07 — DM items, Manual Roll, every character in Turnkeeper
 
 ### Added
 - **Campaign Items & Effects on the DM Screen.** The DM makes weapons, armor, gear and effects
