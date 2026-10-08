@@ -3,6 +3,24 @@
 What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest first.
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
+## 2026-10-08 — Roll to hit first, the DM decides On hit, effects each turn
+
+### Added
+- **Roll to hit before damage.** In an attack popup, Damage waits for the to-hit roll. Spells
+  with no attack roll (Magic Missile, save spells) can roll damage straight away.
+- **The DM decides On hit statuses.** A hit with a weapon like Grun's Greataxe (Bleeding) at a
+  picked target shows the DM the target's AC and the roll (green above, yellow equal, red below)
+  and asks whether to apply it.
+- **Effects each turn.** At the start of a monster's turn the DM is asked to damage or heal it for
+  each effect on it. At the start of a player's turn it happens by itself, with a screen effect
+  in the damage's colors: blood for Bleeding, fire for Burning, frost, poison, shadow, light,
+  storm or arcane.
+- **Custom effects can heal**, as well as hurt.
+
+### Fixed
+- **Moving panels near the top or bottom of the window** no longer hangs or leaves the panel
+  away from the pointer, and moving one to the bottom works.
+
 ## 2026-10-07 — DM items, Manual Roll, every character in Turnkeeper
 
 ### Added
