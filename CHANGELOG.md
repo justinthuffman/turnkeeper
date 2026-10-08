@@ -3,6 +3,19 @@
 What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest first.
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
+## 2026-10-08 — Who a status is from, Aura of Vitality
+
+### Added
+- **Statuses say who they're from** (Bleeding from Krunk), or nothing when no one's known. On the
+  DM Screen, a status added From a creature that's concentrating ends by itself when it stops
+  concentrating, changes spells, drops to 0 or leaves the fight.
+- **Aura of Vitality:** your action starts the aura (concentration). While it lasts, Bonus Action
+  Options has Aura of Vitality to roll 2d6 and heal one creature, you included.
+- **Healing reaches anyone in the turn order.** Healing a monster or NPC asks the DM to add it.
+
+### Changed
+- **A Healing roll fills in the total**; you still click Heal.
+
 ## 2026-10-08 — Roll to hit first, the DM decides On hit, effects each turn
 
 ### Added
