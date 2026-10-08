@@ -872,7 +872,7 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
 <div class="panel" id="goldPanel" hidden>
   <div class="panel-head"><h2>Gold</h2><span class="gold-bal" id="goldBal">0 gp</span></div>
   <div class="gold-row">
-    <input type="number" id="goldAmt" min="0.01" step="any" value="1" aria-label="Amount of gold">
+    <input type="number" id="goldAmt" min="1" step="1" inputmode="numeric" value="1" aria-label="Amount of gold (whole gold pieces)">
     <input type="text" id="goldNote" maxlength="200" placeholder="What's it for? e.g. won from gambling" aria-label="What the gold is for">
     <button type="button" data-gold="add" disabled title="Add this amount (write a note first)">+</button>
     <button type="button" data-gold="sub" disabled title="Spend this amount (write a note first)">&minus;</button>

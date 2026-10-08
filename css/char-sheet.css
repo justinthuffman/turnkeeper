@@ -168,3 +168,10 @@ table.inv tr.inv-group th{text-align:left; padding:10px 6px 4px; font-family:var
   .res-badges .coin-gp{width:18px; height:18px;}
   .wrap > .panel.panel-collapsed > .panel-head > :not(.panel-fold):not(.panel-fold-title):not(.panel-grip):not(.res-badges){display:none;}
 }
+/* Gold ledger: ✎ edit and × remove on each line; a line being edited */
+table.ledger td.ledger-actions{white-space:nowrap;}
+tr.ledger-edit td{vertical-align:middle;}
+tr.ledger-edit select, tr.ledger-edit input{background:var(--panel2); border:1px solid var(--border); color:var(--ink); border-radius:4px; padding:3px 6px; font:inherit;}
+tr.ledger-edit #geAmt{width:6em; margin-left:4px;}
+tr.ledger-edit #geNote{width:100%; box-sizing:border-box;}
+tr.ledger-edit .chip-btn{margin-right:6px;}

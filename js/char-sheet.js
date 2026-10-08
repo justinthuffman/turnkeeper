@@ -282,11 +282,16 @@ document.addEventListener('change', e=>{
 
 /* ---------- Gold: a balance with a ledger ----------
    Like the HP box: type an amount, write what it's for, then + or −. Each change is a ledger
-   line ({t, d: signed amount, note}); the balance is their sum. GP only for now; the Campaign
-   settings will choose other currencies later. */
+   line ({t, d: signed amount, note}); the balance is their sum. Whole gold pieces only. A line
+   entered wrong can be edited (✎: amount, + or −, note) or removed (×). GP only for now; the
+   Campaign settings will choose other currencies later. */
+// Whole gold pieces: anything after a decimal point is dropped ("12.5" is 12)
+const wholeDigits = v=>String(v).split(/[.,]/)[0].replace(/[^\d]/g, '');
+const wholeGold = v=>{ const n = parseInt(wholeDigits(v), 10); return isNaN(n) ? 0 : Math.min(n, 9999999); };
+let goldEditing = null;   // the t of the line being edited
 const goldKey = ()=>`dndTracker:gold:${currentCharId}`;
 function goldLog(){ try{ const g = JSON.parse(storageGet(goldKey()) || 'null'); return g && Array.isArray(g.log) ? g.log : []; }catch(e){ return []; } }
-const goldBalance = log=>Math.round(log.reduce((n, x)=>n + (+x.d || 0), 0) * 100) / 100;
+const goldBalance = log=>Math.round(log.reduce((n, x)=>n + (+x.d || 0), 0));
 function renderGold(){
   const panel = document.getElementById('goldPanel'); if(!panel) return;
   panel.hidden = !csDb(); if(!csDb()){ const rg = document.getElementById('resGold'); if(rg) rg.hidden = true; return; }
@@ -297,15 +302,19 @@ function renderGold(){
   const note = document.getElementById('goldNote'), ok = !!note.value.trim();
   document.querySelectorAll('[data-gold]').forEach(b=>{ b.disabled = !ok; });
   let run = 0;
-  const rows = log.map(x=>{ run = Math.round((run + (+x.d || 0)) * 100) / 100; return {...x, after:run}; }).reverse();
+  const rows = log.map(x=>{ run = Math.round(run + (+x.d || 0)); return {...x, after:run}; }).reverse();
   document.getElementById('goldLedger').innerHTML = rows.length
     ? `<table class="ledger"><thead><tr><th>When</th><th>Change</th><th>Note</th><th>Balance</th><th></th></tr></thead><tbody>`
-      + rows.map(x=>`<tr><td>${new Date(x.t).toLocaleDateString(undefined, {month:'short', day:'numeric'})}</td><td class="${x.d < 0 ? 'neg' : 'pos'}">${x.d < 0 ? '−' : '+'}${Math.abs(x.d).toLocaleString()}</td><td>${csEsc(x.note)}</td><td>${x.after.toLocaleString()}</td><td>${goldDelAsk === x.t ? `<button type="button" class="sel-toggle ledger-del sure" data-gold-del="${x.t}">Remove?</button>` : `<button type="button" class="ledger-del" data-gold-del="${x.t}" title="Remove this line (it was a mistake)" aria-label="Remove this line">&times;</button>`}</td></tr>`).join('')
+      + rows.map(x=>goldEditing === x.t ? `<tr class="ledger-edit"><td>${new Date(x.t).toLocaleDateString(undefined, {month:'short', day:'numeric'})}</td>`
+        + `<td><select id="geSign" aria-label="Added or spent"><option value="1"${x.d >= 0 ? ' selected' : ''}>+</option><option value="-1"${x.d < 0 ? ' selected' : ''}>−</option></select><input type="number" id="geAmt" min="1" step="1" inputmode="numeric" value="${Math.abs(Math.round(x.d))}" aria-label="Amount"></td>`
+        + `<td><input type="text" id="geNote" maxlength="200" value="${csEsc(x.note)}" aria-label="Note"></td><td></td>`
+        + `<td class="ledger-actions"><button type="button" class="chip-btn" data-gold-save="${x.t}">Save</button><button type="button" class="sel-toggle" data-gold-cancel="1">Cancel</button></td></tr>`
+      : `<tr><td>${new Date(x.t).toLocaleDateString(undefined, {month:'short', day:'numeric'})}</td><td class="${x.d < 0 ? 'neg' : 'pos'}">${x.d < 0 ? '−' : '+'}${Math.abs(x.d).toLocaleString()}</td><td>${csEsc(x.note)}</td><td>${x.after.toLocaleString()}</td><td class="ledger-actions"><button type="button" class="ledger-del" data-gold-edit="${x.t}" title="Edit this line" aria-label="Edit this line">✎</button>${goldDelAsk === x.t ? `<button type="button" class="sel-toggle ledger-del sure" data-gold-del="${x.t}">Remove?</button>` : `<button type="button" class="ledger-del" data-gold-del="${x.t}" title="Remove this line (it was a mistake)" aria-label="Remove this line">&times;</button>`}</td></tr>`).join('')
       + `</tbody></table>`
     : `<p class="cs-none">No entries yet. Add your starting gold with a note like “Starting gold”, then +.</p>`;
 }
 function goldChange(sign){
-  const amt = Math.round(parseFloat(document.getElementById('goldAmt').value) * 100) / 100;
+  const amt = wholeGold(document.getElementById('goldAmt').value);
   const noteEl = document.getElementById('goldNote'), note = noteEl.value.trim().slice(0, 200);
   if(!(amt > 0) || !note) return;
   const log = goldLog();
@@ -325,6 +334,32 @@ document.addEventListener('click', e=>{
   storageSet(goldKey(), JSON.stringify({log:goldLog().filter(x=>x.t !== t)}));
   renderGold();
 });
+// Editing a line: ✎ opens it, Save keeps it (the balance follows), Cancel or Esc leaves it
+document.addEventListener('click', e=>{
+  const ed = e.target.closest && e.target.closest('[data-gold-edit]');
+  if(ed){ goldEditing = +ed.dataset.goldEdit; goldDelAsk = null; renderGold(); const a = document.getElementById('geAmt'); if(a){ a.focus(); a.select(); } return; }
+  const sv = e.target.closest && e.target.closest('[data-gold-save]');
+  if(sv){
+    const t = +sv.dataset.goldSave, amt = wholeGold(document.getElementById('geAmt').value), note = document.getElementById('geNote').value.trim().slice(0, 200);
+    if(!(amt > 0) || !note){ (amt > 0 ? document.getElementById('geNote') : document.getElementById('geAmt')).focus(); return; }
+    const sign = +document.getElementById('geSign').value < 0 ? -1 : 1;
+    storageSet(goldKey(), JSON.stringify({log:goldLog().map(x=>x.t === t ? {...x, d:sign * amt, note} : x)}));
+    goldEditing = null; renderGold(); csFlash('Saved.'); return;
+  }
+  if(e.target.closest && e.target.closest('[data-gold-cancel]')){ goldEditing = null; renderGold(); }
+});
+document.addEventListener('keydown', e=>{
+  if(goldEditing === null || !e.target.closest || !e.target.closest('.ledger-edit')) return;
+  if(e.key === 'Enter'){ e.preventDefault(); const b = document.querySelector('[data-gold-save]'); if(b) b.click(); }
+  if(e.key === 'Escape'){ goldEditing = null; renderGold(); }
+});
+// Whole gold pieces: decimals and other characters are dropped as they're typed
+document.addEventListener('input', e=>{
+  if(e.target.id !== 'goldAmt' && e.target.id !== 'geAmt') return;
+  const v = String(e.target.value);
+  if(/[^\d]/.test(v)) e.target.value = wholeDigits(v);
+});
+document.addEventListener('keydown', e=>{ if((e.target.id === 'goldAmt' || e.target.id === 'geAmt') && /^[.,eE+\-]$/.test(e.key)) e.preventDefault(); });
 document.addEventListener('input', e=>{ if(e.target.id === 'goldNote') document.querySelectorAll('[data-gold]').forEach(b=>{ b.disabled = !e.target.value.trim(); }); });
 document.addEventListener('keydown', e=>{ if(e.key === 'Enter' && e.target.id === 'goldNote'){ e.preventDefault(); } });
 
