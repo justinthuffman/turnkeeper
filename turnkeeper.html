@@ -557,7 +557,8 @@ button.theme-option[aria-pressed="true"]{font-weight:600;}
 button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box-shadow:0 0 0 2px var(--panel), 0 0 0 3px var(--ink);}
 /* Damage waits for the to-hit roll (the Damage rows look dimmed until then) */
 #rollBody.await-hit .roll-box:has(button[data-roll^="Damage"]){opacity:0.55;}
-.roll-box.need-pick{outline:2px solid var(--danger); outline-offset:2px; animation:needPick 0.5s;}
+.roll-box.need-pick, .heal-who.need-pick{outline:2px solid var(--danger); outline-offset:2px; animation:needPick 0.5s;}
+.heal-who .roll-wait{flex-basis:100%;}
 /* Hurt by an effect at the start of your turn (showDamageFx): like the golden heal, in the
    damage's colors. --g glow, --b1/--b2 the bits, --t1/--t2 the message box, --e its edge */
 .dmg-fx{position:fixed; inset:0; z-index:650; pointer-events:none; overflow:hidden;
@@ -1520,12 +1521,12 @@ function healCandidates(){
 }
 // Who a heal goes to: a character's ID, or a turn-order key for a monster or NPC
 const healId = c=>c.char || c.key;
-// The "Heal who?" buttons (rollState.healTo: the picked characters; you by default)
+// The "Heal who?" buttons (rollState.healTo: who's picked). Nothing is picked to start with: pick
+// who, then roll, then Heal (Justin, 2026-10-08)
 function healPickHtml(max){
   const cands = healCandidates();
-  if(!rollState.healTo) rollState.healTo = [currentCharId];
+  if(!rollState.healTo) rollState.healTo = [];
   rollState.healTo = rollState.healTo.filter(s=>cands.some(c=>healId(c) === s));
-  if(cands.length < 2) return '';
   return `<div class="roll-toggles heal-who"><span>Heal${max > 1 ? ` (up to ${max})` : ''}:</span>${cands.map(c=>{
     const on = rollState.healTo.includes(healId(c));
     return `<button type="button" class="flow-btn${on ? ' active' : ''}" data-heal-to="${escapeHtml(healId(c))}" aria-pressed="${on}">${escapeHtml(c.char === currentCharId ? 'Me' : c.name)}</button>`;
@@ -1537,11 +1538,20 @@ function healToClick(char, max){
   else rollState.healTo = max > 1 ? [...list, char].slice(-max) : [char];
   renderRollPopup();
 }
+// Nothing picked yet: say so by the Heal who? buttons (true when it had to)
+function needHealPick(){
+  if((rollState.healTo || []).length) return false;
+  const box = document.querySelector('#rollBody .heal-who'); if(!box) return false;
+  box.querySelectorAll('.roll-wait').forEach(x=>x.remove());
+  box.insertAdjacentHTML('beforeend', '<div class="roll-wait">Pick who you’re healing first.</div>');
+  box.classList.remove('need-pick'); void box.offsetWidth; box.classList.add('need-pick');
+  return true;
+}
 // Heal everyone picked for n: you directly (with Undo), others by sending it to their character
 function healPicked(n, what){
   if(!(n > 0)) return [];
   const cands = healCandidates(), done = [];
-  (rollState.healTo || [currentCharId]).forEach(char=>{
+  (rollState.healTo || []).forEach(char=>{
     if(char === currentCharId){ const got = healSelf(n); done.push({name:'you', n:got, self:true}); return; }
     const c = cands.find(x=>healId(x) === char); if(!c) return;
     const d = {name:c.name, n};
@@ -1569,8 +1579,7 @@ const healDoneHtml = done=>done.map(d=>d.self
 function healWhoHtml(what, max){
   if(!currentCharId || hpNow() === null) return '';
   if(rollState.healDone) return `<div class="roll-toggles heal-me"><span>${healDoneHtml(rollState.healDone)}</span></div>`;
-  const others = (rollState.healTo || [currentCharId]).some(s=>s !== currentCharId);
-  return healPickHtml(max) + `<div class="roll-toggles heal-me"><span>${others ? 'The total (filled in from your roll):' : 'Healed yourself? The total (filled in from your roll):'}</span><input type="number" class="num-in" id="healAmt" min="1" aria-label="Healing total"><button type="button" class="flow-btn" data-heal-go="${escapeHtml(what)}" data-heal-max="${max}">${others ? 'Heal' : 'Add to my HP'}</button></div>`;
+  return healPickHtml(max) + `<div class="roll-toggles heal-me"><span>The total (filled in from your roll):</span><input type="number" class="num-in" id="healAmt" min="1" aria-label="Healing total"><button type="button" class="flow-btn" data-heal-go="${escapeHtml(what)}" data-heal-max="${max}">Heal</button></div>`;
 }
 // On the healed player's page: add the HP and show who healed them
 window.tkHealed = h=>{
@@ -2572,11 +2581,10 @@ function featurePopupHtml(){
   if(t.save && dc) html += infoBox('Saving throw', `Target makes a <b>DC ${dc} ${ABILITY_TEXT(t.save)}</b> saving throw. ${t.saveNote||''}`);
   else if(t.name==='Lay on Hands' && t.pool){
     const id = 'feat:'+t.name, left = remaining(id);
-    const others = (rollState.healTo || [currentCharId]).some(s=>s !== currentCharId);
     html += infoBox('Healing pool', `<b>${left} of ${t.pool.max()} hit points</b> left (5 × paladin level, refilled on a long rest). Touch a creature and spend any amount; there’s nothing to roll. Or spend 5 to cure one disease or neutralize one poison.`
       + `<div style="margin-top:8px;">${healPickHtml(1)}</div>`
       + `<div class="roll-toggles" style="margin-top:8px; align-items:center;"><input type="number" id="lohAmt" min="1" max="${left}" value="${Math.min(5, left) || 1}" style="width:64px; background:var(--bg); border:1px solid var(--border); color:var(--ink); padding:5px 8px; border-radius:4px;" aria-label="Hit points to spend">`
-      + `<button type="button" class="flow-btn" data-loh="heal"${left ? '' : ' disabled'}>${others ? 'Heal' : 'Heal myself'}</button>`
+      + `<button type="button" class="flow-btn" data-loh="heal"${left ? '' : ' disabled'}>Heal</button>`
       + `<button type="button" class="flow-btn" data-loh="amt"${left ? '' : ' disabled'} title="Spend from the pool on someone without Turnkeeper here (an NPC or a creature)">Spend only</button>`
       + `<button type="button" class="flow-btn" data-loh="5"${left >= 5 ? '' : ' disabled'}>Cure disease/poison (5)</button></div>`);
     if(rollState.healDone) html += `<div class="spent-line">${healDoneHtml(rollState.healDone)}</div>`;
@@ -2763,6 +2771,7 @@ rollPopup.addEventListener('click', e=>{
     renderRollPopup();
   }
   else if(t.dataset.loh){
+    if(t.dataset.loh === 'heal' && needHealPick()) return;
     const n = t.dataset.loh==='5' ? 5 : (parseInt(document.getElementById('lohAmt').value,10) || 0);
     const spent = n > 0 ? spend('feat:Lay on Hands', Math.min(n, remaining('feat:Lay on Hands'))) : 0;
     // Heal: the points spent go to whoever's picked (you, or a party member)
@@ -2782,6 +2791,7 @@ rollPopup.addEventListener('click', e=>{
   else if(t.dataset.healMe){ healSelf(parseInt(document.getElementById('healAmt').value,10) || 0); renderRollPopup(); }
   else if(t.dataset.healTo) healToClick(t.dataset.healTo, rollState.sel.kind === 'spell' ? (MULTI_HEAL[rollState.sel.entry.sp.name] || 1) : 1);
   else if(t.dataset.healGo){
+    if(needHealPick()) return;
     const done = healPicked(parseInt(document.getElementById('healAmt').value,10) || 0, t.dataset.healGo);
     if(done.length) rollState.healDone = done;
     // Aura of Vitality's bonus action: Heal finishes it (what happened is noted in Resources)
@@ -5176,6 +5186,7 @@ window.onDiceRoll = btn=>{
   // counts when it hits. A spell with no attack roll (a save, Magic Missile) can roll damage
   // straight away. (Game night, 2026-10-02.)
   const hitRow = btn.closest('#rollPopup') && document.querySelector('#rollPopup button[data-roll="To hit"], #rollPopup button[data-roll="Spell attack"]');
+  if(btn.closest('#rollPopup') && /^Healing/.test(btn.dataset.roll || '') && needHealPick()) return;   // pick who first, then roll
   if(hitRow && /^Damage/.test(btn.dataset.roll || '') && !rollState.hitRolled){
     rowWarn(row, 'Roll to hit first. Damage only counts if the attack hits.');
     hitRow.closest('.roll-box').classList.remove('need-pick'); void hitRow.offsetWidth; hitRow.closest('.roll-box').classList.add('need-pick');
