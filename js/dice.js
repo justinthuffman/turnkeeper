@@ -497,13 +497,16 @@ function showRoll(roll, opts){
 const natWords = roll=>roll.kind === 'hit' ? (roll.nat === 20 ? 'Critical Hit' : 'Critical Miss') : `Natural ${roll.nat}`;
 function hideRoll(){ clearTimeout(diceHideTimer); document.getElementById('diceCard').hidden = true; dicePlaySeq++; clearDice(); }   // dicePlaySeq++: a roll still setting up doesn't show
 // Clicking anywhere outside the tray and the card puts the roll away (not the click that made
-// the roll, and not one on a crit GIF, which closes itself)
+// the roll, and not one on a crit GIF, which closes itself). That click only puts the roll away:
+// whatever is under the tray (a roll popup, its Heal button) waits for the next click. A Roll
+// button still rolls again.
 let rollShownAt = 0;
 document.addEventListener('click', e=>{
   if(document.getElementById('diceCard').hidden || Date.now() - rollShownAt < 400) return;
   if(e.target.closest && e.target.closest('#diceCard, #diceTray, #critFx')) return;
   hideRoll();
-});
+  if(!(e.target.closest && e.target.closest('button[data-roll]'))){ e.stopPropagation(); e.preventDefault(); }
+}, true);
 document.getElementById('diceCard').addEventListener('click', e=>{ if(e.target.closest('.dc-close')) hideRoll(); });
 // A roll from the database (untrusted): only known shapes and values get through
 function cleanRoll(r){
