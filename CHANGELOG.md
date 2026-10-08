@@ -3,6 +3,12 @@
 What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest first.
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
+## 2026-10-08 — Pick who to heal first
+
+### Changed
+- **Healing starts with no one picked.** Pick who (Me is a choice like anyone else), then roll,
+  then Heal. Healing spells, Aura of Vitality and Lay on Hands all work this way.
+
 ## 2026-10-08 — Gold ledger edits, the dice tray and healing
 
 ### Added
