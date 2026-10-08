@@ -1508,24 +1508,27 @@ function tempFromPopup(n){
 }
 /* ---------- Healing others ----------
    A healing spell or Lay on Hands asks who's healed: you, or anyone in your party (in combat,
-   the players in the turn order). Healing someone else is sent to their character (tkSendHeal),
-   which adds the HP and shows who healed them in a golden glow (tkHealed). Spells that heal
-   several creatures let you pick several; each gets the total you enter. */
+   anyone in the turn order). Healing another character is sent to them (tkSendHeal), which adds
+   the HP and shows who healed them in a golden glow (tkHealed); healing a monster or NPC asks the
+   DM (acts/<char>/heal). Spells that heal several creatures let you pick several; each gets the
+   total. The total fills in from the Healing roll; you still click Heal. */
 const MULTI_HEAL = {'Mass Cure Wounds':6, 'Mass Healing Word':6, 'Prayer of Healing':6, 'Heal':1, 'Mass Heal':99};
 function healCandidates(){
   const me = {key:'s:' + currentCharId, name:myName(), char:currentCharId};
   if(!tkConnected() || !window.tkSendHeal) return [me];
-  return [me, ...targetCandidates().filter(c=>c.char && c.char !== currentCharId)];
+  return [me, ...targetCandidates().filter(c=>c.char !== currentCharId)];
 }
+// Who a heal goes to: a character's ID, or a turn-order key for a monster or NPC
+const healId = c=>c.char || c.key;
 // The "Heal who?" buttons (rollState.healTo: the picked characters; you by default)
 function healPickHtml(max){
   const cands = healCandidates();
   if(!rollState.healTo) rollState.healTo = [currentCharId];
-  rollState.healTo = rollState.healTo.filter(s=>cands.some(c=>c.char === s));
+  rollState.healTo = rollState.healTo.filter(s=>cands.some(c=>healId(c) === s));
   if(cands.length < 2) return '';
   return `<div class="roll-toggles heal-who"><span>Heal${max > 1 ? ` (up to ${max})` : ''}:</span>${cands.map(c=>{
-    const on = rollState.healTo.includes(c.char);
-    return `<button type="button" class="flow-btn${on ? ' active' : ''}" data-heal-to="${escapeHtml(c.char)}" aria-pressed="${on}">${escapeHtml(c.char === currentCharId ? 'Me' : c.name)}</button>`;
+    const on = rollState.healTo.includes(healId(c));
+    return `<button type="button" class="flow-btn${on ? ' active' : ''}" data-heal-to="${escapeHtml(healId(c))}" aria-pressed="${on}">${escapeHtml(c.char === currentCharId ? 'Me' : c.name)}</button>`;
   }).join('')}</div>`;
 }
 function healToClick(char, max){
@@ -1540,8 +1543,13 @@ function healPicked(n, what){
   const cands = healCandidates(), done = [];
   (rollState.healTo || [currentCharId]).forEach(char=>{
     if(char === currentCharId){ const got = healSelf(n); done.push({name:'you', n:got, self:true}); return; }
-    const c = cands.find(x=>x.char === char); if(!c) return;
+    const c = cands.find(x=>healId(x) === char); if(!c) return;
     const d = {name:c.name, n};
+    // A monster or NPC: the DM's turn order holds its hit points, so the DM is asked
+    if(!c.char){
+      if(window.tkSendAct) window.tkSendAct('heal', {what:String(what).slice(0, 80), total:Math.min(999, n), targets:[{id:c.id, name:c.name}]});
+      d.toDm = true; done.push(d); return;
+    }
     window.tkSendHeal(char, {from:myName(), what, hp:Math.min(999, n)}).catch(err=>{
       console.warn('Sending healing:', err);
       d.failed = true;
@@ -1554,6 +1562,7 @@ function healPicked(n, what){
 }
 const healDoneHtml = done=>done.map(d=>d.self
   ? `Added ${d.n} HP to you (now ${hpNow()} / ${hpMax()}). <button type="button" class="sel-toggle" data-heal-undo="1">Undo</button>`
+  : d.toDm ? `Sent ${d.n} HP for ${escapeHtml(d.name)} to your DM, who adds it.`
   : d.failed ? `<span style="color:var(--danger);">Couldn’t send the healing to ${escapeHtml(d.name)} (not connected). ${d.refunded ? ' The points went back into your pool.' : ` Tell them to add ${d.n} HP.`}</span>`
   : `Sent ${d.n} HP to ${escapeHtml(d.name)}; it’s added to their hit points.`).join('<br>');
 // Spell popups: who, how much, Heal
@@ -1561,7 +1570,7 @@ function healWhoHtml(what, max){
   if(!currentCharId || hpNow() === null) return '';
   if(rollState.healDone) return `<div class="roll-toggles heal-me"><span>${healDoneHtml(rollState.healDone)}</span></div>`;
   const others = (rollState.healTo || [currentCharId]).some(s=>s !== currentCharId);
-  return healPickHtml(max) + `<div class="roll-toggles heal-me"><span>${others ? 'Enter the total:' : 'Healed yourself? Enter the total:'}</span><input type="number" class="num-in" id="healAmt" min="1" aria-label="Healing total"><button type="button" class="flow-btn" data-heal-go="${escapeHtml(what)}" data-heal-max="${max}">${others ? 'Heal' : 'Add to my HP'}</button></div>`;
+  return healPickHtml(max) + `<div class="roll-toggles heal-me"><span>${others ? 'The total (filled in from your roll):' : 'Healed yourself? The total (filled in from your roll):'}</span><input type="number" class="num-in" id="healAmt" min="1" aria-label="Healing total"><button type="button" class="flow-btn" data-heal-go="${escapeHtml(what)}" data-heal-max="${max}">${others ? 'Heal' : 'Add to my HP'}</button></div>`;
 }
 // On the healed player's page: add the HP and show who healed them
 window.tkHealed = h=>{
@@ -2619,7 +2628,7 @@ function applyOnHit(name, key){
    Turnkeeper open on two devices or reloaded (track.combat.turnFx). */
 function effectsOnMe(me){
   const out = allEffects().filter(e=>e.casterChar !== currentCharId && arrOf(e.targets).some(t=>t.char === currentCharId)).map(e=>({name:e.name, from:e.caster}));
-  arrOf(me && me.conds).forEach(k=>{ if(k && k.name) out.push({name:k.name, from:'your DM'}); });
+  arrOf(me && me.conds).forEach(k=>{ if(k && k.name) out.push({name:k.name, from:k.by || ''}); });   // who put it on you, when the DM said
   return out;
 }
 function applyTurnEffects(c, me){
@@ -2658,6 +2667,14 @@ function renderRollPopup(){
   const {sel, mode} = rollState;
   const modeLabel = ROLL_MODES.find(([k])=>k===attackMode())[1];
   document.getElementById('rollTitle').textContent = `${sel.label}${sel.ritual ? ' (ritual)' : ''}${sel.kind==='spell' && sel.slot && !sel.entry.fixedLevel && sel.slot > sel.entry.sp.level ? ` (${ORDINAL[sel.slot]}-level slot)` : ''}${attackMode()!=='normal' ? ` — ${modeLabel}` : ''}`;
+  // A bonus action from a spell you're concentrating on (Aura of Vitality): its healing roll and who
+  if(sel.kind==='concBonus'){
+    const h = sel.each.heal;
+    document.getElementById('rollBody').innerHTML = turnLineHtml()
+      + `<p class="roll-intro">${escapeHtml(sel.each.text || '')}</p>`
+      + cmdBox('Healing', {cmd:h.d, desc:h.desc || 'hit points regained'}, healWhoHtml(sel.label, 1));
+    return;
+  }
   if(sel.kind==='spell' || sel.kind==='feature'){
     document.getElementById('rollBody').innerHTML = spendLineHtml() + turnLineHtml() + fxLineHtml() + (sel.kind==='spell' ? spellPopupHtml() : featurePopupHtml());
     return;
@@ -3007,6 +3024,11 @@ function renderCastDetail(){
    features (→ Use) and bonus-action spells (→ slot → Cast). */
 const bonusFlow = {pick:null, weapon:null, mode:'normal', cunning:null, cmode:'normal'};
 const isBonusSpell = sp=>/Bonus Action/i.test(sp.time);
+// The spell you're concentrating on, if it gives a bonus action each turn (SPELL_ROLLS each)
+function concBonus(){
+  const k = track.conc, r = k && SPELL_ROLLS[k.name];
+  return r && r.each ? {name:k.name, each:r.each} : null;
+}
 // Two-Weapon Fighting needs a light melee weapon in the off hand
 function lightMeleeWeapons(){
   return state.attacks.map((a,i)=>({a, i, p:parseWeaponDamage(a.damage)}))
@@ -3023,6 +3045,9 @@ function renderBonusDetail(){
     + `<div class="flow-label">Attack</div><div class="flow-grid">${btn('twf','Two-Weapon Fighting')}</div>`;
   if(feats.length) html += `<div class="flow-label">${featsLabel(feats)}</div><div class="flow-grid">${feats.map(t=>btn('f:'+t.name, t.name)).join('')}</div>`;
   if(spells.length) html += `<div class="flow-label">Spells</div><div class="flow-grid">${spells.map(e=>btn('s:'+e.sp.name, e.sp.name, e.source ? sourceTag(e.source) : '')).join('')}</div>`;
+  // A spell you're concentrating on that gives you a bonus action each turn (Aura of Vitality)
+  const aura = concBonus();
+  if(aura) html += `<div class="flow-label">While concentrating</div><div class="flow-grid"><button type="button" class="flow-btn" data-conc-bonus="1">${escapeHtml(aura.name)}</button></div>`;
 
   const pick = bonusFlow.pick;
   if(pick==='twf'){
@@ -3050,6 +3075,8 @@ function renderBonusDetail(){
   html += `<p class="empty-note" style="margin-top:10px;">Other bonus actions depend on your class features, spells or items. Check your character’s abilities.</p>`;
   showDetail(html);
 
+  const cb = actionDetail.querySelector('[data-conc-bonus]');
+  if(cb && aura) cb.addEventListener('click', ()=>openRollPopup({kind:'concBonus', label:aura.name, each:aura.each}, 'normal'));
   actionDetail.querySelectorAll('[data-bonus]').forEach(b=>{
     const key = b.dataset.bonus;
     if(key.startsWith('s:')) wireSpellTooltip(b, spells.find(e=>'s:'+e.sp.name===key).sp);
@@ -5166,6 +5193,7 @@ window.onDiceRoll = btn=>{
     // One damage roll per hit: the next attack from this popup rolls to hit again (a spell with
     // several damage rows keeps them all open)
     else if(/^Damage/.test(btn.dataset.roll || '') && document.querySelectorAll('#rollPopup button[data-roll^="Damage"]').length === 1) rollState.hitRolled = false;
+    if(/^Healing/.test(btn.dataset.roll || '')){ const amt = document.getElementById('healAmt'); if(amt){ amt.value = Math.max(1, roll.total); amt.classList.remove('filled'); void amt.offsetWidth; amt.classList.add('filled'); } }
     syncAwaitHit();
   }
   // A natural 20 on an attack turns Crit on for the damage (untick it to undo); a later

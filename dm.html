@@ -779,8 +779,18 @@ window.dmActsUpdate = (key, data)=>{
             html:`<p><b>${esc(name)}</b> attacks with <b>${esc(a.what)}</b>, which applies <b>${esc(fx.join(', '))}</b> on hit.</p>`
               + `<p>${esc(c.name)} has ${ac === null ? 'no AC set' : `an AC of <b>${ac}</b>`}. ${esc(name)} rolled <b class="dp-roll ${cls}">${esc(total)}</b>${nat === 20 ? ' (a natural 20)' : nat === 1 ? ' (a natural 1)' : ''}.</p>`
               + `<p class="dp-q">Apply ${esc(fx.join(' and '))} to ${esc(c.name)}?</p>`,
-            yes:()=>{ const x = byId(c.id); if(!x) return; fx.forEach(n=>{ if(!x.conds.some(k=>k.name === n)) x.conds.push({name:n, rounds:null}); }); logLine(`${x.name}: ${fx.join(', ')} (from ${name}’s ${a.what})`); saveCombat(); renderInit(); },
+            yes:()=>{ const x = byId(c.id); if(!x) return; fx.forEach(n=>{ if(!x.conds.some(k=>k.name === n)) x.conds.push({name:n, rounds:null, by:name}); }); logLine(`${x.name}: ${fx.join(', ')} (from ${name}’s ${a.what})`); saveCombat(); renderInit(); },
             no:()=>logLine(`${c.name}: ${fx.join(', ')} didn’t take hold`),
+          });
+        });
+      } else if(kind === 'heal'){
+        const n = Math.round(Number(a.total)); if(!(n > 0)) return;
+        arr(a.targets).forEach(t=>{
+          const c = byId(t.id); if(!c) return;
+          dmPrompt({
+            html:`<p><b>${esc(name)}</b> heals <b>${esc(c.name)}</b> for <b>${n} HP</b> with ${esc(a.what)}.</p><p class="dp-q">Add ${n} HP to ${esc(c.name)}?</p>`,
+            yes:()=>{ const x = byId(c.id); if(!x) return; applyHeal(x, n); logLine(`${name} healed ${x.name} with ${a.what}`); saveCombat(); renderInit(); },
+            no:()=>logLine(`${name}’s healing on ${c.name} wasn’t added`),
           });
         });
       } else if(kind === 'last'){
@@ -960,7 +970,7 @@ function combatView(){
   if(!combat.round) return {active:false};
   return {active:true, round:combat.round, turn:combat.turn, order:ordered().map(c=>{
     const pc = c.kind === 'pc' ? campaign.party.find(p=>p.name === c.name) : null;
-    return {id:c.id, kind:c.kind, name:c.name.slice(0, 100), char:pc ? pc.char : null, init:c.init, down:isDown(c), bloodied:isBloodied(c), conds:c.conds.map(k=>({name:k.name.slice(0, 60), rounds:k.rounds || 0}))};   // lengths fit the database rules
+    return {id:c.id, kind:c.kind, name:c.name.slice(0, 100), char:pc ? pc.char : null, init:c.init, down:isDown(c), bloodied:isBloodied(c), conds:c.conds.map(k=>({name:k.name.slice(0, 60), rounds:k.rounds || 0, ...(k.by ? {by:String(k.by).slice(0, 100)} : {})}))};   // lengths fit the database rules
   })};
 }
 let partyTurn = null;   // whose turn the Party cards last showed (they say who can roll)
@@ -1109,7 +1119,7 @@ function nextTurn(){
     // Damage or healing each turn from a custom effect (Bleeding from Grun's Greataxe, a healing
     // aura). A monster: the DM is asked, and Yes changes its hit points. A character: their own
     // Turnkeeper applies it at the start of their turn (with a screen effect), so it's only noted.
-    const cur = list[i], on = [...(cur.kind !== 'pc' ? effectsOn(cur) : []), ...(cur.conds || []).map(x=>({name:x.name, caster:'you'}))];
+    const cur = list[i], on = [...(cur.kind !== 'pc' ? effectsOn(cur) : []), ...(cur.conds || []).map(x=>({name:x.name, caster:x.by || ''}))];
     on.forEach(e=>{
       const d = (window.dmEffectDefs || {})[e.name];
       if(!d || !d.dmg || d.freq !== 'turn') return;
@@ -1117,7 +1127,7 @@ function nextTurn(){
       const dice = readDice(d.dmg), n = Math.max(0, dice ? rollTerms(dice.terms).total : (parseInt(d.dmg, 10) || 0)), rolled = dice && !/^\d+$/.test(String(d.dmg).trim());
       const heal = d.kind === 'heal', amount = `${n} HP${rolled ? ` (${d.dmg})` : ''}`;
       dmPrompt({
-        html:`<p><b>${esc(cur.name)}</b> has <b>${esc(e.name)}</b>${e.caster && e.caster !== 'you' ? ` (from ${esc(e.caster)})` : ''}.</p>`
+        html:`<p><b>${esc(cur.name)}</b> has <b>${esc(e.name)}</b>${e.caster ? ` (from ${esc(e.caster)})` : ''}.</p>`
           + `<p class="dp-q">${heal ? 'Heal' : 'Damage'} ${esc(cur.name)} for <b>${esc(amount)}</b> from ${esc(e.name)}?</p>`
           + (!heal && d.dmgType ? `<p class="dp-note">${esc(d.dmgType)} damage</p>` : '')
           + (!heal && d.endKind && d.endWhat ? `<p class="dp-note">A DC ${esc(d.endDC || '?')} ${esc(d.endWhat)} ${esc(d.endKind)} ends it.</p>` : ''),
@@ -1178,11 +1188,20 @@ function applyDamage(c, amt){
   c.hp = Math.max(0, c.hp - (amt - fromTemp));
   logLine(`${c.name} took ${amt} damage (${c.hp}/${c.max})`);
   if(c.hp === 0){
-    if(c.kind === 'monster'){ logLine(`${c.name} is defeated`); if(c.conc){ logLine(`${c.name} lost concentration on ${c.conc}`); c.conc = ''; } }
+    if(c.kind === 'monster'){ logLine(`${c.name} is defeated`); if(c.conc){ logLine(`${c.name} lost concentration on ${c.conc}`); endConcEffects(c); c.conc = ''; } }
     else logLine(`${c.name} is down: death saves`);
   } else if(c.conc){
     concAlerts[c.id] = Math.max(10, Math.floor(amt / 2));
   }
+}
+// When someone stops concentrating, what they're keeping up on others ends (Hold Person, a Hex)
+function endConcEffects(c){
+  combat.list.forEach(x=>{
+    const gone = x.conds.filter(k=>k.concOf === c.id);
+    if(!gone.length) return;
+    x.conds = x.conds.filter(k=>k.concOf !== c.id);
+    logLine(`${gone.map(k=>k.name).join(', ')} on ${x.name} ended with ${c.name}’s concentration`);
+  });
 }
 function applyHeal(c, amt){
   if(c.max === null) return;
@@ -1231,7 +1250,7 @@ function combatantHtml(c, i, list){
     ...effectsOn(c).map(e=>`<span class="cond-chip live fx" title="Cast by ${esc(e.caster)}">${esc(e.name)} · ${esc(e.caster)}${e.rounds ? ` (${e.rounds})` : ''}</span>`),
     ...(liveFor(c) ? [...arr(liveFor(c).status).filter(s=>!s.from).map(s=>`<span class="cond-chip live" title="From ${esc(c.name)}’s Turnkeeper">${esc(s.name)}${s.rounds ? ` (${s.rounds})` : ''}</span>`),
       ...(liveFor(c).conc ? [`<span class="cond-chip live conc" title="From ${esc(c.name)}’s Turnkeeper">Concentrating: ${esc(liveFor(c).conc.name)}</span>`] : [])] : []),
-    ...c.conds.map((k, j)=>`<span class="cond-chip">${esc(k.name)}${k.rounds ? ` (${k.rounds})` : ''}<button type="button" data-act="cond-x" data-j="${j}" aria-label="Remove ${esc(k.name)}">×</button></span>`),
+    ...c.conds.map((k, j)=>`<span class="cond-chip"${k.concOf ? ` title="Ends when ${esc(k.by || 'the caster')} stops concentrating"` : ''}>${esc(k.name)}${k.by ? ` <small>· ${esc(k.by)}${k.concOf ? ' ◎' : ''}</small>` : ''}${k.rounds ? ` (${k.rounds})` : ''}<button type="button" data-act="cond-x" data-j="${j}" aria-label="Remove ${esc(k.name)}">×</button></span>`),
   ].join('');
   const sub = c.kind === 'pc' ? (party[c.name] && !party[c.name].error ? `Init ${fmtMod(c.initMod)} · Passive Perception ${passivesOf(campaign.party.find(p=>p.name === c.name)).perception}` : '')
     : [c.cr ? `CR ${c.cr}` : '', `Init ${fmtMod(c.initMod || 0)}`].filter(Boolean).join(' · ');
@@ -1241,6 +1260,7 @@ function combatantHtml(c, i, list){
       <div class="grp"><span class="lbl">Condition or effect</span>
         <div class="row"><select data-field="condPick"><optgroup label="Conditions">${CONDITIONS.map(n=>`<option>${n}</option>`).join('')}</optgroup><optgroup label="Effects">${EFFECTS.map(n=>`<option>${n}</option>`).join('')}</optgroup>${customEffectNames().length ? `<optgroup label="Campaign effects">${customEffectNames().map(n=>`<option>${esc(n)}</option>`).join('')}</optgroup>` : ''}<option value="__other">Other…</option></select>
         <input type="number" min="1" max="999" placeholder="rounds" data-field="condRounds" title="Rounds it lasts (counts down at the end of this creature’s turns). Blank: until removed. 1 minute = 10 rounds.">
+        <select data-field="condFrom" aria-label="From" title="Who it’s from (optional). If they’re concentrating, it ends when their concentration does."><option value="">From…</option>${combat.list.filter(x=>x !== c && x.kind !== 'lair').map(x=>`<option value="${x.id}">${esc(x.name)}${x.conc ? ` (concentrating on ${esc(x.conc)})` : ''}</option>`).join('')}</select>
         <button type="button" class="chip-btn" data-act="cond-add">Add</button></div></div>
       <div class="grp"><span class="lbl">Concentrating on</span>
         <div class="row"><input type="text" data-field="concName" value="${esc(c.conc)}" placeholder="Spell name"><button type="button" class="chip-btn" data-act="conc-set">Set</button></div></div>
@@ -1296,7 +1316,7 @@ $('initList').addEventListener('click', e=>{
     act === 'dmg' ? applyDamage(c, amt) : applyHeal(c, amt);
     renderEncounter();
   }
-  else if(act === 'remove'){ combat.list = combat.list.filter(x=>x !== c); if(combat.turn === c.id) combat.turn = null; delete concAlerts[c.id]; renderEncounter(); }
+  else if(act === 'remove'){ endConcEffects(c); combat.list = combat.list.filter(x=>x !== c); if(combat.turn === c.id) combat.turn = null; delete concAlerts[c.id]; renderEncounter(); }
   else if(act === 'more'){ openRow = openRow === c.id ? null : c.id; }
   else if(act === 'roll'){ c.init = d20() + (c.initMod || 0); c.tie = 0; logLine(`${c.name} rolled ${c.init} for initiative`); }
   else if(act === 'up' || act === 'down'){
@@ -1311,12 +1331,12 @@ $('initList').addEventListener('click', e=>{
   else if(act === 'cond-add'){
     let name = field('condPick').value;
     if(name === '__other'){ name = (prompt('Condition or effect name') || '').trim(); if(!name) return; }
-    const rounds = toNum(field('condRounds').value);
-    c.conds.push({name, rounds:rounds && rounds > 0 ? rounds : null});
-    logLine(`${c.name}: ${name}${rounds ? ` for ${rounds} round${rounds > 1 ? 's' : ''}` : ''}`);
+    const rounds = toNum(field('condRounds').value), from = byId(+field('condFrom').value);
+    c.conds.push({name, rounds:rounds && rounds > 0 ? rounds : null, ...(from ? {by:from.name} : {}), ...(from && from.conc ? {concOf:from.id} : {})});
+    logLine(`${c.name}: ${name}${from ? ` (from ${from.name}${from.conc ? `, ends with their concentration on ${from.conc}` : ''})` : ''}${rounds ? ` for ${rounds} round${rounds > 1 ? 's' : ''}` : ''}`);
   }
-  else if(act === 'conc-set'){ const s = field('concName').value.trim(); c.conc = s; delete concAlerts[c.id]; if(s) logLine(`${c.name} is concentrating on ${s}`); }
-  else if(act === 'conc-end' || act === 'conc-lost'){ if(c.conc) logLine(`${c.name} ${act === 'conc-lost' ? 'lost' : 'ended'} concentration on ${c.conc}`); c.conc = ''; delete concAlerts[c.id]; }
+  else if(act === 'conc-set'){ const s = field('concName').value.trim(); if(c.conc && c.conc !== s) endConcEffects(c); c.conc = s; delete concAlerts[c.id]; if(s) logLine(`${c.name} is concentrating on ${s}`); }
+  else if(act === 'conc-end' || act === 'conc-lost'){ if(c.conc) logLine(`${c.name} ${act === 'conc-lost' ? 'lost' : 'ended'} concentration on ${c.conc}`); endConcEffects(c); c.conc = ''; delete concAlerts[c.id]; }
   else if(act === 'conc-kept'){ delete concAlerts[c.id]; }
   else if(act === 'stats-set'){
     const temp = toNum(field('temp').value), ac = toNum(field('ac').value), max = toNum(field('max').value);

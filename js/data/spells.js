@@ -814,7 +814,9 @@ const SPELL_ROLLS = {
 
   // 3rd level
   'Blink': {rolls:[{label:'At the end of each of your turns', d:'1d20', desc:'11 or higher: you vanish to the Ethereal Plane until the start of your next turn'}], note:'Lasts 1 minute.'},
-  'Aura of Vitality': {heal:{d:'2d6', noMod:true, desc:'hit points regained by one creature in the aura (bonus action, each turn)'}, note:'For up to 1 minute (concentration), use a bonus action each turn to heal one creature in the 30-ft aura, you included.'},
+  // Cast with your action to start the aura (concentration); then each turn, Bonus Action Options has
+  // "Aura of Vitality" (each) to heal one creature in it
+  'Aura of Vitality': {each:{heal:{d:'2d6', desc:'hit points regained by one creature in the aura'}, text:'Heal one creature in your 30-foot aura, you included.'}, note:'Your aura lasts up to 1 minute (concentration). Each turn, use a bonus action from Bonus Action Options (Aura of Vitality) to heal one creature in it 2d6.'},
   'Bestow Curse': {save:'wis', effect:'Cursed (your choice): disadvantage on checks and saves with one ability; disadvantage on attacks against you; a Wisdom save each turn or it wastes its action; or your attacks and spells deal it extra damage (below).',
     ongoing:{d:'1d8', type:'necrotic', text:'If you chose this curse: your attacks and spells deal this extra damage to the target.'}, upcastNote:'Longer: 4th-level slot 10 minutes (concentration), 5th 8 hours, 7th 24 hours, 9th until dispelled; from 5th level it needs no concentration.'},
   'Blinding Smite': {rider:{d:'3d8', type:'radiant', on:'your next melee weapon hit'}, fx:{until:'hit', weapon:'melee'}, hitSave:{save:'con', effect:'blinded until the spell ends (it repeats the save at the end of each of its turns)'}},
