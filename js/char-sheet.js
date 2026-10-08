@@ -1,6 +1,6 @@
 /* ---------- V5: the character sheet's own panels ----------
    For a character opened from the database (js/char-store.js), these panels show and edit what
-   the Google Sheet used to hold:
+   a paper character sheet holds:
      Character Details      the basics (level, class, race, scores, proficient saves and skills,
                             HP max, speed, AC), identity, appearance, personality, backstory,
                             allies and organizations, additional features and traits
@@ -167,7 +167,7 @@ function openEditChar(){
     dlg.addEventListener('click', e=>{ if(e.target === dlg || e.target.closest('[data-edit-close]')) closeEditChar(); });
   }
   dlg.innerHTML = `<div class="cs-modal-box"><div class="cs-modal-head"><h2>Edit Character</h2><span class="cs-save-msg" id="csSaveMsg2" aria-live="polite"></span><button type="button" class="roll-close" data-edit-close aria-label="Close">&times;</button></div>`
-    + `<p class="cs-none">These are set when a character is made and rarely change. Everything on the sheet updates as you change them.</p>${basicsHtml(currentCore)}</div>`;
+    + `<p class="cs-none">These are set when a character is made and rarely change. Everything on the page updates as you change them.</p>${basicsHtml(currentCore)}</div>`;
   dlg.hidden = false;
   document.getElementById('cb_name').focus();
 }

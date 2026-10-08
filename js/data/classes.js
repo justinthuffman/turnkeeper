@@ -148,11 +148,11 @@ const CLASS_FEATURES = {
       {level:1, name:'Bardic Inspiration', type:'bonus', spends:'bardicInspiration',
         roll:{label:'For the creature you inspire', cmd:()=>`1d${bardicDie()}`, desc:()=>`Bardic Inspiration d${bardicDie()}: add to one ability check, attack roll or saving throw`},
         desc:'Give a creature other than you within 60 ft that can hear you an inspiration die (d6, d8 at level 5, d10 at 10, d12 at 15). Within 10 minutes, it can roll the die and add it to one ability check, attack roll or saving throw, even after seeing its d20, before the DM says whether it succeeds. Uses: Charisma modifier (minimum 1) per long rest.'},
-      {level:2, name:'Jack of All Trades', desc:'Add half your proficiency bonus (rounded down) to ability checks you aren’t proficient in. Your sheet’s skill modifiers already include it.'},
+      {level:2, name:'Jack of All Trades', desc:'Add half your proficiency bonus (rounded down) to ability checks you aren’t proficient in. Your skill modifiers already include it.'},
       {level:2, name:'Song of Rest',
         roll:{label:'Extra healing during a short rest', cmd:()=>`1d${songOfRestDie()}`, desc:()=>'added to each friendly creature that spends Hit Dice'},
         desc:'During a short rest, you and friendly creatures who hear your performance regain an extra d6 hit points (d8 at level 9, d10 at 13, d12 at 17) if they spend any Hit Dice.'},
-      {level:3, name:'Expertise', desc:'Double your proficiency bonus for two of your skill proficiencies; two more at level 10. Your sheet’s skill modifiers already include it.'},
+      {level:3, name:'Expertise', desc:'Double your proficiency bonus for two of your skill proficiencies; two more at level 10. Your skill modifiers already include it.'},
       {level:4, name:'Ability Score Improvement', desc:'At levels 4, 8, 12, 16 and 19: raise one ability score by 2, or two scores by 1 each (max 20), or take a feat if your table allows it.'},
       {level:5, name:'Font of Inspiration', desc:'You regain all Bardic Inspiration uses on a short or long rest.'},
       {level:6, name:'Countercharm', type:'action', desc:'Perform until the end of your next turn: you and friendly creatures within 30 ft who can hear you have advantage on saves against being frightened or charmed.'},
@@ -182,7 +182,7 @@ const CLASS_FEATURES = {
   rogue: {
     subclassLabel: 'Roguish Archetype', subclassLevel: 3,
     base: [
-      {level:1, name:'Expertise', desc:'Double your proficiency bonus for two skill proficiencies (or one skill and thieves’ tools); two more at level 6. Your sheet’s skill modifiers already include it.'},
+      {level:1, name:'Expertise', desc:'Double your proficiency bonus for two skill proficiencies (or one skill and thieves’ tools); two more at level 6. Your skill modifiers already include it.'},
       {level:1, name:'Sneak Attack', desc:'Once per turn, deal extra damage (1d6, rising every odd level to 10d6) when you hit with a finesse or ranged weapon, if you have advantage, or if another enemy of the target is within 5 ft of it (not incapacitated) and you don’t have disadvantage. Pick it in the attack popup after you hit.'},
       {level:1, name:'Thieves’ Cant', desc:'You know the secret mix of jargon, dialect and signs rogues use to hide messages.'},
       {level:2, name:'Cunning Action', type:'bonus', desc:'On each of your turns, use your bonus action to Dash, Disengage or Hide.'},
@@ -225,13 +225,13 @@ function classKeyFrom(cls){
   const c = (cls||'').toLowerCase();
   return CLASS_NAMES.find(k=>c.includes(k)) || null;
 }
-// The sheet lists the subclass first in the class text (e.g. "Vengeance Paladin"): the words before
+// The class text can lead with the subclass (e.g. "Vengeance Paladin"): the words before
 // the class name, or '' if there are none
 function subclassPrefix(classKey, cls){
   const c = String(cls||''), i = classKey ? c.toLowerCase().indexOf(classKey) : -1;
   return i > 0 ? c.slice(0, i).trim() : '';
 }
-// A subclass's full Player's Handbook name from the sheet's short word ("Vengeance" → "Oath of
+// A subclass's full Player's Handbook name from a short word ("Vengeance" → "Oath of
 // Vengeance", "Moon" → "Circle of the Moon", "Fiend" → "The Fiend")
 const SUBCLASS_STYLE = {
   barbarian:w=>`Path of the ${w}`, bard:w=>`College of ${w}`, cleric:w=>`${w} Domain`, druid:w=>`Circle of the ${w}`,

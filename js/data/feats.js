@@ -2,7 +2,7 @@
 /* ---------- Feats (2014 PHB), checked on dnd5e.wikidot.com and paraphrased ----------
    The player adds the feats their character has; they're saved per character. Feats use the
    same hooks as class features (type, uses, roll/rolls, choose/tiers, tip). Ability score
-   increases, proficiencies, HP and initiative bonuses are already on the player's sheet. */
+   increases, proficiencies, HP and initiative bonuses are already in the character’s numbers. */
 const abilityScore = a=>parseInt(document.getElementById('s_'+a).value,10) || 10;
 const needs = (a, n)=>()=>abilityScore(a) >= n;
 const HEAVY_WEAPONS = /\b(glaive|greataxe|greatsword|halberd|maul|pike|heavy crossbow|longbow)\b/i;
@@ -54,7 +54,7 @@ const FEATS = [
   {name:'Polearm Master', type:'bonus',
     rolls:()=>{
       const a = polearmAttack(), p = a && parseWeaponDamage(a.damage);
-      if(!a || !p) return [{label:'Butt end', info:()=>'No glaive, halberd, quarterstaff or spear found on your sheet.'}];
+      if(!a || !p) return [{label:'Butt end', info:()=>'No glaive, halberd, quarterstaff or spear equipped.'}];
       const bonus = parseInt(String(a.bonus||'0').replace(/\s/g,''),10) || 0;
       return [{label:'To hit', cmd:()=>d20Cmd('normal', bonus), desc:()=>`${a.name} butt end attack`},
               {label:'Damage', cmd:()=>`1d4${p.mod ? fmtMod(p.mod) : ''}`, desc:()=>`${a.name} butt end damage (bludgeoning)`}];

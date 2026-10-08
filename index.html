@@ -201,7 +201,7 @@ h1{
 
 /* The chosen card comes forward (above) while the others dim back. On touch screens there's
    no hover: the first tap selects a card (.is-active, set by the script at the bottom) and
-   shows a "Tap again to open" badge; the second tap opens the sheet. */
+   shows a "Tap again to open" badge; the second tap opens the character. */
 .roster:has(.card:is(:hover, :focus-visible)) .card:not(:hover):not(:focus-visible),
 .roster.has-active .card:not(.is-active){opacity:0.55; transform:scale(0.96);}
 .card-tap{
@@ -257,7 +257,7 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
 </div>
 
 <div class="roster">
-  <a class="card card-bard" href="turnkeeper.html?sheet=https%3A%2F%2Fdocs.google.com%2Fspreadsheets%2Fd%2F14TFj-bb1ixAUl9bw_tNdcIpWtnYxeV8JW5f2kIbiW_Q%2Fedit%3Fgid%3D359784640%23gid%3D359784640&name=Bel" target="_blank" rel="noopener">
+  <a class="card card-bard" href="turnkeeper.html?char=14TFj-bb1ixAUl9bw_tNdcIpWtnYxeV8JW5f2kIbiW_Q" target="_blank" rel="noopener">
     <div class="card-art">
       <img src="portraits/bel.webp" alt="Portrait of Bel">
       <div class="card-fx" aria-hidden="true">
@@ -279,7 +279,7 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
       <div class="card-plate"><div class="card-name">Bel</div><div class="card-sub">Tiefling Bard</div></div>
     </div>
   </a>
-  <a class="card card-wizard" href="turnkeeper.html?sheet=https%3A%2F%2Fdocs.google.com%2Fspreadsheets%2Fd%2F1GqXXArCfLC42oVTF9XVrbNeKbw868HF1ih2S7VpX8jk%2Fedit%3Fgid%3D359784640%23gid%3D359784640&name=Ezlo" target="_blank" rel="noopener">
+  <a class="card card-wizard" href="turnkeeper.html?char=1GqXXArCfLC42oVTF9XVrbNeKbw868HF1ih2S7VpX8jk" target="_blank" rel="noopener">
     <div class="card-art">
       <img src="portraits/ezlo.webp" alt="Portrait of Ezlo">
       <div class="card-fx" aria-hidden="true">
@@ -299,7 +299,7 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
       <div class="card-plate"><div class="card-name">Ezlo</div><div class="card-sub">Drow Wizard</div></div>
     </div>
   </a>
-  <a class="card card-paladin" href="turnkeeper.html?sheet=https%3A%2F%2Fdocs.google.com%2Fspreadsheets%2Fd%2F1vIvEke6E12m7il5voB2n5rJAqwgJeWf_2BZYJSKpYgU%2Fedit%3Fgid%3D359784640%23gid%3D359784640&name=Krunk" target="_blank" rel="noopener">
+  <a class="card card-paladin" href="turnkeeper.html?char=1vIvEke6E12m7il5voB2n5rJAqwgJeWf_2BZYJSKpYgU" target="_blank" rel="noopener">
     <div class="card-art">
       <img src="portraits/krunk.jpg" alt="Portrait of Krunk">
       <div class="card-fx" aria-hidden="true">
@@ -318,7 +318,7 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
       <div class="card-plate"><div class="card-name">Krunk</div><div class="card-sub">Half-Orc Paladin</div></div>
     </div>
   </a>
-  <a class="card card-rogue" href="turnkeeper.html?sheet=https%3A%2F%2Fdocs.google.com%2Fspreadsheets%2Fd%2F1mS5Z2jgmi4U-bdEPP0JvZIkI-7puhWGjwlF8i6JIYbo%2Fedit%3Fgid%3D359784640%23gid%3D359784640&name=Venthor" target="_blank" rel="noopener">
+  <a class="card card-rogue" href="turnkeeper.html?char=1mS5Z2jgmi4U-bdEPP0JvZIkI-7puhWGjwlF8i6JIYbo" target="_blank" rel="noopener">
     <div class="card-art">
       <img src="portraits/venthor.webp" alt="Portrait of Venthor">
       <div class="card-fx" aria-hidden="true">
@@ -333,7 +333,7 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
   </a>
 </div>
 
-<footer>Click a character to open their sheet.</footer>
+<footer>Click a character to open them.</footer>
 <div class="dm-link"><a href="dm.html">DM Screen</a></div>
 <div class="theme-picker" id="themePicker">
   <button type="button" class="theme-toggle" id="themeToggle" aria-expanded="false" aria-controls="themeMenu" title="Change the color theme"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 3a9 9 0 0 0 0 18c1.1 0 1.8-.8 1.8-1.7 0-.5-.2-.9-.5-1.2-.3-.3-.5-.7-.5-1.2 0-.9.8-1.7 1.7-1.7H16a5 5 0 0 0 5-5C21 6.4 17 3 12 3zm-5.5 9a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm3-4a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm3 4a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg><span>Theme</span></button>
@@ -343,7 +343,8 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
 
 <script>
 // The Theme menu (js/themes.js builds it: every theme, including the class themes). The pick is
-// the browser's main theme, which the DM Screen and any sheet without its own theme also use.
+// this browser's main theme, which any character without its own theme also uses (the DM Screen
+// has its own).
 // The Theme button opens and closes the menu; a click elsewhere or Escape closes it.
 // It stays open after a pick so themes can be compared.
 function showThemeMenu(open){
@@ -384,20 +385,18 @@ if(!touchScreen){
     card.addEventListener('click', e=>{ if(!card.classList.contains('is-active')){ e.preventDefault(); select(card); } });
   });
   document.addEventListener('click', e=>{ if(!e.target.closest('.card')) select(null); });
-  document.querySelector('footer').textContent = 'Tap a character to see them, then tap again to open their sheet.';
+  document.querySelector('footer').textContent = 'Tap a character to see them, then tap again to open them.';
 }
 </script>
 <script type="module">
-// V5: a character already in the Turnkeeper database opens from there (?char=), with its name
-// from the database; the rest still open from their Google Sheet. A copy of the site on this
+// Each card shows the character's name from the Turnkeeper database. A copy of the site on this
 // computer uses the test campaign. Settings: js/config.js; connecting: js/firebase.js.
 try{
   const {db, fb:{ref, get}} = await tkFirebase();
   document.querySelectorAll('.roster a.card').forEach(async a=>{
-    const m = decodeURIComponent(a.getAttribute('href')).match(/\/d\/([A-Za-z0-9_-]+)/), c = m && campaignOfChar(m[1]); if(!c) return;
+    const m = /[?&]char=([A-Za-z0-9_-]+)/.exec(a.getAttribute('href')), c = m && campaignOfChar(m[1]); if(!c) return;
     const core = (await get(ref(db, `campaigns/${FBK(c.key)}/characters/${m[1]}/core`))).val();
     if(!core) return;
-    a.href = `turnkeeper.html?char=${m[1]}`;
     const name = a.querySelector('.card-name');
     if(name && typeof core.name === 'string' && core.name.trim()) name.textContent = core.name.trim().slice(0, 40);
   });

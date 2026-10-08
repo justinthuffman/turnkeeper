@@ -74,7 +74,7 @@ button.sel-toggle:hover{background:none; color:var(--ink);}
    shared by every card in the line (subgrid), so the sections line up across characters even
    when one has less in it. */
 .pc-card{background:var(--panel2); border:1px solid var(--border); border-radius:6px; padding:12px; display:grid; grid-template-rows:subgrid; grid-row:span 8; row-gap:8px; align-content:start; min-width:0;}
-/* A number that differs from the sheet (Shield of Faith on AC, Haste on speed…), and the line saying why */
+/* A number that differs from the base (Shield of Faith on AC, Haste on speed…), and the line saying why */
 .pc-stats div.changed{border-color:var(--racial);}
 .pc-stats div.changed dd{color:var(--racial);}
 .pc-mods{font-size:0.74rem; color:var(--racial); display:flex; flex-direction:column; gap:2px;}
@@ -388,7 +388,6 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
 </style>
 <script src="js/config.js"></script>
 <script src="js/firebase.js"></script>
-<script src="js/sheet-reader.js"></script>
 <!-- The DM's own theme and preferences, saved to the DM account (js/dm-store.js) -->
 <script>window.TK_THEME_KEY = 'dndTracker:dm:theme';</script>
 <script src="js/dm-store.js"></script>
@@ -438,8 +437,8 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
 
 <!-- PARTY -->
 <section class="panel" id="partyPanel">
-  <div class="panel-head"><h2>Party</h2><span class="live-state" id="liveState">Connecting to live updates…</span><button type="button" class="ghost" id="allowAll">Allow everyone to roll</button><button type="button" class="ghost" id="allowNone">Stop all rolls</button><button type="button" class="ghost" id="partyRefresh">Reload sheets</button></div>
-  <p class="panel-note">Stats come from each character’s Google Sheet. The live box shows what the player is tracking in Turnkeeper (hit points, conditions, magic, concentration, slots), updated as it changes. <b>Click a card</b> to let that player roll their dice in Turnkeeper; click it again to stop.</p>
+  <div class="panel-head"><h2>Party</h2><span class="live-state" id="liveState">Connecting to live updates…</span><button type="button" class="ghost" id="allowAll">Allow everyone to roll</button><button type="button" class="ghost" id="allowNone">Stop all rolls</button><button type="button" class="ghost" id="partyRefresh">Reload party</button></div>
+  <p class="panel-note">Stats come from each character in Turnkeeper. The live box shows what the player is tracking in Turnkeeper (hit points, conditions, magic, concentration, slots), updated as it changes. <b>Click a card</b> to let that player roll their dice in Turnkeeper; click it again to stop.</p>
   <div class="party-grid" id="partyGrid"></div>
   <details class="log" id="rollsBox" open><summary>Recent rolls</summary><ol id="rollsList"></ol></details>
   <div class="passive-check">
@@ -593,11 +592,11 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
 <script src="js/char-icons.js"></script>
 <script>
 /* ============================================================
-   DM Screen. One page for the DM: the campaign's party (read from their sheets), an
+   DM Screen. One page for the DM: the campaign's party (from the Turnkeeper database), an
    initiative tracker, 2014 DMG encounter difficulty, a rules reference and session notes.
    Everything the DM enters is saved in this browser, per campaign.
    ============================================================ */
-// The campaigns and their party (and SHEET_GID): js/config.js
+// The campaigns and their party: js/config.js
 let campaign = CAMPAIGNS[0];
 
 /* ---------- Small helpers ---------- */
@@ -623,17 +622,6 @@ function rollExpr(expr){
   return t + (m[3] ? +m[3] : 0);
 }
 
-/* ---------- Reading the party's sheets (the same cells as the tracker) ---------- */
-// RANGES, colToIdx, cellAt and loadSheetJSONP: js/sheet-reader.js
-// Saves (rows 12-17) and skills (rows 20-37): proficiency flag in H, modifier in I, name in J
-function flagRows(table, r1, r2){
-  const out = [];
-  for(let r = r1-1; r <= r2-1; r++){
-    const row = table[r]; if(!row || !row[9]) continue;
-    out.push({name:String(row[9]).trim(), prof:['1', 'e'].includes(String(row[7] ?? '').trim().toLowerCase()),   /* 1 = proficient, e = expertise */ mod:row[8]===null || row[8]==='' ? null : Number(row[8])});
-  }
-  return out;
-}
 // Class spellcasting ability and the level it starts (2014 PHB)
 function castingFor(cls){
   const c = cls.toLowerCase();
@@ -645,8 +633,8 @@ function castingFor(cls){
   if(/arcane trickster|eldritch knight/.test(c)) return {ab:'int', from:3};
   return null;
 }
-const party = {};   // name -> what the sheet (or the database) says, once loaded
-/* V5: a character moved into the Turnkeeper database is read from there (its base facts); saves,
+const party = {};   // name -> what the database says, once loaded
+/* V5: each character is read from the Turnkeeper database (its base facts); saves,
    passives, initiative and spell DC are worked out by the 2014 rules, as the tracker does (Jack of
    All Trades for bards from level 2). What the player is tracking still arrives live and wins. */
 function dmDbReady(){
@@ -669,26 +657,13 @@ function pcFromCore(pc, core){
 }
 async function loadPC(pc){
   if(await dmDbReady()){
-    try{ const core = await window.dmGetCore(campaign.key, pc.sheet); if(core && core.scores) return pcFromCore(pc, core); }
+    try{ const core = await window.dmGetCore(campaign.key, pc.char); if(core && core.scores) return pcFromCore(pc, core); }
     catch(err){ console.warn('Reading the character from the database:', err); }
   }
-  const data = await loadSheetJSONP(pc.sheet, SHEET_GID, 'A1:BZ120');
-  if(!data.table || !data.table.rows) throw new Error('No data: is the sheet shared as “Anyone with the link can view”?');
-  const table = sheetTable(data);
-  const g = k => cellAt(table, RANGES[k]);
-  const p = {name:pc.name, level:toNum(g('level')) || 1, race:g('race'), cls:g('class'), ac:toNum(g('ac')), init:toNum(g('init')) ?? 0,
-    speed:g('speed'), hpMax:toNum(g('hpmax')), hpCur:toNum(g('hpcur')), scores:{}};
-  ABILS.forEach(a=>{ p.scores[a] = toNum(g(a)) ?? 10; });
-  p.saves = flagRows(table, 12, 17);
-  const skills = flagRows(table, 20, 37);
-  const passive = n => { const s = skills.find(x=>x.name.toLowerCase()===n); return s && s.mod !== null ? 10 + s.mod : 10 + abilMod(p.scores[{perception:'wis', insight:'wis', investigation:'int'}[n]]); };
-  p.passive = {perception:passive('perception'), investigation:passive('investigation'), insight:passive('insight')};
-  const cast = castingFor(p.cls);
-  if(cast && p.level >= cast.from) p.spellDc = 8 + profFor(p.level) + abilMod(p.scores[cast.ab]);
-  return p;
+  throw new Error('This character isn’t in the Turnkeeper database yet.');
 }
 /* ---------- Live: what players are tracking in their Turnkeeper ----------
-   The module script at the end fills `live` (sheet ID -> shared state) from Firebase. */
+   The module script at the end fills `live` (character ID -> shared state) from Firebase. */
 let live = {};
 const ORD = ['', '1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th', '9th'];
 const arr = x => Array.isArray(x) ? x : Object.values(x || {});
@@ -705,12 +680,12 @@ function agoShort(t){
 }
 // Top right of a Party card: "● Live · 5m" while their Turnkeeper is open, "○ Offline · 3h" after
 function liveCornerHtml(pc){
-  const L = live[pc.sheet]; if(!L) return '';
+  const L = live[pc.char]; if(!L) return '';
   const when = `<span data-t="${L.t || 0}" data-short="1">${agoShort(L.t)}</span>`;
   return `<span class="pc-when${L.online ? ' on' : ''}" title="${L.online ? 'Their Turnkeeper is open' : 'Their Turnkeeper is closed'}; last change ${esc(ago(L.t))}">${L.online ? '● Live' : '○ Offline'} · ${when}</span>`;
 }
 function liveHtml(pc){
-  const L = live[pc.sheet];
+  const L = live[pc.char];
   if(!L) return `<div class="pc-live none">Nothing shared yet: it shows up once ${esc(pc.name)}’s player opens Turnkeeper.</div>`;
   const hp = L.hp || {}, cur = hp.cur ?? null, max = hp.max ?? null;
   const pct = cur !== null && max ? Math.max(0, Math.min(100, Math.round(cur / max * 100))) : 0;
@@ -735,31 +710,31 @@ setInterval(()=>document.querySelectorAll('[data-t]').forEach(el=>{ el.textConte
 // Called by the module script
 window.dmCampaignKey = ()=>campaign.key;
 window.dmPublishNow = ()=>publishCombat();
-let effects = {};   // caster sheet -> {id: {name, caster, targets, status, conc, rounds}}
-let allowed = {};   // sheet -> true while the DM lets that player roll (campaigns/<campaign>/allow)
+let effects = {};   // caster -> {id: {name, caster, targets, status, conc, rounds}}
+let allowed = {};   // character -> true while the DM lets that player roll (campaigns/<campaign>/allow)
 const effectsSeen = new Set(); let effectsReady = false;
 window.dmEffectsUpdate = (key, data)=>{
   if(key !== campaign.key) return;
   effects = data || {};
   // New ones go in the combat log ("Bel: Bane on Goblin 1")
-  Object.entries(effects).forEach(([sheet, list])=>Object.entries(list || {}).forEach(([id, e])=>{
-    if(effectsSeen.has(sheet + id)) return;
-    effectsSeen.add(sheet + id);
+  Object.entries(effects).forEach(([char, list])=>Object.entries(list || {}).forEach(([id, e])=>{
+    if(effectsSeen.has(char + id)) return;
+    effectsSeen.add(char + id);
     if(effectsReady) logLine(`${e.caster}: ${e.name} on ${arr(e.targets).map(t=>t.name).join(', ')}`);
   }));
   effectsReady = true;
   renderInit();
 };
-/* What players do (campaigns/<key>/acts/<sheet>): 'last' = who they're attacking or aiming a
+/* What players do (campaigns/<key>/acts/<char>): 'last' = who they're attacking or aiming a
    spell at; 'turnEnd' = they clicked End my turn, which moves the order on if it's still their
    turn. Only what happens after this page opened is acted on. */
 const actsSeen = {}; let actsReady = false, lastAct = null;
 window.dmActsUpdate = (key, data)=>{
   if(key !== campaign.key) return;
-  Object.entries(data || {}).forEach(([sheet, acts])=>{
-    const pc = campaign.party.find(p=>p.sheet === sheet), name = pc ? pc.name : 'A player';
+  Object.entries(data || {}).forEach(([char, acts])=>{
+    const pc = campaign.party.find(p=>p.char === char), name = pc ? pc.name : 'A player';
     Object.entries(acts || {}).forEach(([kind, a])=>{
-      const k = sheet + '/' + kind;
+      const k = char + '/' + kind;
       if(!a || (actsSeen[k] || 0) >= a.t) return;
       actsSeen[k] = a.t;
       if(!actsReady) return;
@@ -768,7 +743,7 @@ window.dmActsUpdate = (key, data)=>{
         if(combat.round && cur && cur.id === a.turn && cur.kind === 'pc' && cur.name === name){ logLine(`${name} ended their turn`); nextTurn(); }
       } else if(kind === 'last'){
         const targets = arr(a.targets), names = targets.map(t=>t.name).join(', ');
-        lastAct = {text:`${name} → ${names} · ${a.what}`, t:a.t, keys:targets.map(t=>t.sheet ? 's:' + t.sheet : 'c:' + t.id)};
+        lastAct = {text:`${name} → ${names} · ${a.what}`, t:a.t, keys:targets.map(t=>t.char ? 's:' + t.char : 'c:' + t.id)};
         logLine(`${name}: ${a.what} → ${names}`);
         saveCombat(); renderInit();
       }
@@ -780,13 +755,13 @@ window.dmActsUpdate = (key, data)=>{
 function aimedAt(c){
   if(!lastAct || Date.now() - lastAct.t > 60000) return false;
   const pc = c.kind === 'pc' ? campaign.party.find(p=>p.name === c.name) : null;
-  return lastAct.keys.includes(pc ? 's:' + pc.sheet : 'c:' + c.id);
+  return lastAct.keys.includes(pc ? 's:' + pc.char : 'c:' + c.id);
 }
 // Effects a player has put on this combatant (Hunter's Mark on Goblin 2, Bless on Venthor)
 function effectsOn(c){
   const pc = c.kind === 'pc' ? campaign.party.find(p=>p.name === c.name) : null;
   return Object.values(effects).flatMap(list=>Object.values(list || {}))
-    .filter(e=>arr(e.targets).some(t=>(pc && t.sheet === pc.sheet) || (!t.sheet && t.id === c.id)));
+    .filter(e=>arr(e.targets).some(t=>(pc && t.char === pc.char) || (!t.char && t.id === c.id)));
 }
 window.dmLiveUpdate = (key, data)=>{
   if(key !== campaign.key) return;
@@ -801,7 +776,7 @@ window.dmLiveStatus = (state, detail)=>{
   el.title = state === 'on' ? 'Updates from the players’ Turnkeeper arrive as they happen' : (detail || '');
 };
 // Characters in Initiative follow their player's hit points
-function liveFor(c){ const pc = c.kind === 'pc' && campaign.party.find(p=>p.name === c.name); return pc ? live[pc.sheet] : null; }
+function liveFor(c){ const pc = c.kind === 'pc' && campaign.party.find(p=>p.name === c.name); return pc ? live[pc.char] : null; }
 function syncLiveToInit(){
   let changed = false;
   combat.list.forEach(c=>{
@@ -815,35 +790,32 @@ function syncLiveToInit(){
 }
 
 /* The numbers a character is playing with right now: from their live Turnkeeper (statuses,
-   feats and ability increases included) once they've shared, else the sheet. `notes` says
+   feats and ability increases included) once they've shared, else the base. `notes` says
    what's changed and by how much ("AC +2: Shield of Faith +2 (from Krunk)"). */
 function statsOf(pc){
-  const p = party[pc.name], L = live[pc.sheet] || {}, s = L.stats || {}, num = v=>typeof v === 'number' ? v : null;
-  const speedSheet = toNum(p.speed);
+  const p = party[pc.name], L = live[pc.char] || {}, s = L.stats || {}, num = v=>typeof v === 'number' ? v : null;
+  const speedBase = toNum(p.speed);
   const out = {ac:num(s.ac) ?? p.ac, init:num(s.init) ?? p.init, dc:num(s.dc) ?? p.spellDc ?? null,
-    speed:num(s.speed) ?? speedSheet, speedSheet, hpMax:L.hp && num(L.hp.max) !== null ? L.hp.max : p.hpMax, notes:[]};
-  out.acTitle = out.ac !== p.ac ? `${p.ac} ${p.fromDb ? 'base' : 'on the sheet'}${s.acWhy ? `: ${s.acWhy}` : ''}` : '';
+    speed:num(s.speed) ?? speedBase, speedBase, hpMax:L.hp && num(L.hp.max) !== null ? L.hp.max : p.hpMax, notes:[]};
+  out.acTitle = out.ac !== p.ac ? `${p.ac} base${s.acWhy ? `: ${s.acWhy}` : ''}` : '';
   if(out.ac !== p.ac && p.ac !== null) out.notes.push(`AC ${fmtMod(out.ac - p.ac)}: ${s.acWhy || 'changed in their Turnkeeper'}`);
-  out.speedTitle = out.speed !== speedSheet ? `${speedSheet} ft ${p.fromDb ? 'base' : 'on the sheet'}${s.speedWhy ? `: ${s.speedWhy}` : ''}` : 'Feet';
-  if(out.speed !== speedSheet && speedSheet !== null) out.notes.push(`Speed ${out.speed} ft (${speedSheet} ${p.fromDb ? 'base' : 'on the sheet'}): ${s.speedWhy || 'changed in their Turnkeeper'}`);
-  out.hpTitle = out.hpMax !== p.hpMax ? `${p.hpMax} ${p.fromDb ? 'base' : 'on the sheet'}${L.exh >= 4 ? `: Exhaustion ${L.exh} halves it` : ''}` : `Maximum hit points${p.fromDb ? '' : ' on the sheet'}`;
-  if(out.hpMax !== p.hpMax && p.hpMax !== null) out.notes.push(`Max HP ${out.hpMax} (${p.hpMax} ${p.fromDb ? 'base' : 'on the sheet'})${L.exh >= 4 ? `: Exhaustion ${L.exh}` : ''}`);
+  out.speedTitle = out.speed !== speedBase ? `${speedBase} ft base${s.speedWhy ? `: ${s.speedWhy}` : ''}` : 'Feet';
+  if(out.speed !== speedBase && speedBase !== null) out.notes.push(`Speed ${out.speed} ft (${speedBase} base): ${s.speedWhy || 'changed in their Turnkeeper'}`);
+  out.hpTitle = out.hpMax !== p.hpMax ? `${p.hpMax} base${L.exh >= 4 ? `: Exhaustion ${L.exh} halves it` : ''}` : `Maximum hit points`;
+  if(out.hpMax !== p.hpMax && p.hpMax !== null) out.notes.push(`Max HP ${out.hpMax} (${p.hpMax} base)${L.exh >= 4 ? `: Exhaustion ${L.exh}` : ''}`);
   return out;
 }
 function pcCard(pc){
   const p = party[pc.name];
-  // A character in the Turnkeeper database opens from there; the rest still from their Google Sheet
-  const link = p && p.fromDb ? `turnkeeper.html?char=${encodeURIComponent(pc.sheet)}`
-    : `turnkeeper.html?sheet=${encodeURIComponent(`https://docs.google.com/spreadsheets/d/${pc.sheet}/edit?gid=${SHEET_GID}#gid=${SHEET_GID}`)}&name=${encodeURIComponent(pc.name)}`;
-  const links = `<div class="pc-links"><a href="${link}" target="_blank" rel="noopener">Open in Turnkeeper</a>${p && p.fromDb ? '' : `<a href="https://docs.google.com/spreadsheets/d/${pc.sheet}/edit?gid=${SHEET_GID}" target="_blank" rel="noopener">Google Sheet</a>`}</div>`;
+  const links = `<div class="pc-links"><a href="turnkeeper.html?char=${encodeURIComponent(pc.char)}" target="_blank" rel="noopener">Open in Turnkeeper</a></div>`;
   // Rolling: in combat the player whose turn it is may roll; otherwise only those the DM clicked
-  const may = !!allowed[pc.sheet], cur = combat.round ? byId(combat.turn) : null;
+  const may = !!allowed[pc.char], cur = combat.round ? byId(combat.turn) : null;
   const turnNow = !may && !!(cur && cur.kind === 'pc' && cur.name === pc.name);
   const allowTag = `<span class="pc-allow${may || turnNow ? '' : ' off'}" title="${may ? `Click the card to stop ${esc(pc.name)} rolling` : turnNow ? `It's ${esc(pc.name)}'s turn, so they can roll. Clicking the card also lets them roll off their turn` : `Click the card to let ${esc(pc.name)} roll`}">${may ? '🎲 Can roll' : turnNow ? '🎲 Their turn' : 'Not rolling'}</span>`;
   // The same icon as the player's tracker (js/char-icons.js), or the plain portrait if there isn't one
-  const icon = charIconHtml(pc.sheet, `${pc.name}’s icon`, 'pc-icon') || `<img class="pc-portrait" src="${pc.portrait}" alt="">`;
+  const icon = charIconHtml(pc.char, `${pc.name}’s icon`, 'pc-icon') || `<img class="pc-portrait" src="${pc.portrait}" alt="">`;
   const top = sub => `<div class="pc-top">${icon}<div><h3>${esc(pc.name)}</h3><div class="pc-sub">${sub}</div>${allowTag}</div>${liveCornerHtml(pc)}</div>`;
-  if(!p || p.error) return `<article class="pc-card${p ? '' : ' loading'}${may ? ' allowed' : turnNow ? ' turn' : ''}" data-sheet="${pc.sheet}">${top(p ? '' : 'Loading…')}${p ? `<div class="pc-err">${esc(p.error)}</div>` : ''}${links}</article>`;
+  if(!p || p.error) return `<article class="pc-card${p ? '' : ' loading'}${may ? ' allowed' : turnNow ? ' turn' : ''}" data-char="${pc.char}">${top(p ? '' : 'Loading…')}${p ? `<div class="pc-err">${esc(p.error)}</div>` : ''}${links}</article>`;
   const saves = ABILS.map(a=>{
     const s = p.saves.find(x=>x.name.toLowerCase().startsWith(ABIL_NAME[a].toLowerCase().slice(0,3)));
     const mod = s && s.mod !== null ? s.mod : abilMod(p.scores[a]);
@@ -851,21 +823,21 @@ function pcCard(pc){
   }).join('');
   const stat = (dt, dd, title, changed) => `<div${changed ? ' class="changed"' : ''} title="${esc(title||'')}"><dt>${dt}</dt><dd>${dd ?? '—'}</dd></div>`;
   const ps = passivesOf(pc), fx = statsOf(pc);
-  return `<article class="pc-card${may ? ' allowed' : turnNow ? ' turn' : ''}" data-sheet="${pc.sheet}">${top(`Level ${p.level} ${esc(p.race)} ${esc(p.cls)}`)}
+  return `<article class="pc-card${may ? ' allowed' : turnNow ? ' turn' : ''}" data-char="${pc.char}">${top(`Level ${p.level} ${esc(p.race)} ${esc(p.cls)}`)}
     ${liveHtml(pc)}
-    <dl class="pc-stats">${stat('AC', fx.ac, fx.acTitle, fx.ac !== p.ac)}${stat('HP', fx.hpMax, fx.hpTitle, fx.hpMax !== p.hpMax)}${stat('Init', fmtMod(fx.init), fx.init !== p.init ? `${fmtMod(p.init)} on the sheet` : '', fx.init !== p.init)}${stat('Speed', fx.speed, fx.speedTitle, fx.speed !== fx.speedSheet)}${stat('DC', fx.dc, 'Spell save DC',fx.dc !== (p.spellDc ?? null))}</dl>
+    <dl class="pc-stats">${stat('AC', fx.ac, fx.acTitle, fx.ac !== p.ac)}${stat('HP', fx.hpMax, fx.hpTitle, fx.hpMax !== p.hpMax)}${stat('Init', fmtMod(fx.init), fx.init !== p.init ? `${fmtMod(p.init)} base` : '', fx.init !== p.init)}${stat('Speed', fx.speed, fx.speedTitle, fx.speed !== fx.speedBase)}${stat('DC', fx.dc, 'Spell save DC',fx.dc !== (p.spellDc ?? null))}</dl>
     <div class="pc-mods">${fx.notes.map(n=>`<div>${esc(n)}</div>`).join('')}</div>
     <div class="pc-sublbl">Passive</div>
-    <dl class="pc-stats pc-passives">${[['perception', 'Perception'], ['insight', 'Insight'], ['investigation', 'Invest.']].map(([k, label])=>stat(label, ps[k], `Passive ${k}${ps.live ? ', from their Turnkeeper' : ', from the sheet'}`)).join('')}</dl>
+    <dl class="pc-stats pc-passives">${[['perception', 'Perception'], ['insight', 'Insight'], ['investigation', 'Invest.']].map(([k, label])=>stat(label, ps[k], `Passive ${k}${ps.live ? ', from their Turnkeeper' : ', from the character'}`)).join('')}</dl>
     <div class="pc-saves" aria-label="Saving throws">${saves}</div>
     ${links}</article>`;
 }
 // Passive scores: from the player's live Turnkeeper (Observant and ability increases
-// included) once they've shared, otherwise worked out from the sheet
+// included) once they've shared, otherwise worked out from the character
 function passivesOf(pc){
-  const p = party[pc.name], sheet = p && !p.error ? p.passive : {}, lp = (live[pc.sheet] || {}).passive || {};
-  const pick = (liveVal, sheetVal)=>typeof liveVal === 'number' ? liveVal : sheetVal;
-  return {perception:pick(lp.per, sheet.perception), insight:pick(lp.ins, sheet.insight), investigation:pick(lp.inv, sheet.investigation),
+  const p = party[pc.name], base = p && !p.error ? p.passive : {}, lp = (live[pc.char] || {}).passive || {};
+  const pick = (liveVal, baseVal)=>typeof liveVal === 'number' ? liveVal : baseVal;
+  return {perception:pick(lp.per, base.perception), insight:pick(lp.ins, base.insight), investigation:pick(lp.inv, base.investigation),
     live:typeof lp.per === 'number'};
 }
 function renderParty(){
@@ -880,7 +852,7 @@ async function loadParty(){
     catch(err){ party[pc.name] = {error:err.message}; }
     renderParty();
   }));
-  // Characters already in Initiative pick up their AC, hit points and bonus from the sheet
+  // Characters already in Initiative pick up their AC, hit points and bonus from the character
   let changed = false;
   combat.list.forEach(c=>{
     const p = c.kind === 'pc' && party[c.name];
@@ -890,7 +862,7 @@ async function loadParty(){
     }
   });
   if(changed) saveCombat();
-  syncLiveToInit();   // then what players are tracking (AC with Shield of Faith, current HP…) wins over the sheet
+  syncLiveToInit();   // then what players are tracking (AC with Shield of Faith, current HP…) wins over the base
   renderInit(); renderEncounter();
 }
 function renderPassive(){
@@ -946,7 +918,7 @@ function combatView(){
   if(!combat.round) return {active:false};
   return {active:true, round:combat.round, turn:combat.turn, order:ordered().map(c=>{
     const pc = c.kind === 'pc' ? campaign.party.find(p=>p.name === c.name) : null;
-    return {id:c.id, kind:c.kind, name:c.name.slice(0, 100), sheet:pc ? pc.sheet : null, init:c.init, down:isDown(c), bloodied:isBloodied(c), conds:c.conds.map(k=>({name:k.name.slice(0, 60), rounds:k.rounds || 0}))};   // lengths fit the database rules
+    return {id:c.id, kind:c.kind, name:c.name.slice(0, 100), char:pc ? pc.char : null, init:c.init, down:isDown(c), bloodied:isBloodied(c), conds:c.conds.map(k=>({name:k.name.slice(0, 60), rounds:k.rounds || 0}))};   // lengths fit the database rules
   })};
 }
 let partyTurn = null;   // whose turn the Party cards last showed (they say who can roll)
@@ -1394,7 +1366,7 @@ function renderEncounter(){
   const inInit = combat.list.filter(c=>c.kind === 'pc').map(c=>c.name);
   const names = inInit.length ? inInit : campaign.party.map(p=>p.name);
   const levels = names.map(n=>party[n] && !party[n].error ? party[n].level : null);
-  if(levels.some(l=>l === null)){ $('encBody').innerHTML = '<p class="panel-note">Waiting for the party’s sheets…</p>'; return; }
+  if(levels.some(l=>l === null)){ $('encBody').innerHTML = '<p class="panel-note">Waiting for the party…</p>'; return; }
   const th = [0,1,2,3].map(k=>levels.reduce((s, l)=>s + THRESHOLDS[Math.min(20, Math.max(1, l))][k], 0));
   const monsters = combat.list.filter(c=>c.kind === 'monster');
   const counted = monsters.filter(c=>c.cr !== null && CR_XP[c.cr] !== undefined);
@@ -1615,25 +1587,25 @@ $('dmClipClear').addEventListener('click', ()=>{ $('dmClipBox').value = ''; dmBa
 
 /* ---------- Dice on the DM Screen (V4) ----------
    Who may roll: in combat, whoever's turn it is; outside it (or for a reaction or a save), the
-   players whose cards the DM has clicked (campaigns/<campaign>/allow/<sheet>). Players' rolls
+   players whose cards the DM has clicked (campaigns/<campaign>/allow/<char>). Players' rolls
    play here in their style. The DM's own rolls (the Dice panel, Roll buttons in stat blocks and
    concentration saves) are private: shown only on this screen, never shared. */
-function setAllow(sheet, on){
+function setAllow(char, on){
   if(!window.dmSetAllow){ $('liveState').textContent = 'Not connected: rolls can’t be allowed right now.'; return; }
-  allowed[sheet] = on; renderParty();   // shown now; the database confirms it a moment later
-  window.dmSetAllow(campaign.key, sheet, on);
+  allowed[char] = on; renderParty();   // shown now; the database confirms it a moment later
+  window.dmSetAllow(campaign.key, char, on);
 }
 $('partyGrid').addEventListener('click', e=>{
   if(e.target.closest('a, button, input, select')) return;
-  const card = e.target.closest('.pc-card[data-sheet]'); if(!card) return;
-  setAllow(card.dataset.sheet, !allowed[card.dataset.sheet]);
+  const card = e.target.closest('.pc-card[data-char]'); if(!card) return;
+  setAllow(card.dataset.char, !allowed[card.dataset.char]);
 });
-$('allowAll').addEventListener('click', ()=>campaign.party.forEach(pc=>setAllow(pc.sheet, true)));
-$('allowNone').addEventListener('click', ()=>campaign.party.forEach(pc=>{ if(allowed[pc.sheet]) setAllow(pc.sheet, false); }));
+$('allowAll').addEventListener('click', ()=>campaign.party.forEach(pc=>setAllow(pc.char, true)));
+$('allowNone').addEventListener('click', ()=>campaign.party.forEach(pc=>{ if(allowed[pc.char]) setAllow(pc.char, false); }));
 window.dmAllowUpdate = (key, data)=>{
   if(key !== campaign.key) return;
   allowed = {};
-  Object.entries(data || {}).forEach(([sheet, on])=>{ if(on === true) allowed[sheet] = true; });
+  Object.entries(data || {}).forEach(([char, on])=>{ if(on === true) allowed[char] = true; });
   renderParty();
 };
 // Rolls already there when the page opened (or the campaign changed) aren't replayed
@@ -1937,7 +1909,7 @@ try{
   window.dmLibraryWrite = (key, path, value, add)=>add ? push(ref(db, `campaigns/${FBK(key)}/dm/${path}`), value) : set(ref(db, `campaigns/${FBK(key)}/dm/${path}`), value);
   window.dmSettingsWrite = (key, path, value, add)=>add ? push(ref(db, `campaigns/${FBK(key)}/settings/${path}`), value) : set(ref(db, `campaigns/${FBK(key)}/settings/${path}`), value);
   // Let a player roll, or stop them (a click on their Party card)
-  window.dmSetAllow = (key, sheet, on)=>set(ref(db, `campaigns/${FBK(key)}/allow/${sheet}`), on ? true : null)
+  window.dmSetAllow = (key, char, on)=>set(ref(db, `campaigns/${FBK(key)}/allow/${char}`), on ? true : null)
     .catch(err=>{ console.warn('Allowing rolls:', err); window.dmLiveStatus('err', err.message); });
   window.dmLiveWatch(window.dmCampaignKey());
   window.dmPublishNow();

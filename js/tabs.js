@@ -3,7 +3,7 @@
    chosen tab's panels show; within a tab, panels still drag into your own order (js/panel-order.js).
    Tabs drag into your own order too (or move with the arrow keys while one has focus). Which tab is
    open and the tab order are kept in this browser (dndTracker:tabs). Details, Inventory and Notes are for
-   characters in the Turnkeeper database; a character still on a Google Sheet doesn't show them. */
+   characters in the Turnkeeper database. */
 const TK_TABS = [
   {key:'overview', label:'Overview', panels:['tablePanel', 'summaryPanel', 'resourcesPanel', 'statusPanel', 'combatPanel']},
   {key:'details', label:'Details', panels:['detailsPanel', 'profPanel', 'armsPanel'], db:true},
@@ -32,7 +32,12 @@ function renderTabs(){
   bar.innerHTML = tabOrder().filter(tabAvailable).map(t=>`<button type="button" role="tab" class="tk-tab" data-tab="${t.key}" aria-selected="false" title="Drag to reorder">${t.label}</button>`).join('')
     // Far right: Manual Roll (js/manual-roll.js), any dice, for whatever the tracker doesn't cover
     + `<button type="button" class="tk-manual" id="manualRollBtn" aria-haspopup="dialog" aria-expanded="false">Manual Roll</button>`;
-  showTab(tabPrefs.active || 'overview');
+  // A link can open a tab: turnkeeper.html?char=<id>&tab=inventory
+  const asked = new URLSearchParams(location.search).get('tab');
+  // (once it's available: Details, Inventory and Notes appear when the character has opened)
+  const ready = asked && !renderTabs.done && tabOrder().filter(tabAvailable).some(t=>t.key === asked);
+  if(ready) renderTabs.done = true;
+  showTab(ready ? asked : (tabPrefs.active || 'overview'));
 }
 // Moving a tab: by dragging, or with arrow keys (Alt+arrow) while it has focus
 // Put tab `key` where tab `overKey` is (the others shift along)

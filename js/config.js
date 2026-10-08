@@ -11,19 +11,18 @@ const FIREBASE_CONFIG = {
 const FB = 'https://www.gstatic.com/firebasejs/12.19.0/';
 
 // Campaigns and their party. Hard-coded for now (Justin, 2026-09-28): later, players join a
-// campaign from their account or a DM's invite link. A character's ID is its Google Sheet's ID
-// (the same ID it has in the Turnkeeper database); SHEET_GID is the sheets' main tab.
-const SHEET_GID = '359784640';
+// campaign from their account or a DM's invite link. `char` is the character's ID in the
+// Turnkeeper database (campaigns/<campaign>/characters/<char>).
 const CAMPAIGNS = [
   {key:'waterdeep', name:'Crisis in Waterdeep', party:[
-    {name:'Bel', sheet:'14TFj-bb1ixAUl9bw_tNdcIpWtnYxeV8JW5f2kIbiW_Q', portrait:'portraits/bel.webp'},
-    {name:'Ezlo', sheet:'1GqXXArCfLC42oVTF9XVrbNeKbw868HF1ih2S7VpX8jk', portrait:'portraits/ezlo.webp'},
-    {name:'Krunk', sheet:'1vIvEke6E12m7il5voB2n5rJAqwgJeWf_2BZYJSKpYgU', portrait:'portraits/krunk.jpg'},
-    {name:'Venthor', sheet:'1mS5Z2jgmi4U-bdEPP0JvZIkI-7puhWGjwlF8i6JIYbo', portrait:'portraits/venthor.webp'},
+    {name:'Bel', char:'14TFj-bb1ixAUl9bw_tNdcIpWtnYxeV8JW5f2kIbiW_Q', portrait:'portraits/bel.webp'},
+    {name:'Ezlo', char:'1GqXXArCfLC42oVTF9XVrbNeKbw868HF1ih2S7VpX8jk', portrait:'portraits/ezlo.webp'},
+    {name:'Krunk', char:'1vIvEke6E12m7il5voB2n5rJAqwgJeWf_2BZYJSKpYgU', portrait:'portraits/krunk.jpg'},
+    {name:'Venthor', char:'1mS5Z2jgmi4U-bdEPP0JvZIkI-7puhWGjwlF8i6JIYbo', portrait:'portraits/venthor.webp'},
   ]},
 ];
 // The campaign a character belongs to, or undefined
-const campaignOfChar = id=>CAMPAIGNS.find(c=>c.party.some(p=>p.sheet === id));
+const campaignOfChar = id=>CAMPAIGNS.find(c=>c.party.some(p=>p.char === id));
 
 // Test mode (?test=1 on the address, or any copy on this computer: localhost or a local file):
 // everything goes to a separate 'test' campaign in the database, so testing never touches the

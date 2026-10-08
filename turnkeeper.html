@@ -221,7 +221,7 @@ button.feat-opt[hidden]{display:none;}
 .fx-chip small{color:var(--ink-dim);}
 /* Build box (permanent choices) */
 .build-box{margin:0 0 14px; display:flex; flex-direction:column; gap:10px;}
-/* Asking for the character's name (the sheet template has no name cell) */
+/* Asking for the character's name (a character with no name yet) */
 .name-ask{display:flex; flex-wrap:wrap; align-items:center; gap:8px 10px; margin:0 0 14px; padding:10px 12px; border:1px solid var(--orange); background:var(--orange-wash); border-radius:6px; font-size:0.88rem;}
 .name-ask[hidden]{display:none;}
 .name-ask input{flex:1 1 180px; min-width:0; background:var(--panel2); border:1px solid var(--border); color:var(--ink); padding:7px 9px; border-radius:4px; font-size:0.95rem; font-family:var(--font-display);}
@@ -558,7 +558,6 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
 </style>
 <script src="js/config.js"></script>
 <script src="js/firebase.js"></script>
-<script src="js/sheet-reader.js"></script>
 <script src="js/themes.js"></script>
 </head>
 <body>
@@ -586,7 +585,7 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
         <div class="restore-actions"><button type="button" class="chip-btn" id="panelReset">Reset panel order</button><button type="button" class="chip-btn" id="panelOpenAll">Open every panel</button></div>
       </details>
       <details class="set-sec backup" id="setBackup"><summary>Backup</summary>
-        <p class="set-note">Everything this browser keeps for this character: HP, spell slots and charges, prepared spells and spellbook, pins, choices, feats, your dice and tray, and your theme and panel settings. Keep it somewhere safe, like a Google Doc, to move to another browser or in case this one loses it.</p>
+        <p class="set-note">A copy of everything saved for this character: HP, spell slots and charges, prepared spells and spellbook, pins, choices, feats, your dice and tray, and your theme and panel settings. It’s all saved to the character already; keep this copy somewhere safe, like a note on your phone, just in case.</p>
         <div class="restore-actions">
           <button type="button" class="chip-btn" id="downloadUsageBtn">Back up to .txt</button>
           <button type="button" class="chip-btn" id="restoreFileBtn">Restore from .txt</button>
@@ -607,26 +606,10 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
         <label class="set-check"><input type="checkbox" id="askBackup"> Ask before I close or leave the page if I haven’t backed up my latest changes</label>
         <p class="set-note">Your browser shows its own “Leave site?” box; choose Cancel, then back up here.</p>
       </details>
-      <!-- The old way in, kept for now: rarely needed now that characters live in the database -->
-      <details class="set-sec" id="setImport"><summary>Import from Google Sheet</summary>
-        <div class="import-row" style="margin-top:8px;">
-      <input type="text" id="sheetUrl" placeholder="Paste the public Google Sheet link here">
-      <button id="importBtn">Import</button>
-      <button class="ghost" id="clearBtn" type="button">Clear</button>
-    </div>
-    <div class="status" id="importStatus">Sheet must be shared as "Anyone with the link can view."</div>
-    <div class="import-row" id="dbCopyRow" style="margin-top:8px;" hidden><button type="button" class="ghost" id="dbCopyBtn">Copy this character into the Turnkeeper database</button><span class="status" id="dbCopyMsg"></span></div>
-    <div id="rawDumpWrap" style="display:none; margin-top:10px;">
-      <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
-        <div class="spell-toggle" id="rawDumpToggle" style="font-size:0.85rem;"><span class="arrow">&#9656;</span><span style="color:var(--sea-dim);">Show raw sheet cells (for fixing ranges)</span></div>
-        <button class="ghost" id="copyDumpBtn" type="button" style="font-size:0.75rem; padding:4px 10px; white-space:nowrap;">Copy dump</button>
-      </div>
-      <div id="rawDumpBody" class="spell-body"><div id="rawDumpText" style="font-family:monospace; font-size:0.75rem; color:var(--ink-dim); max-height:320px; overflow-y:auto; background:var(--panel2); border:1px solid var(--border); border-radius:4px; padding:8px 10px; margin-top:8px; white-space:pre-wrap;"></div></div>
-    </div>
-      </details>
     </div>
   </div>
 </header>
+<div class="status load-status" id="loadStatus" role="status"></div>
 <!-- V5: tabs (js/tabs.js) -->
 <nav class="tk-tabs" id="tkTabs" role="tablist" aria-label="Character sheet"></nav>
 
@@ -646,7 +629,7 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
     <input type="text" id="nameAskInput" maxlength="60" autocomplete="off">
     <button type="button" id="nameAskSave">Save</button>
     <button type="button" class="ghost" id="nameAskCancel" hidden>Cancel</button>
-    <span class="name-ask-note">Turnkeeper remembers it for this sheet, in this browser.</span>
+    <span class="name-ask-note">Turnkeeper saves it with the character.</span>
   </div>
   <div id="buildBox" class="build-box" hidden></div>
   <div class="summary-grid">
@@ -762,13 +745,13 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
       <button type="button" id="hpDamage">Damage</button>
       <button type="button" id="hpHeal">Heal</button>
       <button type="button" id="hpTempBtn" title="Set temporary hit points to this amount (they don't stack: you keep the higher)">Temp HP</button>
-      <button type="button" class="sel-toggle" id="hpReset" title="Set hit points back to the value on your sheet">Reset to sheet</button>
+      <button type="button" class="sel-toggle" id="hpReset" title="Set hit points back to your maximum">Reset to full</button>
     </div>
   </div>
   <div class="resist-note" id="resistNote" hidden></div>
   <div class="conc-box" id="concBox" hidden></div>
   <div class="death-box" id="deathBox" hidden></div>
-  <div id="resRows"><p class="empty-note">Import a sheet to track resources.</p></div>
+  <div id="resRows"><p class="empty-note">Open a character to track resources.</p></div>
   <!-- Resting: at the bottom, apart from Inspiration and gold (in the header) -->
   <div class="rest-row"><span class="res-label">Rest</span><div class="rest-btns"><button type="button" class="ghost" id="shortRestBtn">Short Rest</button><button type="button" class="ghost" id="longRestBtn">Long Rest</button></div></div>
   <div class="rest-msg" id="restMsg" aria-live="polite"></div>
@@ -1195,9 +1178,9 @@ function renderCheckDetail(act){
 }
 
 /* ---------- Checks & Saves (Anytime): kind → skill/ability → roll mode → Roll → popup ----------
-   Skill checks and saves use the sheet's modifiers (Turnkeeper's ASI/feat changes included).
-   Jack of All Trades is already in the sheet's skills but not in a plain ability check, so it's
-   added there. Aura of Protection is added to every save: the sheet doesn't know about it. */
+   Skill checks and saves use the character's modifiers (ASI and feat changes included).
+   Jack of All Trades is already in the skills but not in a plain ability check, so it's added
+   there. Aura of Protection is added to every save. */
 const CHECK_KINDS = [['skill','Skill check'], ['ability','Ability check'], ['save','Saving throw']];
 const checksFlow = {type:null, key:null, mode:'normal'};
 const joatBonus = ()=>hasFeature('Jack of All Trades') ? Math.floor(proficiencyBonus()/2) : 0;
@@ -1205,7 +1188,7 @@ const auraBonus = ()=>hasFeature('Aura of Protection') ? Math.max(1, abilityScor
 // What a check or save rolls: {name, bonus, minTen, included:[notes on what's in the bonus]}
 function checkInfo(type, key){
   if(type==='init'){
-    // The summary's Initiative box: the sheet's value with Dexterity changes and Alert applied
+    // The summary's Initiative box: the base value with Dexterity changes and Alert applied
     const n = parseInt(String(document.getElementById('f_init').value).replace(/\s/g,''),10) || 0;
     return {name:'Initiative', bonus:n, included: hasFeat('Alert') ? ['Alert: +5 included, and you can’t be surprised while you’re conscious.'] : []};
   }
@@ -1213,7 +1196,7 @@ function checkInfo(type, key){
     const s = state.skills.find(x=>x.name===key), minTen = reliableFor(key);
     const included = [];
     if(minTen) included.push('Reliable Talent: a d20 roll of 9 or lower counts as 10 (<code>mi10</code>).');
-    if(s && !s.prof && joatBonus()) included.push(`Jack of All Trades: your sheet’s ${key} modifier already includes +${joatBonus()}.`);
+    if(s && !s.prof && joatBonus()) included.push(`Jack of All Trades: your ${key} modifier already includes +${joatBonus()}.`);
     return {name:`${key} check`, bonus:skillMod(key), minTen, included};
   }
   if(type==='ability'){
@@ -1260,7 +1243,7 @@ function renderChecksDetail(){
   let html = `<h4>Checks &amp; Saves</h4><div class="flow-summary" style="margin-top:0;">Roll when the DM asks for a check or a save. It doesn’t use your action.</div>`
     + `<div class="flow-label">What are you rolling?</div><div class="flow-grid">`
     + CHECK_KINDS.map(([k,l])=>`<button type="button" class="flow-btn${f.type===k?' active':''}" data-kind="${k}">${l}</button>`).join('') + `</div>`;
-  if(f.type==='skill' && !picks.length) html += `<p class="empty-note" style="margin-top:8px;">No skills imported yet. Import your sheet to see them here.</p>`;
+  if(f.type==='skill' && !picks.length) html += `<p class="empty-note" style="margin-top:8px;">No skills yet.</p>`;
   if(picks.length){
     html += `<div class="flow-label">${f.type==='skill' ? 'Which skill?' : 'Which ability?'}</div><div class="flow-grid">`
       + picks.map(([k,l])=>`<button type="button" class="flow-btn${f.key===k?' active':''}" data-pick="${escapeHtml(k)}">${escapeHtml(l)} ${fmtMod(checkInfo(f.type, k).bonus)}</button>`).join('') + `</div>`;
@@ -1495,41 +1478,41 @@ function tempFromPopup(n){
 }
 /* ---------- Healing others ----------
    A healing spell or Lay on Hands asks who's healed: you, or anyone in your party (in combat,
-   the players in the turn order). Healing someone else is sent to their sheet (tkSendHeal),
+   the players in the turn order). Healing someone else is sent to their character (tkSendHeal),
    which adds the HP and shows who healed them in a golden glow (tkHealed). Spells that heal
    several creatures let you pick several; each gets the total you enter. */
 const MULTI_HEAL = {'Mass Cure Wounds':6, 'Mass Healing Word':6, 'Prayer of Healing':6, 'Heal':1, 'Mass Heal':99};
 function healCandidates(){
-  const me = {key:'s:' + currentCharId, name:myName(), sheet:currentCharId};
+  const me = {key:'s:' + currentCharId, name:myName(), char:currentCharId};
   if(!tkConnected() || !window.tkSendHeal) return [me];
-  return [me, ...targetCandidates().filter(c=>c.sheet && c.sheet !== currentCharId)];
+  return [me, ...targetCandidates().filter(c=>c.char && c.char !== currentCharId)];
 }
-// The "Heal who?" buttons (rollState.healTo: the picked sheets; you by default)
+// The "Heal who?" buttons (rollState.healTo: the picked characters; you by default)
 function healPickHtml(max){
   const cands = healCandidates();
   if(!rollState.healTo) rollState.healTo = [currentCharId];
-  rollState.healTo = rollState.healTo.filter(s=>cands.some(c=>c.sheet === s));
+  rollState.healTo = rollState.healTo.filter(s=>cands.some(c=>c.char === s));
   if(cands.length < 2) return '';
   return `<div class="roll-toggles heal-who"><span>Heal${max > 1 ? ` (up to ${max})` : ''}:</span>${cands.map(c=>{
-    const on = rollState.healTo.includes(c.sheet);
-    return `<button type="button" class="flow-btn${on ? ' active' : ''}" data-heal-to="${escapeHtml(c.sheet)}" aria-pressed="${on}">${escapeHtml(c.sheet === currentCharId ? 'Me' : c.name)}</button>`;
+    const on = rollState.healTo.includes(c.char);
+    return `<button type="button" class="flow-btn${on ? ' active' : ''}" data-heal-to="${escapeHtml(c.char)}" aria-pressed="${on}">${escapeHtml(c.char === currentCharId ? 'Me' : c.name)}</button>`;
   }).join('')}</div>`;
 }
-function healToClick(sheet, max){
+function healToClick(char, max){
   const list = rollState.healTo || [];
-  if(list.includes(sheet)) rollState.healTo = list.filter(s=>s !== sheet);
-  else rollState.healTo = max > 1 ? [...list, sheet].slice(-max) : [sheet];
+  if(list.includes(char)) rollState.healTo = list.filter(s=>s !== char);
+  else rollState.healTo = max > 1 ? [...list, char].slice(-max) : [char];
   renderRollPopup();
 }
-// Heal everyone picked for n: you directly (with Undo), others by sending it to their sheet
+// Heal everyone picked for n: you directly (with Undo), others by sending it to their character
 function healPicked(n, what){
   if(!(n > 0)) return [];
   const cands = healCandidates(), done = [];
-  (rollState.healTo || [currentCharId]).forEach(sheet=>{
-    if(sheet === currentCharId){ const got = healSelf(n); done.push({name:'you', n:got, self:true}); return; }
-    const c = cands.find(x=>x.sheet === sheet); if(!c) return;
+  (rollState.healTo || [currentCharId]).forEach(char=>{
+    if(char === currentCharId){ const got = healSelf(n); done.push({name:'you', n:got, self:true}); return; }
+    const c = cands.find(x=>x.char === char); if(!c) return;
     const d = {name:c.name, n};
-    window.tkSendHeal(sheet, {from:myName(), what, hp:Math.min(999, n)}).catch(err=>{
+    window.tkSendHeal(char, {from:myName(), what, hp:Math.min(999, n)}).catch(err=>{
       console.warn('Sending healing:', err);
       d.failed = true;
       if(what === 'Lay on Hands'){ spend('feat:Lay on Hands', -n); d.refunded = true; }   // the points weren't used
@@ -1542,7 +1525,7 @@ function healPicked(n, what){
 const healDoneHtml = done=>done.map(d=>d.self
   ? `Added ${d.n} HP to you (now ${hpNow()} / ${hpMax()}). <button type="button" class="sel-toggle" data-heal-undo="1">Undo</button>`
   : d.failed ? `<span style="color:var(--danger);">Couldn’t send the healing to ${escapeHtml(d.name)} (not connected). ${d.refunded ? ' The points went back into your pool.' : ` Tell them to add ${d.n} HP.`}</span>`
-  : `Sent ${d.n} HP to ${escapeHtml(d.name)}; it’s added on their sheet.`).join('<br>');
+  : `Sent ${d.n} HP to ${escapeHtml(d.name)}; it’s added to their hit points.`).join('<br>');
 // Spell popups: who, how much, Heal
 function healWhoHtml(what, max){
   if(!currentCharId || hpNow() === null) return '';
@@ -1550,11 +1533,11 @@ function healWhoHtml(what, max){
   const others = (rollState.healTo || [currentCharId]).some(s=>s !== currentCharId);
   return healPickHtml(max) + `<div class="roll-toggles heal-me"><span>${others ? 'Enter the total:' : 'Healed yourself? Enter the total:'}</span><input type="number" class="num-in" id="healAmt" min="1" aria-label="Healing total"><button type="button" class="flow-btn" data-heal-go="${escapeHtml(what)}" data-heal-max="${max}">${others ? 'Heal' : 'Add to my HP'}</button></div>`;
 }
-// On the healed player's sheet: add the HP and show who healed them
+// On the healed player's page: add the HP and show who healed them
 window.tkHealed = h=>{
   const n = Math.round(+h.hp);
   if(!currentCharId || !(n > 0) || hpNow() === null) return;
-  // A heal that's been waiting more than 6 hours (sent while this sheet was closed) is dropped
+  // A heal that's been waiting more than 6 hours (sent while this character was closed) is dropped
   if(typeof h.t === 'number' && Date.now() - h.t > 6 * 3600 * 1000) return;
   const before = hpNow();
   setHp(before + n);
@@ -1607,7 +1590,7 @@ function renderAttackDetail(){
   let html = `<h4>Attack</h4><div class="flow-label">Choose an attack</div><div class="flow-grid">`
     + choices.map(c=>`<button type="button" class="flow-btn${c===sel?' active':''}" data-choice="${c.key}">${escapeHtml(c.label)}</button>`).join('')
     + `</div>`;
-  if(!state.attacks.length) html += `<p class="empty-note" style="margin-top:8px;">No weapons imported yet. Import your sheet to see them here.</p>`;
+  if(!state.attacks.length) html += `<p class="empty-note" style="margin-top:8px;">No weapons equipped. Equip one in the Inventory tab.</p>`;
   if(sel){
     const summary = sel.kind==='weapon'
       ? `${escapeHtml(sel.attack.bonus||'—')} to hit &middot; ${escapeHtml(sel.attack.damage||'—')}`
@@ -1919,12 +1902,12 @@ function statusSpeed(){
   return {mult, why:why.join(', ')};
 }
 function statusAC(){ return statusActive().reduce((n, d)=>n + (d.ac || 0), 0); }
-let statusBaseAC = '';   // the sheet's AC, set on import
+let statusBaseAC = '';   // the base AC, set when the character opens
 function updateACBox(){
   const el = document.getElementById('f_ac'), base = parseInt(statusBaseAC, 10), mod = statusAC();
   if(isNaN(base)){ el.value = statusBaseAC; el.title = ''; return; }
   el.value = String(base + mod);
-  el.title = mod ? `${base} on your sheet ${fmtMod(mod)} (${statusActive().filter(d=>d.ac).map(d=>`${d.name} ${fmtMod(d.ac)}`).join(', ')})` : '';
+  el.title = mod ? `${base} base ${fmtMod(mod)} (${statusActive().filter(d=>d.ac).map(d=>`${d.name} ${fmtMod(d.ac)}`).join(', ')})` : '';
 }
 const statusUi = {open:false};
 function renderStatus(){
@@ -2114,7 +2097,7 @@ function damageCommand(){
   let sneak = 0;
   if(sneakOk && rollState.sneak){ sneak = sneakDice * (rollState.crit ? 2 : 1); notes.push(`Sneak Attack: +${sneakDice}d6${rollState.crit ? ' (doubled for the crit)' : ''}. Once per turn.`); }
   // Two-Weapon Fighting: the off-hand attack adds no ability modifier to damage unless it's negative.
-  // (Assumes the sheet's damage modifier is the ability modifier; a magic weapon bonus would also be dropped.)
+  // (Assumes the damage modifier is the ability modifier; a magic weapon bonus would also be dropped.)
   let mod = p.mod + (dueling ? 2 : 0);
   if(offhand){ mod = Math.min(p.mod, 0); notes.push('Two-Weapon Fighting: no ability modifier on off-hand damage (unless negative)'); }
   // Great Weapon Master / Sharpshooter: a flat +10, so a crit doesn't double it
@@ -2199,8 +2182,8 @@ const critToggle = ()=>`<div class="roll-after">After you see the attack roll:</
      it moves on from you, End my turn (so durations count down). The DM's round wins.
    - Spells and features that affect creatures (TARGETED) ask who they're cast on, from the
      turn order (or the party outside combat). The picks are kept in track.cast
-     [{id, name, status, conc, rounds, targets:[{id, name, sheet}]}] and shared as
-     effects/<sheet>. They end with your concentration, their duration (counted on your
+     [{id, name, status, conc, rounds, targets:[{id, name, char}]}] and shared as
+     effects/<char>. They end with your concentration, their duration (counted on your
      End my turn), a rest or their End button.
    - A status on a player (Bless on Venthor) is ticked in their own Status and changes their
      rolls: status.ext = {statusKey: caster name} marks it, and it comes off when the
@@ -2240,7 +2223,7 @@ window.tkTableUpdate = (part, data)=>{
 function followDmCombat(){
   if(!currentCharId || !myCampaignKey()) return;
   const c = table.combat, active = !!(c && c.active);
-  const me = active ? arrOf(c.order).find(o=>o.sheet === currentCharId) : null;
+  const me = active ? arrOf(c.order).find(o=>o.char === currentCharId) : null;
   const myTurn = !!(me && c.turn === me.id);
   let changed = false;
   if(active && !track.combat){ track.combat = newCombat(); track.combat.msg = 'Your DM started combat. Your turn starts here when it comes up.'; changed = true; }
@@ -2257,19 +2240,19 @@ function followDmCombat(){
 // Every effect in the campaign: others' as shared, yours from track.cast (the freshest)
 function allEffects(){
   const others = Object.entries(table.effects || {}).filter(([s])=>s !== currentCharId)
-    .flatMap(([s, list])=>Object.values(list || {}).map(e=>({...e, casterSheet:s})));
-  return [...others, ...(track.cast || []).map(e=>({...e, caster:myName(), casterSheet:currentCharId}))];
+    .flatMap(([s, list])=>Object.values(list || {}).map(e=>({...e, casterChar:s})));
+  return [...others, ...(track.cast || []).map(e=>({...e, caster:myName(), casterChar:currentCharId}))];
 }
-const targetKey = t=>t.sheet ? 's:' + t.sheet : 'c:' + t.id;
+const targetKey = t=>t.char ? 's:' + t.char : 'c:' + t.id;
 // Statuses others (or you) have put on this character: {statusKey: caster name}
 function incomingStatuses(){
   const out = {};
   const restAt = statusState().restAt || 0;
   allEffects().forEach(e=>{
-    if(!e.status || !arrOf(e.targets).some(t=>t.sheet === currentCharId)) return;
+    if(!e.status || !arrOf(e.targets).some(t=>t.char === currentCharId)) return;
     const castAt = parseInt(String(e.id || '').replace(/^c/, ''), 10);
     if(restAt && castAt && castAt < restAt) return;   // it ended during your rest
-    [].concat(e.status).forEach(k=>{ if(STATUS_BY_KEY[k]) out[k] = e.casterSheet === currentCharId ? 'you' : e.caster; });
+    [].concat(e.status).forEach(k=>{ if(STATUS_BY_KEY[k]) out[k] = e.casterChar === currentCharId ? 'you' : e.caster; });
   });
   return out;
 }
@@ -2287,22 +2270,22 @@ function renderTable(){
   panel.hidden = banner.hidden = !on;
   if(!on){ document.getElementById('itable').innerHTML = ''; return; }
   const c = table.combat, order = arrOf(c.order), cur = order.find(o=>o.id === c.turn);
-  const mine = !!(cur && cur.sheet === currentCharId);
+  const mine = !!(cur && cur.char === currentCharId);
   banner.className = 'combat-banner' + (mine ? ' mine' : '');
   banner.innerHTML = `<span class="cb-title">⚔ In combat</span><span>Round ${c.round}</span><span>${mine ? '<b>Your turn!</b>' : cur ? `${escapeHtml(cur.name)}’s turn` : ''}</span>`
     + (mine && track.combat && track.combat.onTurn ? `<button type="button" class="ghost cb-end" data-banner-end="1">End my turn</button>` : '');
   document.getElementById('tableRound').textContent = `Round ${c.round} · ${(c.round - 1) * 6} seconds in`;
   const effs = allEffects(), live = table.live || {};
   document.getElementById('itable').innerHTML = order.map(o=>{
-    const L = o.sheet ? live[o.sheet] : null, me = o.sheet === currentCharId, chips = [];
+    const L = o.char ? live[o.char] : null, me = o.char === currentCharId, chips = [];
     if(o.down) chips.push(`<span class="ichip cond">Defeated</span>`);
     if(o.bloodied === true) chips.push(`<span class="ichip bloody" title="Half its hit points or less">Bloodied</span>`);
     if(L && L.hp && L.hp.cur === 0) chips.push(`<span class="ichip cond">Down</span>`);
     arrOf(o.conds).forEach(k=>chips.push(`<span class="ichip cond">${escapeHtml(k.name)}${k.rounds ? ` (${k.rounds})` : ''}</span>`));
     if(L) arrOf(L.status).filter(s=>!s.from).forEach(s=>chips.push(`<span class="ichip ${s.group === 'cond' ? 'cond' : 'fx'}">${escapeHtml(s.name)}</span>`));
     if(L && L.conc) chips.push(`<span class="ichip fx">Concentrating: ${escapeHtml(L.conc.name)}</span>`);
-    effs.filter(e=>arrOf(e.targets).some(t=>o.sheet ? t.sheet === o.sheet : (!t.sheet && t.id === o.id))).forEach(e=>{
-      const yours = e.casterSheet === currentCharId;
+    effs.filter(e=>arrOf(e.targets).some(t=>o.char ? t.char === o.char : (!t.char && t.id === o.id))).forEach(e=>{
+      const yours = e.casterChar === currentCharId;
       chips.push(`<span class="ichip ${yours ? 'mine' : 'fx'}" title="Cast by ${escapeHtml(yours ? 'you' : e.caster)}">${escapeHtml(e.name)} · ${escapeHtml(yours ? 'you' : e.caster)}</span>`);
     });
     return `<div class="irow${o.id === c.turn ? ' turn' : ''}${me ? ' me' : ''}${o.down ? ' down' : ''}${o.bloodied === true ? ' bloodied' : ''}"><span class="imark" aria-hidden="true">▶</span><span class="iinit">${o.init ?? '—'}</span>`
@@ -2325,20 +2308,20 @@ function targetedInfo(sel){
 }
 function targetCandidates(){
   if(tableActive()) return arrOf(table.combat.order).filter(o=>o.kind !== 'lair' && !o.down)
-    .map(o=>({key:o.sheet ? 's:' + o.sheet : 'c:' + o.id, id:o.id, name:o.name, sheet:o.sheet || null}));
-  const party = Object.entries(table.live || {}).map(([s, L])=>({key:'s:' + s, id:null, name:L.name || 'Party member', sheet:s}));
-  if(!party.some(p=>p.sheet === currentCharId)) party.unshift({key:'s:' + currentCharId, id:null, name:myName(), sheet:currentCharId});
+    .map(o=>({key:o.char ? 's:' + o.char : 'c:' + o.id, id:o.id, name:o.name, char:o.char || null}));
+  const party = Object.entries(table.live || {}).map(([s, L])=>({key:'s:' + s, id:null, name:L.name || 'Party member', char:s}));
+  if(!party.some(p=>p.char === currentCharId)) party.unshift({key:'s:' + currentCharId, id:null, name:myName(), char:currentCharId});
   return party;
 }
 function targetPickHtml(){
   const info = rollState.target; if(!info) return '';
   const cast = (track.cast || []).find(x=>x.id === info.id);
   const picked = new Set((cast ? arrOf(cast.targets) : []).map(targetKey));
-  const cands = targetCandidates().filter(c=>!(info.notSelf && c.sheet === currentCharId));
+  const cands = targetCandidates().filter(c=>!(info.notSelf && c.char === currentCharId));
   const full = picked.size >= info.max;
   return `<div class="roll-box target-pick"><div class="roll-box-label">Cast on${info.max > 1 ? ` (up to ${info.max})` : ''}</div>`
     + (cands.length ? `<div class="roll-toggles">${cands.map(c=>{ const on = picked.has(c.key);
-        return `<button type="button" class="flow-btn${on ? ' active' : ''}" data-target="${escapeHtml(c.key)}" aria-pressed="${on}"${!on && full ? ' disabled' : ''}>${escapeHtml(c.name)}${c.sheet === currentCharId ? ' <small>(you)</small>' : ''}</button>`; }).join('')}</div>`
+        return `<button type="button" class="flow-btn${on ? ' active' : ''}" data-target="${escapeHtml(c.key)}" aria-pressed="${on}"${!on && full ? ' disabled' : ''}>${escapeHtml(c.name)}${c.char === currentCharId ? ' <small>(you)</small>' : ''}</button>`; }).join('')}</div>`
       : `<p class="empty-note">No one to pick yet.</p>`)
     + `<div class="roll-after">${info.save ? 'Pick only the creatures that failed the save. ' : ''}${tableActive() ? 'It shows in everyone’s Initiative list' : 'Your party and DM see it'}${info.status ? '; on a player it’s ticked in their Status and changes their rolls' : ''}${info.conc ? ', until your concentration ends' : ''}.</div></div>`;
 }
@@ -2350,7 +2333,7 @@ function targetClick(key){
   if(!cast){ cast = {id:info.id, name:info.name, status:info.status, conc:info.conc, rounds:info.rounds, targets:[]}; track.cast.push(cast); }
   const list = arrOf(cast.targets), at = list.findIndex(t=>targetKey(t) === key);
   if(at >= 0) list.splice(at, 1);
-  else if(list.length < info.max) list.push({id:cand.id, name:cand.name, sheet:cand.sheet});
+  else if(list.length < info.max) list.push({id:cand.id, name:cand.name, char:cand.char});
   cast.targets = list;
   if(!list.length) track.cast = track.cast.filter(x=>x !== cast);
   saveTrack(); applyIncoming(); renderActiveFx(); renderTable(); renderRollPopup();
@@ -2368,7 +2351,7 @@ function endCast(id){
 }
 /* Who you're attacking, or aiming a spell at, in shared combat. The Attack popup and spell
    popups list the turn order; a pick tells the DM Screen ("Krunk → Goblin 2 · Greatsword")
-   through acts/<sheet>/last. On a weapon attack, a mark you've put on that creature (Hunter's
+   through acts/<char>/last. On a weapon attack, a mark you've put on that creature (Hunter's
    Mark, Vow of Enmity) is ticked for you, and marks on others are unticked. */
 function aimMax(sel){
   if(sel.kind === 'weapon') return 1;
@@ -2384,7 +2367,7 @@ function aimHtml(){
   const picked = new Set(rollState.aim || []);
   return `<div class="roll-box target-pick"><div class="roll-box-label">${sel.kind === 'weapon' ? 'Attacking' : 'Target'}${max > 1 ? ` (up to ${max})` : ''}</div><div class="roll-toggles">`
     + targetCandidates().map(c=>{ const on = picked.has(c.key);
-        return `<button type="button" class="flow-btn${on ? ' active' : ''}" data-aim="${escapeHtml(c.key)}" aria-pressed="${on}"${!on && picked.size >= max ? ' disabled' : ''}>${escapeHtml(c.name)}${c.sheet === currentCharId ? ' <small>(you)</small>' : ''}</button>`; }).join('')
+        return `<button type="button" class="flow-btn${on ? ' active' : ''}" data-aim="${escapeHtml(c.key)}" aria-pressed="${on}"${!on && picked.size >= max ? ' disabled' : ''}>${escapeHtml(c.name)}${c.char === currentCharId ? ' <small>(you)</small>' : ''}</button>`; }).join('')
     + `</div><div class="roll-after">Your DM sees who you picked.</div></div>`;
 }
 function aimClick(key){
@@ -2395,14 +2378,14 @@ function aimClick(key){
     rollState.fxOn[e.id] = (track.cast || []).some(x=>x.name === e.name && arrOf(x.targets).some(t=>list.includes(targetKey(t))));
   });
   const cands = targetCandidates();
-  const targets = list.map(k=>cands.find(c=>c.key === k)).filter(Boolean).map(c=>({id:c.id, name:c.name, sheet:c.sheet}));
+  const targets = list.map(k=>cands.find(c=>c.key === k)).filter(Boolean).map(c=>({id:c.id, name:c.name, char:c.char}));
   if(targets.length && window.tkSendAct) window.tkSendAct('last', {what:sel.label.slice(0, 80), targets});
   renderRollPopup();
 }
 // End my turn here moves the DM's turn order on (the DM Screen checks it's still your turn)
 function sendTurnEnd(){
   if(!tableActive() || !window.tkSendAct) return;
-  const c = table.combat, me = arrOf(c.order).find(o=>o.sheet === currentCharId);
+  const c = table.combat, me = arrOf(c.order).find(o=>o.char === currentCharId);
   if(me && c.turn === me.id) window.tkSendAct('turnEnd', {turn:me.id, round:c.round});
 }
 
@@ -2528,7 +2511,7 @@ function featurePopupHtml(){
       + `<div style="margin-top:8px;">${healPickHtml(1)}</div>`
       + `<div class="roll-toggles" style="margin-top:8px; align-items:center;"><input type="number" id="lohAmt" min="1" max="${left}" value="${Math.min(5, left) || 1}" style="width:64px; background:var(--bg); border:1px solid var(--border); color:var(--ink); padding:5px 8px; border-radius:4px;" aria-label="Hit points to spend">`
       + `<button type="button" class="flow-btn" data-loh="heal"${left ? '' : ' disabled'}>${others ? 'Heal' : 'Heal myself'}</button>`
-      + `<button type="button" class="flow-btn" data-loh="amt"${left ? '' : ' disabled'} title="Spend from the pool on someone without a sheet here (an NPC or a creature)">Spend only</button>`
+      + `<button type="button" class="flow-btn" data-loh="amt"${left ? '' : ' disabled'} title="Spend from the pool on someone without Turnkeeper here (an NPC or a creature)">Spend only</button>`
       + `<button type="button" class="flow-btn" data-loh="5"${left >= 5 ? '' : ' disabled'}>Cure disease/poison (5)</button></div>`);
     if(rollState.healDone) html += `<div class="spent-line">${healDoneHtml(rollState.healDone)}</div>`;
   }
@@ -2545,13 +2528,13 @@ function spendLineHtml(){
   return `<div class="spent-line warn">${cap}: none left. Check with your DM, or restore one in Resources if that’s wrong.</div>`;
 }
 /* V5: a weapon's "On hit" effects (js/inventory.js), applied to the creature you hit. It's shared
-   like a spell you cast on someone (track.cast → effects/<sheet>): it shows on the turn order here
+   like a spell you cast on someone (track.cast → effects/<char>): it shows on the turn order here
    and on the DM Screen, a standard condition is ticked on a player it lands on, and it's ended
    from your Active effects (or runs out, for a set number of turns). */
 function onHitApplyHtml(){
   const a = rollState.sel && rollState.sel.attack, fx = a && a.onHit;
   if(!fx || !fx.length || !tkConnected()) return '';
-  const cands = targetCandidates().filter(c=>c.sheet !== currentCharId), done = rollState.onHitDone || [];
+  const cands = targetCandidates().filter(c=>c.char !== currentCharId), done = rollState.onHitDone || [];
   return `<div class="roll-box target-pick"><div class="roll-box-label">On hit</div>`
     + fx.map(x=>`<div class="roll-after"><b>${escapeHtml(x.name)}</b>${x.desc ? `: ${escapeHtml(x.desc)}` : ''}</div>`
       + (cands.length ? `<div class="roll-toggles">${cands.map(c=>{ const on = done.includes(x.name + '|' + c.key);
@@ -2565,7 +2548,7 @@ function applyOnHit(name, key){
   const turns = String(def.duration || '').match(/(\d+)\s*turns?/i);
   track.cast = track.cast || [];
   track.cast.push({id:'c' + Date.now(), name:def.name, status:def.standard ? def.key : null, conc:false,
-    rounds:turns ? +turns[1] : null, targets:[{id:cand.id, name:cand.name, sheet:cand.sheet}]});
+    rounds:turns ? +turns[1] : null, targets:[{id:cand.id, name:cand.name, char:cand.char}]});
   rollState.onHitDone = [...(rollState.onHitDone || []), name + '|' + key];
   saveTrack(); applyIncoming(); renderActiveFx(); renderTable(); renderRollPopup();
 }
@@ -2573,7 +2556,7 @@ function applyOnHit(name, key){
 function turnEffectNotes(){
   if(typeof campaignDefs === 'undefined') return [];
   const defs = Object.values(campaignDefs.effectDefs || {});
-  return allEffects().filter(e=>e.casterSheet !== currentCharId && arrOf(e.targets).some(t=>t.sheet === currentCharId)).map(e=>{
+  return allEffects().filter(e=>e.casterChar !== currentCharId && arrOf(e.targets).some(t=>t.char === currentCharId)).map(e=>{
     const d = defs.find(x=>x.name === e.name); if(!d || !d.dmg || d.freq !== 'turn') return null;
     return `${e.name} (from ${e.caster}): take ${d.dmg} ${d.dmgType || ''} damage now, with Damage in Resources${d.endKind && d.endWhat ? `; a DC ${d.endDC || '?'} ${d.endWhat} ${d.endKind} ends it` : ''}${d.duration === 'healed' ? '; it ends once you’re healed' : ''}.`.replace(/\s+/g, ' ');
   }).filter(Boolean);
@@ -2603,7 +2586,7 @@ function renderRollPopup(){
   if(sel.kind==='weapon'){
     const dmg = damageCommand();
     if(!dmg){
-      html += `<div class="roll-box"><div class="roll-box-label">Damage</div><p class="empty-note">Couldn’t read this weapon’s damage from the sheet (“${escapeHtml(sel.attack.damage||'')}”).</p></div>`;
+      html += `<div class="roll-box"><div class="roll-box-label">Damage</div><p class="empty-note">Couldn’t read this weapon’s damage (“${escapeHtml(sel.attack.damage||'')}”).</p></div>`;
     } else {
       // Decided after seeing the to-hit roll, per the rules: crit and Divine Smite
       let toggles = `<div class="roll-after">After you see the roll:</div><div class="roll-toggles">${toggleBtn('data-crit','1','Crit',rollState.crit)}`
@@ -2655,7 +2638,7 @@ rollPopup.addEventListener('click', e=>{
   else if(t.dataset.loh){
     const n = t.dataset.loh==='5' ? 5 : (parseInt(document.getElementById('lohAmt').value,10) || 0);
     const spent = n > 0 ? spend('feat:Lay on Hands', Math.min(n, remaining('feat:Lay on Hands'))) : 0;
-    // Heal: the points spent go to whoever's picked (you, or a party member's sheet)
+    // Heal: the points spent go to whoever's picked (you, or a party member)
     if(t.dataset.loh==='heal' && spent){
       rollState.healDone = healPicked(spent, 'Lay on Hands');
       if(rollState.healBefore && rollState.healDone.some(d=>d.self)) rollState.healBefore.lohSpent = spent;
@@ -2936,7 +2919,7 @@ function renderBonusDetail(){
     const weapons = lightMeleeWeapons();
     html += `<div class="flow-summary">After you take the Attack action with a light melee weapon, attack with a different light melee weapon in your other hand. Don’t add your ability modifier to the damage unless it’s negative.</div>`;
     if(!weapons.length){
-      html += `<p class="empty-note" style="margin-top:8px;">No light melee weapons on your sheet.</p>`;
+      html += `<p class="empty-note" style="margin-top:8px;">No light melee weapons equipped.</p>`;
     } else {
       if(!weapons.some(w=>w.i===bonusFlow.weapon)) bonusFlow.weapon = weapons.length===1 ? weapons[0].i : null;
       html += `<div class="flow-label">Off-hand weapon</div><div class="flow-grid">`
@@ -3012,7 +2995,7 @@ function wireCunningStep(){
 }
 
 /* ---------- Reactions flow (Anytime): same path as Bonus Action Options ----------
-   Nothing here is per character: an opportunity attack with any melee weapon on the sheet,
+   Nothing here is per character: an opportunity attack with any melee weapon you have,
    every class feature, feat, racial trait or picked option with type 'reaction', and every
    castable spell whose casting time is 1 Reaction. */
 const reactFlow = {pick:null, weapon:null, mode:'normal', power:false};
@@ -3040,7 +3023,7 @@ function renderReactionsDetail(){
     const weapons = meleeWeapons();
     html += `<div class="flow-summary">${OPPORTUNITY_TEXT}</div>`;
     if(!weapons.length){
-      html += `<p class="empty-note" style="margin-top:8px;">No melee weapons on your sheet.</p>`;
+      html += `<p class="empty-note" style="margin-top:8px;">No melee weapons equipped.</p>`;
     } else {
       if(!weapons.some(w=>w.i===reactFlow.weapon)) reactFlow.weapon = weapons.length===1 ? weapons[0].i : null;
       html += `<div class="flow-label">Weapon</div><div class="flow-grid">`
@@ -3333,196 +3316,20 @@ function showAttrTooltip(e, itemName, abilityName){
   moveTooltip(e);
 }
 
-/* ---------- Google Sheet import ---------- */
-// colToIdx, idxToCol, parseRange, getFirstValue, RANGES and loadSheetJSONP: js/sheet-reader.js
-document.getElementById('rawDumpToggle').addEventListener('click', ()=>{
-  document.getElementById('rawDumpToggle').classList.toggle('open');
-  document.getElementById('rawDumpBody').classList.toggle('open');
-});
-
-function renderRawDump(table){
-  const lines = [];
-  for(let r=0;r<table.length;r++){
-    const row = table[r]; if(!row) continue;
-    for(let c=0;c<row.length;c++){
-      const v = row[c];
-      if(v!==null && v!==undefined && String(v).trim()!==''){
-        lines.push(`${idxToCol(c)}${r+1}: ${String(v).trim()}`);
-      }
-    }
-  }
-  document.getElementById('rawDumpWrap').style.display = lines.length ? 'block' : 'none';
-  document.getElementById('rawDumpText').textContent = lines.join('\n') || '(no non-empty cells found)';
-}
-function copyRawDump(){
-  const text = document.getElementById('rawDumpText').textContent;
-  const btn = document.getElementById('copyDumpBtn');
-  const flash = (msg)=>{ const orig = 'Copy dump'; btn.textContent = msg; setTimeout(()=>{ btn.textContent = orig; }, 1500); };
-  const fallbackCopy = ()=>{
-    const ta = document.createElement('textarea');
-    ta.value = text;
-    ta.style.position = 'fixed'; ta.style.opacity = '0';
-    document.body.appendChild(ta);
-    ta.focus(); ta.select();
-    try{ document.execCommand('copy'); flash('Copied!'); }
-    catch(err){ flash('Copy failed'); }
-    document.body.removeChild(ta);
-  };
-  if(navigator.clipboard && navigator.clipboard.writeText){
-    navigator.clipboard.writeText(text).then(()=>flash('Copied!')).catch(fallbackCopy);
-  } else {
-    fallbackCopy();
-  }
-}
-document.getElementById('copyDumpBtn').addEventListener('click', copyRawDump);
-const SAVE_NAMES = ['Strength','Dexterity','Constitution','Intelligence','Wisdom','Charisma'];
-const SKILL_NAMES = ['Acrobatics','Animal Handling','Arcana','Athletics','Deception','History','Insight','Intimidation','Investigation','Medicine','Nature','Perception','Performance','Persuasion','Religion','Sleight of Hand','Stealth','Survival'];
-const FILLED = ['◉','●','⬤','✓','✔'];
-function extractProficiencies(table, range, nameList){
-  const {c1,r1,c2,r2} = parseRange(range);
-  const out = [];
-  for(let r=r1;r<=r2;r++){
-    const row = table[r]||[];
-    let filled=false, rowText=[];
-    for(let c=c1;c<=c2;c++){
-      const v = row[c];
-      if(v===null||v===undefined||v==='') continue;
-      const s = String(v).trim();
-      if(FILLED.includes(s)) filled=true;
-      rowText.push(s);
-    }
-    if(filled){
-      for(const name of nameList){ if(rowText.includes(name)){ out.push(name); break; } }
-    }
-  }
-  return out;
-}
-function extractAttacks(table, range){
-  const {c1,r1,c2,r2} = parseRange(range);
-  const skip = new Set(['NAME','ATK BONUS','DAMAGE/TYPE','-','']);
-  const out = [];
-  for(let r=r1;r<=r2;r++){
-    const row = table[r]||[];
-    let name='', bonus='', dmg=[];
-    for(let c=c1;c<=c2;c++){
-      const v = row[c];
-      if(v===null||v===undefined) continue;
-      const s = String(v).trim();
-      if(!s || skip.has(s.toUpperCase())) continue;
-      if(/^[+-]\d+$/.test(s)){ if(!bonus) bonus=s; continue; }
-      if(!name && !/\d\s*[dD]\s*\d/.test(s) && s.length<40){ name=s; continue; }
-      dmg.push(s.replace(/\*\*\*/g,''));
-    }
-    if(name) out.push({name, bonus, damage: dmg.join(' ')});
-  }
-  return out;
-}
-
 // The campaigns and their party: js/config.js
-function campaignFor(sheetId){ const c = campaignOfChar(sheetId); return c ? c.name : 'None'; }
-function extractAllFlagList(table, rowStart, rowEnd, flagCol, modCol, nameCol){
-  const fC = colToIdx(flagCol), mC = colToIdx(modCol), nC = colToIdx(nameCol);
-  const out = [];
-  for(let r=rowStart-1;r<=rowEnd-1;r++){
-    const row = table[r]; if(!row) continue;
-    const name = row[nC];
-    if(!name) continue;
-    const flag = String(row[fC] ?? '').trim().toLowerCase(), mod = row[mC];
-    // The sheet's box: 1 = proficient, e = expertise (the sheet says "Use 'e' for expertise!")
-    out.push({
-      name: String(name).trim(),
-      prof: flag==='1' || flag==='e',
-      expertise: flag==='e',
-      mod: (mod===null||mod===undefined||mod==='') ? null : Number(mod)
-    });
-  }
-  return out;
-}
-function extractFlagList(table, rowStart, rowEnd, flagCol, nameCol){
-  const fC = colToIdx(flagCol), nC = colToIdx(nameCol);
-  const out = [];
-  for(let r=rowStart-1;r<=rowEnd-1;r++){
-    const row = table[r]; if(!row) continue;
-    const flag = row[fC], name = row[nC];
-    if(name && (String(flag).trim()==='1')) out.push(String(name).trim());
-  }
-  return out;
-}
-function findSkillModifier(table, rowStart, rowEnd, skillName, modCol, nameCol){
-  const mC = colToIdx(modCol), nC = colToIdx(nameCol);
-  for(let r=rowStart-1;r<=rowEnd-1;r++){
-    const row = table[r]; if(!row) continue;
-    const name = row[nC];
-    if(name && String(name).trim().toLowerCase()===skillName.toLowerCase()){
-      const v = row[mC];
-      return (v===null||v===undefined||v==='') ? null : Number(v);
-    }
-  }
-  return null;
-}
-function extractAttacksRYAC(table, rowStart, rowEnd){
-  const rC=colToIdx('R'), yC=colToIdx('Y'), acC=colToIdx('AC');
-  const out=[];
-  for(let r=rowStart-1;r<=rowEnd-1;r++){
-    const row=table[r]; if(!row) continue;
-    const name=row[rC];
-    if(!name) continue;
-    const nameStr=String(name).trim();
-    if(!nameStr || nameStr.toUpperCase()==='NAME') continue;
-    let bonus=row[yC];
-    bonus = (bonus===null||bonus===undefined||bonus==='') ? '' : String(bonus).trim();
-    // Some sheets store the bonus as text that already has its sign ("+2"); only add one to bare numbers
-    if(bonus && /^\d/.test(bonus)) bonus = '+'+bonus;
-    let dmg=row[acC];
-    dmg = dmg ? String(dmg).replace(/\*\*\*/g,'').trim() : '';
-    if(dmg==='-') dmg='';
-    // Sheet stores damage like "1d8[bludgeoning]|Simple Melee Weapon Attack..." — make it readable
-    dmg = dmg.replace(/\s*\[([^\]]*)\]/g, ' $1').replace(/\s*\|\s*/g, ' · ').replace(/\s{2,}/g, ' ').trim();
-    out.push({name:nameStr, bonus, damage:dmg});
-  }
-  return out;
-}
-
+function campaignFor(charId){ const c = campaignOfChar(charId); return c ? c.name : 'None'; }
+// A short line under the header while a character opens ("Opening the character…"), or a problem
 function setStatus(msg, cls){
-  const el = document.getElementById('importStatus');
-  el.textContent = msg; el.className = 'status ' + (cls||'');
+  const el = document.getElementById('loadStatus');
+  el.textContent = cls === 'ok' ? '' : msg; el.className = 'status load-status ' + (cls||'');
 }
 
-let lastImportedId = null;
 /* ---------- V5: a character as a plain record ("core") ----------
-   The sheet is read into one (sheetToCore), the database stores one, and applyCore shows it.
+   The database stores one (campaigns/<c>/characters/<id>/core) and applyCore shows it.
    The record keeps base facts only (scores, proficient saves and skills, level, HP max…);
    Turnkeeper works out modifiers, saves, skills, initiative and passive Perception itself
    (2014 rules), then applyFeatStats layers ASIs and feats on top as before. */
 const ABILITY_KEYS = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
-function sheetToCore(table){
-  const v = r=>getFirstValue(table, RANGES[r]);
-  const num = x=>{ const n = parseInt(String(x ?? '').replace(/[^\d-]/g, ''), 10); return isNaN(n) ? null : n; };
-  const saves = extractAllFlagList(table, 12, 17, 'H', 'I', 'J'), skills = extractAllFlagList(table, 20, 37, 'H', 'I', 'J');
-  return {
-    name: String(v('name') || '').trim(), level: num(v('level')) || 1, race: String(v('race') || '').trim(), cls: String(v('class') || '').trim(),
-    ac: num(v('ac')), speed: num(v('speed')) || 30, hpMax: num(v('hpmax')), hpCur: num(v('hpcur')), insp: parseFloat(v('insp')) > 0,
-    scores: Object.fromEntries(ABILITY_KEYS.map(a=>[a, num(v(a)) || 10])),
-    saves: saves.filter(s=>s.prof).map(s=>ABILITY_ABBR[s.name]).filter(Boolean),
-    skills: Object.fromEntries(skills.filter(s=>s.prof && SKILL_ABILITY[s.name]).map(s=>[s.name, s.expertise ? 'e' : 'p'])),
-    attacks: extractAttacksRYAC(table, 27, 32),
-    details: sheetDetails(table),
-  };
-}
-// The sheet's background, alignment, experience and personality (each personality box is a few
-// lines of cells: joined with line breaks)
-function sheetDetails(table){
-  const lines = range=>{ const {c1, r1, r2} = parseRange(range), out = [];
-    for(let r = r1; r <= r2; r++){ const x = (table[r] || [])[c1]; if(x !== null && x !== undefined && String(x).trim() && String(x).trim() !== '-') out.push(String(x).trim()); }
-    return out.join('\n'); };
-  const xp = parseInt(String(getFirstValue(table, 'AE3:AE3') ?? '').replace(/[^\d]/g, ''), 10);
-  const d = {background:lines('AJ6:AJ6'), alignment:lines('AJ23:AJ23'), traits:lines('AE7:AE9'), ideals:lines('AE11:AE13'),
-    bonds:lines('AE15:AE17'), flaws:lines('AE19:AE21')};
-  const al = d.alignment.toLowerCase().replace(/^neutral$/, 'true neutral');
-  d.alignment = (typeof ALIGNMENTS === 'object' && ALIGNMENTS.find(a=>a.toLowerCase() === al)) || d.alignment;
-  if(xp >= 0) d.xp = xp;
-  return Object.fromEntries(Object.entries(d).filter(([, x])=>x !== ''));
-}
 // Saves and skills with their modifiers, from the record's scores and proficiencies
 // (Jack of All Trades adds half proficiency to skills you aren't proficient in)
 function coreChecks(core){
@@ -3552,11 +3359,9 @@ function applyCore(core, charId){
   ABILITY_KEYS.forEach(a=>{ document.getElementById('s_' + a).value = String(core.scores[a] ?? 10); });
   refreshMods();
   currentCharId = charId;
-  // Character name: a database character's own name field (core.name); a sheet character's as
-  // renamed in this browser, else the hub link's
-  // name. With none of those, ask once; the answer is saved.
-  const charName = charStore.kv ? (core.name || savedName(charId) || '') : (savedName(charId) || core.name || importNameHint);
-  importNameHint = '';
+  // Character name: the character's own name field (core.name). With none, ask once; the answer
+  // is saved.
+  const charName = core.name || savedName(charId) || '';
   if(charName && !savedName(charId)) saveName(charId, charName);
   setCharName(charName);
   showNameAsk(!charName ? 'ask' : null);
@@ -3575,7 +3380,6 @@ function applyCore(core, charId){
   // Prepared spells are saved per character; load this one's
   loadPrepared();
   loadBook();
-  lastImportedId = charId;
   rt.raceKey = raceKeyFrom(core.race);
   setupClassFeatures(cls);
   // Checks, initiative and passive Perception, worked out from the record (needs the class for
@@ -3598,9 +3402,9 @@ function applyCore(core, charId){
   updateSenses();
   updateSpellStats();
   // Resource tracking: the record's HP is the starting point; tracking is saved per character
-  track.sheetHp = {cur:core.hpCur ?? null, max:core.hpMax ?? null};
+  track.baseHp = {cur:core.hpCur ?? null, max:core.hpMax ?? null};
   // Keep the record's numbers, then show them with ASI and feat bonuses added
-  captureSheetBase();
+  captureBase();
   applyFeatStats();
   loadTrack();
   syncInspiration(!!core.insp);
@@ -3619,32 +3423,6 @@ function applyCore(core, charId){
   if(window.renderCharSheet) window.renderCharSheet();   // V5 panels (js/char-sheet.js)
 }
 
-async function runImport(){
-  const url = document.getElementById('sheetUrl').value.trim();
-  const idm = url.match(/\/d\/([a-zA-Z0-9-_]+)/);
-  const gidm = url.match(/[?&#]gid=(\d+)/);
-  if(!idm){ setStatus('Could not find a sheet ID in that link.', 'err'); return; }
-  const sheetId = idm[1], gid = gidm ? gidm[1] : '0';
-  setStatus('Importing…');
-  try{
-    const data = await loadSheetJSONP(sheetId, gid, 'A1:BZ120');
-    if(!data.table || !data.table.rows) throw new Error('No table data returned — check the sheet is shared as "Anyone with the link can view."');
-    const table = sheetTable(data);
-    renderRawDump(table);
-
-    flushCharStore(); Object.assign(charStore, {id:null, campaign:null, kv:null, pending:{}}); followCharacter();   // a sheet isn't a database character (stop following one)
-    applyCore(sheetToCore(table), sheetId);
-    lastSheet = {id:sheetId, table};   // for its gear, if it gets copied into the database
-    setStatus('Imported.', 'ok');
-    dbCopyConfirm = false; document.getElementById('dbCopyMsg').textContent = '';
-    document.getElementById('dbCopyRow').hidden = !!charStore.kv || !myCampaignKey();
-  }catch(err){
-    setStatus('Import failed: ' + err.message, 'err');
-  }
-}
-document.getElementById('importBtn').addEventListener('click', runImport);
-
-/* ---------- V5: open a character from the database (turnkeeper.html?char=<id>) ---------- */
 async function openDbCharacter(id, campaignKey){
   setStatus('Opening the character…');
   try{
@@ -3655,58 +3433,18 @@ async function openDbCharacter(id, campaignKey){
     Object.assign(charStore, {id, campaign:campaignKey, kv:rec.kv || {}, pending:{}});
     followCharacter();   // changes made elsewhere show here (js/char-store.js)
     applyCore(rec.core, id);
-    document.getElementById('dbCopyRow').hidden = true;
     setStatus('Loaded from the Turnkeeper database.', 'ok');
   }catch(err){ setStatus(err.message, 'err'); }
 }
-// Import day: copy a sheet's character, and what this browser keeps for it, into the database
-// (a local copy of Turnkeeper writes to the test campaign)
-let dbCopyConfirm = false, lastSheet = null;
-document.getElementById('dbCopyBtn').addEventListener('click', async ()=>{
-  const msg = document.getElementById('dbCopyMsg'), id = currentCharId, c = myCampaignKey();
-  if(!id || !currentCore || !c){ msg.textContent = 'Import a campaign character first.'; return; }
-  try{
-    const db = await tkDbReady();
-    const name = savedName(id) || currentCore.name || 'This character';
-    if(await db.getChar(c, id) && !dbCopyConfirm){ dbCopyConfirm = true; msg.textContent = `${name} is already in the database. Click again to replace it.`; return; }
-    dbCopyConfirm = false;
-    const kv = {};
-    for(let i = 0; i < localStorage.length; i++){
-      const k = localStorage.key(i);
-      if(k && k.startsWith('dndTracker:') && k.includes(id) && !PER_BROWSER_KEY.test(k)) kv[encodeKvKey(k.replace(/^dndTracker:/, '').split(id).join('@'))] = localStorage.getItem(k);
-    }
-    const core = JSON.parse(JSON.stringify({...currentCore, name}));   // no undefined values for Firebase
-    // Its weapons and armor from the sheet, in the inventory and equipped (unless this browser has some)
-    let gear = 0;
-    if(lastSheet && lastSheet.id === id && !kv[encodeKvKey('inv:@')] && typeof gearFromSheet === 'function'){
-      const g = gearFromSheet(lastSheet.table, currentCore.hand);
-      if(g.items.length){ kv[encodeKvKey('inv:@')] = JSON.stringify({items:g.items}); kv[encodeKvKey('equip:@')] = JSON.stringify(g.equip); gear = g.items.length; }
-    }
-    await db.setCore(c, id, core);
-    if(Object.keys(kv).length) await db.updateKv(c, id, kv);
-    const test = new URLSearchParams(location.search).has('test') || ['localhost', '127.0.0.1', '[::1]', ''].includes(location.hostname);
-    msg.textContent = `Copied ${name} into the database${test ? ' (test campaign)' : ''}, with ${gear ? `${gear} items from the sheet and ` : ''}${Object.keys(kv).length - (gear ? 2 : 0)} saved items from this browser.`;
-  }catch(err){ msg.textContent = 'Couldn’t copy: ' + err.message; }
-});
-document.getElementById('clearBtn').addEventListener('click', ()=>{
-  document.getElementById('sheetUrl').value='';
-  setStatus('Sheet must be shared as "Anyone with the link can view."', '');
-});
-document.getElementById('f_speed').addEventListener('input', updateMoveLine);
-
-// races.js: moved to js/data/races.js
-// classes.js: moved to js/data/classes.js
 /* ---------- Pinned sections (Racial Traits, Class Features) ---------- */
-// Pins live in localStorage, one key per character (sheet ID) per section per item.
+// Pins are saved with the character, one key per section per item.
 // Storage can be unavailable (private mode, blocked site data), so pins also live in memory.
 let currentCharId = '';
 function storageGet(key){ const db = charStoreGet(key); if(db !== undefined) return db; try{ return localStorage.getItem(key); }catch(e){ return null; } }
 function storageSet(key, val){ if(!charStoreSet(key, val)){ try{ if(val===null) localStorage.removeItem(key); else localStorage.setItem(key, val); }catch(e){} } noteChange(key); }
 /* ---------- Character name ----------
-   The public v2.1 sheet has no character-name cell, and its structure can't be changed (other
-   people use the same template). So the name is remembered per sheet in this browser: from
-   the hub link (&name=) the first time, or asked once on import. "Rename" changes it. */
-let importNameHint = '';
+   The character's name is its own field (core.name, set in Edit Character or by Rename); a
+   character with none is asked for one once. */
 const nameMem = new Map();
 function savedName(id){ return nameMem.get(id) || storageGet(`dndTracker:charName:${id}`) || ''; }
 function saveName(id, name){
@@ -3798,7 +3536,7 @@ function wireSelToggle(btn, names, isOn, setAll){
   btn.onclick = ()=>setAll(!allOn, names);
 }
 
-// Master toggle at the top of Character Summary: selects/clears every pin on the sheet
+// Master toggle at the top of Character Summary: selects/clears every pin
 // (traits, features, saves, skills, attacks). Prepared spells aren't pins, so they're left alone.
 function pinGroups(){
   // Sections are created further down; before they all exist there's nothing to do
@@ -4020,7 +3758,7 @@ function featureRow(section, t, withBox){
     + `<div><span class="rt-name">${t.name}</span>${lvlLabel}${typeLabel} <span class="rt-desc">&mdash; ${t.desc}</span>`
     + ((t.roll || t.rolls) && level >= ownLevel ? ` <button type="button" class="sel-toggle feature-roll" data-feature-roll>Roll</button>` : '')
     + (t.feat && withBox ? ` <button type="button" class="sel-toggle feat-change" data-feat-row-change>Change</button>` : '')
-    + (t.feat && t.prereq && withBox ? `<div class="feat-prereq${t.meets && !t.meets() ? ' unmet' : ''}">Prerequisite: ${t.prereq}${t.meets && !t.meets() ? ' (your sheet’s score is lower)' : ''}</div>` : '')
+    + (t.feat && t.prereq && withBox ? `<div class="feat-prereq${t.meets && !t.meets() ? ' unmet' : ''}">Prerequisite: ${t.prereq}${t.meets && !t.meets() ? ' (your score is lower)' : ''}</div>` : '')
     + (tiers ? `<ul class="rt-sub">${tiers}</ul>` : '') + `</div>`;
   // Features with dice but no place in the Combat Menu (Song of Rest, Portent, Arcane Recovery…)
   const rollBtn = row.querySelector('[data-feature-roll]');
@@ -4092,16 +3830,16 @@ function makePinSection(cfg){
   return section;
 }
 
-// Sheet text goes into innerHTML in featureRow, so escape it first
+// Saved text goes into innerHTML in featureRow, so escape it first
 function escapeHtml(s){
   return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
-// Attacks come from the sheet; shown as "+5 to hit · 2d6+3 slashing · Martial Melee Weapon Attack…"
+// Attacks come from equipped weapons; shown as "+5 to hit · 2d6+3 slashing · Martial Melee Weapon Attack…"
 const attackSection = makePinSection({
   prefix:'at', store:'attackPin',
   items: ()=>state.attacks.map(a=>({name:escapeHtml(a.name), desc:`${escapeHtml(a.bonus||'—')} to hit &middot; ${escapeHtml(a.damage||'—')}`})),
   emptyText: ()=>charStore.kv ? 'No weapons equipped. Equip one in the Inventory tab (Unarmed Strike is always in the Combat Menu).'
-    : document.getElementById('f_class').value.trim() ? 'No attacks found on the sheet.' : 'Import a sheet to see attacks.',
+    : document.getElementById('f_class').value.trim() ? 'No attacks yet.' : 'Open a character to see attacks.',
 });
 
 // V5: equipped armor and shield (js/inventory.js), pinnable like attacks
@@ -4117,12 +3855,12 @@ const racialSection = makePinSection({
   items: ()=>traitsForRace(rt.raceKey),
   emptyText: ()=>{
     const race = document.getElementById('f_race').value.trim();
-    return race ? `No racial traits added for "${race}" yet.` : 'Import a sheet to see racial traits.';
+    return race ? `No racial traits added for "${race}" yet.` : 'Open a character to see racial traits.';
   },
 });
 
-// Subclass is picked by hand (the sheet has no reliable field for it) and remembered per character
-const cf = {classKey:null, subclass:'', sheetText:''};
+// Subclass is picked by hand and remembered per character
+const cf = {classKey:null, subclass:'', classText:''};
 function subclassStoreKey(){ return `dndTracker:subclass:${currentCharId}`; }
 function classFeatureItems(){
   const entry = CLASS_FEATURES[cf.classKey]; if(!entry) return [];
@@ -4135,7 +3873,7 @@ const classSection = makePinSection({
   items: classFeatureItems,
   emptyText: ()=>{
     const cls = document.getElementById('f_class').value.trim();
-    return cls ? `Class features for "${cls}" haven’t been added yet.` : 'Import a sheet to see class features.';
+    return cls ? `Class features for "${cls}" haven’t been added yet.` : 'Open a character to see class features.';
   },
   beforeList: ()=>{
     const wrap = document.getElementById('cfSubclassWrap'), sel = document.getElementById('cfSubclass');
@@ -4160,7 +3898,7 @@ document.getElementById('cfSubclass').addEventListener('change', e=>{
   renderBuild();
   if(spellBody.classList.contains('open')) renderSpellList();
 });
-// Choices made for levels the character hasn't reached are deleted when the sheet is loaded
+// Choices made for levels the character hasn't reached are deleted when the character opens
 // (Justin, 2026-09-24: e.g. level 13 then back to 2 drops the level 8 feat): the subclass,
 // "pick one" class features (Fighting Style), and feat levels with their own picks.
 function dropChoicesAboveLevel(){
@@ -4176,18 +3914,18 @@ function dropChoicesAboveLevel(){
   });
 }
 // Character Summary's Class and Subclass boxes. The subclass is the one picked in Class Features
-// (or the Build box), which starts as the one on the sheet
+// (or the Build box), which starts as the character's own
 function updateClassFields(){
   const entry = CLASS_FEATURES[cf.classKey], clsEl = document.getElementById('f_class'), subEl = document.getElementById('f_subclass');
-  clsEl.value = cf.classKey ? cf.classKey.charAt(0).toUpperCase() + cf.classKey.slice(1) : cf.sheetText;
-  subEl.value = cf.subclass || fullSubclassName(cf.classKey, cf.sheetText) || (cf.sheetText ? '—' : '');
-  const fromSheet = !cf.subclass && subclassPrefix(cf.classKey, cf.sheetText);
+  clsEl.value = cf.classKey ? cf.classKey.charAt(0).toUpperCase() + cf.classKey.slice(1) : cf.classText;
+  subEl.value = cf.subclass || fullSubclassName(cf.classKey, cf.classText) || (cf.classText ? '—' : '');
+  const fromClass = !cf.subclass && subclassPrefix(cf.classKey, cf.classText);
   subEl.title = !entry ? '' : cf.subclass ? `${entry.subclassLabel}. Change it in Class Features.`
-    : fromSheet && charLevel() < entry.subclassLevel ? `${entry.subclassLabel} from your sheet. Its features start at level ${entry.subclassLevel}.`
+    : fromClass && charLevel() < entry.subclassLevel ? `${entry.subclassLabel} from your class. Its features start at level ${entry.subclassLevel}.`
     : `${entry.subclassLabel}: chosen at level ${entry.subclassLevel}${charLevel() >= entry.subclassLevel ? '. Pick one in Class Features.' : ''}`;
 }
 function setupClassFeatures(clsText){
-  cf.sheetText = String(clsText||'').trim();
+  cf.classText = String(clsText||'').trim();
   cf.classKey = classKeyFrom(clsText);
   noteClassTheme(cf.classKey);
   const entry = CLASS_FEATURES[cf.classKey];
@@ -4258,7 +3996,7 @@ function featPickerEl(level){
     html += `<p class="feat-help">+2 to one ability score, or +1 to two (no higher than 20). ${2 - used} point${2 - used === 1 ? '' : 's'} left; click a chosen ability again to take a point back.</p><div class="asi-grid">`
       + Object.keys(ABILITY_FULL).map(a=>{ const n = featUi.asi[a] || 0, now = asiScoreWithout(level, a);
           return `<button type="button" class="flow-btn${n?' active':''}" data-asi="${a}"${!n && now >= 20 ? ' disabled title="Already 20"' : ''}>${a.toUpperCase()} ${now}${n ? ` +${n}` : ''}</button>`; }).join('')
-      + `</div><p class="feat-help">Turnkeeper adds these points to the ability scores shown and everything worked out from them, so don’t also add them on your sheet.</p>`
+      + `</div><p class="feat-help">Turnkeeper adds these points to the ability scores shown and everything worked out from them, so don’t also add them to the base scores in Edit Character.</p>`
       + `<div class="feat-actions"><button type="button" class="flow-btn" data-asi-save${used===2 ? '' : ' disabled'}>Save</button>`;
   } else {
     const taken = new Set(Object.entries(getSlots()).filter(([l])=>+l !== level).map(([,s])=>s.feat).filter(Boolean));
@@ -4267,7 +4005,7 @@ function featPickerEl(level){
           const unmet = f.meets && !f.meets(), on = cur && cur.feat===f.name;
           return `<button type="button" class="feat-opt${on?' active':''}" data-pick-feat="${escapeHtml(f.name)}" data-search="${escapeHtml(f.name.toLowerCase())}"${taken.has(f.name) ? ' disabled title="Already taken at another level"' : ''}>`
             + `<span class="rt-name">${f.name}</span>${TYPE_LABELS[f.type] ? ` <span class="ft-type ft-${f.type}">${TYPE_LABELS[f.type]}</span>` : ''}`
-            + (f.prereq ? ` <span class="feat-prereq${unmet ? ' unmet' : ''}">(Prerequisite: ${f.prereq}${unmet ? '; your sheet’s score is lower' : ''})</span>` : '')
+            + (f.prereq ? ` <span class="feat-prereq${unmet ? ' unmet' : ''}">(Prerequisite: ${f.prereq}${unmet ? '; your score is lower' : ''})</span>` : '')
             + `<span class="rt-desc"> &mdash; ${f.desc}</span></button>`;
         }).join('') + `</div><div class="feat-actions">`;
   }
@@ -4299,7 +4037,7 @@ function featPickerEl(level){
 }
 // Expanded Feats section: "Level 4" and that level's choice, a divider, "Level 8"…
 function renderFeatSlots(section, list){
-  if(!currentCharId){ list.innerHTML = `<div class="empty-note">Import a sheet to choose feats.</div>`; return; }
+  if(!currentCharId){ list.innerHTML = `<div class="empty-note">Open a character to choose feats.</div>`; return; }
   const slots = getSlots(), lvl = charLevel();
   const editing = featUi.slot !== null ? featUi.slot : openFeatSlots().find(l=>!slots[l]);
   featSlotLevels().forEach(l=>{
@@ -4329,7 +4067,7 @@ const featSection = makePinSection({
   renderList: renderFeatSlots,
 });
 
-// Passive Perception: 10 + Perception modifier from the sheet, +5 with Observant
+// Passive Perception: 10 + Perception modifier, +5 with Observant
 let basePassive = null;
 function updateSenses(){
   const el = document.getElementById('f_senses');
@@ -4345,19 +4083,19 @@ function updateSenses(){
   });
 }
 
-/* ---------- ASI and feat effects on the sheet's numbers ----------
+/* ---------- ASI and feat effects on the character's numbers ----------
    Justin, 2026-09-24: the displayed and calculated stats change with the chosen Ability Score
-   Improvements and feats. The sheet's imported values are kept in sheetBase; what's shown is
-   base + bonuses. Known gap, left for later on purpose: if a player also raises the score on
-   their sheet, it counts twice. */
+   Improvements and feats. The base values are kept in coreBase; what's shown is base + bonuses.
+   Known gap, left for later on purpose: if a player also raises the base score in Edit
+   Character, it counts twice. */
 const ABILITY_ABBR = {Strength:'str', Dexterity:'dex', Constitution:'con', Intelligence:'int', Wisdom:'wis', Charisma:'cha'};
-let sheetBase = null;
-function captureSheetBase(){
-  sheetBase = {
+let coreBase = null;
+function captureBase(){
+  coreBase = {
     scores: Object.fromEntries(Object.keys(ABILITY_FULL).map(a=>[a, parseInt(document.getElementById('s_'+a).value,10) || 10])),
     skills: state.skills.map(s=>({...s})), saves: state.saves.map(s=>({...s})), attacks: state.attacks.map(a=>({...a})),
     init: document.getElementById('f_init').value, speed: document.getElementById('f_speed').value,
-    hp: {...track.sheetHp}, passive: basePassive,
+    hp: {...track.baseHp}, passive: basePassive,
   };
 }
 // Ability points from ASIs and feats, with where each came from ({str:{n:2, why:[…]}}).
@@ -4374,15 +4112,15 @@ function featAbilityBonuses(skipLevel){
   });
   return out;
 }
-function baseScore(a){ return sheetBase ? sheetBase.scores[a] : abilityScore(a); }
-// Scores can't go above 20 this way (a sheet score already above 20 is left alone)
+function baseScore(a){ return coreBase ? coreBase.scores[a] : abilityScore(a); }
+// Scores can't go above 20 this way (a base score already above 20 is left alone)
 function boostedScore(a, bonus){ const b = baseScore(a), n = (bonus[a]||{}).n || 0; return n ? Math.max(b, Math.min(20, b + n)) : b; }
 // A weapon's to-hit and damage move with its ability: Strength (melee), Dexterity (ranged),
-// or the better of the two (finesse). Only the change in modifier is applied to the sheet's numbers.
+// or the better of the two (finesse). Only the change in modifier is applied to the base numbers.
 function adjustAttack(atk, delta){
   const p = parseWeaponDamage(atk.damage);
   if(!p || !/weapon/i.test(p.props)) return {...atk};
-  const b = sheetBase.scores;
+  const b = coreBase.scores;
   const dm = /finesse/i.test(p.props)
     ? Math.max(abilityScoreMod('str'), abilityScoreMod('dex')) - Math.max(abilityMod(b.str), abilityMod(b.dex))
     : (delta[/ranged/i.test(p.props) ? 'dex' : 'str'] || 0);
@@ -4394,34 +4132,34 @@ function adjustAttack(atk, delta){
   return {...atk, bonus: isNaN(bonus) ? atk.bonus : fmtMod(bonus + dm), damage: atk.damage.replace(first, newFirst)};
 }
 function applyFeatStats(){
-  if(!sheetBase) return;
+  if(!coreBase) return;
   const bonus = featAbilityBonuses(), delta = {};
   Object.keys(ABILITY_FULL).forEach(a=>{
-    const el = document.getElementById('s_'+a), base = sheetBase.scores[a], score = boostedScore(a, bonus);
+    const el = document.getElementById('s_'+a), base = coreBase.scores[a], score = boostedScore(a, bonus);
     el.value = String(score);
     delta[a] = abilityMod(score) - abilityMod(base);
     const why = bonus[a] ? bonus[a].why : [];
-    el.title = why.length ? `${base} on your sheet, ${why.join(', ')}${score < base + bonus[a].n ? ' (capped at 20)' : ''}` : '';
+    el.title = why.length ? `${base} base, ${why.join(', ')}${score < base + bonus[a].n ? ' (capped at 20)' : ''}` : '';
     el.closest('.stat-box').classList.toggle('stat-boosted', !!why.length);
   });
   refreshMods();
   const d = full=>delta[ABILITY_ABBR[full]] || 0;
-  state.skills = sheetBase.skills.map(s=>({...s, mod: s.mod===null ? null : s.mod + d(SKILL_ABILITY[s.name])}));
+  state.skills = coreBase.skills.map(s=>({...s, mod: s.mod===null ? null : s.mod + d(SKILL_ABILITY[s.name])}));
   // Resilient: proficiency in the chosen ability's saving throws
   const resilient = hasFeat('Resilient') ? getChoice('Resilient ability') : '';
-  state.saves = sheetBase.saves.map(s=>{
+  state.saves = coreBase.saves.map(s=>{
     const a = ABILITY_ABBR[s.name], res = !!a && a===resilient && !s.prof;
     return {...s, prof: s.prof || res, mod: s.mod===null ? null : s.mod + (delta[a]||0) + (res ? proficiencyBonus() : 0)};
   });
-  state.attacks = sheetBase.attacks.map(atk=>adjustAttack(atk, delta));
+  state.attacks = coreBase.attacks.map(atk=>adjustAttack(atk, delta));
   // Initiative (Dexterity, Alert +5), speed (Mobile +10), hit points (Constitution per level, Tough +2 per level)
   const num = v=>parseInt(String(v).replace(/[^\d-]/g,''),10);
-  const init = num(sheetBase.init), spd = num(sheetBase.speed);
+  const init = num(coreBase.init), spd = num(coreBase.speed);
   if(!isNaN(init)) document.getElementById('f_init').value = fmtMod(init + (delta.dex||0) + (hasFeat('Alert') ? 5 : 0));
-  if(!isNaN(spd)) document.getElementById('f_speed').value = String(sheetBase.speed).replace(/-?\d+/, spd + (hasFeat('Mobile') ? 10 : 0));
+  if(!isNaN(spd)) document.getElementById('f_speed').value = String(coreBase.speed).replace(/-?\d+/, spd + (hasFeat('Mobile') ? 10 : 0));
   const hpUp = ((delta.con||0) + (hasFeat('Tough') ? 2 : 0)) * charLevel();
-  track.sheetHp = {max: sheetBase.hp.max===null ? null : sheetBase.hp.max + hpUp, cur: sheetBase.hp.cur===null ? null : sheetBase.hp.cur + hpUp};
-  basePassive = sheetBase.passive===null ? null : sheetBase.passive + (delta.wis||0);
+  track.baseHp = {max: coreBase.hp.max===null ? null : coreBase.hp.max + hpUp, cur: coreBase.hp.cur===null ? null : coreBase.hp.cur + hpUp};
+  basePassive = coreBase.passive===null ? null : coreBase.passive + (delta.wis||0);
   skillPins.render(); savePins.render(); attackSection.render();
   updateSpellStats(); updateSenses(); updateMoveLine(); renderResources();
 }
@@ -4496,7 +4234,7 @@ function updateSpellStats(){
 function sourceTag(source){ return `<span class="src-tag src-${source.toLowerCase()}">${source}</span>`; }
 
 /* ---------- Resource tracking: HP, spell slots, limited-use features, rests ----------
-   Tracked per character (sheet ID) in localStorage as {hp, used:{id: amount spent}}.
+   Tracked per character as {hp, used:{id: amount spent}}.
    Slot tables are the 2014 class tables (checked on dnd5e.wikidot.com). */
 const FULL_SLOTS = [[], [2],[3],[4,2],[4,3],[4,3,2],[4,3,3],[4,3,3,1],[4,3,3,2],[4,3,3,3,1],[4,3,3,3,2],
   [4,3,3,3,2,1],[4,3,3,3,2,1],[4,3,3,3,2,1,1],[4,3,3,3,2,1,1],[4,3,3,3,2,1,1,1],[4,3,3,3,2,1,1,1],
@@ -4639,7 +4377,7 @@ function trackedResources(){
 // Resource a feature spends when used (its own uses, or a shared pool like Channel Divinity)
 function featureResourceId(t){ return t.spends || (t.uses ? 'feat:'+t.name : null); }
 
-const track = {hp:null, temp:0, used:{}, fx:[], death:{s:0, f:0}, combat:null, status:{on:{}, exh:0, bi:6}, sheetHp:{cur:null, max:null}};
+const track = {hp:null, temp:0, used:{}, fx:[], death:{s:0, f:0}, combat:null, status:{on:{}, exh:0, bi:6}, baseHp:{cur:null, max:null}};
 function trackKey(){ return `dndTracker:track:${currentCharId}`; }
 function loadTrack(){
   let saved = null;
@@ -4653,7 +4391,6 @@ function loadTrack(){
   track.status = saved && saved.status ? saved.status : {on:{}, exh:0, bi:6};   // conditions and magic on you
   track.conc = saved && saved.conc ? saved.conc : null;   // the spell you're concentrating on: {name, rounds}
   track.insp = saved && typeof saved.insp==='boolean' ? saved.insp : null;   // Inspiration (see syncInspiration)
-  track.inspSheet = saved && typeof saved.inspSheet==='boolean' ? saved.inspSheet : null;
   track.changedAt = saved && typeof saved.changedAt==='number' ? saved.changedAt : 0;   // when this browser last changed it (live sharing)
   track.cast = saved && Array.isArray(saved.cast) ? saved.cast : [];   // spells and features you cast on others (shared combat)
   track.throw = saved && typeof saved.throw === 'number' ? saved.throw : null;   // how hard you throw your dice (the Throw slider)
@@ -4662,7 +4399,7 @@ function loadTrack(){
 function saveTrack(){
   if(!currentCharId) return;
   track.changedAt = Date.now();
-  storageSet(trackKey(), JSON.stringify({hp:track.hp, temp:track.temp, used:track.used, fx:track.fx, death:track.death, combat:track.combat, status:track.status, conc:track.conc, insp:track.insp, inspSheet:track.inspSheet, changedAt:track.changedAt, cast:track.cast || [], dice:track.dice || null, throw:track.throw ?? null}));
+  storageSet(trackKey(), JSON.stringify({hp:track.hp, temp:track.temp, used:track.used, fx:track.fx, death:track.death, combat:track.combat, status:track.status, conc:track.conc, insp:track.insp, changedAt:track.changedAt, cast:track.cast || [], dice:track.dice || null, throw:track.throw ?? null}));
   livePush();
 }
 
@@ -4677,7 +4414,7 @@ function liveSnapshot(){
   if(!currentCharId || !camp) return null;
   const st = statusState(), rounds = st.rounds || {};
   const cur = hpNow(), max = hpMax();
-  return {campaign:camp.key, sheet:currentCharId, effects:Object.fromEntries((track.cast || []).map(x=>[x.id, {name:x.name, caster:(document.getElementById('f_name').value || '').slice(0, 60), targets:arrOf(x.targets), status:x.status || null, conc:!!x.conc, rounds:x.rounds || 0}])),
+  return {campaign:camp.key, char:currentCharId, effects:Object.fromEntries((track.cast || []).map(x=>[x.id, {name:x.name, caster:(document.getElementById('f_name').value || '').slice(0, 60), targets:arrOf(x.targets), status:x.status || null, conc:!!x.conc, rounds:x.rounds || 0}])),
     data:{
     name:(document.getElementById('f_name').value || '').slice(0, 60), level:charLevel(), cls:(document.getElementById('f_class').value || '').slice(0, 60),   // lengths fit the database rules
     hp:{cur, max, temp:track.temp || 0},
@@ -4730,11 +4467,11 @@ function spend(id, n=1){
 }
 
 function hpMax(){
-  const m = track.sheetHp.max;
+  const m = track.baseHp.max;
   return m !== null && exhaustion() >= 4 ? Math.floor(m / 2) : m;   // Exhaustion 4: maximum halved
 }
 function hpNow(){
-  const h = track.hp !== null ? track.hp : track.sheetHp.cur, m = hpMax();
+  const h = track.hp !== null ? track.hp : track.baseHp.cur, m = hpMax();
   return h !== null && m !== null ? Math.min(h, m) : h;
 }
 function setHp(v){
@@ -4845,7 +4582,7 @@ document.getElementById('hpTemp').addEventListener('click', e=>{
   if(e.target.closest('[data-temp-clear]')){ track.temp = 0; saveTrack(); renderResources(); document.getElementById('restMsg').textContent = 'Temporary hit points cleared.'; }
 });
 document.getElementById('hpHeal').addEventListener('click', ()=>{ if(hpNow()!==null) setHp(hpNow() + hpAmount()); });
-document.getElementById('hpReset').addEventListener('click', ()=>{ track.hp = null; saveTrack(); renderResources(); });
+document.getElementById('hpReset').addEventListener('click', ()=>{ const m = hpMax(); track.hp = m === null ? null : m; saveTrack(); renderResources(); });   // back to full
 
 const RECHARGE_TEXT = {long:'long rest', short:'short or long rest'};
 function pipsHtml(id, max){
@@ -4854,11 +4591,10 @@ function pipsHtml(id, max){
     `<button type="button" class="pip${i < left ? ' on' : ''}" data-pip="${escapeHtml(id)}" data-on="${i < left}" aria-label="${i < left ? 'Available: click to use' : 'Used: click to restore'}"></button>`).join('') + `</div>`;
 }
 /* ---------- Inspiration (2014): the DM awards it; spend it for advantage on one attack roll,
-   saving throw or ability check. Turnkeeper keeps its own on/off per character, starting from
-   the sheet's Inspiration box; if the sheet's box changes (the DM gave or took it there), the
-   sheet wins. Using it in a roll popup turns it off here, not on the sheet. ---------- */
-function syncInspiration(sheetHas){
-  if(track.inspSheet !== sheetHas){ track.insp = sheetHas; track.inspSheet = sheetHas; saveTrack(); }
+   saving throw or ability check. Turnkeeper keeps its on/off with the character, starting from
+   the character's own (core.insp) the first time. Using it in a roll popup turns it off. ---------- */
+function syncInspiration(base){
+  if(typeof track.insp !== 'boolean'){ track.insp = !!base; saveTrack(); }
 }
 function renderInspiration(){
   const b = document.getElementById('inspBtn');
@@ -4897,7 +4633,7 @@ function renderResources(){
 
   const rows = document.getElementById('resRows');
   document.getElementById('setBackup').hidden = !currentCharId;
-  if(!currentCharId){ rows.innerHTML = `<p class="empty-note">Import a sheet to track resources.</p>`; return; }
+  if(!currentCharId){ rows.innerHTML = `<p class="empty-note">Open a character to track resources.</p>`; return; }
   let html = hitDiceHtml();
   const slots = slotTable().filter(s=>s.max>0);
   if(slots.length){
@@ -4929,7 +4665,7 @@ function renderResources(){
 
 /* ---------- Usage notes: a copy-and-paste backup of what changes between rests ----------
    "Copy usage notes" copies readable lines (HP, slots and charges left) plus a restore code, to
-   paste somewhere safe (e.g. a Google Doc). "Restore from notes" accepts the whole paste, just
+   paste somewhere safe (e.g. a note on your phone). "Restore from notes" accepts the whole paste, just
    the code, or just the readable lines. Only rest-related state: never pins or choices. */
 function usageItems(){
   return [
@@ -4959,7 +4695,7 @@ function usageNotesText(){
 }
 /* Full backup (TK2): every key this browser keeps for this character, plus your settings
    (theme, panel order and folding, dice sound, crit GIFs, the leaving-the-page question).
-   Keys are saved with the sheet ID swapped for "@", so a backup restores onto the same
+   Keys are saved with the character's ID swapped for "@", so a backup restores onto the same
    character in another browser. Other characters' data in this browser isn't included. */
 const BACKUP_GLOBAL = ['dndTracker:theme', 'dndTracker:panels', 'dndTracker:collapsed', 'dndTracker:diceSound', 'dndTracker:critFx', 'dndTracker:askBackup'];
 const backupAtKey = id=>`dndTracker:backupAt:${id || currentCharId}`;
@@ -5163,7 +4899,7 @@ document.getElementById('clipToggleBtn').addEventListener('click', e=>{
 document.getElementById('clipCopy').addEventListener('click', ()=>{
   const text = clipBox.value;
   if(!text.trim()){ setBackupMsg('The box is empty. Close and reopen Copy/Restore From Clipboard to get your current backup.', true); return; }
-  const done = ok=>{ if(ok) markBackedUp(); setBackupMsg(ok ? 'Copied. Paste it somewhere safe, like a Google Doc.' : 'Couldn’t copy automatically. Select the text in the box and copy it.', !ok); };
+  const done = ok=>{ if(ok) markBackedUp(); setBackupMsg(ok ? 'Copied. Paste it somewhere safe, like a note on your phone.' : 'Couldn’t copy automatically. Select the text in the box and copy it.', !ok); };
   if(navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(text).then(()=>done(true), ()=>done(fallbackCopy(text)));
   else done(fallbackCopy(text));
 });
@@ -5220,28 +4956,25 @@ renderChips('savesChips', []); renderChips('skillsChips', []); renderAttacksList
 racialSection.render(); classSection.render(); featSection.render();
 if(spellBody.classList.contains('open')) renderSpellList();   // Spells was left open last time
 /* ---------- Themes and the Settings gear (js/themes.js) ----------
-   "My class" needs the character's class: noteClassTheme runs when a sheet's class is read. */
+   "My class" needs the character's class: noteClassTheme runs when a character's class is read. */
 function noteClassTheme(cls){
   window.tkClassKey = cls || null;
   if(cls && currentCharId) storageSet(`dndTracker:classOf:${currentCharId}`, cls);
-  themeForSheet(currentCharId);   // this character's own theme (or the main one), and "My class"
+  themeForChar(currentCharId);   // this character's own theme (or the main one), and "My class"
 }
 setupSettings({onOpen:()=>{ if(document.getElementById('setDice').open) fillDiceStyleMenu(); }});
 
-/* ---------- Auto-import when opened with ?sheet=<url>&name=<name> ---------- */
+/* ---------- Opening a character: turnkeeper.html?char=<id> (from the hub or the DM Screen) ---------- */
 (async function(){
   const params = new URLSearchParams(window.location.search);
-  const sheetParam = params.get('sheet');
-  const nameParam = params.get('name');
-  const charParam = params.get('char');
-  if(charParam && /^[A-Za-z0-9_-]{6,60}$/.test(charParam)){
-    const camp = params.get('c') || (campaignOfChar(charParam) || CAMPAIGNS[0]).key;
-    await openDbCharacter(charParam, camp);
-  } else if(sheetParam){
-    document.getElementById('sheetUrl').value = sheetParam;
-    importNameHint = (nameParam || '').trim();   // used (and saved) only if this sheet has no saved name yet
-    await runImport();
-  }
+  // Bookmarks from before V5 (?sheet=<a longer address with the ID in it>) still open the character
+  const old = /\/d\/([A-Za-z0-9_-]{6,60})/.exec(decodeURIComponent(params.get('sheet') || ''));
+  const id = params.get('char') || (old && old[1]);
+  if(id && /^[A-Za-z0-9_-]{6,60}$/.test(id)){
+    if(!params.get('char')) history.replaceState(null, '', '?char=' + id);
+    const camp = params.get('c') || (campaignOfChar(id) || CAMPAIGNS[0]).key;
+    await openDbCharacter(id, camp);
+  } else setStatus('Open a character from the Turnkeeper hub.', '');
 })();
 </script>
 <script src="js/panel-order.js"></script>
@@ -5263,7 +4996,7 @@ const myDiceStyle = ()=>safeDiceStyle(track.dice || DEFAULT_DICE);
 function myTurnNow(){
   const c = table.combat;
   if(!currentCharId || !(c && c.active)) return false;
-  const me = arrOf(c.order).find(o=>o.sheet === currentCharId);
+  const me = arrOf(c.order).find(o=>o.char === currentCharId);
   return !!(me && c.turn === me.id);
 }
 // Outside a campaign you can always roll; in one, on your turn in combat or when the DM allows it
@@ -5379,7 +5112,7 @@ window.tkCharIcon();
 <script type="module">
 /* ---------- Live sharing: sending (Firebase Realtime Database) ----------
    Signs in invisibly (anonymous auth), then writes liveSnapshot() to
-   campaigns/<campaign>/live/<sheet ID> whenever tracking changes (livePush, debounced).
+   campaigns/<campaign>/live/<character ID> whenever tracking changes (livePush, debounced).
    If this browser's copy is older than what's already shared (the character was changed on
    another device), the first send is skipped so it doesn't overwrite the newer one.
    Anything failing here leaves the tracker working as before. Settings: js/config.js;
@@ -5426,25 +5159,25 @@ try{
     const snap = liveSnapshot();
     if(!snap){ showLive(null); return; }
     follow(snap.campaign);
-    const node = ref(db, `campaigns/${FBK(snap.campaign)}/live/${snap.sheet}`);
-    if(!compared.has(snap.sheet)){
-      compared.add(snap.sheet);
+    const node = ref(db, `campaigns/${FBK(snap.campaign)}/live/${snap.char}`);
+    if(!compared.has(snap.char)){
+      compared.add(snap.char);
       const remote = (await get(node)).val();
       if(remote && (remote.changedAt || 0) > (snap.data.changedAt || 0)){ showLive('newer'); return; }
     }
     await set(node, {...snap.data, online:true, t:serverTimestamp()});
     // What you've cast on others (Hunter's Mark on Goblin 2, Bless on Venthor)
-    await set(ref(db, `campaigns/${FBK(snap.campaign)}/effects/${snap.sheet}`), Object.keys(snap.effects).length ? snap.effects : null);
+    await set(ref(db, `campaigns/${FBK(snap.campaign)}/effects/${snap.char}`), Object.keys(snap.effects).length ? snap.effects : null);
     // Closing the page marks it closed (after the first write, so the record exists); t stays the last change
-    if(!watched.has(snap.sheet)){ watched.add(snap.sheet); await onDisconnect(node).update({online:false}); }
-    // Healing sent to this character by someone else (heals/<this sheet>/<id>). Each one is taken
-    // with a transaction that deletes it, so only one open copy of this sheet adds the HP.
-    if(!healWatched.has(snap.sheet)){
-      healWatched.add(snap.sheet);
-      onValue(ref(db, `campaigns/${FBK(snap.campaign)}/heals/${snap.sheet}`), s=>{
+    if(!watched.has(snap.char)){ watched.add(snap.char); await onDisconnect(node).update({online:false}); }
+    // Healing sent to this character by someone else (heals/<this character>/<id>). Each one is taken
+    // with a transaction that deletes it, so only one open copy of this character adds the HP.
+    if(!healWatched.has(snap.char)){
+      healWatched.add(snap.char);
+      onValue(ref(db, `campaigns/${FBK(snap.campaign)}/heals/${snap.char}`), s=>{
         Object.keys(s.val() || {}).forEach(id=>{
           let got = null;
-          runTransaction(ref(db, `campaigns/${FBK(snap.campaign)}/heals/${snap.sheet}/${id}`), cur=>{ got = cur; return null; })
+          runTransaction(ref(db, `campaigns/${FBK(snap.campaign)}/heals/${snap.char}/${id}`), cur=>{ got = cur; return null; })
             .then(r=>{ if(r.committed && got && window.tkHealed) window.tkHealed(clean(got)); })
             .catch(err=>console.warn('Healing from the party:', err));
         });
@@ -5456,20 +5189,20 @@ try{
   // Tell the DM Screen something happened here: 'last' (who you're attacking) or 'turnEnd'
   window.tkSendAct = (kind, data)=>{
     const snap = liveSnapshot(); if(!snap) return;
-    set(ref(db, `campaigns/${FBK(snap.campaign)}/acts/${snap.sheet}/${kind}`), {...data, t:serverTimestamp()})
+    set(ref(db, `campaigns/${FBK(snap.campaign)}/acts/${snap.char}/${kind}`), {...data, t:serverTimestamp()})
       .catch(err=>console.warn('Telling the DM:', err));
   };
   // Share a roll: the latest per character, replaced by the next (every screen plays it)
   window.tkSendRoll = roll=>{
     const snap = liveSnapshot(); if(!snap) return;
-    set(ref(db, `campaigns/${FBK(snap.campaign)}/rolls/${snap.sheet}`), {...roll, t:serverTimestamp()})
+    set(ref(db, `campaigns/${FBK(snap.campaign)}/rolls/${snap.char}`), {...roll, t:serverTimestamp()})
       .catch(err=>console.warn('Sharing the roll:', err));
   };
-  // Heal someone else: it waits on their sheet's heals list until their Turnkeeper takes it
-  window.tkSendHeal = (sheet, heal)=>{
+  // Heal someone else: it waits on their heals list until their Turnkeeper takes it
+  window.tkSendHeal = (char, heal)=>{
     const snap = liveSnapshot(); if(!snap) return Promise.reject(new Error('Not live'));
     const id = 'h' + Date.now() + Math.floor(Math.random() * 1000);
-    return set(ref(db, `campaigns/${FBK(snap.campaign)}/heals/${sheet}/${id}`), {...heal, fromSheet:snap.sheet, t:serverTimestamp()});
+    return set(ref(db, `campaigns/${FBK(snap.campaign)}/heals/${char}/${id}`), {...heal, fromChar:snap.char, t:serverTimestamp()});
   };
   window.tkLive = {connected:true, push(){ queue = queue.then(push).catch(err=>{ console.warn('Live sharing:', err); showLive('err'); }); }};
   window.tkLive.push();   // share the character that's already open

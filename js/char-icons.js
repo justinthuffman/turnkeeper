@@ -1,5 +1,5 @@
 /* ---------- Character icons: shared by the tracker and the DM Screen ----------
-   By sheet id. Krunk's is his own framed icon (Justin, 2026-10-02); the others are their
+   By character ID. Krunk's is his own framed icon (Justin, 2026-10-02); the others are their
    portraits cropped to head and shoulders (zoom and position) inside a ring colored for the
    class. To use a framed icon like Krunk's for someone else, put it in portraits/ and give
    their entry {img:'portraits/…'} instead. */
@@ -12,9 +12,9 @@ const CHAR_ICONS = {
 // Full addresses: a picture in a CSS variable is looked up from the stylesheet that uses it
 // (css/), not from the page, so a bare "portraits/…" would point at css/portraits/
 const iconUrl = p=>new URL(p, document.baseURI).href;
-// Turn an element into a sheet's icon; false when that sheet has none
-function applyCharIcon(el, sheet, label){
-  const c = sheet && CHAR_ICONS[sheet]; if(!c) return false;
+// Turn an element into a char's icon; false when that char has none
+function applyCharIcon(el, char, label){
+  const c = char && CHAR_ICONS[char]; if(!c) return false;
   el.className = (el.className.split(' ').filter(k=>k && !/^(char-icon|framed|ringed|bard|wizard|rogue|paladin)$/.test(k)).concat(['char-icon', c.img ? 'framed' : 'ringed ' + c.ring])).join(' ');
   el.style.backgroundImage = c.img ? `url("${iconUrl(c.img)}")` : '';
   el.style.setProperty('--face', c.face ? `url("${iconUrl(c.face)}")` : 'none');
@@ -22,9 +22,9 @@ function applyCharIcon(el, sheet, label){
   el.setAttribute('role', 'img'); if(label) el.setAttribute('aria-label', label);
   return true;
 }
-// The same, as HTML (for pages that draw cards with innerHTML); '' when the sheet has none
-function charIconHtml(sheet, label, extraClass){
-  const c = sheet && CHAR_ICONS[sheet]; if(!c) return '';
+// The same, as HTML (for pages that draw cards with innerHTML); '' when the char has none
+function charIconHtml(char, label, extraClass){
+  const c = char && CHAR_ICONS[char]; if(!c) return '';
   const q = s=>String(s).replace(/[&"<>]/g, ch=>({'&':'&amp;', '"':'&quot;', '<':'&lt;', '>':'&gt;'}[ch]));
   const style = c.img ? `background-image:url('${iconUrl(c.img)}')` : `--face:url('${iconUrl(c.face)}');--zoom:${c.zoom || 'cover'};--pos:${c.pos || 'center'}`;
   return `<div class="char-icon ${c.img ? 'framed' : 'ringed ' + c.ring}${extraClass ? ' ' + extraClass : ''}" role="img" aria-label="${q(label || '')}" style="${q(style)}"></div>`;

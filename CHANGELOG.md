@@ -3,6 +3,26 @@
 What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest first.
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
+## Unreleased — DM items, Manual Roll, every character in Turnkeeper
+
+### Added
+- **Campaign Items & Effects on the DM Screen.** The DM makes weapons, armor, gear and effects
+  with the same forms players use. The DM's new items start hidden: players can't see or add
+  them until the DM ticks Visible (say, when the party loots it).
+- **Manual Roll**, at the right of the tabs row: any dice, shown on everyone's screen as a Free
+  Roll, with the To Hit pool's GIFs on a natural 20 or 1.
+- **The DM's own preferences follow the DM:** the DM Screen's theme, panels, dice, Session Notes
+  and fight are saved to the DM's account, so they're the same on any device. The hub's theme
+  stays each player's own.
+- **Recent Rolls on the DM Screen** have a quiet line with the day between days.
+- **A link can open a tab:** `turnkeeper.html?char=<id>&tab=inventory`.
+
+### Changed
+- **Every character lives in Turnkeeper.** The import tool is gone; the hub, the DM Screen and
+  old bookmarks all open characters from Turnkeeper. "Reset to full" sets hit points to full.
+- **Phones:** folded panels keep their title on one line, the Resources header is compact, and
+  dragging panels and tabs is smooth.
+
 ## 2026-10-07 — Gear from the sheet
 
 ### Added
