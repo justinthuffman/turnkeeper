@@ -3,6 +3,21 @@
 What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest first.
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
+## 2026-10-08 — Gold ledger edits, the dice tray and healing
+
+### Added
+- **Edit a gold ledger line** (✎): change its amount, + or −, and note; the balance follows.
+
+### Changed
+- **Gold is whole gold pieces only.** Decimals can't be typed, and "12.5" pasted becomes 12.
+- **A click outside the dice tray only puts the roll away**, so the popup under it stays open
+  (pick who to heal, then Heal). Rolling again still works straight away.
+- **Aura of Vitality:** Heal heals and closes the popup, with a note in Resources.
+
+### Fixed
+- **Heal and damage screen effects show above the dice tray**, so a player healed by someone
+  else's roll sees it.
+
 ## 2026-10-08 — Who a status is from, Aura of Vitality
 
 ### Added
