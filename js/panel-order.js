@@ -61,14 +61,16 @@ function setupPanelOrder(opts){
     const g = e.target.closest('.panel-grip'); if(!g || e.button > 0 || drag) return;
     e.preventDefault();
     const panel = g.parentElement;
-    drag = {panel, grip:g, id:e.pointerId, from:order(), y:e.clientY, raf:0};
+    drag = {panel, grip:g, id:e.pointerId, from:order(), y:e.clientY, y0:e.clientY, raf:0};
     try{ g.setPointerCapture(e.pointerId); }catch(err){}   // keeps getting moves when the pointer leaves the grip
     document.body.classList.add('panels-sorting');
     // Keep the grabbed panel's (now short) bar under the pointer after everything shrinks
     const r = panel.getBoundingClientRect();
     scrollBy(0, r.top - (e.clientY - 22));
     const bar = panel.getBoundingClientRect();
-    drag.dx = e.clientX - bar.left; drag.dy = e.clientY - bar.top;
+    // The card hangs from the pointer by the same small amount wherever the bar ended up (near the
+    // top or bottom of the page the scroll above can't line it up, and the card used to keep the gap)
+    drag.dx = Math.min(Math.max(e.clientX - bar.left, 8), 40); drag.dy = 22;
     // The card in your hand: the panel's title bar
     const card = document.createElement('div');
     card.className = 'panel panel-held'; card.style.width = bar.width + 'px';
@@ -84,19 +86,23 @@ function setupPanelOrder(opts){
     const t = getComputedStyle(p).transform, shift = t && t !== 'none' ? new DOMMatrixReadOnly(t).m42 : 0;
     const r = p.getBoundingClientRect(); return {top:r.top - shift, height:r.height};
   };
+  // The next panel after this one (or the end marker), skipping whatever else sits between them
+  const nextPanel = p=>{ let n = p.nextSibling; while(n && n !== end && !(n.nodeType === 1 && n.classList.contains('panel') && n.id)) n = n.nextSibling; return n || end; };
   // The slot goes before the first panel whose middle is below the card's middle
   function retarget(){
     const mid = drag.y - drag.dy + drag.card.offsetHeight / 2;
     const others = all().filter(p=>p !== drag.panel && visible(p));
     const target = others.find(p=>{ const r = settledTop(p); return mid < r.top + r.height / 2; });
     const ref = target || end;
-    if(drag.panel.nextSibling !== ref && drag.panel !== ref) slide(()=>box.insertBefore(drag.panel, ref));
+    if(nextPanel(drag.panel) !== ref && drag.panel !== ref) slide(()=>box.insertBefore(drag.panel, ref));
   }
   // Near the top or bottom of the screen the page keeps scrolling while the pointer is held there
-  // (not only while it moves), faster the closer it gets
+  // (not only while it moves), faster the closer it gets. Only once the pointer has moved toward
+  // that edge: picking a panel up near an edge doesn't set the page scrolling by itself.
   function edgeScroll(){
     if(!drag) return;
-    const y = drag.y, edge = 70, speed = y < edge ? -(edge - y) / 4 : y > innerHeight - edge ? (y - (innerHeight - edge)) / 4 : 0;
+    const y = drag.y, edge = 70;
+    const speed = y < edge && y < drag.y0 - 8 ? -(edge - y) / 4 : y > innerHeight - edge && y > drag.y0 + 8 ? (y - (innerHeight - edge)) / 4 : 0;
     if(speed){ scrollBy(0, Math.round(speed)); retarget(); }
     drag.raf = requestAnimationFrame(edgeScroll);
   }
