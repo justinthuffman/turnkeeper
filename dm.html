@@ -1118,7 +1118,8 @@ function nextTurn(){
       const heal = d.kind === 'heal', amount = `${n} HP${rolled ? ` (${d.dmg})` : ''}`;
       dmPrompt({
         html:`<p><b>${esc(cur.name)}</b> has <b>${esc(e.name)}</b>${e.caster && e.caster !== 'you' ? ` (from ${esc(e.caster)})` : ''}.</p>`
-          + `<p class="dp-q">${heal ? 'Heal' : 'Damage'} ${esc(cur.name)} for <b>${esc(amount)}</b> from ${esc(e.name)}?</p>`${!heal && d.dmgType ? `<p class="dp-note">${esc(d.dmgType)} damage</p>` : ''}
+          + `<p class="dp-q">${heal ? 'Heal' : 'Damage'} ${esc(cur.name)} for <b>${esc(amount)}</b> from ${esc(e.name)}?</p>`
+          + (!heal && d.dmgType ? `<p class="dp-note">${esc(d.dmgType)} damage</p>` : '')
           + (!heal && d.endKind && d.endWhat ? `<p class="dp-note">A DC ${esc(d.endDC || '?')} ${esc(d.endWhat)} ${esc(d.endKind)} ends it.</p>` : ''),
         yes:()=>{ const c = byId(cur.id); if(!c) return; heal ? applyHeal(c, n) : applyDamage(c, n); logLine(`${c.name}: ${e.name}`); saveCombat(); renderInit(); renderEncounter(); },
         no:()=>logLine(`${cur.name}: ${e.name} skipped this turn`),
