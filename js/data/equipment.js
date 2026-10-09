@@ -82,6 +82,8 @@ const GEAR_ROWS = [
   ['Blowgun Needles (50)', 'Ammunition', '1 gp', 1],
   ['Crossbow Bolts (20)', 'Ammunition', '1 gp', 1.5],
   ['Sling Bullets (20)', 'Ammunition', '4 cp', 1.5],
+  // One piece (a twentieth of a bundle, a fiftieth for needles): what special ammunition is built on
+  ['Arrow', 'Ammunition', '5 cp', 0.05], ['Crossbow Bolt', 'Ammunition', '5 cp', 0.075], ['Sling Bullet', 'Ammunition', '', 0.075], ['Blowgun Needle', 'Ammunition', '', 0.02],
   // Dungeon Master's Guide (2014): magic ammunition, +1 to +3 to attack and damage (used up when fired)
   ['Arrow +1', 'Ammunition', '', 0.05, 'Magic: +1 to attack and damage rolls.'], ['Arrow +2', 'Ammunition', '', 0.05, 'Magic: +2 to attack and damage rolls.'], ['Arrow +3', 'Ammunition', '', 0.05, 'Magic: +3 to attack and damage rolls.'],
   ['Crossbow Bolt +1', 'Ammunition', '', 0.075, 'Magic: +1 to attack and damage rolls.'], ['Crossbow Bolt +2', 'Ammunition', '', 0.075, 'Magic: +2 to attack and damage rolls.'], ['Crossbow Bolt +3', 'Ammunition', '', 0.075, 'Magic: +3 to attack and damage rolls.'],
@@ -256,6 +258,8 @@ GEAR.forEach(g=>{ if(ITEM_USES[g.name]) Object.assign(g, {use:ITEM_USES[g.name],
    fires it, and used up when fired. Ordinary arrows aren't counted. */
 const AMMO_KINDS = [['arrow', 'Arrows (bows)'], ['bolt', 'Bolts (crossbows)'], ['bullet', 'Sling bullets'], ['needle', 'Blowgun needles']];
 GEAR.forEach(g=>{ const m = g.name.match(/^(Arrow|Crossbow Bolt|Sling Bullet) \+(\d)$/); if(m) Object.assign(g, {ammo:{fits:{'Arrow':'arrow', 'Crossbow Bolt':'bolt', 'Sling Bullet':'bullet'}[m[1]]}, magic:+m[2], consumable:true}); });
+// What a piece of ammunition fits: "Arrow" → arrow, "Crossbow Bolt" → bolt
+const AMMO_PIECES = {'Arrow':'arrow', 'Crossbow Bolt':'bolt', 'Sling Bullet':'bullet', 'Blowgun Needle':'needle'};
 // What a weapon fires: bows arrows, crossbows bolts, slings bullets, blowguns needles
 const ammoKindOf = name=>{ const n = String(name || '').toLowerCase(); return /\bbow\b|longbow|shortbow/.test(n) && !/crossbow/.test(n) ? 'arrow' : /crossbow/.test(n) ? 'bolt' : /sling/.test(n) ? 'bullet' : /blowgun/.test(n) ? 'needle' : null; };
 

@@ -77,7 +77,7 @@ let itemForm = null;
 function openItemForm(d, isNew){
   itemForm = {id:d.id || null, isNew, onHit:[...(d.onHit || [])], whileEquipped:[...(d.whileEquipped || [])]};
   const f = document.getElementById('itemForm'); f.hidden = false;
-  const types = ITEM_TYPES, bases = [...WEAPONS, ...ARMOR].map(x=>x.name), dm = !!host().dm;
+  const types = ITEM_TYPES, bases = [...WEAPONS, ...ARMOR].map(x=>x.name).concat(Object.keys(AMMO_PIECES)), dm = !!host().dm;
   // The DM's new items start hidden (prepared ahead, shown when the party finds them)
   const hidden = isNew ? dm : !!d.hidden;
   f.innerHTML = `<div class="cs-sub">${isNew ? 'New item for the campaign' : 'Edit ' + ifEsc(d.name)}</div>`
@@ -85,7 +85,7 @@ function openItemForm(d, isNew){
     + `<div class="cs-grid">`
     + `<label class="cs-field"><span>Name</span><input id="if_name" type="text" maxlength="80" value="${ifEsc(d.name)}"></label>`
     + `<label class="cs-field"><span>Type</span><select id="if_type">${types.map(t=>`<option${t === (d.type || 'Adventuring Gear') ? ' selected' : ''}>${ifEsc(t)}</option>`).join('')}</select></label>`
-    + `<label class="cs-field"><span>Built on (weapons and armor)</span><select id="if_base"><option value="">—</option>${bases.map(b=>`<option${b === (d.base || '') ? ' selected' : ''}>${ifEsc(b)}</option>`).join('')}</select></label>`
+    + `<label class="cs-field"><span>Built on (weapon, armor or ammunition)</span><select id="if_base"><option value="">—</option>${bases.map(b=>`<option${b === (d.base || '') ? ' selected' : ''}>${ifEsc(b)}</option>`).join('')}</select></label>`
     + `<label class="cs-field"><span>Cost</span><input id="if_cost" type="text" maxlength="30" value="${ifEsc(d.cost || '')}" placeholder="e.g. 150 gp"></label>`
     + `<label class="cs-field"><span>Weight (lb)</span><input id="if_weight" type="number" min="0" step="any" value="${d.weight ?? ''}"></label>`
     + `<label class="cs-field"><span>Magic bonus (+ to hit and damage, or AC)</span><input id="if_magic" type="number" min="0" max="5" value="${d.magic || ''}"></label>`
@@ -113,7 +113,7 @@ function drawItemFormUse(){
   if(type === 'Ammunition'){
     const a = (itemForm.weapon && itemForm.weapon.ammo) || {};
     box.innerHTML = `<div class="cs-sub">Special ammunition</div><p class="cs-none">Chosen when attacking with a weapon that fires it, and used up when fired. Ordinary arrows aren’t counted.</p><div class="cs-grid">`
-      + `<label class="cs-field"><span>Fits</span><select id="ia_fits">${AMMO_KINDS.map(([k, l])=>`<option value="${k}"${k === (a.fits || 'arrow') ? ' selected' : ''}>${l}</option>`).join('')}</select></label>`
+      + `<label class="cs-field"><span>Fits</span><select id="ia_fits">${AMMO_KINDS.map(([k, l])=>`<option value="${k}"${k === (a.fits || AMMO_PIECES[base] || 'arrow') ? ' selected' : ''}>${l}</option>`).join('')}</select></label>`
       + `<label class="cs-field"><span>Extra damage (dice)</span><input id="ia_dmg" type="text" maxlength="20" value="${ifEsc(a.dmg || '')}" placeholder="e.g. 2d4"></label>`
       + `<label class="cs-field"><span>Extra damage type</span><select id="ia_type"><option value=""></option>${DAMAGE_TYPES.map(t=>`<option${t === a.dmgType ? ' selected' : ''}>${t}</option>`).join('')}</select></label></div>`;
     return;
@@ -141,6 +141,7 @@ function drawItemFormWeapon(){
   const box = document.getElementById('ifWeapon'); if(!box || !itemForm) return;
   const base = document.getElementById('if_base').value, baseDef = base ? equipmentByName(base) : null;
   const type = baseDef ? baseDef.type : document.getElementById('if_type').value;
+  if(baseDef && baseDef.type === 'Ammunition'){ box.innerHTML = ''; return; }
   if(baseDef){ box.innerHTML = `<p class="cs-none">Built on a ${ifEsc(baseDef.name)}: ${ifEsc(itemAttrs(baseDef))}.</p>`; return; }
   if(type !== 'Weapon'){ box.innerHTML = ''; return; }
   const w = itemForm.weapon || {}, hands = w.twoHanded ? 'two' : w.versatile ? 'versatile' : 'one';

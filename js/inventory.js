@@ -232,6 +232,12 @@ function invGroups(items){
   return Object.keys(groups).sort((a, b)=>INV_GROUP_ORDER.indexOf(a) - INV_GROUP_ORDER.indexOf(b))
     .map(g=>[g, groups[g].sort((a, b)=>a.name.localeCompare(b.name))]);
 }
+// Gear is what you can equip (weapons, armor, shields); Items is everything you use, throw, fire or carry
+const isGear = d=>!!d && (isWeapon(d) || isArmor(d) || isShield(d));
+function invTableHtml(items, e, w){
+  return `<table class="inv"><thead><tr><th>Item</th><th>Type</th><th>Cost</th>${w ? '<th>Weight</th>' : ''}<th>Attributes</th><th>Notes</th><th>Qty</th><th></th></tr></thead><tbody>`
+    + invGroups(items).map(([group, list])=>`<tr class="inv-group"><th colspan="${w ? 8 : 7}">${csEsc(group)}</th></tr>` + list.map(it=>invRowHtml(it, e, w)).join('')).join('') + `</tbody></table>`;
+}
 function renderInventory(){
   const panel = document.getElementById('invPanel'); if(!panel) return;
   panel.hidden = !csDb(); if(!csDb()) return;
@@ -240,18 +246,22 @@ function renderInventory(){
   document.getElementById('invNames').innerHTML = names.map(n=>`<option value="${csEsc(n)}"></option>`).join('');
   const total = items.reduce((n, it)=>{ const d = itemDef(it.name); return n + (d && d.weight ? d.weight * (it.qty || 1) : 0); }, 0);
   document.getElementById('invTotals').textContent = items.length ? `${items.length} item${items.length === 1 ? '' : 's'}${w ? ` · ${Math.round(total * 100) / 100} lb carried` : ''}` : '';
-  document.getElementById('invTable').innerHTML = items.length ? `<table class="inv"><thead><tr><th>Item</th><th>Type</th><th>Cost</th>${w ? '<th>Weight</th>' : ''}<th>Attributes</th><th>Notes</th><th>Qty</th><th></th></tr></thead><tbody>`
-    + invGroups(items).map(([group, list])=>`<tr class="inv-group"><th colspan="${w ? 8 : 7}">${csEsc(group)}</th></tr>` + list.map(it=>{
-      const d = itemDef(it.name) || {type:'Other', cost:'', weight:0};
-      const fx = [...effectsFor(d.onHit).map(x=>`On hit: ${x.name}`), ...effectsFor(d.whileEquipped).map(x=>`While equipped: ${x.name}`)];
-      return `<tr><td><b>${csEsc(it.name)}</b>${d.custom ? ` <small class="inv-custom" title="A custom item for this campaign${d.baseName ? ', built on a ' + csEsc(d.baseName) : ''}">custom</small>` : ''}${d.attune ? ` <label class="inv-attune"><input type="checkbox" data-attune="${it.id}"${it.attuned ? ' checked' : ''}> attuned</label>` : ''}${equippedTag(it, e)}</td>`
-        + `<td>${csEsc(d.type)}</td><td>${csEsc(d.cost)}</td>${w ? `<td>${d.weight ? d.weight + ' lb' : '—'}</td>` : ''}`
-        + `<td>${csEsc(itemAttrs(d, it))}${fx.length ? `<div class="inv-fx">${fx.map(csEsc).join('<br>')}</div>` : ''}${d.notes ? `<div class="inv-defnote">${csEsc(d.notes)}</div>` : ''}</td>`
-        + `<td><input type="text" class="inv-note" data-inv-note="${it.id}" value="${csEsc(it.notes || '')}" placeholder="Your notes" aria-label="Notes for ${csEsc(it.name)}"></td>`
-        + `<td>${isWeapon(d) || isArmor(d) || isShield(d) ? '<span class="cs-none">—</span>' : `<input type="number" class="inv-qty" data-inv-qty="${it.id}" min="0" value="${it.qty ?? 1}" aria-label="How many ${csEsc(it.name)}">`}</td>`
-        + `<td>${d.custom ? `<button type="button" class="sel-toggle" data-edit-item="${csEsc(d.id)}">Edit</button> ` : ''}<button type="button" class="sel-toggle" data-inv-del="${it.id}" aria-label="Remove ${csEsc(it.name)}">Remove</button></td></tr>`;
-    }).join('')).join('') + `</tbody></table>`
+  const gear = items.filter(it=>isGear(itemDef(it.name))), rest = items.filter(it=>!isGear(itemDef(it.name)));
+  document.getElementById('invTable').innerHTML = items.length
+    ? `<h3 class="inv-part">Gear</h3><p class="cs-none inv-part-note">Weapons, armor and shields: equip them under Equipment.</p>${gear.length ? invTableHtml(gear, e, w) : '<p class="cs-none">None yet.</p>'}`
+      + `<h3 class="inv-part">Items</h3><p class="cs-none inv-part-note">Ammunition, potions and everything you use, throw or carry.</p>${rest.length ? invTableHtml(rest, e, w) : '<p class="cs-none">None yet.</p>'}`
     : `<p class="cs-none">Nothing yet. Type an item's name above (from the Player's Handbook lists, or anything new), then Add.</p>`;
+}
+// One row of the inventory
+function invRowHtml(it, e, w){
+  const d = itemDef(it.name) || {type:'Other', cost:'', weight:0};
+  const fx = [...effectsFor(d.onHit).map(x=>`On hit: ${x.name}`), ...effectsFor(d.whileEquipped).map(x=>`While equipped: ${x.name}`)];
+  return `<tr><td><b>${csEsc(it.name)}</b>${d.custom ? ` <small class="inv-custom" title="A custom item for this campaign${d.baseName ? ', built on a ' + csEsc(d.baseName) : ''}">custom</small>` : ''}${d.attune ? ` <label class="inv-attune"><input type="checkbox" data-attune="${it.id}"${it.attuned ? ' checked' : ''}> attuned</label>` : ''}${equippedTag(it, e)}</td>`
+    + `<td>${csEsc(d.type)}</td><td>${csEsc(d.cost)}</td>${w ? `<td>${d.weight ? d.weight + ' lb' : '—'}</td>` : ''}`
+    + `<td>${csEsc(itemAttrs(d, it))}${fx.length ? `<div class="inv-fx">${fx.map(csEsc).join('<br>')}</div>` : ''}${d.notes ? `<div class="inv-defnote">${csEsc(d.notes)}</div>` : ''}</td>`
+    + `<td><input type="text" class="inv-note" data-inv-note="${it.id}" value="${csEsc(it.notes || '')}" placeholder="Your notes" aria-label="Notes for ${csEsc(it.name)}"></td>`
+    + `<td>${isWeapon(d) || isArmor(d) || isShield(d) ? '<span class="cs-none">—</span>' : `<input type="number" class="inv-qty" data-inv-qty="${it.id}" min="0" value="${it.qty ?? 1}" aria-label="How many ${csEsc(it.name)}">`}</td>`
+    + `<td>${d.custom ? `<button type="button" class="sel-toggle" data-edit-item="${csEsc(d.id)}">Edit</button> ` : ''}<button type="button" class="sel-toggle" data-inv-del="${it.id}" aria-label="Remove ${csEsc(it.name)}">Remove</button></td></tr>`;
 }
 function addToInventory(name, qty){
   const items = invItems(), n = Math.max(1, parseInt(qty, 10) || 1);

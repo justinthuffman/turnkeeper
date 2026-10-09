@@ -132,6 +132,9 @@ button.res-gold small{font-weight:400; color:var(--ink-dim); font-size:0.75rem;}
 .gear-grip{display:flex; flex-wrap:wrap; gap:4px 14px; margin-top:4px; font-size:0.82rem;}
 .gear-grip label{display:inline-flex; align-items:center; gap:4px; cursor:pointer;}
 table.inv tr.inv-group th{text-align:left; padding:10px 6px 4px; font-family:var(--font-display); font-size:0.85rem; color:var(--sea); text-transform:none; letter-spacing:0.02em; border-bottom:1px solid var(--sea-dim);}
+#invTable h3.inv-part{margin:16px 0 2px; font-family:var(--font-display); font-size:1.05rem; color:var(--sea);}
+#invTable h3.inv-part:first-child{margin-top:4px;}
+#invTable .inv-part-note{margin:0 0 6px;}
 @media (max-width:640px){ table.inv tr.inv-group{display:block;} table.inv tr.inv-group th{display:block;} }
 /* Resources header: Inspiration and gold stand out on their own; resting sits at the bottom */
 .res-badges{display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-left:auto;}
