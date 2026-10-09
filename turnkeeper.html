@@ -557,6 +557,14 @@ button.theme-option[aria-pressed="true"]{font-weight:600;}
 button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box-shadow:0 0 0 2px var(--panel), 0 0 0 3px var(--ink);}
 /* Damage waits for the to-hit roll (the Damage rows look dimmed until then) */
 #rollBody.await-hit .roll-box:has(button[data-roll^="Damage"]){opacity:0.55;}
+/* Choices waiting (a feat, a Fighting Style…): a banner at the top that takes you to them */
+.choice-banner{position:sticky; top:8px; z-index:55; display:flex; align-items:center; gap:10px; width:100%; margin:0 0 12px; padding:10px 14px; text-align:left;
+  background:var(--panel2); color:var(--ink); border:2px solid var(--sea); border-radius:10px; font:inherit; font-size:0.92rem; cursor:pointer; box-shadow:0 6px 18px rgba(0,0,0,0.35);}
+.choice-banner[hidden]{display:none;}
+.choice-banner b{color:var(--sea);}
+.choice-banner .cb-go{margin-left:auto; white-space:nowrap; color:var(--sea); text-decoration:underline;}
+.choice-banner.shake{animation:needPick 0.5s; border-color:var(--danger);}
+.build-box.flash{outline:2px solid var(--sea); outline-offset:3px; transition:outline-color 1.2s;}
 .roll-box.need-pick, .heal-who.need-pick{outline:2px solid var(--danger); outline-offset:2px; animation:needPick 0.5s;}
 .heal-who .roll-wait{flex-basis:100%;}
 /* Hurt by an effect at the start of your turn (showDamageFx): like the golden heal, in the
@@ -641,6 +649,7 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
   </div>
 </header>
 <div class="status load-status" id="loadStatus" role="status"></div>
+<button type="button" class="choice-banner" id="choiceBanner" hidden></button>
 <!-- V5: tabs (js/tabs.js) -->
 <nav class="tk-tabs" id="tkTabs" role="tablist" aria-label="Character sheet"></nav>
 
@@ -3817,7 +3826,40 @@ function featProfGrants(){
   });
   return out;
 }
+/* Choices waiting (a subclass, a Fighting Style, a feat or ability points, a feat's picks): until
+   they're made, the Combat Menu and rolls wait (Justin, 2026-10-09). A banner at the top says so
+   wherever Character Summary is; clicking it opens the Overview tab and the panel and centers
+   the choices. */
+const pendingChoices = ()=>currentCharId ? buildChoices().filter(c=>!c.value) : [];
+// Center something on screen once the panels and sections opening around it have finished sliding.
+// find() looks it up each time: a section can redraw (and replace it) while opening.
+function centerWhenOpen(find){ [60, 450, 900].forEach(ms=>setTimeout(()=>{ const el = find(); if(el) el.scrollIntoView({behavior:'smooth', block:'center'}); }, ms)); }
+function renderChoiceBanner(){
+  const b = document.getElementById('choiceBanner'); if(!b) return;
+  const p = pendingChoices();
+  b.hidden = !p.length;
+  if(p.length) b.innerHTML = `<span>⚠</span><span><b>${p.length === 1 ? 'A choice to make' : `${p.length} choices to make`}</b> before you play: ${p.map(c=>escapeHtml(c.featSlot ? `level ${c.featSlot} ability scores or a feat` : c.label)).join(', ')}.</span><span class="cb-go">Go to ${p.length === 1 ? 'it' : 'them'}</span>`;
+}
+function goToChoices(){
+  if(window.showTab) showTab('overview');
+  tkPanels.expand('summaryPanel');
+  const box = document.getElementById('buildBox');
+  centerWhenOpen(()=>document.getElementById('buildBox'));
+  box.classList.remove('flash'); void box.offsetWidth; box.classList.add('flash'); setTimeout(()=>box.classList.remove('flash'), 1600);
+}
+document.getElementById('choiceBanner').addEventListener('click', goToChoices);
+// Playing waits for the choices: the Combat Menu, Roll buttons and Manual Roll (window capture, so
+// it's ahead of everything else). The banner shakes to show why.
+window.addEventListener('click', e=>{
+  if(!e.target.closest || !pendingChoices().length) return;
+  if(!e.target.closest('#combatPanel button, button[data-roll], #manualRollBtn, [data-conc-bonus]')) return;
+  e.stopPropagation(); e.preventDefault();
+  const b = document.getElementById('choiceBanner');
+  b.classList.remove('shake'); void b.offsetWidth; b.classList.add('shake');
+  b.scrollIntoView({behavior:'smooth', block:'nearest'});
+}, true);
 function renderBuild(){
+  renderChoiceBanner();
   const box = document.getElementById('buildBox'); if(!box) return;
   const choices = currentCharId ? buildChoices() : [];
   box.hidden = !choices.length;
@@ -4126,8 +4168,11 @@ function resetFeatUi(){ Object.assign(featUi, {slot:null, tab:'feat', asi:{}, qu
 function openFeatPicker(level){
   const s = getSlots()[level];
   Object.assign(featUi, {slot:level, tab:s && s.asi ? 'asi' : 'feat', asi:s && s.asi ? {...s.asi} : {}, query:''});
+  if(window.showTab) showTab('overview');
+  if(window.tkOpenSummaryMore) window.tkOpenSummaryMore();   // everything under the ability scores, folded away by Expand
   featSection.open = true; featSection.render();
-  tkPanels.expand(document.getElementById('feToggle').closest('.wrap > .panel').id); document.getElementById('feToggle').scrollIntoView({behavior:'smooth', block:'start'});
+  tkPanels.expand(document.getElementById('feToggle').closest('.wrap > .panel').id);
+  centerWhenOpen(()=>document.querySelector(`[data-feat-slot-row="${level}"]`) || document.getElementById('feToggle'));
 }
 function fillSlot(level, value){
   const old = getSlots()[level];
@@ -4194,7 +4239,7 @@ function renderFeatSlots(section, list){
   const editing = featUi.slot !== null ? featUi.slot : openFeatSlots().find(l=>!slots[l]);
   featSlotLevels().forEach(l=>{
     const s = slots[l], wrap = document.createElement('div');
-    wrap.className = 'feat-slot';
+    wrap.className = 'feat-slot'; wrap.dataset.featSlotRow = l;   // openFeatPicker centers this level's row
     wrap.innerHTML = `<div class="feat-slot-head">Level ${l}${l > lvl ? ' <span class="rt-lvl">(not reached yet)</span>' : ''}</div>`;
     if(l > lvl){
       wrap.classList.add('rt-locked');
@@ -5095,6 +5140,7 @@ document.querySelectorAll('.collapsible').forEach(wrap=>{
     s.classList.toggle('has-pins', !!(pins && pins.querySelector('.chip, .rt-item, li, div, span')));
   });
   btn.addEventListener('click', ()=>setMore(more.classList.contains('sum-collapsed')));
+  window.tkOpenSummaryMore = ()=>{ if(more.classList.contains('sum-collapsed')) setMore(true); };
   more.addEventListener('click', e=>{
     const t = e.target.closest('.rt-toggle'); if(!t || !more.classList.contains('sum-collapsed')) return;
     setMore(true); if(t.getAttribute('aria-expanded') === 'true') e.stopPropagation();   // already open: just show it
