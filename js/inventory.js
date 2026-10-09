@@ -151,7 +151,7 @@ function weaponAttackFor(it, d, hands, scores){
     name: it.name + (hands === 2 && d.versatile ? ' (two hands)' : ''),
     bonus: fmtMod(m + (prof ? proficiencyBonus() : 0) + magic),
     damage: `${dmg} ${d.dmgType || ''} · ${kind}${props ? ' ' + props : ''}`.replace(/\s+·/, ' ·'),
-    onHit: effectsFor(d.onHit), notProficient: !prof, itemId: it.id,
+    onHit: effectsFor(d.onHit), notProficient: !prof, itemId: it.id, magical: magic > 0,   // magical: gets past non-magical resistance
   };
 }
 // The attacks for the page (state.attacks), from the record's base scores (feats are added later)

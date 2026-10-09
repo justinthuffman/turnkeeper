@@ -19,7 +19,7 @@ function cleanLibrary(raw){
   Object.entries(raw.monsters && typeof raw.monsters === 'object' ? raw.monsters : {}).forEach(([id, m])=>{
     if(!m || typeof m !== 'object' || !str(m.name, 60)) return;
     monsters[id] = {name:str(m.name, 60), ac:num(m.ac), hp:str(m.hp, 20), init:num(m.init) ?? 0, cr:CR_XP[m.cr] !== undefined ? m.cr : '',
-      srd:str(m.srd, 60), notes:str(m.notes, 2000),
+      srd:str(m.srd, 60), notes:str(m.notes, 2000), res:str(m.res, 200), vul:str(m.vul, 200), imm:str(m.imm, 200),
       attacks:list(m.attacks).slice(0, LIB_MAX_ATTACKS).filter(a=>a && str(a.name, 60)).map(a=>({name:str(a.name, 60), hit:num(a.hit), dmg:str(a.dmg, 40), type:str(a.type, 20)}))};
   });
   Object.entries(raw.encounters && typeof raw.encounters === 'object' ? raw.encounters : {}).forEach(([id, e])=>{
@@ -41,7 +41,7 @@ function libWrite(path, value, add){
 /* ---------- Adding monsters to Initiative ---------- */
 // One kind of monster, count of them: HP rolled from dice or fixed, initiative rolled (once for
 // the group when groupInit, as the DMG allows). Used by the Add form, saved monsters and encounters.
-function addMonsterGroup({base, count, ac, hp, initMod, cr, srd, custom, rollHp, groupInit}){
+function addMonsterGroup({base, count, ac, hp, initMod, cr, srd, custom, rollHp, groupInit, def}){
   count = Math.max(1, Math.min(30, count || 1));
   const shared = groupInit ? d20() + initMod : null;
   const start = nextNumber(base);
@@ -52,13 +52,15 @@ function addMonsterGroup({base, count, ac, hp, initMod, cr, srd, custom, rollHp,
     else if(/d/i.test(hp || '')) h = rollExpr(hp);    // dice: each one rolls
     else h = toNum(hp);
     combat.list.push(newCombatant({kind:'monster', name:single ? base : `${base} ${start + i}`, initMod, dex:initMod,
-      init:shared ?? (d20() + initMod), ac, hp:h, max:h, srd:srd ? srd.index : null, custom:custom || null, cr}));
+      init:shared ?? (d20() + initMod), ac, hp:h, max:h, srd:srd ? srd.index : null, custom:custom || null, cr, ...(def ? {def} : {})}));
   }
   logLine(`Added ${count} × ${base}`);
 }
 function addSavedMonster(id, count){
   const m = library.monsters[id]; if(!m) return;
-  addMonsterGroup({base:m.name, count, ac:m.ac, hp:m.hp, initMod:m.init, cr:m.cr || null, srd:m.srd ? {index:m.srd} : null, custom:id, groupInit:$('mGroup').checked});
+  // Its own damage defenses, when the DM wrote any (otherwise its SRD stat block's)
+  const def = m.res || m.vul || m.imm ? {res:defenseTokens(m.res), vul:defenseTokens(m.vul), imm:defenseTokens(m.imm)} : null;
+  addMonsterGroup({base:m.name, count, ac:m.ac, hp:m.hp, initMod:m.init, cr:m.cr || null, srd:m.srd ? {index:m.srd} : null, custom:id, groupInit:$('mGroup').checked, def});
 }
 async function loadEncounter(id){
   const e = library.encounters[id]; if(!e) return;
@@ -152,6 +154,9 @@ function openMonsterEditor(id, start){
       <label>HP <input type="text" id="lmHp" maxlength="20" value="${esc(m.hp || '')}" placeholder="65 or 10d8+20"></label>
       <label>Init bonus <input type="number" id="lmInit" min="-10" max="20" value="${m.init ?? 0}"></label>
       <label>CR <select id="lmCr">${crOptions(m.cr)}</select></label>
+      <label class="span-all">Damage resistances <input type="text" id="lmRes" maxlength="200" value="${esc(m.res || '')}" placeholder="e.g. cold, fire; bludgeoning, piercing and slashing from nonmagical attacks"></label>
+      <label class="span-all">Damage vulnerabilities <input type="text" id="lmVul" maxlength="200" value="${esc(m.vul || '')}" placeholder="e.g. fire"></label>
+      <label class="span-all">Damage immunities <input type="text" id="lmImm" maxlength="200" value="${esc(m.imm || '')}" placeholder="e.g. poison"></label>
     </div>
     <div class="lib-sublbl">Attacks <small>(each gets Roll buttons in the stat block)</small></div>
     <div id="lmAttacks">${(m.attacks.length ? m.attacks : []).map(attackRow).join('')}</div>
@@ -175,6 +180,9 @@ async function fillMonsterFromSrd(){
     $('lmInit').value = abilMod(m.dexterity);
     $('lmCr').value = crText(m.challenge_rating);
     $('lmSrdIndex').value = m.index;
+    // Its damage defenses, as the stat block words them
+    const words = l=>(l || []).map(x=>typeof x === 'string' ? x : x.name).join('; ');
+    $('lmRes').value = words(m.damage_resistances); $('lmVul').value = words(m.damage_vulnerabilities); $('lmImm').value = words(m.damage_immunities);
     const attacks = (m.actions || []).filter(a=>a.attack_bonus !== undefined).slice(0, LIB_MAX_ATTACKS).map(a=>{
       const d = (a.damage || []).find(x=>x.damage_dice) || {};
       return {name:a.name, hit:a.attack_bonus, dmg:(d.damage_dice || '').replace(/\s/g, ''), type:d.damage_type ? d.damage_type.name.toLowerCase() : ''};
@@ -191,7 +199,8 @@ async function saveMonsterForm(form){
     return {name:f('name').slice(0, 60), hit:toNum(f('hit')), dmg:f('dmg').replace(/\s/g, '').slice(0, 40), type:f('type').slice(0, 20)}; })
     .filter(a=>a.name).map(a=>Object.fromEntries(Object.entries(a).filter(([, v])=>v !== null && v !== '')));
   const data = {name:name.slice(0, 60), hp:hp.slice(0, 20), init:toNum($('lmInit').value) ?? 0, notes:$('lmNotes').value.slice(0, 2000),
-    attacks, cr:$('lmCr').value, srd:$('lmSrdIndex').value, ac:toNum($('lmAc').value)};
+    attacks, cr:$('lmCr').value, srd:$('lmSrdIndex').value, ac:toNum($('lmAc').value),
+    res:$('lmRes').value.trim().slice(0, 200), vul:$('lmVul').value.trim().slice(0, 200), imm:$('lmImm').value.trim().slice(0, 200)};
   Object.keys(data).forEach(k=>{ if(data[k] === null || data[k] === '' || (Array.isArray(data[k]) && !data[k].length)) delete data[k]; });
   const id = form.dataset.id;
   const ok = id ? await libWrite(`monsters/${id}`, data) : await libWrite('monsters', data, true);

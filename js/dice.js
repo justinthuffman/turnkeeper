@@ -483,6 +483,7 @@ function showRoll(roll, opts){
   card.innerHTML = `<button type="button" class="dc-close" aria-label="Close">&times;</button>`
     + `<div class="dc-head"><span class="dc-who">${diceEsc(roll.name || 'Someone')}</span><span class="dc-what">${diceEsc(roll.label || 'Roll')}</span></div>`
     + `<div class="dc-total">${roll.total}<small>${diceEsc(roll.notation || '')}</small></div>`
+    + (roll.parts && roll.parts.length && typeof damagePartsHtml === 'function' ? damagePartsHtml(roll) : '')
     + (chips ? `<div class="dc-dice">${chips}</div>` : '')
     + (roll.nat ? `<div class="dc-nat n${roll.nat}">${natWords(roll)}!</div>` : '')
     + (opts && opts.note ? `<div class="dc-what">${diceEsc(opts.note)}</div>` : '');
@@ -515,7 +516,9 @@ function cleanRoll(r){
     .map(d=>({s:d.s, v:d.v, ...(Number.isInteger(d.c) ? {c:d.c} : {}), ...(d.x === true ? {x:true} : {})}));
   return {id:String(r.id || ''), name:String(r.name || ''), label:String(r.label || ''), notation:String(r.notation || ''),
     total:typeof r.total === 'number' && Number.isFinite(r.total) ? r.total : 0, dice, nat:r.nat === 20 || r.nat === 1 ? r.nat : 0, style:safeDiceStyle(r.style),
-    kind:CRIT_ROWS.some(x=>x[0] === r.kind) || r.kind === 'free' ? r.kind : '', fx:cleanFx(r.fx), throw:safeThrow(r.throw)};
+    kind:CRIT_ROWS.some(x=>x[0] === r.kind) || r.kind === 'free' ? r.kind : '', fx:cleanFx(r.fx), throw:safeThrow(r.throw),
+    // A typed damage roll (js/damage.js): each type, what resistance or vulnerability did, and the working
+    ...(r.parts && typeof cleanParts === 'function' ? {parts:cleanParts(r.parts), math:typeof r.math === 'string' ? r.math.slice(0, 200) : ''} : {})};
 }
 // Make a roll from a row's dice: {roll} or {error}
 function makeRoll(text, name, label, style, kind, strength){

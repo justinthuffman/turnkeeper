@@ -117,3 +117,16 @@
   .crit-fx::before, .cf-stage, .crit-fx.fail .cf-stage, .cf-banner, .cf-panel, .cf-panel::after, .cf-text .l, .crit-fx.fail .cf-text .l, .cf-spark{animation:none !important;}
   .cf-panel::after, .cf-spark{display:none;}
 }
+/* A typed damage roll (js/damage.js): each type in its color. An amount changed by resistance,
+   vulnerability or immunity grows, then turns into the new amount with the word beside it */
+.dc-parts{display:flex; flex-wrap:wrap; justify-content:center; gap:4px 14px; margin:2px 0 6px;}
+.dc-part{color:var(--dc); font-weight:600; white-space:nowrap; display:inline-flex; align-items:baseline; gap:4px;}
+.dc-part .dp-now, .dc-part .dp-was{font-size:1.25rem; display:inline-block;}
+.dc-part em{font-style:normal; font-size:0.72rem; text-transform:uppercase; letter-spacing:0.05em; opacity:0; animation:dpWord 0.4s ease-out 1.8s forwards;}
+.dc-part.changed .dp-was{color:var(--ink, #fff); animation:dpWas 1.8s ease-in forwards;}
+.dc-part.changed .dp-now{font-size:0; opacity:0; animation:dpNow 0.5s ease-out 1.8s forwards; text-shadow:0 0 10px var(--dc);}
+@keyframes dpWas{0%{transform:scale(1);} 60%{transform:scale(1.6); color:var(--dc); text-shadow:0 0 14px var(--dc);} 99%{transform:scale(1.7); opacity:1; font-size:1.25rem;} 100%{transform:scale(1.7); opacity:0; font-size:0;}}
+@keyframes dpNow{0%{font-size:1.25rem; transform:scale(1.7); opacity:0;} 100%{font-size:1.25rem; transform:scale(1); opacity:1;}}
+@keyframes dpWord{to{opacity:0.9;}}
+.dc-math{font-size:0.72rem; opacity:0.75; text-align:center; margin-bottom:4px; line-height:1.35;}
+@media (prefers-reduced-motion: reduce){ .dc-part.changed .dp-was{display:none;} .dc-part.changed .dp-now{font-size:1.25rem; opacity:1; animation:none;} .dc-part em{opacity:0.9; animation:none;} }

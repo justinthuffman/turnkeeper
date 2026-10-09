@@ -595,6 +595,7 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
 
 <div id="diceLayer" hidden></div>
 <div class="dice-card" id="diceCard" role="status" aria-live="polite" hidden></div>
+<script src="js/damage.js"></script>
 <script src="js/dice.js"></script>
 <script src="js/char-icons.js"></script>
 <script>
@@ -970,7 +971,9 @@ function combatView(){
   if(!combat.round) return {active:false};
   return {active:true, round:combat.round, turn:combat.turn, order:ordered().map(c=>{
     const pc = c.kind === 'pc' ? campaign.party.find(p=>p.name === c.name) : null;
-    return {id:c.id, kind:c.kind, name:c.name.slice(0, 100), char:pc ? pc.char : null, init:c.init, down:isDown(c), bloodied:isBloodied(c), conds:c.conds.map(k=>({name:k.name.slice(0, 60), rounds:k.rounds || 0, ...(k.by ? {by:String(k.by).slice(0, 100)} : {})}))};   // lengths fit the database rules
+    return {id:c.id, kind:c.kind, name:c.name.slice(0, 100), char:pc ? pc.char : null, init:c.init, down:isDown(c), bloodied:isBloodied(c), conds:c.conds.map(k=>({name:k.name.slice(0, 60), rounds:k.rounds || 0, ...(k.by ? {by:String(k.by).slice(0, 100)} : {})})),
+      // Damage defenses (players' damage rolls do the math); characters' own aren't shared
+      ...(()=>{ const d = c.kind !== 'pc' && defenseOf(c); if(!d) return {}; const o = {}; ['res', 'vul', 'imm'].forEach(k=>{ if(d[k] && d[k].length) o[k] = d[k].slice(0, 13); }); return o; })()};   // lengths fit the database rules
   })};
 }
 let partyTurn = null;   // whose turn the Party cards last showed (they say who can roll)
@@ -989,6 +992,20 @@ const byId = id => combat.list.find(c=>c.id === id);
 const isDown = c => c.kind === 'monster' && c.max !== null && c.hp <= 0;
 // A monster at half its hit points or less (still standing). Players get only this yes/no.
 const isBloodied = c => c.kind === 'monster' && c.max > 0 && c.hp > 0 && c.hp <= c.max / 2;
+/* A creature's damage defenses (js/damage.js tokens: "fire", "slashing~" for non-magical only):
+   set by hand in its row, from a saved monster, or from its SRD stat block (loaded once). They're
+   shared in the turn order, so a player's damage roll shows the resistance math. */
+const defLoading = {};
+function defenseOf(c){
+  if(c.def) return c.def;
+  const m = c.srd && srdCache[c.srd];
+  if(m) return (c.def = {res:defenseTokens(m.damage_resistances), vul:defenseTokens(m.damage_vulnerabilities), imm:defenseTokens(m.damage_immunities)});
+  if(c.srd && !defLoading[c.srd]){ defLoading[c.srd] = true; srdMonster(c.srd).then(()=>{ saveCombat(); renderInit(); }).catch(()=>{}); }
+  return null;
+}
+// For the row's text boxes: "slashing~" reads "slashing (non-magical)"
+const defenseText = list=>(list || []).map(k=>k.endsWith('~') ? k.slice(0, -1) + ' (non-magical)' : k).join(', ');
+const defenseFromText = text=>[...new Set(String(text || '').split(',').flatMap(x=>defenseTokens(x)))];
 function newCombatant(fields){ return {id:combat.nextId++, init:null, initMod:0, dex:0, tie:0, ac:null, hp:null, max:null, temp:0, conds:[], conc:'', srd:null, cr:null, note:'', ...fields}; }
 
 function addParty(){
@@ -1054,7 +1071,8 @@ function addMonsters(e){
     else if(/d/i.test(hpField)) hp = rollExpr(hpField);    // custom dice: each rolls
     else hp = toNum(hpField);
     combat.list.push(newCombatant({kind:'monster', name:single ? base : `${base} ${start + i}`, initMod, dex:initMod,
-      init:groupInit ?? (d20() + initMod), ac, hp, max:hp, srd:srd ? srd.index : null, cr}));
+      init:groupInit ?? (d20() + initMod), ac, hp, max:hp, srd:srd ? srd.index : null, cr,
+      ...(srd ? {def:{res:defenseTokens(srd.damage_resistances), vul:defenseTokens(srd.damage_vulnerabilities), imm:defenseTokens(srd.damage_immunities)}} : {})}));
   }
   logLine(`Added ${count} × ${base}`);
   setInitMsg(`Added ${count} ${base}${count > 1 ? 's' : ''} with initiative rolled. Change any number by typing over it.`);
@@ -1262,6 +1280,8 @@ function combatantHtml(c, i, list){
         <input type="number" min="1" max="999" placeholder="rounds" data-field="condRounds" title="Rounds it lasts (counts down at the end of this creature’s turns). Blank: until removed. 1 minute = 10 rounds.">
         <select data-field="condFrom" aria-label="From" title="Who it’s from (optional). If they’re concentrating, it ends when their concentration does."><option value="">From…</option>${combat.list.filter(x=>x !== c && x.kind !== 'lair').map(x=>`<option value="${x.id}">${esc(x.name)}${x.conc ? ` (concentrating on ${esc(x.conc)})` : ''}</option>`).join('')}</select>
         <button type="button" class="chip-btn" data-act="cond-add">Add</button></div></div>
+      ${c.kind !== 'pc' ? `<div class="grp"><span class="lbl">Damage resistances, vulnerabilities and immunities</span>
+        <div class="row"><input type="text" data-field="defRes" value="${esc(defenseText((defenseOf(c) || {}).res))}" placeholder="Resists: fire, slashing (non-magical)" aria-label="Resists"><input type="text" data-field="defVul" value="${esc(defenseText((defenseOf(c) || {}).vul))}" placeholder="Vulnerable: fire" aria-label="Vulnerable"><input type="text" data-field="defImm" value="${esc(defenseText((defenseOf(c) || {}).imm))}" placeholder="Immune: poison" aria-label="Immune"><button type="button" class="chip-btn" data-act="def-set">Set</button></div></div>` : ''}
       <div class="grp"><span class="lbl">Concentrating on</span>
         <div class="row"><input type="text" data-field="concName" value="${esc(c.conc)}" placeholder="Spell name"><button type="button" class="chip-btn" data-act="conc-set">Set</button></div></div>
       <div class="grp"><span class="lbl">Temporary HP, AC, max HP</span>
@@ -1344,6 +1364,7 @@ $('initList').addEventListener('click', e=>{
     c.ac = ac;
     if(max !== null && max !== c.max){ c.hp = c.max === null ? max : Math.min(c.hp, max); c.max = max; }
   }
+  else if(act === 'def-set'){ c.def = {res:defenseFromText(field('defRes').value), vul:defenseFromText(field('defVul').value), imm:defenseFromText(field('defImm').value)}; logLine(`${c.name}: damage defenses set`); }
   else if(act === 'rename'){ const s = field('name').value.trim(); if(s) c.name = s; }
   saveCombat(); renderInit();
   // Put the cursor back in the amount box after Damage/Heal, for the next hit
@@ -1695,6 +1716,7 @@ window.dmRollsUpdate = (key, data)=>{
 const ROLLS_KEEP = 30;
 function rollLine(r){
   const dice = r.dice.map(d=>`${d.v}${d.c ? '→' + d.c : ''}${d.x ? ' dropped' : ''}`).join(', ');
+  if(r.parts && r.parts.length) return `${r.name || 'Someone'}: ${r.label || 'Roll'}: ${r.total}${r.math ? ` (${r.math})` : ` (${r.parts.map(p=>`${p.f} ${p.t || 'damage'}`).join(' + ')})`}`;
   return `${r.name || 'Someone'}: ${r.label || 'Roll'}: ${r.total} (${r.notation}${dice ? `: ${dice}` : ''})${r.nat ? ` · ${natWords(r)}!` : ''}`;
 }
 function noteRoll(r){

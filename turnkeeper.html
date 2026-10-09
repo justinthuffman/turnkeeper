@@ -938,6 +938,7 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
   </div>
 </div>
 
+<script src="js/damage.js"></script>
 <script src="js/dice.js"></script>
 <script src="js/data/equipment.js"></script>
 <script src="js/data/backgrounds.js"></script>
@@ -1775,6 +1776,18 @@ function resistNotes(){
   Object.entries(RESIST_SPELLS).forEach(([n, t])=>{ if(active.has(n)) out.push(`${t} (${n})`); });
   return out;
 }
+// The same, as damage-type tokens (js/damage.js), for damage Turnkeeper applies itself
+// (Bleeding or Burning at the start of your turn)
+function myDefense(){
+  const res = [];
+  if(!currentCharId) return {res, vul:[], imm:[]};
+  if(statusState().on.petrified) res.push(...DAMAGE_TYPE_LIST);
+  if(hasTrait('Hellish Resistance')) res.push('fire');
+  const active = new Set([...(track.fx || []).map(e=>e.name), track.conc && track.conc.name].filter(Boolean));
+  if(active.has('Protection from Poison')) res.push('poison');
+  if(active.has('Stoneskin')) res.push('bludgeoning~', 'piercing~', 'slashing~');
+  return {res:[...new Set(res)], vul:[], imm:[]};
+}
 function renderResistNote(){
   const el = document.getElementById('resistNote'), list = resistNotes();
   el.hidden = !list.length;
@@ -2236,13 +2249,18 @@ function damageCommand(){
     ...stDice.map(x=>`${x.expr.replace('-','−')} ${x.name}`),
   ].filter(Boolean);
   const desc = `${a.name} damage${p.type ? ` (${p.type})` : ''}${extras.length ? ', ' + extras.join(', ') : ''}`;
-  return {cmd, desc, notes, melee, sneakOk, sneakDice, savageOk, consume:true};
+  // The same damage by type, so resistance and vulnerability can change each part
+  const fxType = t=>/same type/.test(t || '') || !t ? p.type : t;
+  const parts = [{expr:base, type:p.type}, sneak && {expr:`${sneak}d6`, type:p.type}, radiant && {expr:`${radiant}d8`, type:'radiant'},
+    ...fxOn().filter(e=>e.dice).map(e=>{ const d = parseDice(e.dice); return {expr:`${d.n * critX}d${d.s}`, type:fxType(e.type)}; }),
+    ...stDice.map(x=>({expr:x.expr.replace(/^\+/, ''), type:p.type}))].filter(Boolean);
+  return {cmd, desc, notes, melee, sneakOk, sneakDice, savageOk, consume:true, parts, magical:!!a.magical};
 }
 
 // c.crit: the damage is a crit's (dice already doubled), flagged CRIT before the description
 function cmdBox(label, c, extraHtml){
   return `<div class="roll-box"><div class="roll-box-label">${label}</div>
-    ${cmdRow(c.cmd, c.desc, label, `${c.consume ? ' data-consume="1"' : ''}${c.countAttack ? ' data-count-attack="1"' : ''}${c.kind ? ` data-fx-row="${c.kind}"` : ''}`, c.crit)}${extraHtml||''}</div>`;
+    ${cmdRow(c.cmd, c.desc, label, `${c.consume ? ' data-consume="1"' : ''}${c.countAttack ? ' data-count-attack="1"' : ''}${c.kind ? ` data-fx-row="${c.kind}"` : ''}${c.parts && c.parts.length ? ` data-parts="${escapeHtml(JSON.stringify(c.parts))}"${c.magical ? ' data-magical="1"' : ''}` : ''}`, c.crit)}${extraHtml||''}</div>`;
 }
 // A roll row: what will roll in words, Roll, and ✎ to change the dice first (rollRow, Dice core)
 function cmdRow(cmd, desc, label, attrs, crit){ return rollRow(cmd, label, desc, attrs, crit); }
@@ -2551,7 +2569,7 @@ function spellPopupHtml(){
     const dice = scaleDice(base, p.per, {up, cantrip, crit: r.attack && crit}) + adeptMi(p.type);
     let extra = r.attack ? critToggle() : '';
     if(p.alt) extra += `<div class="roll-toggles" style="margin-top:6px;">${toggleBtn('data-alt','1',r.altLabel,!!rollState.alt)}</div>`;
-    html += cmdBox('Damage', {crit:!!(r.attack && crit), cmd:`${dice}${p.bonus ? '+' + p.bonus : ''}${i===0 && empowered ? fmtMod(empowered) : ''}`, desc:`${sp.name} damage (${p.type})${i===0 && empowered ? `, +${empowered} Empowered Evocation` : ''}${adeptMi(p.type) ? ', Elemental Adept (1s count as 2s)' : ''}`}, extra);
+    html += cmdBox('Damage', {crit:!!(r.attack && crit), parts:[{expr:`${dice}${p.bonus ? '+' + p.bonus : ''}${i===0 && empowered ? fmtMod(empowered) : ''}`, type:p.type}], magical:true, cmd:`${dice}${p.bonus ? '+' + p.bonus : ''}${i===0 && empowered ? fmtMod(empowered) : ''}`, desc:`${sp.name} damage (${p.type})${i===0 && empowered ? `, +${empowered} Empowered Evocation` : ''}${adeptMi(p.type) ? ', Elemental Adept (1s count as 2s)' : ''}`}, extra);
   });
   if(r.explosion){
     const x = r.explosion;
@@ -2680,10 +2698,13 @@ function applyTurnEffects(c, me){
       lines.push(`${name}${who}: you heal ${n} HP.`);
       shows.push(()=>showHealFx(`${name} heals you`, `+${n} HP`, `now ${hpNow()} / ${hpMax()}`));
     } else {
-      takeDamage(n);
+      // Your own resistance (a tiefling's fire) halves it
+      const mine = myDefense(), a = d.dmgType && defends(mine.imm, d.dmgType, true) ? 'i' : d.dmgType && defends(mine.res, d.dmgType, true) ? 'r' : '';
+      const took = a === 'i' ? 0 : a === 'r' ? Math.floor(n / 2) : n, why = a === 'i' ? ` (immune, from ${n})` : a === 'r' ? ` (resistant: half of ${n})` : '';
+      if(took) takeDamage(took);
       const ends = d.endKind && d.endWhat ? `; a DC ${d.endDC || '?'} ${d.endWhat} ${d.endKind} ends it` : d.duration === 'healed' ? '; it ends when you’re healed' : '';
-      lines.push(`${name}${who}: you take ${n} ${d.dmgType || ''} damage${ends}.`.replace(/\s+/g, ' '));
-      shows.push(()=>showDamageFx(damageTheme(d, name), `${name}${who}`, `−${n} HP`, `${d.dmgType ? d.dmgType + ' damage · ' : ''}now ${hpNow()} / ${hpMax()}`));
+      lines.push(`${name}${who}: you take ${took} ${d.dmgType || ''} damage${why}${ends}.`.replace(/\s+/g, ' '));
+      shows.push(()=>showDamageFx(damageTheme(d, name), `${name}${who}`, `−${took} HP`, `${d.dmgType ? d.dmgType + ' damage' + (a === 'r' ? ' (resistant: halved)' : a === 'i' ? ' (immune)' : '') + ' · ' : ''}now ${hpNow()} / ${hpMax()}`));
     }
   });
   shows.forEach((f, i)=>setTimeout(f, i * 5800));
@@ -2762,6 +2783,22 @@ function renderRollPopup(){
 function syncAwaitHit(){
   const body = document.getElementById('rollBody');
   body.classList.toggle('await-hit', !rollState.hitRolled && !!body.querySelector('button[data-roll="To hit"], button[data-roll="Spell attack"]'));
+}
+/* A damage roll by type (js/damage.js), against the first creature picked in the DM's combat */
+function targetDefense(){
+  if(!tableActive() || !(rollState.aim || []).length) return null;
+  const cand = targetCandidates().find(c=>c.key === rollState.aim[0]); if(!cand) return null;
+  const o = arrOf(table.combat.order).find(x=>cand.id !== null && x.id === cand.id); if(!o) return null;
+  const list = k=>arrOf(o[k]).map(String);
+  return {name:o.name, res:list('res'), vul:list('vul'), imm:list('imm')};
+}
+function typedRoll(parts, label, magical){
+  const def = targetDefense(), r = rollTypedDamage(parts, def, magical);
+  if(!r.parts.length) return {error:'Turnkeeper can’t read those dice.'};
+  const changed = r.parts.some(x=>x.a);
+  return {roll:{id:rollId(), name:myName().slice(0, 60), label:`${label}${def ? ` vs ${def.name}` : ''}`.slice(0, 80),
+    notation:'', total:r.total, dice:r.dice, nat:0, style:safeDiceStyle(myDiceStyle()), kind:'', throw:safeThrow(track.throw),
+    parts:r.parts, math:(changed || r.parts.length > 1 ? r.math : '')}};
 }
 /* A to-hit roll with a weapon that does something on a hit (Grun's Greataxe: Bleeding), in the
    DM's combat with a target picked: the DM gets a popup with the target's AC and the roll, and
@@ -5259,7 +5296,11 @@ window.onDiceRoll = btn=>{
   // In the roll popup, say what it's for: "Greatsword: To hit"
   const title = btn.closest('#rollPopup') ? document.getElementById('rollTitle').textContent.trim() : '';
   const what = btn.dataset.roll || 'Roll';   // not "Perception check: Perception check"
-  const made = makeRoll(rowDice(row), myName(), title ? (title.startsWith(what) ? title : `${title}: ${what}`) : what, myDiceStyle(), btn.dataset.fxRow, track.throw);
+  const label = title ? (title.startsWith(what) ? title : `${title}: ${what}`) : what;
+  // Typed damage (unless the dice were changed by hand): each type, and the target's resistance,
+  // vulnerability or immunity (from the DM's turn order), shown to everyone with the working
+  const typed = btn.dataset.parts && rowDice(row) === row.dataset.dice ? JSON.parse(btn.dataset.parts) : null;
+  const made = typed ? typedRoll(typed, label, !!btn.dataset.magical) : makeRoll(rowDice(row), myName(), label, myDiceStyle(), btn.dataset.fxRow, track.throw);
   if(made.error){ rowWarn(row, made.error); return; }
   const roll = made.roll;
   roll.fx = pickCritFx(roll.kind, roll.nat, myName());   // a natural 20 or 1: the campaign's GIF, the same on every screen
