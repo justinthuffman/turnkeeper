@@ -84,8 +84,8 @@ function openItemForm(d, isNew){
     + `<p class="cs-none">${isNew ? (dm ? 'Describe it once. Hidden items stay out of the players’ lists until you make them visible.' : `“${ifEsc(d.name)}” isn’t on the lists yet. Describe it once and everyone in the campaign can pick it.`) : 'Changes show for everyone in the campaign.'}</p>`
     + `<div class="cs-grid">`
     + `<label class="cs-field"><span>Name</span><input id="if_name" type="text" maxlength="80" value="${ifEsc(d.name)}"></label>`
-    + `<label class="cs-field"><span>Type</span><select id="if_type">${types.map(t=>`<option${t === (d.type || 'Adventuring Gear') ? ' selected' : ''}>${ifEsc(t)}</option>`).join('')}</select></label>`
     + `<label class="cs-field"><span>Built on (weapon, armor or ammunition)</span><select id="if_base"><option value="">—</option>${bases.map(b=>`<option${b === (d.base || '') ? ' selected' : ''}>${ifEsc(b)}</option>`).join('')}</select></label>`
+    + `<label class="cs-field"><span>Type</span><select id="if_type">${types.map(t=>`<option${t === (d.type || 'Adventuring Gear') ? ' selected' : ''}>${ifEsc(t)}</option>`).join('')}</select></label>`
     + `<label class="cs-field"><span>Cost</span><input id="if_cost" type="text" maxlength="30" value="${ifEsc(d.cost || '')}" placeholder="e.g. 150 gp"></label>`
     + `<label class="cs-field"><span>Weight (lb)</span><input id="if_weight" type="number" min="0" step="any" value="${d.weight ?? ''}"></label>`
     + `<label class="cs-field"><span>Magic bonus (+ to hit and damage, or AC)</span><input id="if_magic" type="number" min="0" max="5" value="${d.magic || ''}"></label>`
@@ -97,6 +97,7 @@ function openItemForm(d, isNew){
     + `<div class="cs-add" style="max-width:none;"><button type="button" class="chip-btn" id="itemSave">${isNew && !dm ? 'Save and add to inventory' : 'Save'}</button><button type="button" class="chip-btn" id="itemCancel">Cancel</button>`
     + (isNew ? '' : `<button type="button" class="chip-btn item-del" id="itemDelete">Delete from campaign</button><span class="cs-none" id="itemDelMsg"></span>`) + `</div>`;
   itemForm.weapon = d;
+  fillFromBase(d.base || '');
   drawItemFormWeapon();
   drawItemFormFx();
   f.scrollIntoView({block:'nearest'});
@@ -274,4 +275,20 @@ document.addEventListener('click', e=>{
   else if(t.dataset.fxAdd) itemFormFx(t.dataset.fxAdd);
   else if(t.dataset.fxDel){ const [list, i] = t.dataset.fxDel.split(':'); itemForm[list].splice(+i, 1); drawItemFormFx(); }
 });
-document.addEventListener('change', e=>{ if(itemForm && (e.target.id === 'if_type' || e.target.id === 'if_base')) drawItemFormWeapon(); });
+// Built on fills in the type (and locks it: the item is that kind), plus the cost and weight when
+// they're blank or still the last base's
+function fillFromBase(prev){
+  const g = id=>document.getElementById(id), b = equipmentByName(g('if_base').value), was = prev ? equipmentByName(prev) : null;
+  const type = g('if_type');
+  if(b){ if(![...type.options].some(o=>o.value === b.type)) type.add(new Option(b.type)); type.value = b.type; }
+  type.disabled = !!b;
+  [['if_cost', 'cost'], ['if_weight', 'weight']].forEach(([id, k])=>{
+    const f = g(id); if(f.value === '' || (was && String(was[k] ?? '') === f.value)) f.value = b ? (b[k] ?? '') : '';
+  });
+}
+document.addEventListener('focusin', e=>{ if(itemForm && e.target.id === 'if_base') itemForm.prevBase = e.target.value; });
+document.addEventListener('change', e=>{
+  if(!itemForm || (e.target.id !== 'if_type' && e.target.id !== 'if_base')) return;
+  if(e.target.id === 'if_base'){ fillFromBase(itemForm.prevBase || ''); itemForm.prevBase = e.target.value; }
+  drawItemFormWeapon();
+});
