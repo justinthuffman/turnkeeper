@@ -3,6 +3,14 @@
 What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest first.
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
+## 2026-10-09 — Gear and Items
+
+### Changed
+- **Inventory in two parts.** Gear holds what you equip (weapons, armor, shields); Items holds
+  ammunition, potions and everything you use, throw or carry. Adding an item puts it in the right one.
+- **Making special ammunition:** a new item can be built on an Arrow, Crossbow Bolt, Sling Bullet
+  or Blowgun Needle, which makes it ammunition that fits the right weapons.
+
 ## 2026-10-09 — Resistances, throwing, potions and special ammunition
 
 ### Added
