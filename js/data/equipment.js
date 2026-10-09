@@ -82,6 +82,10 @@ const GEAR_ROWS = [
   ['Blowgun Needles (50)', 'Ammunition', '1 gp', 1],
   ['Crossbow Bolts (20)', 'Ammunition', '1 gp', 1.5],
   ['Sling Bullets (20)', 'Ammunition', '4 cp', 1.5],
+  // Dungeon Master's Guide (2014): magic ammunition, +1 to +3 to attack and damage (used up when fired)
+  ['Arrow +1', 'Ammunition', '', 0.05, 'Magic: +1 to attack and damage rolls.'], ['Arrow +2', 'Ammunition', '', 0.05, 'Magic: +2 to attack and damage rolls.'], ['Arrow +3', 'Ammunition', '', 0.05, 'Magic: +3 to attack and damage rolls.'],
+  ['Crossbow Bolt +1', 'Ammunition', '', 0.075, 'Magic: +1 to attack and damage rolls.'], ['Crossbow Bolt +2', 'Ammunition', '', 0.075, 'Magic: +2 to attack and damage rolls.'], ['Crossbow Bolt +3', 'Ammunition', '', 0.075, 'Magic: +3 to attack and damage rolls.'],
+  ['Sling Bullet +1', 'Ammunition', '', 0.075, 'Magic: +1 to attack and damage rolls.'], ['Sling Bullet +2', 'Ammunition', '', 0.075, 'Magic: +2 to attack and damage rolls.'], ['Sling Bullet +3', 'Ammunition', '', 0.075, 'Magic: +3 to attack and damage rolls.'],
   ['Antitoxin (vial)', 'Adventuring Gear', '50 gp', 0, 'Advantage on saves against poison for 1 hour.'],
   ['Crystal', 'Arcane Focus', '10 gp', 1],
   ['Orb', 'Arcane Focus', '20 gp', 3],
@@ -247,6 +251,13 @@ const ITEM_USES = {
   'Potion of Supreme Healing': {heal:'10d4+20'},
 };
 GEAR.forEach(g=>{ if(ITEM_USES[g.name]) Object.assign(g, {use:ITEM_USES[g.name], consumable:true}); });
+/* Special ammunition: what it fits (arrow, bolt, bullet, needle), a magic bonus, extra damage
+   (ammo: {fits, dmg, dmgType}), On hit effects. It's chosen when attacking with a weapon that
+   fires it, and used up when fired. Ordinary arrows aren't counted. */
+const AMMO_KINDS = [['arrow', 'Arrows (bows)'], ['bolt', 'Bolts (crossbows)'], ['bullet', 'Sling bullets'], ['needle', 'Blowgun needles']];
+GEAR.forEach(g=>{ const m = g.name.match(/^(Arrow|Crossbow Bolt|Sling Bullet) \+(\d)$/); if(m) Object.assign(g, {ammo:{fits:{'Arrow':'arrow', 'Crossbow Bolt':'bolt', 'Sling Bullet':'bullet'}[m[1]]}, magic:+m[2], consumable:true}); });
+// What a weapon fires: bows arrows, crossbows bolts, slings bullets, blowguns needles
+const ammoKindOf = name=>{ const n = String(name || '').toLowerCase(); return /\bbow\b|longbow|shortbow/.test(n) && !/crossbow/.test(n) ? 'arrow' : /crossbow/.test(n) ? 'bolt' : /sling/.test(n) ? 'bullet' : /blowgun/.test(n) ? 'needle' : null; };
 
 // Everything in one list, by name (custom campaign items are added to this at run time)
 const EQUIPMENT = [...WEAPONS, ...ARMOR, ...GEAR];

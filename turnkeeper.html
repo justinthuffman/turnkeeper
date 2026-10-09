@@ -1340,6 +1340,29 @@ function attackChoices(){
     ...Object.entries(MANEUVERS).map(([k,m])=>({key:k, label:m.label, kind:k})),
   ];
 }
+// Special ammunition (js/data/equipment.js): what the weapon fires, the fitting ammunition you carry,
+// and the attack with it loaded. Ordinary ammunition isn't counted ("Standard").
+function ammoKindFor(attack){
+  if(!attack || !attack.itemId || typeof ammoKindOf !== 'function' || typeof invItems !== 'function') return null;
+  const it = invItems().find(x=>x.id === attack.itemId), d = it && itemDef(it.name);
+  return ammoKindOf(d && d.baseName) || ammoKindOf(it && it.name) || ammoKindOf(d && d.name);
+}
+function specialAmmo(attack){
+  const kind = ammoKindFor(attack); if(!kind) return [];
+  return invItems().map(it=>({it, d:itemDef(it.name)})).filter(x=>x.d && x.d.ammo && x.d.ammo.fits === kind && (x.it.qty ?? 1) > 0);
+}
+function withAmmo(sel, x){
+  const magic = parseInt(x.d.magic, 10) || 0, a = x.d.ammo || {};
+  const ammo = {itemId:x.it.id, name:x.it.name, magic, dmg:a.dmg || '', dmgType:a.dmgType || ''};
+  const onHit = [...(sel.attack.onHit || []), ...(typeof effectsFor === 'function' ? effectsFor(x.d.onHit) : [])];
+  return {...sel, ammo, attack:{...sel.attack, name:`${sel.attack.name} (${x.it.name})`, onHit, magical:sel.attack.magical || magic > 0 || !!a.dmg}};
+}
+function ammoText(am){ return [am.magic && `+${am.magic} to hit and damage`, am.dmg && `+${am.dmg}${am.dmgType ? ' ' + am.dmgType : ''}`].filter(Boolean).join(', ') || 'no extra damage'; }
+// Special ammunition is used up when it's fired (the to-hit roll)
+function afterAmmo(){
+  const am = rollState.sel && rollState.sel.ammo; if(!am || am.done) return;
+  am.done = true; useUpItem(am.itemId);
+}
 // Actions that are a single ability check get the same flow: (pick skill) → roll mode → Roll → popup
 const CHECK_ACTIONS = {
   hide: {title:'Hide', text:'Make a Stealth check. Until you’re found or stop hiding, it’s contested by the Perception of any creature actively looking for you. You can’t hide from a creature that can see you clearly.',
@@ -1834,7 +1857,11 @@ function renderAttackDetail(){
       : `Athletics ${fmtMod(skillMod('Athletics'))}. ${MANEUVERS[sel.kind].text}`;
     // Great Weapon Master / Sharpshooter: −5 to hit, +10 damage, decided before the attack roll
     const power = sel.kind==='weapon' ? powerAttackFeat(sel.attack) : null;
-    html += `<div class="flow-summary">${summary}</div>`
+    const ammoList = sel.kind==='weapon' ? specialAmmo(sel.attack) : [];
+    if(!ammoList.some(x=>x.it.id === attackFlow.ammo)) attackFlow.ammo = null;
+    const ammoPick = ammoList.find(x=>x.it.id === attackFlow.ammo);
+    html += `<div class="flow-summary">${summary}${ammoPick ? ` &middot; ${escapeHtml(ammoPick.it.name)}: ${escapeHtml(ammoText(withAmmo(sel, ammoPick).ammo))}` : ''}</div>`
+      + (ammoList.length ? `<div class="flow-label">Ammunition</div><div class="flow-grid">${toggleBtn('data-ammo', '', 'Standard', !ammoPick)}${ammoList.map(x=>toggleBtn('data-ammo', escapeHtml(x.it.id), `${escapeHtml(x.it.name)}${(x.it.qty ?? 1) > 1 ? ` (${x.it.qty})` : ''}`, ammoPick === x)).join('')}</div>` : '')
       + `<div class="flow-label">Roll with</div><div class="flow-grid">`
       + ROLL_MODES.map(([k,l])=>`<button type="button" class="flow-btn${attackFlow.mode===k?' active':''}" data-mode="${k}">${l}</button>`).join('')
       + `</div>`
@@ -1842,14 +1869,17 @@ function renderAttackDetail(){
       + `<div class="flow-go"><button type="button" id="flowRoll">Roll</button></div>`;
   }
   showDetail(html);
-  actionDetail.querySelectorAll('[data-choice]').forEach(b=>b.addEventListener('click', ()=>{ if(attackFlow.choice !== b.dataset.choice) attackFlow.power = false; attackFlow.choice = b.dataset.choice; renderAttackDetail(); }));
+  actionDetail.querySelectorAll('[data-choice]').forEach(b=>b.addEventListener('click', ()=>{ if(attackFlow.choice !== b.dataset.choice){ attackFlow.power = false; attackFlow.ammo = null; } attackFlow.choice = b.dataset.choice; renderAttackDetail(); }));
+  actionDetail.querySelectorAll('[data-ammo]').forEach(b=>b.addEventListener('click', ()=>{ attackFlow.ammo = b.dataset.ammo || null; renderAttackDetail(); }));
   actionDetail.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click', ()=>{ attackFlow.mode = b.dataset.mode; renderAttackDetail(); }));
   wirePickUp(renderAttackDetail);
   actionDetail.querySelectorAll('[data-power]').forEach(b=>b.addEventListener('click', ()=>{ attackFlow.power = !attackFlow.power; renderAttackDetail(); }));
   const go = document.getElementById('flowRoll');
   if(go) go.addEventListener('click', ()=>{
     const power = sel.kind==='weapon' && attackFlow.power ? powerAttackFeat(sel.attack) : null;
-    openRollPopup(power ? {...sel, power} : sel, attackFlow.mode);
+    const ammoPick = sel.kind==='weapon' && attackFlow.ammo ? specialAmmo(sel.attack).find(x=>x.it.id === attackFlow.ammo) : null;
+    const s2 = ammoPick ? withAmmo(sel, ammoPick) : sel;
+    openRollPopup(power ? {...s2, power} : s2, attackFlow.mode);
   });
 }
 // Great Weapon Master (heavy melee weapon) or Sharpshooter (ranged weapon), if the character has it
@@ -2310,8 +2340,9 @@ function toHitCommand(){
   if(sel.kind==='weapon'){
     const bonus = parseInt(String(sel.attack.bonus||'0').replace(/\s/g,''),10) || 0;
     const on = fxOn(), toHit = on.reduce((n, e)=>n + (e.toHit || 0), 0);
-    const extras = [sel.power && `${sel.power} −5`, ...on.filter(e=>e.toHit).map(e=>`+${e.toHit} ${e.name}`), ...on.filter(e=>e.adv).map(e=>`advantage from ${e.name}`), ...inspPart(), ...statusDescParts(rollState.st)].filter(Boolean);
-    return {cmd:d20Cmd(attackMode(), bonus - (sel.power ? 5 : 0) + toHit, false, statusDiceStr(rollState.st)), desc:`${sel.attack.name} attack${extras.length ? ` (${extras.join(', ')})` : ''}`};
+    const am = sel.ammo, amMagic = am ? am.magic : 0;
+    const extras = [amMagic && `+${amMagic} ${am.name}`, sel.power && `${sel.power} −5`, ...on.filter(e=>e.toHit).map(e=>`+${e.toHit} ${e.name}`), ...on.filter(e=>e.adv).map(e=>`advantage from ${e.name}`), ...inspPart(), ...statusDescParts(rollState.st)].filter(Boolean);
+    return {cmd:d20Cmd(attackMode(), bonus + amMagic - (sel.power ? 5 : 0) + toHit, false, statusDiceStr(rollState.st)), desc:`${sel.attack.name} attack${extras.length ? ` (${extras.join(', ')})` : ''}`};
   }
   if(sel.kind==='check'){
     const c = checkInfo(sel.type, sel.key);
@@ -2358,6 +2389,10 @@ function damageCommand(){
   let mod = p.mod + (dueling ? 2 : 0);
   if(offhand){ mod = Math.min(p.mod, 0); notes.push('Two-Weapon Fighting: no ability modifier on off-hand damage (unless negative)'); }
   // Great Weapon Master / Sharpshooter: a flat +10, so a crit doesn't double it
+  const am = rollState.sel.ammo;
+  if(am && am.magic){ mod += am.magic; notes.push(`${escapeHtml(am.name)}: +${am.magic} damage`); }
+  const amDice = am && am.dmg ? (()=>{ const d = parseDice(am.dmg); return d.n ? `${d.n * critX}d${d.s}` : am.dmg; })() : '';
+  if(am) notes.push(`${escapeHtml(am.name)} is used up when you roll to hit.`);
   const power = rollState.sel.power;
   if(power){ mod += 10; notes.push(`${power}: +10 damage (not doubled on a crit)`); }
   // Savage Attacker: once per turn, reroll the weapon's damage dice and use either total.
@@ -2381,10 +2416,12 @@ function damageCommand(){
     if(e.until==='hit' && !e.target) notes.push(`${e.name} ends when you copy this damage (it hit).`);
   });
   const base = !p.count ? String(mod) : `${savage ? `(${weaponDice},${weaponDice})kh1` : weaponDice}${mod ? fmtMod(mod) : ''}`;
-  const cmd = `${base}${sneak ? `+${sneak}d6` : ''}${radiant ? `+${radiant}d8` : ''}${fxDice.map(f=>'+'+f.dice).join('')}${stDice.map(x=>x.expr).join('')}`;
+  const cmd = `${base}${amDice ? '+' + amDice : ''}${sneak ? `+${sneak}d6` : ''}${radiant ? `+${radiant}d8` : ''}${fxDice.map(f=>'+'+f.dice).join('')}${stDice.map(x=>x.expr).join('')}`;
   // Beside the command: the damage type, then everything the command adds or changes, e.g.
   // "Greatsword damage (slashing), +10 Great Weapon Master, +2d8 Divine Smite (radiant)"
   const extras = [
+    am && am.magic && `+${am.magic} ${am.name}`,
+    amDice && `+${amDice} ${am.name}${am.dmgType ? ` (${am.dmgType})` : ''}`,
     gwf && 'Great Weapon Fighting rerolls 1s and 2s',
     savage && 'Savage Attacker (best of two)',
     rollState.crit && melee && rt.raceKey==='halforc' && p.die && `+1d${p.die} Savage Attacks`,
@@ -2399,7 +2436,7 @@ function damageCommand(){
   const desc = `${a.name} damage${p.type ? ` (${p.type})` : ''}${extras.length ? ', ' + extras.join(', ') : ''}`;
   // The same damage by type, so resistance and vulnerability can change each part
   const fxType = t=>/same type/.test(t || '') || !t ? p.type : t;
-  const parts = [{expr:base, type:p.type}, sneak && {expr:`${sneak}d6`, type:p.type}, radiant && {expr:`${radiant}d8`, type:'radiant'},
+  const parts = [{expr:base, type:p.type}, amDice && {expr:amDice, type:am.dmgType || p.type}, sneak && {expr:`${sneak}d6`, type:p.type}, radiant && {expr:`${radiant}d8`, type:'radiant'},
     ...fxOn().filter(e=>e.dice).map(e=>{ const d = parseDice(e.dice); return {expr:`${d.n * critX}d${d.s}`, type:fxType(e.type)}; }),
     ...stDice.map(x=>({expr:x.expr.replace(/^\+/, ''), type:p.type}))].filter(Boolean);
   return {cmd, desc, notes, melee, sneakOk, sneakDice, savageOk, consume:true, parts, magical:!!a.magical};
@@ -5471,7 +5508,7 @@ window.onDiceRoll = btn=>{
   showRoll(roll);
   if(myCampaignKey() && window.tkSendRoll) window.tkSendRoll(roll);
   if(btn.closest('#rollPopup')){
-    if(/^(To hit|Spell attack)$/.test(btn.dataset.roll || '')){ rollState.hitRolled = true; sendHitToDm(roll); afterThrow(); }
+    if(/^(To hit|Spell attack)$/.test(btn.dataset.roll || '')){ rollState.hitRolled = true; sendHitToDm(roll); afterThrow(); afterAmmo(); }
     // One damage roll per hit: the next attack from this popup rolls to hit again (a spell with
     // several damage rows keeps them all open)
     else if(/^Damage/.test(btn.dataset.roll || '') && document.querySelectorAll('#rollPopup button[data-roll^="Damage"]').length === 1) rollState.hitRolled = false;

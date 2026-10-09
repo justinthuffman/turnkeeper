@@ -109,7 +109,16 @@ function openItemForm(d, isNew){
 function drawItemFormUse(){
   const box = document.getElementById('ifUse'); if(!box || !itemForm) return;
   const base = document.getElementById('if_base').value, type = base ? (equipmentByName(base) || {}).type : document.getElementById('if_type').value;
-  if(['Weapon', 'Armor', 'Shield', 'Ammunition'].includes(type)){ box.innerHTML = ''; return; }
+  // Special ammunition: what it fits and what it adds (the Magic bonus above adds to attack and damage)
+  if(type === 'Ammunition'){
+    const a = (itemForm.weapon && itemForm.weapon.ammo) || {};
+    box.innerHTML = `<div class="cs-sub">Special ammunition</div><p class="cs-none">Chosen when attacking with a weapon that fires it, and used up when fired. Ordinary arrows aren’t counted.</p><div class="cs-grid">`
+      + `<label class="cs-field"><span>Fits</span><select id="ia_fits">${AMMO_KINDS.map(([k, l])=>`<option value="${k}"${k === (a.fits || 'arrow') ? ' selected' : ''}>${l}</option>`).join('')}</select></label>`
+      + `<label class="cs-field"><span>Extra damage (dice)</span><input id="ia_dmg" type="text" maxlength="20" value="${ifEsc(a.dmg || '')}" placeholder="e.g. 2d4"></label>`
+      + `<label class="cs-field"><span>Extra damage type</span><select id="ia_type"><option value=""></option>${DAMAGE_TYPES.map(t=>`<option${t === a.dmgType ? ' selected' : ''}>${t}</option>`).join('')}</select></label></div>`;
+    return;
+  }
+  if(['Weapon', 'Armor', 'Shield'].includes(type)){ box.innerHTML = ''; return; }
   const u = (itemForm.weapon && itemForm.weapon.use) || {};
   box.innerHTML = `<div class="cs-sub">Use or throw</div><p class="cs-none">For things like potions and flasks: what Use Object and Throw do with it. Leave blank if it does neither.</p><div class="cs-grid">`
     + `<label class="cs-field"><span>Heals (dice)</span><input id="iu_heal" type="text" maxlength="20" value="${ifEsc(u.heal || '')}" placeholder="e.g. 2d4+2"></label>`
@@ -120,7 +129,9 @@ function drawItemFormUse(){
     + `</div><label class="cs-check"><input type="checkbox" id="iu_used"${itemForm.weapon && itemForm.weapon.consumable === false ? '' : ' checked'}> Used up when used or thrown</label>`;
 }
 function readItemFormUse(){
-  const g = id=>document.getElementById(id); if(!g('iu_heal')) return null;
+  const g = id=>document.getElementById(id);
+  if(g('ia_fits')){ const a = {fits:g('ia_fits').value, dmg:g('ia_dmg').value.trim().slice(0, 20), dmgType:g('ia_type').value}; Object.keys(a).forEach(k=>{ if(!a[k]) delete a[k]; }); return {ammo:a, consumable:true}; }
+  if(!g('iu_heal')) return null;
   const u = {heal:g('iu_heal').value.trim().slice(0, 20), dmg:g('iu_dmg').value.trim().slice(0, 20), dmgType:g('iu_type').value, throwRange:g('iu_throw').value.trim().slice(0, 12), note:g('iu_note').value.trim().slice(0, 200)};
   Object.keys(u).forEach(k=>{ if(!u[k]) delete u[k]; });
   return Object.keys(u).length ? {use:u, consumable:g('iu_used').checked} : null;
