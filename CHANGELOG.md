@@ -3,6 +3,16 @@
 What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest first.
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
+## 2026-10-09 — Built on first, and monster immunities
+
+### Changed
+- **New items:** "Built on" comes right after the name and fills in the type, cost and weight.
+
+### Fixed
+- **DM Screen:** a monster added right after typing its name sometimes missed its SRD stat block, so
+  its resistances and immunities didn't count (an Adult Black Dragon took acid damage). Adding now
+  waits for the stat block, and monsters already in combat get theirs.
+
 ## 2026-10-09 — Gear and Items
 
 ### Changed
