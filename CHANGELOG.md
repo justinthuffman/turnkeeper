@@ -3,6 +3,19 @@
 What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest first.
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
+## 2026-10-09 — Choices first, and a clearer Status panel
+
+### Added
+- **Choices to make come first.** When a subclass, Fighting Style, feat or ability points (or a
+  feat's picks) are waiting, a banner at the top says so wherever Character Summary is. Clicking
+  it opens the choices; "Choose ability score points or a feat" opens the Feats section at that
+  level. The Combat Menu and rolls wait until the choices are made.
+
+### Changed
+- **Status panel:** no Change link. Opening it shows every condition and effect with its rules;
+  folded, its title bar shows everything on you, including conditions the DM or another player
+  put on you (with who they're from) and custom effects like Bleeding.
+
 ## 2026-10-08 — Pick who to heal first
 
 ### Changed
