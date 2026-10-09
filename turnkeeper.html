@@ -358,6 +358,13 @@ button.insp-btn{margin-left:8px; padding:1px 10px; border:1px solid var(--border
 button.insp-btn:hover{background:var(--panel2); border-color:var(--sea);}
 button.insp-btn.on{border-color:var(--orange); background:var(--orange-tint); color:var(--ink);}
 /* Status panel: condition and magic chips; active ones in orange like pinned chips */
+.status-list{display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:8px 16px;}
+.status-item{display:flex; align-items:flex-start; gap:8px;}
+.status-item .status-chip{flex:none;}
+.status-item small, .status-desc{font-size:0.76rem; color:var(--ink-dim); line-height:1.35;}
+.status-desc{margin:4px 0 0;}
+.status-pins{display:flex; flex-wrap:wrap; gap:4px; margin-left:auto; justify-content:flex-end;}
+.wrap > .panel:not(.panel-collapsed) .status-pins{display:none;}
 .status-now{font-size:0.9rem; color:var(--ink-dim); display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 8px;}
 .status-now b{color:var(--ink);}
 .status-group{font-size:0.72rem; text-transform:uppercase; letter-spacing:0.06em; color:var(--sea-dim); margin:12px 0 5px;}
@@ -799,7 +806,7 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
 
 <!-- STATUS: conditions and magic on you; they change your rolls, speed, HP and AC -->
 <div class="panel" id="statusPanel" hidden>
-  <div class="panel-head"><h2>Status</h2></div>
+  <div class="panel-head"><h2>Status</h2><div class="status-pins" id="statusPins"></div></div>
   <div class="status-body"></div>
 </div>
 
@@ -1993,7 +2000,6 @@ function updateACBox(){
   el.value = String(base + mod);
   el.title = mod ? `${base} base ${fmtMod(mod)} (${statusActive().filter(d=>d.ac).map(d=>`${d.name} ${fmtMod(d.ac)}`).join(', ')})` : '';
 }
-const statusUi = {open:false};
 function renderStatus(){
   const panel = document.getElementById('statusPanel');
   panel.hidden = !currentCharId;
@@ -2001,18 +2007,25 @@ function renderStatus(){
   const s = statusState(), on = statusActive(), x = exhaustion();
   const left = d=>s.on[d.key] && inCombat() && s.rounds && s.rounds[d.key] ? ` <small>· ${s.rounds[d.key]} turn${s.rounds[d.key]===1 ? '' : 's'} left</small>` : '';
   const chip = d=>`<button type="button" class="status-chip${s.on[d.key] ? ' on' : ''}" data-status="${d.key}" aria-pressed="${!!s.on[d.key]}" title="${escapeHtml(d.desc)}${d.lasts ? ` Lasts up to ${d.lasts}: Turnkeeper counts it down each time you end your turn.` : ''}">${d.name}${left(d)}</button>`;
-  const fromWho = k=>s.ext && s.ext[k] && s.ext[k] !== 'you' ? ` (from ${s.ext[k]})` : '';
+  // Who put it on you, when someone else did ('DM' when the DM didn't say who: left out)
+  const fromWho = k=>s.ext && s.ext[k] && s.ext[k] !== 'you' && s.ext[k] !== 'DM' ? ` (from ${s.ext[k]})` : '';
   const activeNames = on.map(d=>(d.key==='bardic' ? `Bardic Inspiration (d${s.bi || 6})` : d.name) + fromWho(d.key)).concat(x ? [`Exhaustion ${x}`] : []);
-  let html = `<div class="status-now">${activeNames.length ? `<b>Now:</b> ${activeNames.join(', ')}` : 'No conditions or effects on you.'}`
-    + ` <button type="button" class="sel-toggle" data-status-ui="toggle">${statusUi.open ? 'Done' : 'Change'}</button>`
-    + (activeNames.length ? ` <button type="button" class="sel-toggle" data-status-ui="clear">Clear all</button>` : '') + `</div>`;
-  if(statusUi.open){
-    html += `<p class="rt-note"><span>Click what you’re under; Turnkeeper adds it to your rolls (and speed, HP and AC) until you click it off. Hover for the rules.</span></p>`
-      + `<div class="status-group">Conditions</div><div class="status-chips">${STATUS_DEFS.filter(d=>d.group==='cond').map(chip).join('')}</div>`
-      + `<div class="status-group">Exhaustion</div><div class="status-chips">${[0,1,2,3,4,5,6].map(n=>`<button type="button" class="status-chip${x===n ? ' on' : ''}" data-exh="${n}" aria-pressed="${x===n}" title="${escapeHtml(EXHAUSTION_TEXT[n])}">${n===0 ? 'None' : n}</button>`).join('')}</div>`
-      + `<div class="status-group">Magic on you</div><div class="status-chips">${STATUS_DEFS.filter(d=>d.group==='magic').map(chip).join('')}</div>`;
-    if(s.on.bardic) html += `<div class="status-chips status-sub"><span>Inspiration die:</span>${[6,8,10,12].map(n=>`<button type="button" class="status-chip${(s.bi||6)===n ? ' on' : ''}" data-bi="${n}">d${n}</button>`).join('')}</div>`;
-  }
+  // Custom effects on you (Bleeding from Krunk's greataxe), from other players or the DM
+  const defs = typeof campaignDefs !== 'undefined' ? Object.values(campaignDefs.effectDefs || {}) : [];
+  const custom = (tableActive() && typeof effectsOnMe === 'function' ? effectsOnMe(arrOf(table.combat.order).find(o=>o.char === currentCharId)) : [])
+    .map(e=>({...e, d:defs.find(x=>x.name === e.name)})).filter(e=>e.d);
+  const pinNames = [...activeNames, ...custom.map(e=>e.name + (e.from ? ` (from ${e.from})` : ''))];
+  // Folded, the title bar shows everything on you (applied by you, the DM or another player)
+  document.getElementById('statusPins').innerHTML = pinNames.map(n=>`<span class="fx-chip">${escapeHtml(n)}</span>`).join('');
+  const item = d=>`<div class="status-item">${chip(d)}<small>${escapeHtml(d.desc)}${d.lasts ? ` Lasts up to ${escapeHtml(d.lasts)}.` : ''}</small></div>`;
+  let html = `<div class="status-now">${pinNames.length ? `<b>Now:</b> ${pinNames.map(escapeHtml).join(', ')}` : 'No conditions or effects on you.'}`
+    + (activeNames.length ? ` <button type="button" class="sel-toggle" data-status-ui="clear">Clear all</button>` : '') + `</div>`
+    + `<p class="rt-note"><span>Click what you’re under; Turnkeeper adds it to your rolls (and speed, HP and AC) until you click it off. What’s on you also shows on this panel’s title bar when it’s folded.</span></p>`
+    + `<div class="status-group">Conditions</div><div class="status-list">${STATUS_DEFS.filter(d=>d.group==='cond').map(item).join('')}</div>`
+    + `<div class="status-group">Exhaustion</div><div class="status-chips">${[0,1,2,3,4,5,6].map(n=>`<button type="button" class="status-chip${x===n ? ' on' : ''}" data-exh="${n}" aria-pressed="${x===n}" title="${escapeHtml(EXHAUSTION_TEXT[n])}">${n===0 ? 'None' : n}</button>`).join('')}</div><p class="status-desc">${escapeHtml(EXHAUSTION_TEXT[x] || '')}</p>`
+    + `<div class="status-group">Magic on you</div><div class="status-list">${STATUS_DEFS.filter(d=>d.group==='magic').map(item).join('')}</div>`;
+  if(s.on.bardic) html += `<div class="status-chips status-sub"><span>Inspiration die:</span>${[6,8,10,12].map(n=>`<button type="button" class="status-chip${(s.bi||6)===n ? ' on' : ''}" data-bi="${n}">d${n}</button>`).join('')}</div>`;
+  if(custom.length) html += `<div class="status-group">Other effects on you</div><div class="status-list">${custom.map(e=>`<div class="status-item"><span class="status-chip on" style="cursor:default;">${escapeHtml(e.name)}</span><small>${e.from ? `From ${escapeHtml(e.from)}. ` : ''}${escapeHtml(effectText(e.d))}</small></div>`).join('')}</div>`;
   panel.querySelector('.status-body').innerHTML = html;
   // The Combat Menu shows what's active too, and warns when you can't act
   const line = document.getElementById('statusLine'), incap = on.filter(d=>d.incap).map(d=>d.name);
@@ -2037,10 +2050,9 @@ document.getElementById('statusPanel').addEventListener('click', e=>{
   if(b.dataset.status){ setStatusOn(b.dataset.status, !s.on[b.dataset.status]); return; }
   if(b.dataset.exh !== undefined){ s.exh = +b.dataset.exh; saveTrack(); if(hpNow() !== null && hpMax() !== null && hpNow() > hpMax()) track.hp = hpMax(); saveTrack(); renderStatus(); renderResources(); return; }
   if(b.dataset.bi){ s.bi = +b.dataset.bi; saveTrack(); renderStatus(); return; }
-  if(b.dataset.statusUi==='toggle'){ statusUi.open = !statusUi.open; rememberOpen('status', statusUi.open); renderStatus(); }
   if(b.dataset.statusUi==='clear'){ s.on = {}; s.exh = 0; saveTrack(); renderStatus(); renderResources(); }
 });
-statusUi.open = wasOpen('status');
+
 
 /* ---------- Roll popup ---------- */
 const rollPopup = document.getElementById('rollPopup');
@@ -2300,7 +2312,7 @@ window.tkTableUpdate = (part, data)=>{
   table[part] = part === 'combat' ? (data || null) : (data || {});
   if(part === 'combat') followDmCombat();
   if(part === 'combat' && window.tkDiceRefresh) window.tkDiceRefresh();   // your turn lets you roll
-  if(part === 'effects') applyIncoming();
+  if(part === 'effects' || part === 'combat'){ applyIncoming(); renderStatus(); }   // statuses others (or the DM) put on you
   renderTable();
 };
 // Turnkeeper's own round counter and turn cycle follow the DM's combat
@@ -2337,6 +2349,12 @@ function incomingStatuses(){
     const castAt = parseInt(String(e.id || '').replace(/^c/, ''), 10);
     if(restAt && castAt && castAt < restAt) return;   // it ended during your rest
     [].concat(e.status).forEach(k=>{ if(STATUS_BY_KEY[k]) out[k] = e.casterChar === currentCharId ? 'you' : e.caster; });
+  });
+  // Conditions the DM put on you in their turn order (Paralyzed from a Cult Mage's Hold Person)
+  const me = tableActive() ? arrOf(table.combat.order).find(o=>o.char === currentCharId) : null;
+  arrOf(me && me.conds).forEach(k=>{
+    const d = k && STATUS_DEFS.find(x=>x.name.toLowerCase() === String(k.name).toLowerCase());
+    if(d && !out[d.key]) out[d.key] = k.by || 'DM';
   });
   return out;
 }
