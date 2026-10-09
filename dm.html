@@ -1006,6 +1006,11 @@ const isBloodied = c => c.kind === 'monster' && c.max > 0 && c.hp > 0 && c.hp <=
 const defLoading = {};
 function defenseOf(c){
   if(c.def) return c.def;
+  if(!c.srd && c.kind === 'monster' && !srdIndex && !defLoading.index){ defLoading.index = true; loadSrdIndex().then(()=>{ saveCombat(); renderInit(); }); }
+  if(!c.srd && c.kind === 'monster' && srdIndex){
+    const n = c.name.replace(/ \d+$/, '').toLowerCase(), hit = srdIndex.find(m=>m.name.toLowerCase() === n);
+    if(hit) c.srd = hit.index;
+  }
   const m = c.srd && srdCache[c.srd];
   if(m) return (c.def = {res:defenseTokens(m.damage_resistances), vul:defenseTokens(m.damage_vulnerabilities), imm:defenseTokens(m.damage_immunities)});
   if(c.srd && !defLoading[c.srd]){ defLoading[c.srd] = true; srdMonster(c.srd).then(()=>{ saveCombat(); renderInit(); }).catch(()=>{}); }
@@ -1061,10 +1066,11 @@ function nextNumber(base){
   const re = new RegExp('^' + base.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ' (\\d+)$');
   return combat.list.reduce((n, c)=>{ const m = c.name.match(re); return m ? Math.max(n, +m[1]) : n; }, 0);
 }
-function addMonsters(e){
+async function addMonsters(e){
   e.preventDefault();
   const base = $('mName').value.trim();
   if(!base) return;
+  if(!(formSrd && formSrd.name.toLowerCase() === base.toLowerCase()) && (await loadSrdIndex()).some(m=>m.name.toLowerCase() === base.toLowerCase())) await fillFromSrd();
   const count = Math.max(1, Math.min(30, toNum($('mCount').value) || 1));
   const initMod = toNum($('mInit').value) ?? 0, ac = toNum($('mAc').value), cr = $('mCr').value || null;
   const hpField = $('mHp').value.trim();
