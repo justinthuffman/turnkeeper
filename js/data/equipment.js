@@ -151,6 +151,10 @@ const GEAR_ROWS = [
   ['Pole (10-foot)', 'Adventuring Gear', '5 cp', 7],
   ['Pot, Iron', 'Adventuring Gear', '2 gp', 10],
   ['Potion of Healing', 'Potion', '50 gp', 0.5, 'Regain 2d4 + 2 hit points.'],
+  // Dungeon Master's Guide (2014): the stronger healing potions
+  ['Potion of Greater Healing', 'Potion', '150 gp', 0.5, 'Regain 4d4 + 4 hit points.'],
+  ['Potion of Superior Healing', 'Potion', '450 gp', 0.5, 'Regain 8d4 + 8 hit points.'],
+  ['Potion of Supreme Healing', 'Potion', '1,350 gp', 0.5, 'Regain 10d4 + 20 hit points.'],
   ['Pouch', 'Adventuring Gear', '5 sp', 1],
   ['Quiver', 'Adventuring Gear', '1 gp', 1],
   ['Ram, Portable', 'Adventuring Gear', '4 gp', 35],
@@ -229,6 +233,20 @@ const GEAR_ROWS = [
   ['Gemstone (5,000 gp)', 'Gemstone', '5,000 gp', 0],
 ];
 const GEAR = GEAR_ROWS.map(([name, type, cost, weight, notes])=>({name, type, cost, weight, notes:notes || ''}));
+/* What an item does when used or thrown (the Combat Menu's Use Object and Throw). 2014 rules:
+   drinking or giving a potion is an action; Acid, Alchemist's Fire and Holy Water are thrown up to
+   20 feet as an improvised weapon (a ranged attack). use: {heal, dmg, dmgType, throwRange, onHit:
+   [effect names], note}. All of these are used up. */
+const ITEM_USES = {
+  'Acid (vial)': {dmg:'2d6', dmgType:'acid', throwRange:'20'},
+  "Alchemist's Fire (flask)": {throwRange:'20', onHit:["Alchemist's Fire"], note:'No damage on the hit itself: the target burns (1d4 fire at the start of each of its turns) until it puts the fire out.'},
+  'Holy Water (flask)': {dmg:'2d6', dmgType:'radiant', throwRange:'20', note:'Only a fiend or undead takes the damage.'},
+  'Potion of Healing': {heal:'2d4+2'},
+  'Potion of Greater Healing': {heal:'4d4+4'},
+  'Potion of Superior Healing': {heal:'8d4+8'},
+  'Potion of Supreme Healing': {heal:'10d4+20'},
+};
+GEAR.forEach(g=>{ if(ITEM_USES[g.name]) Object.assign(g, {use:ITEM_USES[g.name], consumable:true}); });
 
 // Everything in one list, by name (custom campaign items are added to this at run time)
 const EQUIPMENT = [...WEAPONS, ...ARMOR, ...GEAR];

@@ -50,9 +50,15 @@ function itemAttrs(d, it){
 }
 
 /* ---------- Effects: the page's standard ones, and the campaign's custom ones ---------- */
+// Effects from the 2014 rules that work like custom ones (damage each turn): always there
+const BUILTIN_EFFECTS = [
+  {name:"Alchemist's Fire", dmg:'1d4', dmgType:'fire', freq:'turn', duration:'removed', endKind:'check', endWhat:'Dexterity', endDC:10, desc:'An action on the check puts the fire out.'},
+];
+// Every effect definition by name: the built-in ones and the campaign's
+const allEffectDefs = ()=>[...BUILTIN_EFFECTS.map(d=>({...d, builtin:true})), ...Object.values(campaignDefs.effectDefs)];
 const effectList = ()=>[
   ...((host().standardEffects && host().standardEffects()) || []),
-  ...Object.values(campaignDefs.effectDefs).map(d=>({...d, custom:true, desc:effectText(d)})),
+  ...allEffectDefs().map(d=>({...d, custom:true, desc:effectText(d)})),
 ];
 function effectText(d){
   const parts = [];
@@ -87,7 +93,7 @@ function openItemForm(d, isNew){
     + `<label class="cs-field cs-wide"><span>Notes</span><textarea id="if_notes" rows="2" maxlength="1000">${ifEsc(d.notes || '')}</textarea></label>`
     + `<label class="cs-check"><input type="checkbox" id="if_attune"${d.attune ? ' checked' : ''}> Requires attunement</label>`
     + (dm ? `<label class="cs-check"><input type="checkbox" id="if_visible"${hidden ? '' : ' checked'}> Visible to players</label>` : '')
-    + `</div><div id="ifWeapon"></div><div id="itemFormFx"></div>`
+    + `</div><div id="ifWeapon"></div><div id="ifUse"></div><div id="itemFormFx"></div>`
     + `<div class="cs-add" style="max-width:none;"><button type="button" class="chip-btn" id="itemSave">${isNew && !dm ? 'Save and add to inventory' : 'Save'}</button><button type="button" class="chip-btn" id="itemCancel">Cancel</button>`
     + (isNew ? '' : `<button type="button" class="chip-btn item-del" id="itemDelete">Delete from campaign</button><span class="cs-none" id="itemDelMsg"></span>`) + `</div>`;
   itemForm.weapon = d;
@@ -99,7 +105,28 @@ function openItemForm(d, isNew){
 /* A weapon's own stats in the item form: what it inherits when it's built on a standard weapon,
    or its own (melee or ranged, simple or martial, damage, one-handed / two-handed / versatile,
    finesse, light, reach, range) when it isn't */
+// Use and throw: a potion's healing, a flask's damage, how far it can be thrown, whether it's used up
+function drawItemFormUse(){
+  const box = document.getElementById('ifUse'); if(!box || !itemForm) return;
+  const base = document.getElementById('if_base').value, type = base ? (equipmentByName(base) || {}).type : document.getElementById('if_type').value;
+  if(['Weapon', 'Armor', 'Shield', 'Ammunition'].includes(type)){ box.innerHTML = ''; return; }
+  const u = (itemForm.weapon && itemForm.weapon.use) || {};
+  box.innerHTML = `<div class="cs-sub">Use or throw</div><p class="cs-none">For things like potions and flasks: what Use Object and Throw do with it. Leave blank if it does neither.</p><div class="cs-grid">`
+    + `<label class="cs-field"><span>Heals (dice)</span><input id="iu_heal" type="text" maxlength="20" value="${ifEsc(u.heal || '')}" placeholder="e.g. 2d4+2"></label>`
+    + `<label class="cs-field"><span>Damage (dice)</span><input id="iu_dmg" type="text" maxlength="20" value="${ifEsc(u.dmg || '')}" placeholder="e.g. 2d6"></label>`
+    + `<label class="cs-field"><span>Damage type</span><select id="iu_type"><option value=""></option>${DAMAGE_TYPES.map(t=>`<option${t === u.dmgType ? ' selected' : ''}>${t}</option>`).join('')}</select></label>`
+    + `<label class="cs-field"><span>Thrown up to (feet)</span><input id="iu_throw" type="text" maxlength="12" value="${ifEsc(u.throwRange || '')}" placeholder="e.g. 20 or 20/60"></label>`
+    + `<label class="cs-field cs-wide"><span>Note</span><input id="iu_note" type="text" maxlength="200" value="${ifEsc(u.note || '')}"></label>`
+    + `</div><label class="cs-check"><input type="checkbox" id="iu_used"${itemForm.weapon && itemForm.weapon.consumable === false ? '' : ' checked'}> Used up when used or thrown</label>`;
+}
+function readItemFormUse(){
+  const g = id=>document.getElementById(id); if(!g('iu_heal')) return null;
+  const u = {heal:g('iu_heal').value.trim().slice(0, 20), dmg:g('iu_dmg').value.trim().slice(0, 20), dmgType:g('iu_type').value, throwRange:g('iu_throw').value.trim().slice(0, 12), note:g('iu_note').value.trim().slice(0, 200)};
+  Object.keys(u).forEach(k=>{ if(!u[k]) delete u[k]; });
+  return Object.keys(u).length ? {use:u, consumable:g('iu_used').checked} : null;
+}
 function drawItemFormWeapon(){
+  drawItemFormUse();
   const box = document.getElementById('ifWeapon'); if(!box || !itemForm) return;
   const base = document.getElementById('if_base').value, baseDef = base ? equipmentByName(base) : null;
   const type = baseDef ? baseDef.type : document.getElementById('if_type').value;
@@ -156,6 +183,8 @@ async function saveItemForm(){
   const wt = parseFloat(v('if_weight')); if(!isNaN(wt)) def.weight = wt; else if(baseDef) def.weight = baseDef.weight;
   if(!def.cost && baseDef) def.cost = baseDef.cost;
   if(!baseDef && def.type === 'Weapon') Object.assign(def, readItemFormWeapon() || {});
+  Object.assign(def, readItemFormUse() || {});
+  if(def.use && def.use.onHit === undefined && itemForm.onHit.length) def.use.onHit = itemForm.onHit;   // a thrown flask's On hit
   const clash = customItems().find(x=>x.name.toLowerCase() === name.toLowerCase() && x.id !== itemForm.id) || (!itemForm.id && equipmentByName(name));
   if(clash){ formFlash(clash.hidden && !host().dm ? `That name is taken in this campaign. Pick another.` : `There’s already an item called ${name}.`, true); return; }
   const id = itemForm.id || newId();

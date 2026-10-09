@@ -774,6 +774,14 @@ window.dmActsUpdate = (key, data)=>{
         arr(a.targets).forEach(t=>{
           const c = t.char ? combat.list.find(x=>x.kind === 'pc' && (campaign.party.find(p=>p.char === t.char) || {}).name === x.name) : byId(t.id);
           if(!c) return;
+          if(a.used){
+            dmPrompt({
+              html:`<p><b>${esc(name)}</b> uses <b>${esc(a.what)}</b> on <b>${esc(c.name)}</b>, which applies <b>${esc(fx.join(', '))}</b>.</p><p class="dp-q">Apply ${esc(fx.join(' and '))} to ${esc(c.name)}?</p>`,
+              yes:()=>{ const x = byId(c.id); if(!x) return; fx.forEach(n=>{ if(!x.conds.some(k=>k.name === n)) x.conds.push({name:n, rounds:null, by:name}); }); logLine(`${x.name}: ${fx.join(', ')} (from ${name}’s ${a.what})`); saveCombat(); renderInit(); },
+              no:()=>logLine(`${c.name}: ${fx.join(', ')} didn’t take hold`),
+            });
+            return;
+          }
           const ac = toNum(c.ac), nat = Number(a.nat);
           const cls = nat === 20 ? 'hit' : nat === 1 ? 'miss' : ac === null ? '' : total > ac ? 'hit' : total === ac ? 'tie' : 'miss';
           dmPrompt({
@@ -1854,6 +1862,7 @@ function renderSettings(){
   $('csBody').innerHTML = `<div class="cs-opts">
       <label><input type="checkbox" id="csDiceSound"${critSettings.diceSound ? ' checked' : ''}> Dice sounds on every screen</label>
       <label><input type="checkbox" id="csSound"${critSettings.sound ? ' checked' : ''}> Play sound from clips (MP4 and WebM) on every screen</label>
+      <label title="A house rule: throwing a healing potion at an ally heals them (the thrower rolls). Drinking or giving one is an action either way."><input type="checkbox" id="csThrownPotions"${critSettings.thrownPotions ? ' checked' : ''}> Thrown potions heal</label>
       <label><input type="checkbox" id="csFx"${critFxOn() ? ' checked' : ''}> Show crit GIFs on this screen</label>
       <label>Party leveling <select id="csLeveling"><option value="milestone"${critSettings.leveling === 'xp' ? '' : ' selected'}>Milestone (you say when)</option><option value="xp"${critSettings.leveling === 'xp' ? ' selected' : ''}>Experience points</option></select></label>
       <button type="button" class="ghost" id="csSeed">Add the old !tk GIFs to To Hit</button></div>
@@ -1907,6 +1916,7 @@ $('csBody').addEventListener('change', e=>{
   if(e.target.id === 'csSound') csWrite('sound', e.target.checked);
   else if(e.target.id === 'csDiceSound') csWrite('diceSound', e.target.checked);
   else if(e.target.id === 'csLeveling') csWrite('leveling', e.target.value);
+  else if(e.target.id === 'csThrownPotions') csWrite('thrownPotions', e.target.checked);
   else if(e.target.id === 'csFx') setCritFxOn(e.target.checked);
   else if(e.target.dataset.csUsehit) csWrite(`gifs/${e.target.dataset.csUsehit}/useHit`, e.target.checked);
 });
@@ -1987,7 +1997,7 @@ try{
     stops.push(onValue(ref(db, `campaigns/${FBK(key)}/live`), snap=>{ window.dmLiveStatus('on'); window.dmLiveUpdate(key, clean(snap.val())); }, fail));
     stops.push(onValue(ref(db, `campaigns/${FBK(key)}/effects`), snap=>window.dmEffectsUpdate(key, clean(snap.val())), fail));
     // V5: the campaign's custom effects (Bleeding: 2 slashing every turn), for start-of-turn reminders
-    stops.push(onValue(ref(db, `campaigns/${FBK(key)}/effectDefs`), snap=>{ const out = {}; Object.values(snap.val() || {}).forEach(r=>{ try{ const d = JSON.parse(r.json); if(d && r.name) out[String(r.name)] = d; }catch(e){} }); window.dmEffectDefs = out; if(window.dmDefsUpdate) window.dmDefsUpdate('effectDefs', snap.val()); if(window.dmEffectDefsChanged) window.dmEffectDefsChanged(); }, fail));
+    stops.push(onValue(ref(db, `campaigns/${FBK(key)}/effectDefs`), snap=>{ const out = {}; Object.values(snap.val() || {}).forEach(r=>{ try{ const d = JSON.parse(r.json); if(d && r.name) out[String(r.name)] = d; }catch(e){} }); BUILTIN_EFFECTS.forEach(d=>{ if(!out[d.name]) out[d.name] = d; }); window.dmEffectDefs = out; if(window.dmDefsUpdate) window.dmDefsUpdate('effectDefs', snap.val()); if(window.dmEffectDefsChanged) window.dmEffectDefsChanged(); }, fail));
     stops.push(onValue(ref(db, `campaigns/${FBK(key)}/items`), snap=>{ if(window.dmDefsUpdate) window.dmDefsUpdate('items', snap.val()); }, fail));
     stops.push(onValue(ref(db, `campaigns/${FBK(key)}/acts`), snap=>window.dmActsUpdate(key, clean(snap.val())), fail));
     stops.push(onValue(ref(db, `campaigns/${FBK(key)}/allow`), snap=>window.dmAllowUpdate(key, clean(snap.val())), fail));

@@ -553,7 +553,8 @@ function cleanCritSettings(raw){
     gifs[k] = {useHit:k !== 'hit' && r.useHit === true, success:side(r.success), fail:side(r.fail)};
   });
   // leveling: how the party levels up (Campaign settings): 'milestone' (the DM says when) or 'xp'
-  return {sound:raw.sound === true, diceSound:raw.diceSound !== false, leveling:raw.leveling === 'xp' ? 'xp' : 'milestone', gifs};
+  // thrownPotions: a house rule (on unless the DM turns it off): a healing potion thrown at an ally heals them
+  return {sound:raw.sound === true, diceSound:raw.diceSound !== false, leveling:raw.leveling === 'xp' ? 'xp' : 'milestone', thrownPotions:raw.thrownPotions !== false, gifs};
 }
 let critSettings = cleanCritSettings(null);
 // What a crit shows: {gif, text, side} or null. who replaces {who} in flavor text.

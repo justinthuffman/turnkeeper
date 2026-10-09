@@ -572,6 +572,9 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
 .choice-banner .cb-go{margin-left:auto; white-space:nowrap; color:var(--sea); text-decoration:underline;}
 .choice-banner.shake{animation:needPick 0.5s; border-color:var(--danger);}
 .build-box.flash{outline:2px solid var(--sea); outline-offset:3px; transition:outline-color 1.2s;}
+.throw-dist{align-items:center;}
+.throw-dist input{width:6em; background:var(--panel2); border:1px solid var(--border); color:var(--ink); border-radius:6px; padding:6px 8px; font:inherit;}
+.flow-btn.pick-up{border-style:dashed;}
 .roll-box.need-pick, .heal-who.need-pick{outline:2px solid var(--danger); outline-offset:2px; animation:needPick 0.5s;}
 .heal-who .roll-wait{flex-basis:100%;}
 /* Hurt by an effect at the start of your turn (showDamageFx): like the golden heal, in the
@@ -822,6 +825,7 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
   <div class="action-row-label">2. Action</div>
   <div class="action-grid" id="actionButtons">
     <button data-act="attack">Attack</button>
+    <button data-act="throw">Throw</button>
     <button data-act="spell">Cast Prepared Spell</button>
     <button data-act="features" id="featuresBtn" style="display:none;">Class Features</button>
     <button data-act="dash">Dash</button>
@@ -1138,6 +1142,8 @@ document.getElementById('actionButtons').addEventListener('click', e=>{
   btn.classList.add('active');
   openAct = act;
   if(act==='attack') renderAttackDetail();
+  else if(act==='throw') renderThrowDetail();
+  else if(act==='useobject') renderUseDetail();
   else if(act==='spell') renderCastDetail();
   else if(act==='features') renderFeatureActionDetail();
   else if(CHECK_ACTIONS[act]) renderCheckDetail(act);
@@ -1159,6 +1165,144 @@ document.querySelector('.action-grid button[data-act="bonus"]').addEventListener
     e.currentTarget.classList.add('active');
   });
 });
+
+/* ---------- Throw and Use Object (V5) ----------
+   Throw: a weapon (Thrown ones by their range and ability; any other as an improvised weapon:
+   1d4, 20/60, no proficiency without Tavern Brawler), an item made to be thrown (Acid, Alchemist's
+   Fire, Holy Water: its own action, used up), a potion at an ally (a house rule, on unless the
+   DM turns it off) or an improvised object. In combat you say how far: past the first range is
+   disadvantage, past the second can't be done; an enemy within 5 feet is disadvantage too.
+   A thrown weapon is out of hand until Pick up (or the end of the combat).
+   Use Object: a potion (drink or give: your action) or anything else that does something when
+   used (Alchemist's Fire on someone). Used-up items come out of the inventory. */
+const thrownNow = ()=>(track.combat && track.combat.thrown) || [];
+const thrownPotionsOn = ()=>typeof critSettings !== 'object' || critSettings.thrownPotions !== false;
+const throwFlow = {pick:null, dist:'', near:false, mode:'normal'};
+const rangeOf = r=>{ const m = String(r || '20/60').match(/(\d+)(?:\s*\/\s*(\d+))?/); return m ? [+m[1], +(m[2] || m[1])] : [20, 60]; };
+function throwDisadvantage(){
+  const t = rollState.sel && rollState.sel.throwInfo; if(!t) return null;
+  if(t.near) return {name:'an enemy within 5 feet'};
+  if(t.dist > t.range[0]) return {name:`past ${t.range[0]} feet`};
+  return null;
+}
+// The attack for throwing something (weapon def d and its inventory item, or an item, or nothing)
+function throwAttack(name, d, it){
+  const str = abilityScoreMod('str'), dex = abilityScoreMod('dex'), prof = proficiencyBonus();
+  if(d && isWeapon(d) && d.thrown){
+    const abil = d.finesse && dex > str ? dex : str, magic = parseInt(d.magic, 10) || 0;
+    return {attack:{name:`${name} (thrown)`, bonus:fmtMod(abil + (weaponProficient(d) ? prof : 0) + magic), damage:`${d.dice}${fmtMod(abil + magic)} ${d.dmgType} · Ranged Weapon Attack. thrown`,
+      onHit:effectsFor(d.onHit), magical:magic > 0, itemId:it.id}, range:rangeOf(d.range), weapon:true};
+  }
+  const u = (d && d.use) || {}, tb = hasFeat('Tavern Brawler') ? prof : 0;
+  const dmg = d && isWeapon(d) ? `1d4${fmtMod(str)} ${d.dmgType}` : u.dmg ? `${u.dmg} ${u.dmgType || ''}` : !d ? `1d4${fmtMod(str)} bludgeoning` : '';
+  return {attack:{name:`${name} (thrown)`, bonus:fmtMod(str + tb), damage:dmg ? `${dmg} · Ranged Weapon Attack. improvised`.replace(/\s+·/, ' ·') : '— · Ranged Weapon Attack. improvised',
+      onHit:effectsFor(d && isWeapon(d) ? d.onHit : (u.onHit || (d && d.onHit))), itemId:it ? it.id : null},
+    range:d && !isWeapon(d) ? rangeOf(u.throwRange || '20') : [20, 60], weapon:!!(d && isWeapon(d)), ownAction:!!(d && !isWeapon(d)), consume:!!(d && !isWeapon(d) && d.consumable !== false), note:u.note || ''};
+}
+function throwChoices(){
+  const out = [], thrown = thrownNow();
+  (typeof invItems === 'function' ? invItems() : []).forEach(it=>{
+    const d = itemDef(it.name); if(!d) return;
+    const n = it.qty ?? 1, many = n > 1 ? ` (${n})` : '';
+    if(isWeapon(d)){ if(!thrown.includes(it.id)) out.push({key:'w:' + it.id, label:it.name, it, d, group:'Your weapons'}); }
+    else if(d.use && d.use.throwRange && n > 0) out.push({key:'i:' + it.id, label:it.name + many, it, d, group:'Items'});
+    else if(d.use && d.use.heal && thrownPotionsOn() && n > 0) out.push({key:'p:' + it.id, label:it.name + many, it, d, group:'Items', potion:true});
+  });
+  out.push({key:'imp', label:'Improvised object', group:'Something else'});
+  return out;
+}
+// "Pick up: Handaxe" for each weapon you've thrown this combat
+function pickUpHtml(){
+  const items = typeof invItems === 'function' ? invItems() : [], gone = thrownNow().map(id=>items.find(x=>x.id === id)).filter(Boolean);
+  return gone.length ? `<div class="flow-label">Thrown (pick it up to use it again)</div><div class="flow-grid">${gone.map(it=>`<button type="button" class="flow-btn pick-up" data-pickup="${escapeHtml(it.id)}">Pick up: ${escapeHtml(it.name)}</button>`).join('')}</div>` : '';
+}
+function wirePickUp(redraw){
+  actionDetail.querySelectorAll('[data-pickup]').forEach(b=>b.addEventListener('click', ()=>{
+    track.combat.thrown = thrownNow().filter(id=>id !== b.dataset.pickup); saveTrack(); redraw();
+  }));
+}
+function renderThrowDetail(){
+  const choices = throwChoices(), pick = choices.find(c=>c.key === throwFlow.pick) || null;
+  const groups = [...new Set(choices.map(c=>c.group))];
+  const fighting = inCombat() || tableActive();
+  let html = `<h4>Throw</h4>` + groups.map(g=>`<div class="flow-label">${g}</div><div class="flow-grid">${choices.filter(c=>c.group === g).map(c=>`<button type="button" class="flow-btn${c === pick ? ' active' : ''}" data-throw="${escapeHtml(c.key)}">${escapeHtml(c.label)}</button>`).join('')}</div>`).join('') + pickUpHtml();
+  if(pick && pick.potion){
+    html += `<div class="flow-summary">${escapeHtml(pick.it.name)}: ${escapeHtml(pick.d.use.heal)} healing for the ally you throw it to (your campaign’s house rule; no attack roll).</div><div class="flow-go"><button type="button" id="flowRoll">Throw it</button></div>`;
+  } else if(pick){
+    const t = throwAttack(pick.it ? pick.it.name : 'Improvised object', pick.d || null, pick.it || null), [near, far] = t.range;
+    const dist = parseInt(throwFlow.dist, 10), tooFar = dist > far;
+    html += `<div class="flow-summary">${escapeHtml(t.attack.bonus)} to hit · ${escapeHtml(t.attack.damage.split(' · ')[0] || 'no damage roll')} · range ${near}${far !== near ? '/' + far : ''} ft${t.ownAction ? ' · takes your action' : ' · one of your Attack action’s attacks'}${t.weapon && !(pick.d && pick.d.thrown) ? ' · improvised (not a thrown weapon)' : ''}</div>`
+      + `<div class="flow-label">How far${fighting ? '' : ' (optional)'}</div><div class="flow-grid throw-dist"><input type="number" id="throwDist" min="1" max="999" step="1" inputmode="numeric" value="${escapeHtml(throwFlow.dist)}" placeholder="feet" aria-label="Distance in feet">${toggleBtn('data-near', '1', 'An enemy is within 5 ft of me', throwFlow.near)}</div>`
+      + (tooFar ? `<p class="empty-note" style="color:var(--danger);">Too far: it can be thrown up to ${far} feet.</p>` : dist > near ? `<p class="empty-note">Past ${near} feet: disadvantage.</p>` : '')
+      + `<div class="flow-label">Roll with</div><div class="flow-grid">${ROLL_MODES.map(([k, l])=>`<button type="button" class="flow-btn${throwFlow.mode === k ? ' active' : ''}" data-mode="${k}">${l}</button>`).join('')}</div>`
+      + `<div class="flow-go"><button type="button" id="flowRoll"${tooFar || (fighting && !(dist > 0)) ? ' disabled' : ''}>Roll</button></div>`
+      + (fighting && !(dist > 0) ? `<p class="empty-note">Say how far you’re throwing first.</p>` : '');
+  }
+  showDetail(html);
+  actionDetail.querySelectorAll('[data-throw]').forEach(b=>b.addEventListener('click', ()=>{ throwFlow.pick = b.dataset.throw; renderThrowDetail(); }));
+  actionDetail.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click', ()=>{ throwFlow.mode = b.dataset.mode; renderThrowDetail(); }));
+  actionDetail.querySelectorAll('[data-near]').forEach(b=>b.addEventListener('click', ()=>{ throwFlow.near = !throwFlow.near; renderThrowDetail(); }));
+  const di = document.getElementById('throwDist');
+  if(di) di.addEventListener('change', ()=>{ throwFlow.dist = String(parseInt(di.value, 10) || ''); renderThrowDetail(); const again = document.getElementById('throwDist'); if(again) again.focus(); });
+  wirePickUp(renderThrowDetail);
+  const go = document.getElementById('flowRoll');
+  if(go) go.addEventListener('click', ()=>{
+    if(pick.potion){ openRollPopup({kind:'potion', label:pick.it.name, heal:pick.d.use.heal, itemId:pick.it.id, throwIt:true}, 'normal'); return; }
+    const t = throwAttack(pick.it ? pick.it.name : 'Improvised object', pick.d || null, pick.it || null);
+    openRollPopup({kind:'weapon', label:t.attack.name, attack:t.attack, throwInfo:{...t, dist:parseInt(throwFlow.dist, 10) || 0, near:throwFlow.near}}, throwFlow.mode);
+  });
+}
+// The popup's line about the throw: how far, and why it has disadvantage
+function throwLineHtml(){
+  const t = rollState.sel.throwInfo, dis = throwDisadvantage();
+  return `<div class="roll-after">Thrown${t.dist ? ` ${t.dist} feet` : ''} (range ${t.range[0]}${t.range[1] !== t.range[0] ? '/' + t.range[1] : ''})${dis ? `: disadvantage, ${dis.name}` : ''}.${t.note ? ' ' + escapeHtml(t.note) : ''}</div>`;
+}
+// After the to-hit roll: a thrown weapon is out of your hand (in combat); a thrown item is used up
+function afterThrow(){
+  const t = rollState.sel && rollState.sel.throwInfo; if(!t || t.done) return;
+  t.done = true;
+  if(t.weapon && t.attack.itemId && track.combat){ track.combat.thrown = [...thrownNow(), t.attack.itemId]; saveTrack(); }
+  if(t.consume) useUpItem(t.attack.itemId);
+}
+// One of an item used up (gone from the inventory at 0)
+function useUpItem(id){
+  if(!id || typeof invItems !== 'function') return;
+  const items = invItems(), it = items.find(x=>x.id === id); if(!it) return;
+  it.qty = (it.qty ?? 1) - 1;
+  saveInv(it.qty > 0 ? items : items.filter(x=>x.id !== id));
+  if(typeof renderInventory === 'function'){ renderInventory(); renderEquipment(); }
+}
+// Use Object: potions and anything else that does something when used
+function renderUseDetail(){
+  const items = (typeof invItems === 'function' ? invItems() : []).map(it=>({it, d:itemDef(it.name)})).filter(x=>x.d && x.d.use && (x.d.use.heal || x.d.use.dmg || (x.d.use.onHit || x.d.onHit || []).length) && (x.it.qty ?? 1) > 0);
+  let html = `<h4>Use Object</h4><p>${ACTION_TEXT.useobject}</p>`;
+  html += items.length ? `<div class="flow-label">Use an item</div><div class="flow-grid">${items.map(x=>`<button type="button" class="flow-btn" data-use="${escapeHtml(x.it.id)}">${escapeHtml(x.it.name)}${(x.it.qty ?? 1) > 1 ? ` (${x.it.qty})` : ''}</button>`).join('')}</div>`
+    : `<p class="empty-note">Nothing in your inventory to use (potions, flasks…).</p>`;
+  showDetail(html);
+  actionDetail.querySelectorAll('[data-use]').forEach(b=>b.addEventListener('click', ()=>{
+    const x = items.find(y=>y.it.id === b.dataset.use); if(!x) return;
+    const u = x.d.use;
+    if(u.heal){ openRollPopup({kind:'potion', label:x.it.name, heal:u.heal, itemId:x.it.id}, 'normal'); return; }
+    openRollPopup({kind:'weapon', label:`${x.it.name} (used)`, noHit:true, attack:{name:x.it.name, bonus:'+0', damage:u.dmg ? `${u.dmg} ${u.dmgType || ''} · Used on a creature.` : '— · Used on a creature.', onHit:effectsFor(u.onHit || x.d.onHit), itemId:x.it.id},
+      useInfo:{itemId:x.it.id, consume:x.d.consumable !== false, note:u.note || ''}}, 'normal');
+  }));
+}
+// Using an item on someone (no attack roll): pick who, then Use it; its effect asks the DM
+function useItHtml(){
+  const u = rollState.sel.useInfo;
+  if(u.used) return `<div class="spent-line">Used ${escapeHtml(rollState.sel.attack.name)}${u.on ? ` on ${escapeHtml(u.on)}` : ''}.</div>`;
+  return `<div class="roll-box"><div class="roll-box-label">Use it</div><div class="roll-after">Pick who you’re using it on, then Use it${(rollState.sel.attack.onHit || []).length ? ': your DM decides whether its effect takes hold' : ''}.</div><div class="roll-toggles"><button type="button" class="flow-btn" data-use-it="1">Use it</button></div></div>`;
+}
+function useItClick(){
+  const sel = rollState.sel, u = sel.useInfo, cands = targetCandidates();
+  const targets = (rollState.aim || []).map(k=>cands.find(c=>c.key === k)).filter(Boolean).map(c=>({id:c.id, name:c.name, char:c.char}));
+  if(tableActive() && !targets.length){ const box = document.querySelector('#rollBody .target-pick'); if(box){ box.classList.remove('need-pick'); void box.offsetWidth; box.classList.add('need-pick'); } return; }
+  const fx = (sel.attack.onHit || []).map(x=>x.name);
+  if(fx.length && targets.length && window.tkSendAct) window.tkSendAct('hit', {what:String(sel.attack.name).slice(0, 80), onHit:fx.slice(0, 6), used:true, total:0, nat:0, targets});
+  if(u.consume) useUpItem(u.itemId);
+  u.used = true; u.on = targets.map(t=>t.name).join(', '); rollState.hitRolled = true;
+  renderRollPopup();
+}
 
 /* ---------- Attack flow (V2): Attack → weapon/maneuver → roll mode → Roll → popup ----------
    Rolls are plain dice (Turnkeeper rolls them: see Dice core).
@@ -1191,7 +1335,7 @@ function unarmedAttack(){
 }
 function attackChoices(){
   return [
-    ...state.attacks.map((a,i)=>({key:'w'+i, label:a.name, kind:'weapon', attack:a})),
+    ...state.attacks.map((a,i)=>({key:'w'+i, label:a.name, kind:'weapon', attack:a})).filter(c=>!thrownNow().includes(c.attack.itemId)),
     ...(currentCharId ? [{key:'unarmed', label:'Unarmed Strike', kind:'weapon', attack:unarmedAttack()}] : []),
     ...Object.entries(MANEUVERS).map(([k,m])=>({key:k, label:m.label, kind:k})),
   ];
@@ -1683,6 +1827,7 @@ function renderAttackDetail(){
     + choices.map(c=>`<button type="button" class="flow-btn${c===sel?' active':''}" data-choice="${c.key}">${escapeHtml(c.label)}</button>`).join('')
     + `</div>`;
   if(!state.attacks.length) html += `<p class="empty-note" style="margin-top:8px;">No weapons equipped. Equip one in the Inventory tab.</p>`;
+  html += pickUpHtml();
   if(sel){
     const summary = sel.kind==='weapon'
       ? `${escapeHtml(sel.attack.bonus||'—')} to hit &middot; ${escapeHtml(sel.attack.damage||'—')}`
@@ -1699,6 +1844,7 @@ function renderAttackDetail(){
   showDetail(html);
   actionDetail.querySelectorAll('[data-choice]').forEach(b=>b.addEventListener('click', ()=>{ if(attackFlow.choice !== b.dataset.choice) attackFlow.power = false; attackFlow.choice = b.dataset.choice; renderAttackDetail(); }));
   actionDetail.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click', ()=>{ attackFlow.mode = b.dataset.mode; renderAttackDetail(); }));
+  wirePickUp(renderAttackDetail);
   actionDetail.querySelectorAll('[data-power]').forEach(b=>b.addEventListener('click', ()=>{ attackFlow.power = !attackFlow.power; renderAttackDetail(); }));
   const go = document.getElementById('flowRoll');
   if(go) go.addEventListener('click', ()=>{
@@ -1869,7 +2015,7 @@ const onceUsed = k=>inCombat() && !!(track.combat.once && track.combat.once[k]);
 function isReactionSel(sel){
   return !!sel.reaction || (sel.kind==='feature' && sel.feature.type==='reaction') || (sel.kind==='spell' && isReactionSpell(sel.entry.sp));
 }
-const isAttackActionSel = sel=>!sel.reaction && !sel.offhand && (sel.kind==='weapon' || !!MANEUVERS[sel.kind]);
+const isAttackActionSel = sel=>!sel.reaction && !sel.offhand && !(sel.throwInfo && sel.throwInfo.ownAction) && !sel.noHit && (sel.kind==='weapon' || !!MANEUVERS[sel.kind]);
 function turnLineHtml(){
   const c = track.combat; if(!inCombat()) return '';
   if(rollState.reactionMarked) return `<div class="spent-line${rollState.reactionWasUsed ? ' warn' : ''}">${rollState.reactionWasUsed ? 'You’d already used your reaction this round. Check with your DM.' : 'Uses your reaction: it comes back at the start of your turn.'}</div>`;
@@ -1895,8 +2041,10 @@ function rollKindOf(sel){
 function attackMode(){
   const {mode, sel} = rollState;
   const fxAdv = (sel.kind==='weapon' && fxOn().some(e=>e.adv)) || !!rollState.insp;
-  if(!rollState.st && !fxAdv) return mode;
-  return combineMode(mode, rollState.st, fxAdv);
+  const rangeDis = throwDisadvantage();
+  if(!rollState.st && !fxAdv && !rangeDis) return mode;
+  const st = rangeDis ? {...(rollState.st || {adv:[], dis:[], dice:[], flat:0}), dis:[...((rollState.st || {}).dis || []), rangeDis]} : rollState.st;
+  return combineMode(mode, st, fxAdv);
 }
 function fxLineHtml(){
   const f = rollState.fxStarted, ended = rollState.concEnded || [];
@@ -2024,7 +2172,7 @@ function renderStatus(){
   const fromWho = k=>s.ext && s.ext[k] && s.ext[k] !== 'you' && s.ext[k] !== 'DM' ? ` (from ${s.ext[k]})` : '';
   const activeNames = on.map(d=>(d.key==='bardic' ? `Bardic Inspiration (d${s.bi || 6})` : d.name) + fromWho(d.key)).concat(x ? [`Exhaustion ${x}`] : []);
   // Custom effects on you (Bleeding from Krunk's greataxe), from other players or the DM
-  const defs = typeof campaignDefs !== 'undefined' ? Object.values(campaignDefs.effectDefs || {}) : [];
+  const defs = typeof campaignDefs !== 'undefined' ? allEffectDefs() : [];
   const custom = (tableActive() && typeof effectsOnMe === 'function' ? effectsOnMe(arrOf(table.combat.order).find(o=>o.char === currentCharId)) : [])
     .map(e=>({...e, d:defs.find(x=>x.name === e.name)})).filter(e=>e.d);
   const pinNames = [...activeNames, ...custom.map(e=>e.name + (e.from ? ` (from ${e.from})` : ''))];
@@ -2077,7 +2225,7 @@ function openRollPopup(sel, mode){
   hideTooltip();
   Object.assign(rollState, {sel, mode, crit:false, autoCrit:false, smite:0, undead:false, alt:false, sneak:false, savage:false, spendInfo:null, smiteSpent:null,
     fxList:[], fxOn:{}, fxStarted:null, concEnded:[], fxBefore:null, fxUsed:false, healed:null, healBefore:null, healTo:null, healDone:null, tempMsg:'', selfCast:null, statusBefore:null, target:null, castBefore:null, aim:null,
-    insp:false, reactionMarked:false, reactionWasUsed:false, attackNo:0, attackCounted:false, onHitDone:[], hitRolled:false});
+    insp:false, reactionMarked:false, reactionWasUsed:false, attackNo:0, attackCounted:false, onHitDone:[], hitRolled:!!sel.noHit});
   // In combat: a reaction is marked used when its popup opens (Undo on the slot gives it back);
   // an attack from the Attack action is counted when you copy its to-hit command
   if(inCombat()){
@@ -2688,7 +2836,7 @@ function applyTurnEffects(c, me){
   if(typeof campaignDefs === 'undefined' || !track.combat) return [];
   const key = `${c.round}:${me.id}`; if(track.combat.turnFx === key) return [];
   track.combat.turnFx = key;
-  const defs = Object.values(campaignDefs.effectDefs || {}), lines = [], shows = [];
+  const defs = allEffectDefs(), lines = [], shows = [];
   effectsOnMe(me).forEach(({name, from})=>{
     const d = defs.find(x=>x.name === name); if(!d || !d.dmg || d.freq !== 'turn' || hpNow() === null) return;
     const dice = readDice(d.dmg), n = Math.max(0, dice ? rollTerms(dice.terms).total : (parseInt(d.dmg, 10) || 0)); if(!n) return;
@@ -2713,7 +2861,7 @@ function applyTurnEffects(c, me){
 // Notes for Turnkeeper's own turn cycle (outside the DM's combat): what's on you each turn
 function turnEffectNotes(){
   if(typeof campaignDefs === 'undefined') return [];
-  const defs = Object.values(campaignDefs.effectDefs || {});
+  const defs = allEffectDefs();
   return allEffects().filter(e=>e.casterChar !== currentCharId && arrOf(e.targets).some(t=>t.char === currentCharId)).map(e=>{
     const d = defs.find(x=>x.name === e.name); if(!d || !d.dmg || d.freq !== 'turn') return null;
     return `${e.name} (from ${e.caster}): take ${d.dmg} ${d.dmgType || ''} damage now, with Damage in Resources${d.endKind && d.endWhat ? `; a DC ${d.endDC || '?'} ${d.endWhat} ${d.endKind} ends it` : ''}${d.duration === 'healed' ? '; it ends once you’re healed' : ''}.`.replace(/\s+/g, ' ');
@@ -2724,6 +2872,13 @@ function renderRollPopup(){
   const modeLabel = ROLL_MODES.find(([k])=>k===attackMode())[1];
   document.getElementById('rollTitle').textContent = `${sel.label}${sel.ritual ? ' (ritual)' : ''}${sel.kind==='spell' && sel.slot && !sel.entry.fixedLevel && sel.slot > sel.entry.sp.level ? ` (${ORDINAL[sel.slot]}-level slot)` : ''}${attackMode()!=='normal' ? ` — ${modeLabel}` : ''}`;
   // A bonus action from a spell you're concentrating on (Aura of Vitality): its healing roll and who
+  // A potion: drunk, given or (house rule) thrown to heal someone
+  if(sel.kind==='potion'){
+    document.getElementById('rollBody').innerHTML = turnLineHtml()
+      + `<p class="roll-intro">${sel.throwIt ? 'Thrown to an ally: they get the healing (your campaign’s house rule).' : 'Drinking it or giving it to someone takes your action.'} Pick who, roll, then Heal.</p>`
+      + cmdBox('Healing', {cmd:sel.heal, desc:`${sel.label}: hit points regained`}, healWhoHtml(sel.label, 1));
+    return;
+  }
   if(sel.kind==='concBonus'){
     const h = sel.each.heal;
     document.getElementById('rollBody').innerHTML = turnLineHtml()
@@ -2742,7 +2897,9 @@ function renderRollPopup(){
       + rollState.fxList.map(e=>toggleBtn('data-fx', escapeHtml(e.id), escapeHtml(e.target ? `${e.name} target${castTargetsText(e.name)}` : `${e.name} (${fxWhat(e)})`), !!rollState.fxOn[e.id])).join('') + `</div>`;
     if(target.length) html += `<div class="roll-after">Tick a target only if you’re attacking the creature it’s on.</div>`;
   }
-  html += cmdBox(sel.kind==='weapon' ? 'To hit' : sel.kind==='check' ? checkInfo(sel.type, sel.key).name : 'Athletics check', {...toHitCommand(), countAttack: !!rollState.attackNo,
+  if(sel.throwInfo) html += throwLineHtml();
+  if(sel.noHit) html += useItHtml();
+  else html += cmdBox(sel.kind==='weapon' ? 'To hit' : sel.kind==='check' ? checkInfo(sel.type, sel.key).name : 'Athletics check', {...toHitCommand(), countAttack: !!rollState.attackNo,
     kind:sel.kind==='weapon' ? 'hit' : sel.kind==='check' ? ({init:'init', skill:'skill', ability:'check'}[sel.type] || 'save') : 'skill'});   // its crit GIF row
   html += statusNotesHtml(rollState.st, rollState.mode);
   if(sel.kind==='check'){
@@ -2751,7 +2908,9 @@ function renderRollPopup(){
   }
   if(sel.kind==='weapon'){
     const dmg = damageCommand();
-    if(!dmg){
+    if(!dmg && (sel.throwInfo || sel.noHit)){
+      html += infoBox(sel.noHit ? 'What it does' : 'On a hit', escapeHtml((sel.throwInfo || sel.useInfo || {}).note || 'No damage roll.'));
+    } else if(!dmg){
       html += `<div class="roll-box"><div class="roll-box-label">Damage</div><p class="empty-note">Couldn’t read this weapon’s damage (“${escapeHtml(sel.attack.damage||'')}”).</p></div>`;
     } else {
       // Decided after seeing the to-hit roll, per the rules: crit and Divine Smite
@@ -2774,7 +2933,7 @@ function renderRollPopup(){
       const notes = dmg.notes.length ? `<ul class="roll-notes">${dmg.notes.map(n=>`<li>${n}</li>`).join('')}</ul>` : '';
       html += cmdBox('Damage', {...dmg, crit:rollState.crit}, toggles + notes);
     }
-    html += onHitApplyHtml();
+    if(!sel.noHit) html += onHitApplyHtml();   // using an item on someone: Use it asks the DM
   }
   document.getElementById('rollBody').innerHTML = html;
   syncAwaitHit();
@@ -2854,12 +3013,14 @@ rollPopup.addEventListener('click', e=>{
   else if(t.dataset.tempSet) tempFromPopup(+t.dataset.tempSet);
   else if(t.dataset.healMe){ healSelf(parseInt(document.getElementById('healAmt').value,10) || 0); renderRollPopup(); }
   else if(t.dataset.healTo) healToClick(t.dataset.healTo, rollState.sel.kind === 'spell' ? (MULTI_HEAL[rollState.sel.entry.sp.name] || 1) : 1);
+  else if(t.dataset.useIt){ useItClick(); }
   else if(t.dataset.healGo){
     if(needHealPick()) return;
     const done = healPicked(parseInt(document.getElementById('healAmt').value,10) || 0, t.dataset.healGo);
     if(done.length) rollState.healDone = done;
     // Aura of Vitality's bonus action: Heal finishes it (what happened is noted in Resources)
-    if(done.length && rollState.sel.kind === 'concBonus'){
+    if(done.length && rollState.sel.kind === 'potion') useUpItem(rollState.sel.itemId);
+    if(done.length && (rollState.sel.kind === 'concBonus' || rollState.sel.kind === 'potion')){
       document.getElementById('restMsg').textContent = `${rollState.sel.label}: ${done.map(x=>x.self ? (x.n ? `you healed ${x.n} HP` : `you’re already at full hit points`) : x.toDm ? `${x.n} HP for ${x.name} sent to your DM` : x.failed ? `couldn’t reach ${x.name}` : `healed ${x.name} for ${x.n} HP`).join('; ')}.`;
       closeRollPopup(); return;
     }
@@ -5310,7 +5471,7 @@ window.onDiceRoll = btn=>{
   showRoll(roll);
   if(myCampaignKey() && window.tkSendRoll) window.tkSendRoll(roll);
   if(btn.closest('#rollPopup')){
-    if(/^(To hit|Spell attack)$/.test(btn.dataset.roll || '')){ rollState.hitRolled = true; sendHitToDm(roll); }
+    if(/^(To hit|Spell attack)$/.test(btn.dataset.roll || '')){ rollState.hitRolled = true; sendHitToDm(roll); afterThrow(); }
     // One damage roll per hit: the next attack from this popup rolls to hit again (a spell with
     // several damage rows keeps them all open)
     else if(/^Damage/.test(btn.dataset.roll || '') && document.querySelectorAll('#rollPopup button[data-roll^="Damage"]').length === 1) rollState.hitRolled = false;
