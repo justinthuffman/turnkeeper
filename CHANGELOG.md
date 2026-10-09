@@ -3,6 +3,26 @@
 What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest first.
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
+## 2026-10-09 — Resistances, throwing, potions and special ammunition
+
+### Added
+- **Damage by type.** Damage rolls keep each type apart, and the target's resistance (half),
+  vulnerability (double) or immunity (none) changes each part. The roll card shows every type,
+  the change as it happens ("12 Vulnerable"), the total and the math, the same for everyone. The
+  DM's log shows the math. Monsters get their resistances from the SRD, and the DM can change
+  them; non-magical resistance doesn't stop magic weapons.
+- **Throw** (Combat Menu). A thrown weapon uses its own range and ability; anything else is an
+  improvised weapon (Strength, 1d4, 20/60 ft). In combat, enter how far: beyond normal range, or
+  with an enemy next to you, it has disadvantage. A thrown weapon leaves your hand ("Pick up")
+  and comes back when combat ends.
+- **Use Object.** Drink or give a potion of healing (an action) and it heals; Alchemist's Fire,
+  acid and holy water can be used or thrown, and are used up. Throwing a healing potion at an
+  ally heals them: a house rule the DM can turn off in Campaign settings.
+- **Special ammunition.** Attacking with a bow, crossbow, sling or blowgun offers
+  Ammunition: Standard, or any special ammunition you carry that fits (+1 to +3 arrows, bolts and
+  bullets, or the campaign's own, like an Arrow of Fire with +2d4 fire). It's used up when you
+  roll to hit; its effects go to the DM to allow.
+
 ## 2026-10-09 — Choices first, and a clearer Status panel
 
 ### Added
