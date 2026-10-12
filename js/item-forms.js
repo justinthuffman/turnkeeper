@@ -65,7 +65,7 @@ function effectText(d){
   const when = d.freq === 'turn' ? ' at the start of each of its turns' : d.freq === 'once' ? ' once' : '';
   if(d.dmg) parts.push(d.kind === 'heal' ? `heals ${d.dmg}${when}` : `${d.dmg} ${d.dmgType || ''} damage${when}`.replace(/\s+/g, ' '));
   if(d.duration) parts.push(d.duration === 'healed' ? 'until healed' : d.duration === 'removed' ? 'until removed' : d.duration);
-  if(d.endKind && d.endWhat) parts.push(`ends on a DC ${d.endDC || '?'} ${d.endWhat} ${d.endKind}`);
+  if(d.endKind && d.endWhat) parts.push(`ends on a DC ${d.endDC || '?'} ${d.endWhat} ${d.endKind}${d.endKind === 'save' ? ({start:' (start of each of its turns)', action:' (using its action)'}[d.endWhen] || ' (end of each of its turns)') : ''}`);
   if(d.desc) parts.push(d.desc);
   return parts.join('; ');
 }
@@ -243,6 +243,7 @@ function openEffectForm(name, forList, d){
     + `<label class="cs-field"><span>Ends early on a</span><select id="xf_endKind"><option value="">—</option><option value="save">Saving throw</option><option value="check">Check</option></select></label>`
     + `<label class="cs-field"><span>Using (ability or skill)</span><input id="xf_endWhat" type="text" list="xfWhat" maxlength="30" placeholder="e.g. Constitution, Athletics"><datalist id="xfWhat">${ABILITY_AND_SKILL_NAMES.map(x=>`<option value="${x}"></option>`).join('')}</datalist></label>`
     + `<label class="cs-field"><span>DC</span><input id="xf_dc" type="number" min="1" max="30"></label>`
+    + `<label class="cs-field"><span>When (a save)</span><select id="xf_endWhen"><option value="end">End of each of its turns</option><option value="start">Start of each of its turns</option><option value="action">When it uses its action</option></select></label>`
     + `<label class="cs-field cs-wide"><span>Description (optional)</span><input id="xf_desc" type="text" maxlength="200"></label>`
     + `</div><div class="cs-add" style="max-width:none;"><button type="button" class="chip-btn" id="fxSave">Save effect</button><button type="button" class="chip-btn" id="fxCancel">Cancel</button>${fxEdit ? '<button type="button" class="chip-btn item-del" id="fxDelete">Delete from campaign</button><span class="cs-none" id="fxDelMsg"></span>' : ''}</div>`;
   if(fxEdit) fillEffectForm(d);
@@ -254,7 +255,7 @@ function fillEffectForm(d){
   set('xf_kind', d.kind || ''); set('xf_dmg', d.dmg); set('xf_type', d.dmgType); set('xf_freq', d.freq || (d.dmg ? 'turn' : ''));
   const durs = [...document.getElementById('xf_dur').options].map(o=>o.value);
   if(durs.includes(d.duration) && d.duration !== 'custom') set('xf_dur', d.duration); else if(d.duration){ set('xf_dur', 'custom'); set('xf_durText', d.duration); }
-  set('xf_endKind', d.endKind); set('xf_endWhat', d.endWhat); set('xf_dc', d.endDC || ''); set('xf_desc', d.desc);
+  set('xf_endKind', d.endKind); set('xf_endWhat', d.endWhat); set('xf_dc', d.endDC || ''); set('xf_endWhen', d.endWhen || 'end'); set('xf_desc', d.desc);
 }
 function closeEffectForm(){ if(fxBox){ fxBox.hidden = true; fxBox.innerHTML = ''; } fxBox = null; fxEdit = null; }
 // Delete a custom effect from the campaign (asks once). Items that named it no longer list it.
@@ -288,7 +289,7 @@ async function saveEffectForm(){
   const name = v('xf_name').slice(0, 60); if(!name){ document.getElementById('xf_name').focus(); return; }
   if(effectList().some(x=>x.name.toLowerCase() === name.toLowerCase() && !(fxEdit && x.name.toLowerCase() === fxEdit.name.toLowerCase()))){ formFlash(`There’s already an effect called ${name}.`, true); return; }
   const dur = v('xf_dur') === 'custom' ? v('xf_durText') : v('xf_dur');
-  const def = {kind:v('xf_kind'), dmg:v('xf_dmg'), dmgType:v('xf_kind') === 'heal' ? '' : v('xf_type'), freq:v('xf_dmg') ? v('xf_freq') : '', duration:dur, endKind:v('xf_endKind'), endWhat:v('xf_endWhat'), endDC:parseInt(v('xf_dc'), 10) || null, desc:v('xf_desc')};
+  const def = {kind:v('xf_kind'), dmg:v('xf_dmg'), dmgType:v('xf_kind') === 'heal' ? '' : v('xf_type'), freq:v('xf_dmg') ? v('xf_freq') : '', duration:dur, endKind:v('xf_endKind'), endWhat:v('xf_endWhat'), endDC:parseInt(v('xf_dc'), 10) || null, endWhen:v('xf_endKind') === 'save' ? v('xf_endWhen') : '', desc:v('xf_desc')};
   const id = fxEdit ? fxEdit.id : newId(), was = fxEdit && fxEdit.name;
   const by = fxEdit ? ((campaignDefs.effectDefs[id] || {}).by || (host().by ? host().by() : '')) : (host().by ? host().by() : '');
   try{

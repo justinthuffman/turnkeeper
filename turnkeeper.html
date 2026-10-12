@@ -1587,6 +1587,7 @@ function endOfTurn(){
   dashActive = false; bonusDashActive = false;
   closeDetail();
   saveTrack(); renderActiveFx(); renderCombat(); updateMoveLine(); renderStatus();
+  queueRepeatSaves('end');
 }
 document.getElementById('combatBar').addEventListener('click', e=>{
   const b = e.target.closest('[data-combat]'); if(!b) return;
@@ -2486,18 +2487,20 @@ const critToggle = ()=>`<div class="roll-after">After you see the attack roll:</
      End my turn), a rest or their End button.
    - A status on a player (Bless on Venthor) is ticked in their own Status and changes their
      rolls: status.ext = {statusKey: caster name} marks it, and it comes off when the
-     caster's effect ends. */
+     caster's effect ends.
+   - repeat: the ability of the save the target repeats at the end of each of its turns (Hold
+     Person); the cast keeps it with your spell save DC, and the DM Screen asks for it. */
 const TARGETED = {
   'Bless':{status:'bless', max:3, up:1}, 'Bane':{status:'bane', max:3, up:1, save:true},
   'Guidance':{status:'guidance'}, 'Resistance':{status:'resistance'},
   'Heroism':{status:'heroism', up:1}, 'Shield of Faith':{status:'shieldOfFaith'},
-  'Haste':{status:'haste'}, 'Slow':{status:'slow', max:6, save:true},
+  'Haste':{status:'haste'}, 'Slow':{status:'slow', max:6, save:true, repeat:'wis'},
   'Faerie Fire':{status:'faerieFire', max:12, save:true}, 'Enlarge/Reduce':{status:'enlarge'},
   "Hunter's Mark":{}, 'Hex':{},
-  'Hold Person':{status:'paralyzed', up:1, save:true}, 'Hold Monster':{status:'paralyzed', up:1, save:true},
-  "Tasha's Hideous Laughter":{status:['prone', 'incapacitated'], save:true},
-  'Charm Person':{status:'charmed', up:1, save:true}, 'Crown of Madness':{status:'charmed', save:true},
-  'Sleep':{status:'unconscious', max:12}, 'Blindness/Deafness':{status:'blinded', up:1, save:true},
+  'Hold Person':{status:'paralyzed', up:1, save:true, repeat:'wis'}, 'Hold Monster':{status:'paralyzed', up:1, save:true, repeat:'wis'},
+  "Tasha's Hideous Laughter":{status:['prone', 'incapacitated'], save:true, repeat:'wis'},
+  'Charm Person':{status:'charmed', up:1, save:true}, 'Crown of Madness':{status:'charmed', save:true, repeat:'wis'},
+  'Sleep':{status:'unconscious', max:12}, 'Blindness/Deafness':{status:'blinded', up:1, save:true, repeat:'con'},
   'Command':{up:1, save:true}, 'Invisibility':{status:'invisible', up:1}, 'Greater Invisibility':{status:'invisible'},
   'Protection from Evil and Good':{}, 'Longstrider':{up:1}, 'Aid':{max:3}, 'Magic Weapon':{},
   'Channel Divinity: Vow of Enmity':{name:'Vow of Enmity', lasts:'1 minute'},
@@ -2533,13 +2536,74 @@ function followDmCombat(){
     startOfTurn();
     track.combat.round = c.round; track.combat.msg = [`Round ${c.round}: your turn. Your reaction is back.`, ...applyTurnEffects(c, me)].join(' ');
     saveTrack(); renderCombat();
+    queueRepeatSaves('start');
   } else if(active && !myTurn && tableWas.myTurn === true && track.combat.onTurn) endOfTurn();
+  if(active) takeFreed();
   tableWas.active = active; tableWas.myTurn = active ? myTurn : null;
+}
+/* ---------- Repeat saves ----------
+   A condition that ends on a save you repeat: Hold Person on you (Wisdom, end of each of your
+   turns), a ghoul's paralysis, a campaign effect that "ends early on a save". The save and DC come
+   from the DM's turn order (or the effect's own settings, or an ally's spell). At that point of
+   your turn the save popup opens (your statuses count); the banner keeps a Roll button until you
+   roll. The result goes to the DM (acts/<char>/saved), who ends it on a success.
+   A creature saving against your spell: the DM Screen lists it in combat.freed, and it comes off
+   your spell here (takeFreed). */
+function myRepeatSaves(when){
+  const c = table.combat, me = c && arrOf(c.order).find(o=>o.char === currentCharId); if(!me) return [];
+  const defs = typeof campaignDefs !== 'undefined' ? allEffectDefs() : [], out = [];
+  arrOf(me.conds).forEach(k=>{
+    const d = defs.find(x=>x.name === k.name);
+    const save = k.save || (d && d.endKind === 'save' ? saveKeyOf(d.endWhat) : null);
+    const dc = k.save ? k.dc : d && d.endDC, w = k.save ? (k.when || 'end') : d && (d.endWhen || 'end');
+    if(save && dc && w === when) out.push({name:k.name, save, dc:+dc, by:k.by || ''});
+  });
+  allEffects().filter(e=>e.casterChar !== currentCharId && e.save && e.dc && (e.when || 'end') === when && arrOf(e.targets).some(t=>t.char === currentCharId))
+    .forEach(e=>out.push({name:e.name, save:e.save, dc:+e.dc, by:e.caster || '', fx:e.id, casterChar:e.casterChar}));
+  return out;
+}
+function pendingSaves(){ return (tableActive() && track.combat && Array.isArray(track.combat.saves)) ? track.combat.saves : []; }
+function queueRepeatSaves(when){
+  if(!tableActive() || !track.combat) return;
+  const list = myRepeatSaves(when); if(!list.length) return;
+  track.combat.saves = [...pendingSaves(), ...list.filter(r=>!pendingSaves().some(p=>p.name === r.name && p.by === r.by))];
+  saveTrack(); renderTable(); if(window.tkDiceRefresh) window.tkDiceRefresh();
+  setTimeout(openRepeatSave, 400);   // after the turn's own messages and screen effects start
+}
+function openRepeatSave(){
+  const r = pendingSaves()[0]; if(!r) return;
+  openRollPopup({kind:'check', label:`${SAVE_NAMES[r.save]} save`, type:'save', key:r.save, repeat:{...r}}, 'normal');
+}
+function repeatSaveLineHtml(){
+  const r = rollState.sel.repeat;
+  const res = r.total === undefined ? '' : r.total >= r.dc ? ` You rolled <b>${r.total}</b>: <b>saved</b>. Your DM ends it.` : ` You rolled <b>${r.total}</b>: failed. It stays on you.`;
+  return `<div class="roll-after">Against <b>${escapeHtml(r.name)}</b>${r.by ? ` (from ${escapeHtml(r.by)})` : ''}: DC <b>${r.dc}</b>. On a success it ends.${res}</div>`;
+}
+function afterRepeatSave(roll){
+  const r = rollState.sel.repeat, ok = roll.total >= r.dc;
+  r.total = roll.total;
+  track.combat.saves = pendingSaves().filter(p=>!(p.name === r.name && p.by === r.by)); saveTrack();
+  if(window.tkSendAct) window.tkSendAct('saved', {what:r.name.slice(0, 80), save:r.save, total:roll.total, dc:r.dc, ok, ...(r.fx ? {fx:String(r.fx).slice(0, 40)} : {}), ...(r.casterChar ? {caster:r.casterChar} : {})});
+  renderTable(); setTimeout(renderRollPopup, 0);
+  if(pendingSaves().length) setTimeout(openRepeatSave, 2500);
+}
+// Creatures that saved against your spells (the DM Screen's combat.freed) come off them
+function takeFreed(){
+  const freed = arrOf(table.combat && table.combat.freed); if(!freed.length || !track.cast) return;
+  const gone = [];
+  track.cast.forEach(x=>{
+    const list = arrOf(x.targets), keep = list.filter(t=>!freed.some(f=>f.fx === x.id && (f.char ? t.char === f.char : (!t.char && t.id === f.id))));
+    if(keep.length < list.length){ gone.push(...list.filter(t=>!keep.includes(t)).map(t=>`${t.name} saved against your ${x.name}`)); x.targets = keep; }
+  });
+  if(!gone.length) return;
+  track.cast = track.cast.filter(x=>arrOf(x.targets).length);
+  if(track.combat) track.combat.msg = gone.join('. ') + '.';
+  saveTrack(); applyIncoming(); renderActiveFx(); renderTable(); renderCombat();
 }
 // Every effect in the campaign: others' as shared, yours from track.cast (the freshest)
 function allEffects(){
   const others = Object.entries(table.effects || {}).filter(([s])=>s !== currentCharId)
-    .flatMap(([s, list])=>Object.values(list || {}).map(e=>({...e, casterChar:s})));
+    .flatMap(([s, list])=>Object.entries(list || {}).map(([id, e])=>({...e, id, casterChar:s})));
   return [...others, ...(track.cast || []).map(e=>({...e, caster:myName(), casterChar:currentCharId}))];
 }
 const targetKey = t=>t.char ? 's:' + t.char : 'c:' + t.id;
@@ -2578,7 +2642,8 @@ function renderTable(){
   const mine = !!(cur && cur.char === currentCharId);
   banner.className = 'combat-banner' + (mine ? ' mine' : '');
   banner.innerHTML = `<span class="cb-title">⚔ In combat</span><span>Round ${c.round}</span><span>${mine ? '<b>Your turn!</b>' : cur ? `${escapeHtml(cur.name)}’s turn` : ''}</span>`
-    + (mine && track.combat && track.combat.onTurn ? `<button type="button" class="ghost cb-end" data-banner-end="1">End my turn</button>` : '');
+    + (mine && track.combat && track.combat.onTurn ? `<button type="button" class="ghost cb-end" data-banner-end="1">End my turn</button>` : '')
+    + pendingSaves().slice(0, 1).map(r=>`<button type="button" class="cb-save" data-banner-save="1">Roll your ${SAVE_NAMES[r.save]} save against ${escapeHtml(r.name)} (DC ${r.dc})</button>`).join('');
   document.getElementById('tableRound').textContent = `Round ${c.round} · ${(c.round - 1) * 6} seconds in`;
   const effs = allEffects(), live = table.live || {};
   document.getElementById('itable').innerHTML = order.map(o=>{
@@ -2598,6 +2663,7 @@ function renderTable(){
   }).join('');
 }
 document.getElementById('combatBanner').addEventListener('click', e=>{
+  if(e.target.closest('[data-banner-save]')){ openRepeatSave(); return; }
   if(e.target.closest('[data-banner-end]')){ if(track.combat && track.combat.onTurn) endOfTurn(); sendTurnEnd(); renderTable(); return; }
   tkPanels.expand('tablePanel'); document.getElementById('tablePanel').scrollIntoView({behavior:'smooth', block:'start'});
 });
@@ -2609,7 +2675,8 @@ function targetedInfo(sel){
   const up = sel.kind === 'spell' && sel.entry.sp.level ? Math.max(0, (sel.slot || sel.entry.sp.level) - sel.entry.sp.level) : 0;
   const dur = sel.kind === 'spell' ? sel.entry.sp.duration : (t.lasts || '');
   return {id:'c' + Date.now(), name:t.name || name, status:t.status || null, max:(t.max || 1) + (t.up || 0) * up,
-    notSelf:!!t.notSelf, save:!!t.save, conc:/Concentration/i.test(dur), rounds:fxRounds(dur)};
+    notSelf:!!t.notSelf, save:!!t.save, conc:/Concentration/i.test(dur), rounds:fxRounds(dur),
+    ...(t.repeat && sel.kind === 'spell' ? {repeat:{save:t.repeat, dc:spellStats(sel.entry.ability).dc, when:'end'}} : {})};
 }
 function targetCandidates(){
   if(tableActive()) return arrOf(table.combat.order).filter(o=>o.kind !== 'lair' && !o.down)
@@ -2635,7 +2702,7 @@ function targetClick(key){
   const cand = targetCandidates().find(c=>c.key === key); if(!cand) return;
   track.cast = track.cast || [];
   let cast = track.cast.find(x=>x.id === info.id);
-  if(!cast){ cast = {id:info.id, name:info.name, status:info.status, conc:info.conc, rounds:info.rounds, targets:[]}; track.cast.push(cast); }
+  if(!cast){ cast = {id:info.id, name:info.name, status:info.status, conc:info.conc, rounds:info.rounds, ...(info.repeat || {}), targets:[]}; track.cast.push(cast); }
   const list = arrOf(cast.targets), at = list.findIndex(t=>targetKey(t) === key);
   if(at >= 0) list.splice(at, 1);
   else if(list.length < info.max) list.push({id:cand.id, name:cand.name, char:cand.char});
@@ -2939,6 +3006,7 @@ function renderRollPopup(){
   else html += cmdBox(sel.kind==='weapon' ? 'To hit' : sel.kind==='check' ? checkInfo(sel.type, sel.key).name : 'Athletics check', {...toHitCommand(), countAttack: !!rollState.attackNo,
     kind:sel.kind==='weapon' ? 'hit' : sel.kind==='check' ? ({init:'init', skill:'skill', ability:'check'}[sel.type] || 'save') : 'skill'});   // its crit GIF row
   html += statusNotesHtml(rollState.st, rollState.mode);
+  if(sel.kind==='check' && sel.repeat) html += repeatSaveLineHtml();
   if(sel.kind==='check'){
     const notes = [...checkInfo(sel.type, sel.key).included, ...checkReminders(sel.type, sel.key, true)];
     if(notes.length) html += `<ul class="roll-notes">${notes.map(n=>`<li>${n}</li>`).join('')}</ul>`;
@@ -4864,7 +4932,7 @@ function liveSnapshot(){
   if(!currentCharId || !camp) return null;
   const st = statusState(), rounds = st.rounds || {};
   const cur = hpNow(), max = hpMax();
-  return {campaign:camp.key, char:currentCharId, effects:Object.fromEntries((track.cast || []).map(x=>[x.id, {name:x.name, caster:(document.getElementById('f_name').value || '').slice(0, 60), targets:arrOf(x.targets), status:x.status || null, conc:!!x.conc, rounds:x.rounds || 0}])),
+  return {campaign:camp.key, char:currentCharId, effects:Object.fromEntries((track.cast || []).map(x=>[x.id, {name:x.name, caster:(document.getElementById('f_name').value || '').slice(0, 60), targets:arrOf(x.targets), status:x.status || null, conc:!!x.conc, rounds:x.rounds || 0, ...(x.save && x.dc ? {save:x.save, dc:x.dc, when:x.when || 'end'} : {})}])),
     data:{
     name:(document.getElementById('f_name').value || '').slice(0, 60), level:charLevel(), cls:(document.getElementById('f_class').value || '').slice(0, 60),   // lengths fit the database rules
     hp:{cur, max, temp:track.temp || 0},
@@ -5453,7 +5521,7 @@ function myTurnNow(){
 // Outside a campaign you can always roll; in one, on your turn in combat or when the DM allows it
 function mayRoll(){
   if(!currentCharId || !myCampaignKey()) return true;
-  return !!(diceTable.allow && diceTable.allow[currentCharId]) || myTurnNow();
+  return !!(diceTable.allow && diceTable.allow[currentCharId]) || myTurnNow() || pendingSaves().length > 0;
 }
 window.tkDiceRefresh = ()=>{ document.body.classList.toggle('may-roll', mayRoll()); syncThrow(); };
 // The Throw slider at the top of the roll popup: how hard this character throws, remembered
@@ -5509,6 +5577,7 @@ window.onDiceRoll = btn=>{
   if(myCampaignKey() && window.tkSendRoll) window.tkSendRoll(roll);
   if(btn.closest('#rollPopup')){
     if(/^(To hit|Spell attack)$/.test(btn.dataset.roll || '')){ rollState.hitRolled = true; sendHitToDm(roll); afterThrow(); afterAmmo(); }
+    if(rollState.sel && rollState.sel.repeat && !rollState.sel.repeat.total) afterRepeatSave(roll);
     // One damage roll per hit: the next attack from this popup rolls to hit again (a spell with
     // several damage rows keeps them all open)
     else if(/^Damage/.test(btn.dataset.roll || '') && document.querySelectorAll('#rollPopup button[data-roll^="Damage"]').length === 1) rollState.hitRolled = false;

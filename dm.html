@@ -792,6 +792,16 @@ window.dmActsUpdate = (key, data)=>{
             no:()=>logLine(`${c.name}: ${fx.join(', ')} didn’t take hold`),
           });
         });
+      } else if(kind === 'saved'){
+        // A character repeated a save in their Turnkeeper (Hold Person on them): a success asks to end it
+        const c = combat.list.find(x=>x.kind === 'pc' && x.name === name); if(!c || !combat.round) return;
+        const abil = SAVE_NAMES[a.save] || '', what = String(a.what || '');
+        if(!a.ok){ logLine(`${name} failed the ${abil} save against ${what} (${a.total} against DC ${a.dc})`); saveCombat(); renderInit(); return; }
+        dmPrompt({
+          html:`<p><b>${esc(name)}</b> saved against <b>${esc(what)}</b>: rolled <b class="dp-roll hit">${esc(a.total)}</b> on a ${esc(abil)} save against DC ${esc(a.dc)}.</p><p class="dp-q">End ${esc(what)} on ${esc(name)}?</p>`,
+          yes:()=>endRepeat(c.id, {name:what, fx:a.fx || null, by:''}, a.fx ? char : null),
+          no:()=>{ logLine(`${name}: ${what} stays`); saveCombat(); renderInit(); },
+        });
       } else if(kind === 'heal'){
         const n = Math.round(Number(a.total)); if(!(n > 0)) return;
         arr(a.targets).forEach(t=>{
@@ -977,9 +987,10 @@ function saveCombat(){ saveJSON(storeKey('combat'), combat); publishCombat(); }
 let publishTimer = null;
 function combatView(){
   if(!combat.round) return {active:false};
-  return {active:true, round:combat.round, turn:combat.turn, order:ordered().map(c=>{
+  const freed = pruneFreed();
+  return {active:true, round:combat.round, turn:combat.turn, ...(freed.length ? {freed} : {}), order:ordered().map(c=>{
     const pc = c.kind === 'pc' ? campaign.party.find(p=>p.name === c.name) : null;
-    return {id:c.id, kind:c.kind, name:c.name.slice(0, 100), char:pc ? pc.char : null, init:c.init, down:isDown(c), bloodied:isBloodied(c), conds:c.conds.map(k=>({name:k.name.slice(0, 60), rounds:k.rounds || 0, ...(k.by ? {by:String(k.by).slice(0, 100)} : {})})),
+    return {id:c.id, kind:c.kind, name:c.name.slice(0, 100), char:pc ? pc.char : null, init:c.init, down:isDown(c), bloodied:isBloodied(c), conds:c.conds.map(k=>({name:k.name.slice(0, 60), rounds:k.rounds || 0, ...(k.by ? {by:String(k.by).slice(0, 100)} : {}), ...(k.save && k.dc ? {save:k.save, dc:k.dc, when:k.when || 'end'} : {})})),
       // Damage defenses (players' damage rolls do the math); characters' own aren't shared
       ...(()=>{ const d = c.kind !== 'pc' && defenseOf(c); if(!d) return {}; const o = {}; ['res', 'vul', 'imm'].forEach(k=>{ if(d[k] && d[k].length) o[k] = d[k].slice(0, 13); }); return o; })()};   // lengths fit the database rules
   })};
@@ -1135,10 +1146,65 @@ function endTurnOf(c){
     return true;
   });
 }
+/* Repeat saves: a condition or effect on a creature that ends on a save it repeats at the end (or
+   start) of each of its turns. From the DM's own conditions (the Save to end fields, or a campaign
+   effect's "ends early on a save") or a player's spell (Hold Person: the caster's DC). A monster:
+   the DM rolls it here, and Yes ends it. A character: their Turnkeeper asks them and sends the
+   result (acts/<char>/saved). A creature that saves against a player's spell is listed in
+   combat.freed for the caster's Turnkeeper to take it off. */
+function repeatSavesOn(c, when){
+  if(!c || c.kind === 'lair') return [];
+  const out = [];
+  c.conds.forEach(k=>{
+    const d = (window.dmEffectDefs || {})[k.name];
+    const save = k.save || (d && d.endKind === 'save' ? saveKeyOf(d.endWhat) : null);
+    const dc = k.save ? k.dc : d && d.endDC, w = k.save ? (k.when || 'end') : d && (d.endWhen || 'end');
+    if(save && dc && w === when) out.push({name:k.name, save, dc:+dc, by:k.by || ''});
+  });
+  if(c.kind !== 'pc') Object.values(effects).forEach(list=>Object.entries(list || {}).forEach(([id, e])=>{
+    if(e.save && e.dc && (e.when || 'end') === when && arr(e.targets).some(t=>!t.char && t.id === c.id) && !freedHas(id, c.id)) out.push({name:e.name, save:e.save, dc:+e.dc, by:e.caster || '', fx:id});
+  }));
+  return out;
+}
+function saveMod(c, key){
+  if(c.kind === 'pc'){ const p = party[c.name]; if(!p || p.error) return null; const s = p.saves.find(x=>x.name.toLowerCase().startsWith(key)); return s && s.mod !== null ? s.mod : abilMod(p.scores[key]); }
+  const m = c.srd && srdCache[c.srd]; if(!m) return null;
+  const prof = (m.proficiencies || []).find(x=>x.proficiency.name === 'Saving Throw: ' + key.toUpperCase());
+  return prof ? prof.value : abilMod(m[SAVE_NAMES[key].toLowerCase()]);
+}
+function askRepeatSaves(c, when){
+  repeatSavesOn(c, when).forEach(r=>{
+    const abil = SAVE_NAMES[r.save];
+    if(c.kind === 'pc'){ logLine(`${c.name}: ${abil} save against ${r.name} (DC ${r.dc}), in their Turnkeeper`); return; }
+    const mod = saveMod(c, r.save);
+    dmPrompt({
+      html:`<p><b>${esc(c.name)}</b> repeats its <b>${abil}</b> save against <b>${esc(r.name)}</b> (DC <b>${r.dc}</b>${r.by ? `, from ${esc(r.by)}` : ''}) at the ${when} of its turn.</p>`
+        + (mod !== null ? rollRow(`1d20${fmtMod(mod)}`, `${abil} save`, '', ` data-who="${esc(c.name)}"`) : `<p class="dp-note">Roll its ${abil} save.</p>`)
+        + `<p class="dp-q">Did it save? Yes ends ${esc(r.name)} on ${esc(c.name)}.</p>`,
+      yes:()=>endRepeat(c.id, r),
+      no:()=>{ logLine(`${c.name} failed its ${abil} save against ${r.name}`); saveCombat(); renderInit(); },
+    });
+  });
+}
+// A successful save: the DM's condition comes off; a player's spell lets go (combat.freed)
+function endRepeat(id, r, char){
+  const c = byId(id); if(!c) return;
+  if(r.fx) combat.freed = [...(combat.freed || []), {fx:String(r.fx).slice(0, 40), id:c.id, ...(char ? {char} : {})}];
+  else { const j = c.conds.findIndex(k=>k.name === r.name && (k.by || '') === (r.by || '')); const jj = j >= 0 ? j : c.conds.findIndex(k=>k.name === r.name); if(jj >= 0) c.conds.splice(jj, 1); }
+  logLine(`${c.name} saved against ${r.name}: it ends`);
+  saveCombat(); renderInit();
+}
+const freedHas = (fx, id)=>(combat.freed || []).some(f=>f.fx === fx && f.id === id);
+// Kept until the caster's Turnkeeper has taken the creature off the spell
+function pruneFreed(){
+  combat.freed = (combat.freed || []).filter(f=>Object.values(effects).some(list=>list && list[f.fx] && arr(list[f.fx].targets).some(t=>f.char ? t.char === f.char : (!t.char && t.id === f.id)))).slice(-20);
+  return combat.freed;
+}
 function nextTurn(){
   if(!combat.round){ startCombat(); return; }
-  const list = ordered();
-  endTurnOf(byId(combat.turn));
+  const list = ordered(), ending = byId(combat.turn);
+  endTurnOf(ending);
+  askRepeatSaves(ending, 'end');
   let i = list.findIndex(c=>c.id === combat.turn);
   for(let step = 0; step < list.length; step++){
     i++;
@@ -1148,6 +1214,7 @@ function nextTurn(){
   combat.turn = list[i] ? list[i].id : null;
   if(list[i]){
     logLine(`${list[i].name}’s turn`);
+    askRepeatSaves(list[i], 'start');
     // Damage or healing each turn from a custom effect (Bleeding from Grun's Greataxe, a healing
     // aura). A monster: the DM is asked, and Yes changes its hit points. A character: their own
     // Turnkeeper applies it at the start of their turn (with a screen effect), so it's only noted.
@@ -1282,7 +1349,7 @@ function combatantHtml(c, i, list){
     ...effectsOn(c).map(e=>`<span class="cond-chip live fx" title="Cast by ${esc(e.caster)}">${esc(e.name)} · ${esc(e.caster)}${e.rounds ? ` (${e.rounds})` : ''}</span>`),
     ...(liveFor(c) ? [...arr(liveFor(c).status).filter(s=>!s.from).map(s=>`<span class="cond-chip live" title="From ${esc(c.name)}’s Turnkeeper">${esc(s.name)}${s.rounds ? ` (${s.rounds})` : ''}</span>`),
       ...(liveFor(c).conc ? [`<span class="cond-chip live conc" title="From ${esc(c.name)}’s Turnkeeper">Concentrating: ${esc(liveFor(c).conc.name)}</span>`] : [])] : []),
-    ...c.conds.map((k, j)=>`<span class="cond-chip"${k.concOf ? ` title="Ends when ${esc(k.by || 'the caster')} stops concentrating"` : ''}>${esc(k.name)}${k.by ? ` <small>· ${esc(k.by)}${k.concOf ? ' ◎' : ''}</small>` : ''}${k.rounds ? ` (${k.rounds})` : ''}<button type="button" data-act="cond-x" data-j="${j}" aria-label="Remove ${esc(k.name)}">×</button></span>`),
+    ...c.conds.map((k, j)=>`<span class="cond-chip"${k.concOf ? ` title="Ends when ${esc(k.by || 'the caster')} stops concentrating"` : ''}>${esc(k.name)}${k.by ? ` <small>· ${esc(k.by)}${k.concOf ? ' ◎' : ''}</small>` : ''}${k.rounds ? ` (${k.rounds})` : ''}${k.save && k.dc ? ` <small title="Repeats the save at the ${k.when === 'start' ? 'start' : 'end'} of its turns">${k.save.toUpperCase()} DC ${k.dc}</small>` : ''}<button type="button" data-act="cond-x" data-j="${j}" aria-label="Remove ${esc(k.name)}">×</button></span>`),
   ].join('');
   const sub = c.kind === 'pc' ? (party[c.name] && !party[c.name].error ? `Init ${fmtMod(c.initMod)} · Passive Perception ${passivesOf(campaign.party.find(p=>p.name === c.name)).perception}` : '')
     : [c.cr ? `CR ${c.cr}` : '', `Init ${fmtMod(c.initMod || 0)}`].filter(Boolean).join(' · ');
@@ -1293,6 +1360,9 @@ function combatantHtml(c, i, list){
         <div class="row"><select data-field="condPick"><optgroup label="Conditions">${CONDITIONS.map(n=>`<option>${n}</option>`).join('')}</optgroup><optgroup label="Effects">${EFFECTS.map(n=>`<option>${n}</option>`).join('')}</optgroup>${customEffectNames().length ? `<optgroup label="Campaign effects">${customEffectNames().map(n=>`<option>${esc(n)}</option>`).join('')}</optgroup>` : ''}<option value="__other">Other…</option></select>
         <input type="number" min="1" max="999" placeholder="rounds" data-field="condRounds" title="Rounds it lasts (counts down at the end of this creature’s turns). Blank: until removed. 1 minute = 10 rounds.">
         <select data-field="condFrom" aria-label="From" title="Who it’s from (optional). If they’re concentrating, it ends when their concentration does."><option value="">From…</option>${combat.list.filter(x=>x !== c && x.kind !== 'lair').map(x=>`<option value="${x.id}">${esc(x.name)}${x.conc ? ` (concentrating on ${esc(x.conc)})` : ''}</option>`).join('')}</select>
+        <select data-field="condSave" aria-label="Save to end it" title="A save the creature repeats to end it (Hold Person: Wisdom). Leave as is if there isn’t one; a campaign effect uses its own."><option value="">Save to end…</option>${Object.entries(SAVE_NAMES).map(([k, n])=>`<option value="${k}">${n}</option>`).join('')}</select>
+        <input type="number" min="1" max="30" placeholder="DC" data-field="condDC" aria-label="Save DC">
+        <select data-field="condWhen" aria-label="When it repeats the save"><option value="end">at the end of its turns</option><option value="start">at the start of its turns</option></select>
         <button type="button" class="chip-btn" data-act="cond-add">Add</button></div></div>
       ${c.kind !== 'pc' ? `<div class="grp"><span class="lbl">Damage resistances, vulnerabilities and immunities</span>
         <div class="row"><input type="text" data-field="defRes" value="${esc(defenseText((defenseOf(c) || {}).res))}" placeholder="Resists: fire, slashing (non-magical)" aria-label="Resists"><input type="text" data-field="defVul" value="${esc(defenseText((defenseOf(c) || {}).vul))}" placeholder="Vulnerable: fire" aria-label="Vulnerable"><input type="text" data-field="defImm" value="${esc(defenseText((defenseOf(c) || {}).imm))}" placeholder="Immune: poison" aria-label="Immune"><button type="button" class="chip-btn" data-act="def-set">Set</button></div></div>` : ''}
@@ -1366,7 +1436,8 @@ $('initList').addEventListener('click', e=>{
     let name = field('condPick').value;
     if(name === '__other'){ name = (prompt('Condition or effect name') || '').trim(); if(!name) return; }
     const rounds = toNum(field('condRounds').value), from = byId(+field('condFrom').value);
-    c.conds.push({name, rounds:rounds && rounds > 0 ? rounds : null, ...(from ? {by:from.name} : {}), ...(from && from.conc ? {concOf:from.id} : {})});
+    const save = field('condSave').value, dc = toNum(field('condDC').value);
+    c.conds.push({name, rounds:rounds && rounds > 0 ? rounds : null, ...(from ? {by:from.name} : {}), ...(from && from.conc ? {concOf:from.id} : {}), ...(save && dc ? {save, dc, when:field('condWhen').value === 'start' ? 'start' : 'end'} : {})});
     logLine(`${c.name}: ${name}${from ? ` (from ${from.name}${from.conc ? `, ends with their concentration on ${from.conc}` : ''})` : ''}${rounds ? ` for ${rounds} round${rounds > 1 ? 's' : ''}` : ''}`);
   }
   else if(act === 'conc-set'){ const s = field('concName').value.trim(); if(c.conc && c.conc !== s) endConcEffects(c); c.conc = s; delete concAlerts[c.id]; if(s) logLine(`${c.name} is concentrating on ${s}`); }

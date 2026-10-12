@@ -131,6 +131,10 @@ document.addEventListener('keydown', e=>{
 // Capture phase, so the roll happens before a page's own click handling of the same button
 document.addEventListener('click', e=>{ const b = e.target.closest && e.target.closest('button[data-roll]'); if(b && window.onDiceRoll) window.onDiceRoll(b); }, true);
 // Shown under a row when the roll can't happen
+// Saving throws by ability ('wis' ↔ 'Wisdom'): repeat saves (Hold Person; a custom effect that
+// "ends early on a Constitution save")
+const SAVE_NAMES = {str:'Strength', dex:'Dexterity', con:'Constitution', int:'Intelligence', wis:'Wisdom', cha:'Charisma'};
+const saveKeyOf = text=>{ const t = String(text || '').trim().toLowerCase().slice(0, 3); return SAVE_NAMES[t] ? t : null; };
 function rowWarn(row, msg){
   const old = row.querySelector('.roll-wait'); if(old) old.remove();
   if(!msg) return;
