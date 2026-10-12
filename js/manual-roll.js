@@ -2,7 +2,7 @@
    For anything the tracker doesn't cover: type any dice ("2d6+1d4+3", "1d20+5 adv") or tap the
    dice buttons to build them, then Roll. It's a normal roll (the same permission to roll, shown on
    every screen in your dice), labelled "Free Roll" in the combat log; a natural 20 or 1 on a d20
-   shows a GIF from the To Hit pool (js/dice.js treats kind "free" as To Hit). */
+   shows a GIF from the To Hit pool (js/dice.js treats kind "free" as To Hit). It closes once the dice roll. */
 (()=>{
   const DICE = [4, 6, 8, 10, 12, 20, 100];
   let box = null;
@@ -45,6 +45,10 @@
     if(e.target.closest('.mr-close')){ show(false); return; }
     const die = e.target.closest('[data-mr-die]'); if(die){ addDie(+die.dataset.mrDie); return; }
     if(e.target.closest('[data-mr-clear]')){ const inp = document.getElementById('mrDice'); inp.value = ''; inp.focus(); return; }
+    // Roll: once the dice are rolling it closes, so it doesn't cover the tray (a roll that couldn't
+    // happen keeps it open with the reason). The dice stay for next time.
+    const roll = e.target.closest('#manualRoll button[data-roll]');
+    if(roll){ setTimeout(()=>{ if(roll.dataset.rolled === '1'){ delete roll.dataset.rolled; show(false); } }, 0); return; }
     // A click on the dice card or crit GIF (from this roll) doesn't close it; anywhere else does
     if(!e.composedPath().includes(box) && !e.target.closest('#diceCard, #critFx')) show(false);
   });
