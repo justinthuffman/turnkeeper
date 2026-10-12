@@ -3,6 +3,21 @@
 What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest first.
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
+## 2026-10-12 — Repeat saves
+
+### Added
+- **Saves that end a condition, every turn.** Hold Person, Hold Monster, Blindness/Deafness,
+  Tasha's Hideous Laughter, Crown of Madness and Slow carry the caster's spell save DC. At the end
+  of the target's turn:
+  - a monster: the DM Screen asks for its save, with the roll ready; Yes ends it, and the caster's
+    Turnkeeper takes it off their spell;
+  - a character: their Turnkeeper opens the save (their statuses count, and they can roll even
+    after their turn), and a success goes to the DM to end it.
+- **DM Screen:** a condition can have a save to end it (ability, DC, end or start of its turns),
+  for a monster's Hold Person or a ghoul's paralysis.
+- **Custom effects** that end early on a save say when: the end or start of each turn, or using
+  its action.
+
 ## 2026-10-12 — Edit effects, and Manual Roll out of the way
 
 ### Added
