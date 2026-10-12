@@ -224,13 +224,15 @@ async function deleteItemForm(){
   }catch(err){ formFlash('Couldn’t delete the item: ' + err.message, true); }
 }
 
-/* ---------- New custom effect: inside the item form (#fxForm), or on its own (#fxFormSolo) ---------- */
-let fxFor = null, fxBox = null;
-function openEffectForm(name, forList){
-  fxFor = forList || null;
+/* ---------- Custom effect, new or edited: inside the item form (#fxForm), or on its own (#fxFormSolo) ----------
+   d: an existing effect to edit (the DM Screen's Edit). */
+let fxFor = null, fxBox = null, fxEdit = null;
+function openEffectForm(name, forList, d){
+  fxFor = forList || null; fxEdit = d && d.id ? {id:d.id, name:d.name, confirmDelete:false} : null;
   fxBox = (itemForm && document.querySelector('#itemForm #fxForm')) || document.getElementById('fxFormSolo');
   const f = fxBox; if(!f) return; f.hidden = false;
-  f.innerHTML = `<div class="cs-sub">New effect for the campaign</div><div class="cs-grid">`
+  if(fxEdit) name = d.name;
+  f.innerHTML = `<div class="cs-sub">${fxEdit ? 'Edit ' + ifEsc(d.name) : 'New effect for the campaign'}</div>${fxEdit ? '<p class="cs-none">Changes show for everyone in the campaign.</p>' : ''}<div class="cs-grid">`
     + `<label class="cs-field"><span>Name</span><input id="xf_name" type="text" maxlength="60" value="${ifEsc(name || '')}" placeholder="e.g. Bleeding"></label>`
     + `<label class="cs-field"><span>Hurts or heals</span><select id="xf_kind"><option value="">Damage</option><option value="heal">Healing</option></select></label>`
     + `<label class="cs-field"><span>Amount (dice or number)</span><input id="xf_dmg" type="text" maxlength="20" placeholder="e.g. 2 or 1d4"></label>`
@@ -242,20 +244,57 @@ function openEffectForm(name, forList){
     + `<label class="cs-field"><span>Using (ability or skill)</span><input id="xf_endWhat" type="text" list="xfWhat" maxlength="30" placeholder="e.g. Constitution, Athletics"><datalist id="xfWhat">${ABILITY_AND_SKILL_NAMES.map(x=>`<option value="${x}"></option>`).join('')}</datalist></label>`
     + `<label class="cs-field"><span>DC</span><input id="xf_dc" type="number" min="1" max="30"></label>`
     + `<label class="cs-field cs-wide"><span>Description (optional)</span><input id="xf_desc" type="text" maxlength="200"></label>`
-    + `</div><div class="cs-add" style="max-width:none;"><button type="button" class="chip-btn" id="fxSave">Save effect</button><button type="button" class="chip-btn" id="fxCancel">Cancel</button></div>`;
-  document.getElementById(name ? 'xf_dmg' : 'xf_name').focus();
+    + `</div><div class="cs-add" style="max-width:none;"><button type="button" class="chip-btn" id="fxSave">Save effect</button><button type="button" class="chip-btn" id="fxCancel">Cancel</button>${fxEdit ? '<button type="button" class="chip-btn item-del" id="fxDelete">Delete from campaign</button><span class="cs-none" id="fxDelMsg"></span>' : ''}</div>`;
+  if(fxEdit) fillEffectForm(d);
+  document.getElementById(name && !fxEdit ? 'xf_dmg' : 'xf_name').focus();
 }
-function closeEffectForm(){ if(fxBox){ fxBox.hidden = true; fxBox.innerHTML = ''; } fxBox = null; }
+// The form's fields from a saved effect
+function fillEffectForm(d){
+  const set = (id, v)=>{ const el = document.getElementById(id); if(el) el.value = v ?? ''; };
+  set('xf_kind', d.kind || ''); set('xf_dmg', d.dmg); set('xf_type', d.dmgType); set('xf_freq', d.freq || (d.dmg ? 'turn' : ''));
+  const durs = [...document.getElementById('xf_dur').options].map(o=>o.value);
+  if(durs.includes(d.duration) && d.duration !== 'custom') set('xf_dur', d.duration); else if(d.duration){ set('xf_dur', 'custom'); set('xf_durText', d.duration); }
+  set('xf_endKind', d.endKind); set('xf_endWhat', d.endWhat); set('xf_dc', d.endDC || ''); set('xf_desc', d.desc);
+}
+function closeEffectForm(){ if(fxBox){ fxBox.hidden = true; fxBox.innerHTML = ''; } fxBox = null; fxEdit = null; }
+// Delete a custom effect from the campaign (asks once). Items that named it no longer list it.
+async function deleteEffectForm(){
+  if(!fxEdit) return;
+  const msg = document.getElementById('fxDelMsg');
+  if(!fxEdit.confirmDelete){ fxEdit.confirmDelete = true; msg.textContent = `Delete ${fxEdit.name} for everyone in the campaign? Click again to delete.`; return; }
+  const {id, name} = fxEdit;
+  try{
+    await (await host().db()).deleteDef(host().campaign(), 'effectDefs', id);
+    delete campaignDefs.effectDefs[id];
+    await renameEffectInItems(name, null);
+    closeEffectForm();
+    if(host().effectSaved) host().effectSaved(name, true);
+  }catch(err){ formFlash('Couldn’t delete the effect: ' + err.message, true); }
+}
+// A renamed effect (to) or a deleted one (null): the campaign's items that list it follow
+async function renameEffectInItems(from, to){
+  const swap = list=>Array.isArray(list) && list.includes(from) ? (to ? list.map(n=>n === from ? to : n) : list.filter(n=>n !== from)) : null;
+  for(const d of customItems()){
+    const onHit = swap(d.onHit), whileEquipped = swap(d.whileEquipped), useOnHit = d.use ? swap(d.use.onHit) : null;
+    if(!onHit && !whileEquipped && !useOnHit) continue;
+    const {id, name, by, custom, baseName, ...def} = d;
+    if(onHit) def.onHit = onHit; if(whileEquipped) def.whileEquipped = whileEquipped; if(useOnHit) def.use = {...def.use, onHit:useOnHit};
+    await (await host().db()).saveDef(host().campaign(), 'items', id, name, def, by || '');
+    campaignDefs.items[id] = {...def, name, id, ...(by ? {by} : {})};
+  }
+}
 async function saveEffectForm(){
   const v = id=>document.getElementById(id).value.trim();
   const name = v('xf_name').slice(0, 60); if(!name){ document.getElementById('xf_name').focus(); return; }
-  if(effectList().some(x=>x.name.toLowerCase() === name.toLowerCase())){ formFlash(`There’s already an effect called ${name}.`, true); return; }
+  if(effectList().some(x=>x.name.toLowerCase() === name.toLowerCase() && !(fxEdit && x.name.toLowerCase() === fxEdit.name.toLowerCase()))){ formFlash(`There’s already an effect called ${name}.`, true); return; }
   const dur = v('xf_dur') === 'custom' ? v('xf_durText') : v('xf_dur');
   const def = {kind:v('xf_kind'), dmg:v('xf_dmg'), dmgType:v('xf_kind') === 'heal' ? '' : v('xf_type'), freq:v('xf_dmg') ? v('xf_freq') : '', duration:dur, endKind:v('xf_endKind'), endWhat:v('xf_endWhat'), endDC:parseInt(v('xf_dc'), 10) || null, desc:v('xf_desc')};
-  const id = newId();
+  const id = fxEdit ? fxEdit.id : newId(), was = fxEdit && fxEdit.name;
+  const by = fxEdit ? ((campaignDefs.effectDefs[id] || {}).by || (host().by ? host().by() : '')) : (host().by ? host().by() : '');
   try{
-    await (await host().db()).saveDef(host().campaign(), 'effectDefs', id, name, def, host().by ? host().by() : '');
-    campaignDefs.effectDefs[id] = {...def, name, id};
+    await (await host().db()).saveDef(host().campaign(), 'effectDefs', id, name, def, by);
+    campaignDefs.effectDefs[id] = {...def, name, id, ...(by ? {by} : {})};
+    if(was && was !== name) await renameEffectInItems(was, name);
     closeEffectForm();
     if(itemForm && fxFor && !itemForm[fxFor].includes(name)) itemForm[fxFor].push(name);
     drawItemFormFx();
@@ -272,6 +311,7 @@ document.addEventListener('click', e=>{
   else if(t.id === 'fxNewBtn') openEffectForm();
   else if(t.id === 'fxSave') saveEffectForm();
   else if(t.id === 'fxCancel') closeEffectForm();
+  else if(t.id === 'fxDelete') deleteEffectForm();
   else if(t.dataset.fxAdd) itemFormFx(t.dataset.fxAdd);
   else if(t.dataset.fxDel){ const [list, i] = t.dataset.fxDel.split(':'); itemForm[list].splice(+i, 1); drawItemFormFx(); }
 });

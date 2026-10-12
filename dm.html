@@ -1949,7 +1949,7 @@ window.itemFormHost = {
   db:()=>dmDbReady().then(ok=>{ if(!ok || !window.dmDefs) throw new Error('Can’t reach the database right now.'); return window.dmDefs; }),
   saved:(name, wasNew)=>{ dmItemMsg(`Saved ${name}.`); renderDmItems(); },
   deleted:name=>{ dmItemMsg(name ? `Deleted ${name}.` : ''); renderDmItems(); },
-  effectSaved:name=>{ dmItemMsg(`Saved ${name}.`); renderDmItems(); },
+  effectSaved:(name, deleted)=>{ dmItemMsg(`${deleted ? 'Deleted' : 'Saved'} ${name}.`); renderDmItems(); },
 };
 function renderDmItems(){
   const items = customItems().sort((a, b)=>a.name.localeCompare(b.name));
@@ -1961,7 +1961,7 @@ function renderDmItems(){
         + `<button type="button" class="chip-btn" data-dm-edit="${esc(d.id)}">Edit</button></li>`;
     }).join('')}</ul>` : '<p class="panel-note">No custom items yet.</p>';
   const fx = Object.values(campaignDefs.effectDefs).sort((a, b)=>a.name.localeCompare(b.name));
-  $('dmEffectList').innerHTML = fx.length ? `<ul class="dm-items">${fx.map(d=>`<li><div class="dm-item-main"><b>${esc(d.name)}</b>${d.by && d.by !== 'DM' ? ` <small>by ${esc(d.by)}</small>` : ''}<div class="dm-item-attrs">${esc(effectText(d))}</div></div></li>`).join('')}</ul>`
+  $('dmEffectList').innerHTML = fx.length ? `<ul class="dm-items">${fx.map(d=>`<li><div class="dm-item-main"><b>${esc(d.name)}</b>${d.by && d.by !== 'DM' ? ` <small>by ${esc(d.by)}</small>` : ''}<div class="dm-item-attrs">${esc(effectText(d))}</div></div><button type="button" class="chip-btn" data-dm-edit-fx="${esc(d.id)}">Edit</button></li>`).join('')}</ul>`
     : '<p class="panel-note">No custom effects yet.</p>';
 }
 // From the module script: the campaign's items and effects as they change
@@ -1969,6 +1969,8 @@ window.dmDefsUpdate = (part, raw)=>{ campaignDefs[part] = parseDefs(raw); render
 $('dmNewItem').addEventListener('click', ()=>{ dmItemMsg(''); openItemForm({name:''}, true); });
 $('dmNewEffect').addEventListener('click', ()=>{ dmItemMsg(''); openEffectForm(''); });
 $('itemsPanel').addEventListener('click', e=>{
+  const fb = e.target.closest('[data-dm-edit-fx]');
+  if(fb){ const d = campaignDefs.effectDefs[fb.dataset.dmEditFx]; if(d){ dmItemMsg(''); openEffectForm('', null, d); } return; }
   const b = e.target.closest('[data-dm-edit]'); if(!b) return;
   const d = campaignDefs.items[b.dataset.dmEdit]; if(d){ dmItemMsg(''); openItemForm(d, false); }
 });
