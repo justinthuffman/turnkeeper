@@ -3,6 +3,17 @@
 What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest first.
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
+## 2026-10-12 — Edit effects, and Manual Roll out of the way
+
+### Added
+- **DM Screen: edit and delete custom effects.** Each of the campaign's effects has Edit, which opens
+  it with everything filled in. Renaming or deleting one updates the campaign's items that use it.
+  (A condition already on someone in combat keeps its old name.)
+
+### Changed
+- **Manual Roll** closes once the dice roll, so it no longer covers the tray. If the roll can't
+  happen, it stays open with the reason. Your dice stay in it for next time.
+
 ## 2026-10-09 — Built on first, and monster immunities
 
 ### Changed
