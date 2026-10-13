@@ -56,7 +56,9 @@ const CLASS_PROFS = {
 };
 const RACE_PROFS = {
   elf:{weapons:['Longsword', 'Shortsword', 'Shortbow', 'Longbow']}, woodelf:{weapons:['Longsword', 'Shortsword', 'Shortbow', 'Longbow']},
-  drow:{weapons:['Rapier', 'Shortsword', 'Hand Crossbow']},
+  drow:{weapons:['Rapier', 'Shortsword', 'Hand Crossbow']}, highelf:{weapons:['Longsword', 'Shortsword', 'Shortbow', 'Longbow']},
+  dwarf:{weapons:['Battleaxe', 'Handaxe', 'Light Hammer', 'Warhammer']}, hilldwarf:{weapons:['Battleaxe', 'Handaxe', 'Light Hammer', 'Warhammer']},
+  mountaindwarf:{weapons:['Battleaxe', 'Handaxe', 'Light Hammer', 'Warhammer'], armor:['light', 'medium']},
 };
 function profSet(kind){
   const out = new Set();

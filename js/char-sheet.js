@@ -139,7 +139,7 @@ function basicsHtml(c){
   return `<div class="cs-grid">`
     + `<label class="cs-field" for="cb_name"><span>Name</span><input id="cb_name" data-basic="name" type="text" value="${csEsc(c.name || savedName(currentCharId) || '')}"></label>`
     + `<label class="cs-field" for="cb_cls"><span>Class</span><input id="cb_cls" data-basic="cls" type="text" value="${csEsc(c.cls)}" placeholder="e.g. Vengeance Paladin"></label>`
-    + `<label class="cs-field" for="cb_race"><span>Race</span><input id="cb_race" data-basic="race" type="text" value="${csEsc(c.race)}"></label>`
+    + `<label class="cs-field" for="cb_race"><span>Race</span><input id="cb_race" data-basic="race" type="text" list="cbRaces" value="${csEsc(c.race)}"><datalist id="cbRaces">${(typeof PHB_RACES !== 'undefined' ? PHB_RACES : []).map(r=>`<option value="${csEsc(r)}"></option>`).join('')}</datalist></label>`
     + `<label class="cs-field" for="cb_hand"><span>Handedness</span><select id="cb_hand" data-basic="hand"><option value="R"${c.hand === 'L' ? '' : ' selected'}>Right-handed</option><option value="L"${c.hand === 'L' ? ' selected' : ''}>Left-handed</option></select></label>`
     + num('level', 'Level', c.level, 1, 20) + num('hpMax', 'HP max', c.hpMax, 1, 999) + num('speed', 'Speed (ft)', c.speed, 0, 200) + num('ac', 'AC (until armor is equipped)', c.ac, 0, 40)
     + `</div><div class="cs-sub">Ability Scores</div><div class="cs-grid cs-scores">`

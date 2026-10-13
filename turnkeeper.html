@@ -1430,6 +1430,11 @@ function checkInfo(type, key){
 const hasTrait = name=>traitsForRace(rt.raceKey).some(t=>t.name===name);
 const CHECK_REMINDERS = [
   {has:()=>hasTrait('Fey Ancestry'), on:t=>t==='save', text:'<b>Fey Ancestry:</b> advantage on saves against being charmed.'},
+  {has:()=>hasTrait('Dwarven Resilience'), on:t=>t==='save', text:'<b>Dwarven Resilience:</b> advantage on saves against poison.'},
+  {has:()=>hasTrait('Stout Resilience'), on:t=>t==='save', text:'<b>Stout Resilience:</b> advantage on saves against poison.'},
+  {has:()=>hasTrait('Brave'), on:t=>t==='save', text:'<b>Brave:</b> advantage on saves against being frightened.'},
+  {has:()=>hasTrait('Gnome Cunning'), on:(t,k)=>t==='save' && ['int','wis','cha'].includes(k), text:'<b>Gnome Cunning:</b> advantage on this save against magic.'},
+  {has:()=>hasTrait('Lucky'), after:true, on:()=>true, text:'<b>Lucky (halfling):</b> a natural 1 on the d20: reroll it and use the new roll.'},
   {has:()=>hasTrait('Sunlight Sensitivity'), on:(t,k)=>t==='skill' && k==='Perception', text:'<b>Sunlight Sensitivity:</b> disadvantage if it relies on sight and you’re in direct sunlight.'},
   {has:()=>hasFeature('Supreme Sneak'), on:(t,k)=>t==='skill' && k==='Stealth', text:'<b>Supreme Sneak:</b> advantage if you move no more than half your speed this turn.'},
   {has:()=>hasFeature('Impostor'), on:(t,k)=>t==='skill' && k==='Deception', text:'<b>Impostor:</b> advantage to avoid detection while mimicking someone you’ve studied.'},
@@ -1947,6 +1952,9 @@ function resistNotes(){
   if(statusState().on.petrified) return ['all damage (Petrified)'];
   const out = [];
   if(hasTrait('Hellish Resistance')) out.push('fire (Hellish Resistance)');
+  if(hasTrait('Dwarven Resilience')) out.push('poison (Dwarven Resilience)');
+  if(hasTrait('Stout Resilience')) out.push('poison (Stout Resilience)');
+  if(hasTrait('Damage Resistance') && dragonAncestry()) out.push(`${dragonAncestry().type} (Draconic Ancestry)`);
   if(hasFeature('Aura of Warding')) out.push('damage from spells (Aura of Warding)');
   if(hasFeature('Spell Resistance')) out.push('damage from spells (Spell Resistance)');
   const active = new Set([...(track.fx || []).map(e=>e.name), track.conc && track.conc.name].filter(Boolean));
@@ -1960,6 +1968,8 @@ function myDefense(){
   if(!currentCharId) return {res, vul:[], imm:[]};
   if(statusState().on.petrified) res.push(...DAMAGE_TYPE_LIST);
   if(hasTrait('Hellish Resistance')) res.push('fire');
+  if(hasTrait('Dwarven Resilience') || hasTrait('Stout Resilience')) res.push('poison');
+  if(hasTrait('Damage Resistance') && dragonAncestry()) res.push(dragonAncestry().type);
   const active = new Set([...(track.fx || []).map(e=>e.name), track.conc && track.conc.name].filter(Boolean));
   if(active.has('Protection from Poison')) res.push('poison');
   if(active.has('Stoneskin')) res.push('bludgeoning~', 'piercing~', 'slashing~');
@@ -2872,7 +2882,7 @@ function featurePopupHtml(){
   if(/^Channel Divinity/.test(t.name)) html += `<p class="roll-intro">Uses your Channel Divinity (once per short or long rest).</p>`;
   // Dice a feature rolls (Bardic Inspiration, Portent, Song of Rest…) or a worked-out number
   featureRolls(t).forEach(r=>{
-    if(r.cmd) html += cmdBox(r.label, {cmd:r.cmd(), desc:r.desc ? r.desc() : ''});
+    if(r.cmd) html += cmdBox(r.label, {cmd:r.cmd(), desc:r.desc ? r.desc() : '', ...(r.type && r.type() ? {parts:[{expr:r.cmd(), type:r.type()}], magical:true} : {})});
     if(r.info) html += infoBox(r.label, r.info());
   });
   if(t.save && dc) html += infoBox('Saving throw', `Target makes a <b>DC ${dc} ${ABILITY_TEXT(t.save)}</b> saving throw. ${t.saveNote||''}`);
@@ -4101,6 +4111,8 @@ function buildChoices(){
   }
   classFeatureItems().filter(t=>t.choose && lvl >= t.level).forEach(t=>
     out.push({key:'choice:'+t.name, label:t.name, value:getChoice(t.name), options:t.tiers.map(x=>x.name), feature:t}));
+  traitsForRace(rt.raceKey).filter(t=>t.choose).forEach(t=>
+    out.push({key:'choice:'+t.name, label:t.name, value:getChoice(t.name), options:t.tiers.map(x=>x.name), feature:t}));
   // Ability Score Improvement levels: +2 ability points or a feat (picked in the Feats section)
   const slots = getSlots();
   openFeatSlots().forEach(l=>{
@@ -4370,7 +4382,8 @@ const racialSection = makePinSection({
   items: ()=>traitsForRace(rt.raceKey),
   emptyText: ()=>{
     const race = document.getElementById('f_race').value.trim();
-    return race ? `No racial traits added for "${race}" yet.` : 'Open a character to see racial traits.';
+    const none = RACIAL_TRAITS[rt.raceKey] && RACIAL_TRAITS[rt.raceKey].none;
+    return none || (race ? `No racial traits added for "${race}" yet.` : 'Open a character to see racial traits.');
   },
 });
 
@@ -4457,7 +4470,7 @@ function setupClassFeatures(clsText){
 
 // feats.js: moved to js/data/feats.js
 const ASI_LEVELS = {fighter:[4,6,8,12,14,16,19], rogue:[4,8,10,12,16,19]};
-function featSlotLevels(){ return ASI_LEVELS[cf.classKey] || [4,8,12,16,19]; }
+function featSlotLevels(){ const l = ASI_LEVELS[cf.classKey] || [4,8,12,16,19]; return rt.raceKey === 'varianthuman' ? [1, ...l] : l; }
 function openFeatSlots(){ return featSlotLevels().filter(l=>l <= charLevel()); }
 const featMem = new Map();
 function featsKey(){ return `dndTracker:feats:${currentCharId}`; }
@@ -4685,7 +4698,7 @@ function applyFeatStats(){
 /* ---------- Always-prepared spells (racial + class) ---------- */
 // Each spell granted by a trait or feature, with the level it unlocks at
 function grantedSpells(source, features, defaultAbility){
-  return features.flatMap(t=>(t.tiers||[]).map(tier=>({
+  return features.flatMap(t=>(t.tiers||[]).filter(tier=>!t.choose || tier.name === getChoice(t.name)).map(tier=>({
     sp: findSpell(tier.name), unlock: Math.max(tier.level, t.level||1), source, from: t.name, note: tier.text,
     ability: t.ability || defaultAbility, castLevel: tier.castLevel
   }))).filter(x=>x.sp);
