@@ -5040,12 +5040,15 @@ function saveTrack(){
    module script at the end of the page does the sending; this builds what it sends. */
 let liveTimer = null;
 function livePush(){ clearTimeout(liveTimer); liveTimer = setTimeout(()=>{ applyIncoming(); if(window.tkDiceRefresh) window.tkDiceRefresh(); if(window.tkCharIcon) window.tkCharIcon(); if(window.tkLive) window.tkLive.push(); }, 400); }
+// A target as the database takes it: {id, name, char}. Older saved casts can have other fields
+// ("sheet" from before characters moved to the database), which would make the whole save fail.
+const sharedTarget = t=>({...(typeof t.id === 'number' ? {id:t.id} : {}), name:String(t.name || '').slice(0, 100), ...(t.char || t.sheet ? {char:String(t.char || t.sheet)} : {})});
 function liveSnapshot(){
   const camp = campaignOfChar(currentCharId);
   if(!currentCharId || !camp) return null;
   const st = statusState(), rounds = st.rounds || {};
   const cur = hpNow(), max = hpMax();
-  return {campaign:camp.key, char:currentCharId, effects:Object.fromEntries((track.cast || []).map(x=>[x.id, {name:x.name, caster:(document.getElementById('f_name').value || '').slice(0, 60), targets:arrOf(x.targets), status:x.status || null, conc:!!x.conc, rounds:x.rounds || 0, ...(x.save && x.dc ? {save:x.save, dc:x.dc, when:x.when || 'end'} : {})}])),
+  return {campaign:camp.key, char:currentCharId, effects:Object.fromEntries((track.cast || []).map(x=>[x.id, {name:x.name, caster:(document.getElementById('f_name').value || '').slice(0, 60), targets:arrOf(x.targets).map(sharedTarget), status:x.status || null, conc:!!x.conc, rounds:x.rounds || 0, ...(x.save && x.dc ? {save:x.save, dc:x.dc, when:x.when || 'end'} : {})}])),
     data:{
     name:(document.getElementById('f_name').value || '').slice(0, 60), level:charLevel(), cls:(document.getElementById('f_class').value || '').slice(0, 60),   // lengths fit the database rules
     hp:{cur, max, temp:track.temp || 0},
