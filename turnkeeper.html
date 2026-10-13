@@ -1337,6 +1337,11 @@ function parseWeaponDamage(text){
 // attacks and Divine Smite work) but not a weapon (no Dueling, finesse or Great Weapon Fighting).
 function unarmedAttack(){
   const str = abilityScoreMod('str');
+  // Martial Arts (no armor or shield): the better of Strength and Dexterity, and the martial arts die
+  if(hasFeature('Martial Arts') && typeof equipState === 'function' && !equipState().armor && !equipState().shield){
+    const m = Math.max(str, abilityScoreMod('dex'));
+    return {name:'Unarmed Strike', unarmed:true, bonus:fmtMod(m + proficiencyBonus()), damage:`1d${maDie()}${fmtMod(m)} bludgeoning · Melee Weapon Attack. Martial Arts`, magical:hasFeature('Ki-Empowered Strikes')};
+  }
   return {name:'Unarmed Strike', unarmed:true, bonus:fmtMod(str + proficiencyBonus()), damage:`${1 + str} bludgeoning · Melee Weapon Attack. Punch, kick or headbutt`};
 }
 function attackChoices(){
@@ -1437,6 +1442,9 @@ const hasTrait = name=>traitsForRace(rt.raceKey).some(t=>t.name===name);
 const CHECK_REMINDERS = [
   {has:()=>hasTrait('Fey Ancestry'), on:t=>t==='save', text:'<b>Fey Ancestry:</b> advantage on saves against being charmed.'},
   {has:()=>hasTrait('Dwarven Resilience'), on:t=>t==='save', text:'<b>Dwarven Resilience:</b> advantage on saves against poison.'},
+  {has:()=>raging(), on:(t,k)=>((t==='save' || t==='ability') && k==='str') || (t==='skill' && k==='Athletics'), text:'<b>Rage:</b> advantage on Strength checks and saves while raging.'},
+  {has:()=>hasFeature('Danger Sense'), on:(t,k)=>t==='save' && k==='dex', text:'<b>Danger Sense:</b> advantage on this save against an effect you can see (not while blinded, deafened or incapacitated).'},
+  {has:()=>hasFeature('Feral Instinct'), on:t=>t==='init', text:'<b>Feral Instinct:</b> advantage on initiative.'},
   {has:()=>hasTrait('Stout Resilience'), on:t=>t==='save', text:'<b>Stout Resilience:</b> advantage on saves against poison.'},
   {has:()=>hasTrait('Brave'), on:t=>t==='save', text:'<b>Brave:</b> advantage on saves against being frightened.'},
   {has:()=>hasTrait('Gnome Cunning'), on:(t,k)=>t==='save' && ['int','wis','cha'].includes(k), text:'<b>Gnome Cunning:</b> advantage on this save against magic.'},
@@ -1933,7 +1941,9 @@ function featureFx(t){
   return {id:'feat:'+t.name, name:t.name.replace(/^Channel Divinity: /, ''), ...(typeof t.fx==='function' ? t.fx() : t.fx)};
 }
 function fxWhen(e){ return e.until==='hit' ? `your next ${e.weapon==='melee' ? 'melee ' : ''}weapon hit` : `${e.until}${e.conc ? ', concentration' : ''}`; }
-function fxWhat(e){ return [e.toHit && `+${e.toHit} to hit`, e.dice && `+${e.dice}`, e.adv && 'advantage'].filter(Boolean).join(', '); }
+function fxWhat(e){ return [e.toHit && `+${e.toHit} to hit`, e.dice && `+${e.dice}`, e.dmg && `+${e.dmg} damage`, e.adv && 'advantage'].filter(Boolean).join(', '); }
+// Raging (Rage started from Use a Class Feature, while it lasts)
+const raging = ()=>(track.fx || []).some(e=>e.name === 'Rage');
 // Casting a concentration spell ends the one you were concentrating on
 // Ends whatever you're concentrating on (the tracked spell, and any effect of it). Returns the names.
 function endConcentration(){
@@ -1970,6 +1980,7 @@ function resistNotes(){
   if(hasTrait('Dwarven Resilience')) out.push('poison (Dwarven Resilience)');
   if(hasTrait('Stout Resilience')) out.push('poison (Stout Resilience)');
   if(hasFeature('Avatar of Battle')) out.push('nonmagical bludgeoning, piercing and slashing (Avatar of Battle)');
+  if(raging()) out.push(hasFeature('Totem Spirit') && getChoice('Totem Spirit') === 'Bear' ? 'everything but psychic (Rage, Bear totem)' : 'bludgeoning, piercing and slashing (Rage)');
   if(hasFeature('Thought Shield')) out.push('psychic (Thought Shield)');
   if(hasFeature('Fiendish Resilience') && getChoice('Fiendish Resilience')) out.push(`${getChoice('Fiendish Resilience')} (Fiendish Resilience)`);
   if(hasTrait('Damage Resistance') && dragonAncestry()) out.push(`${dragonAncestry().type} (Draconic Ancestry)`);
@@ -1988,13 +1999,15 @@ function myDefense(){
   if(hasTrait('Hellish Resistance')) res.push('fire');
   if(hasTrait('Dwarven Resilience') || hasTrait('Stout Resilience')) res.push('poison');
   if(hasFeature('Avatar of Battle')) res.push('bludgeoning~', 'piercing~', 'slashing~');
+  if(raging()) res.push('bludgeoning', 'piercing', 'slashing', ...(hasFeature('Totem Spirit') && getChoice('Totem Spirit') === 'Bear' ? DAMAGE_TYPE_LIST.filter(t=>t !== 'psychic') : []));
+  const imm = (hasFeature('Purity of Body') || hasFeature('Nature’s Ward')) ? ['poison'] : [];
   if(hasFeature('Thought Shield')) res.push('psychic');
   if(hasFeature('Fiendish Resilience') && getChoice('Fiendish Resilience')) res.push(getChoice('Fiendish Resilience'));
   if(hasTrait('Damage Resistance') && dragonAncestry()) res.push(dragonAncestry().type);
   const active = new Set([...(track.fx || []).map(e=>e.name), track.conc && track.conc.name].filter(Boolean));
   if(active.has('Protection from Poison')) res.push('poison');
   if(active.has('Stoneskin')) res.push('bludgeoning~', 'piercing~', 'slashing~');
-  return {res:[...new Set(res)], vul:[], imm:[]};
+  return {res:[...new Set(res)], vul:[], imm};
 }
 function renderResistNote(){
   const el = document.getElementById('resistNote'), list = resistNotes();
@@ -2403,6 +2416,8 @@ function damageCommand(){
   if(rollState.crit) notes.push('Crit: all damage dice doubled');
   if(rollState.crit && !p.count) notes.push('No damage dice to double: the crit only doubles dice added by Divine Smite, Sneak Attack and so on');
   if(rollState.crit && melee && rt.raceKey==='halforc' && p.die){ count += 1; notes.push('Savage Attacks: one extra weapon die'); }
+  const brutal = rollState.crit && melee && p.die && hasFeature('Brutal Critical') ? (charLevel() >= 17 ? 3 : charLevel() >= 13 ? 2 : 1) : 0;
+  if(brutal){ count += brutal; notes.push(`Brutal Critical: ${brutal} extra weapon ${brutal === 1 ? 'die' : 'dice'}`); }
   // Radiant: Divine Smite (2d8 + 1d8/slot above 1st, max 5d8; +1d8 vs undead/fiend) and Improved Divine Smite (+1d8)
   const critX = rollState.crit ? 2 : 1;
   let smiteDice = 0, improvedDice = 0;
@@ -2434,6 +2449,9 @@ function damageCommand(){
   if(am && am.magic){ mod += am.magic; notes.push(`${escapeHtml(am.name)}: +${am.magic} damage`); }
   const amDice = am && am.dmg ? (()=>{ const d = parseDice(am.dmg); return d.n ? `${d.n * critX}d${d.s}` : am.dmg; })() : '';
   if(am) notes.push(`${escapeHtml(am.name)} is used up when you roll to hit.`);
+  // Effects that add flat damage (Rage); not doubled on a crit
+  const fxFlat = fxOn().filter(e=>e.dmg).map(e=>({n:e.dmg, name:e.name}));
+  fxFlat.forEach(f=>{ mod += f.n; notes.push(`${f.name}: +${f.n} damage (melee attacks with Strength only)`); });
   const power = rollState.sel.power;
   if(power){ mod += 10; notes.push(`${power}: +10 damage (not doubled on a crit)`); }
   // Savage Attacker: once per turn, reroll the weapon's damage dice and use either total.
@@ -2466,7 +2484,9 @@ function damageCommand(){
     gwf && 'Great Weapon Fighting rerolls 1s and 2s',
     savage && 'Savage Attacker (best of two)',
     rollState.crit && melee && rt.raceKey==='halforc' && p.die && `+1d${p.die} Savage Attacks`,
+    brutal && `+${brutal}d${p.die} Brutal Critical`,
     dueling && '+2 Dueling',
+    ...fxFlat.map(f=>`+${f.n} ${f.name}`),
     power && `+10 ${power}`,
     dsDice && `+${dsDice} Divine Strike (${dsType})`,
     colDice && `+${colDice} Colossus Slayer`,
@@ -2924,7 +2944,7 @@ function featureRolls(t){ return typeof t.rolls==='function' ? t.rolls() : (t.ro
 function featurePopupHtml(){
   const t = rollState.sel.feature;
   const casting = castingFor();
-  const dc = casting ? spellStats(casting.ability).dc : null;
+  const dc = t.dc ? t.dc() : casting ? spellStats(casting.ability).dc : null;
   let html = targetPickHtml() + `<p class="roll-intro">${t.desc}</p>`;
   if(/^Channel Divinity/.test(t.name)) html += `<p class="roll-intro">Uses your Channel Divinity (once per short or long rest).</p>`;
   // Dice a feature rolls (Bardic Inspiration, Portent, Song of Rest…) or a worked-out number

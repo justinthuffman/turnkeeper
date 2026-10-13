@@ -149,9 +149,13 @@ function afterGearChange(){ const y = scrollY; applyCore(currentCore, currentCha
 /* ---------- Attacks from equipped weapons ---------- */
 function weaponAttackFor(it, d, hands, scores){
   const mod = a=>abilityMod(scores[a] ?? 10);
-  const abil = d.finesse ? (mod('dex') >= mod('str') ? 'dex' : 'str') : d.ranged ? 'dex' : 'str';
+  // Martial Arts: a monk's shortsword or simple melee weapon (not two-handed or heavy), with no armor or shield
+  const e = equipState(), monkWeapon = typeof hasFeature === 'function' && hasFeature('Martial Arts') && !e.armor && !e.shield && d.melee
+    && (d.name === 'Shortsword' || d.baseName === 'Shortsword' || (!d.martial && !d.twoHanded && !d.heavy));
+  const abil = d.finesse || monkWeapon ? (mod('dex') >= mod('str') ? 'dex' : 'str') : d.ranged ? 'dex' : 'str';
   const m = mod(abil), magic = parseInt(d.magic, 10) || 0, prof = weaponProficient(d);
-  const dice = hands === 2 && d.versatile ? d.versatile : d.dice;
+  let dice = hands === 2 && d.versatile ? d.versatile : d.dice;
+  if(monkWeapon && /^1d\d+$/.test(dice || '') && +dice.slice(2) < maDie()) dice = `1d${maDie()}`;   // the martial arts die, if it's bigger
   const props = weaponPropsText(d);
   const kind = `${d.martial ? 'Martial' : 'Simple'} ${d.melee ? 'Melee' : 'Ranged'} Weapon Attack.`;
   const dmg = dice ? (/d/.test(dice) ? `${dice}${m + magic ? fmtMod(m + magic) : ''}` : String(Math.max(0, (parseInt(dice, 10) || 0) + m + magic))) : '0';
@@ -179,10 +183,13 @@ function equippedAC(core){
   if(!csDb()) return null;
   const e = equipState(), items = invItems(), get = id=>{ const it = items.find(x=>x.id === id); return it ? itemDef(it.name) : null; };
   const armor = e.armor ? get(e.armor) : null, shield = e.shield ? get(e.shield) : null;
-  const draconic = typeof hasFeature === 'function' && hasFeature('Draconic Resilience');
-  if(!armor && !shield && !draconic) return null;
+  const has = n=>typeof hasFeature === 'function' && hasFeature(n), draconic = has('Draconic Resilience');
+  // Unarmored Defense: a barbarian adds Constitution (a shield still counts), a monk Wisdom (no shield)
+  const unarmored = !armor && cf.classKey === 'barbarian' && has('Unarmored Defense') ? 'con' : !armor && !shield && cf.classKey === 'monk' && has('Unarmored Defense') ? 'wis' : null;
+  if(!armor && !shield && !draconic && !unarmored) return null;
   const dex = abilityMod((core.scores || {}).dex ?? 10);
-  let ac = armor ? armor.ac + (armor.dex ? (armor.dexMax != null ? Math.min(dex, armor.dexMax) : dex) : 0) + (parseInt(armor.magic, 10) || 0) : (draconic ? 13 : 10) + dex;
+  let ac = armor ? armor.ac + (armor.dex ? (armor.dexMax != null ? Math.min(dex, armor.dexMax) : dex) : 0) + (parseInt(armor.magic, 10) || 0)
+    : unarmored ? 10 + dex + abilityMod((core.scores || {})[unarmored] ?? 10) : (draconic ? 13 : 10) + dex;
   if(armor && typeof fightingStyles === 'function' && fightingStyles().includes('Defense')) ac += 1;   // Defense fighting style
   if(shield) ac += 2 + (parseInt(shield.magic, 10) || 0);
   return ac;

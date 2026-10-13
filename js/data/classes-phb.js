@@ -1,4 +1,4 @@
-/* ---------- More PHB classes: Fighter, Cleric, Ranger, Sorcerer, Warlock (2014) ----------
+/* ---------- More PHB classes: Fighter, Cleric, Ranger, Sorcerer, Warlock, Barbarian, Monk, Druid (2014) ----------
    Same shape as js/data/classes.js (loaded right after it). Checked against dnd5e.wikidot.com
    and paraphrased. Extra keys used here:
    - picks: {n(), label, options()} several picks from a list (invocations, Metamagic,
@@ -397,6 +397,207 @@ Object.assign(CLASS_FEATURES, {
         {level:6, name:'Entropic Ward', type:'reaction', uses:{max:()=>1, recharge:'short'}, desc:'When a creature attacks you, give the attack disadvantage. If it misses, you have advantage on your next attack against it before your next turn ends.'},
         {level:10, name:'Thought Shield', desc:'Your thoughts can’t be read unless you allow it. Resistance to psychic damage, and a creature that deals you psychic damage takes the same amount.'},
         {level:14, name:'Create Thrall', type:'action', desc:'Touch an incapacitated humanoid: it’s charmed by you until Remove Curse is cast on it, and you can communicate telepathically while on the same plane.'},
+      ],
+    },
+  },
+});
+
+/* ---------- Barbarian, Monk, Druid (2014 PHB) ----------
+   More keys: dc() a feature's own save DC (ki, Intimidating Presence); fx.dmg a flat bonus to
+   melee weapon damage while the effect lasts (Rage). A land druid's Circle Spells follow the land
+   picked (a getter, so the list changes with the choice). */
+const rageDamage = ()=>charLevel() >= 16 ? 4 : charLevel() >= 9 ? 3 : 2;
+const rageUses = ()=>{ const l = charLevel(); return l >= 20 ? 0 : l >= 17 ? 6 : l >= 12 ? 5 : l >= 6 ? 4 : l >= 3 ? 3 : 2; };
+const maDie = ()=>charLevel() >= 17 ? 10 : charLevel() >= 11 ? 8 : charLevel() >= 5 ? 6 : 4;
+const kiDC = ()=>8 + proficiencyBonus() + abilityScoreMod('wis');
+const TOTEMS = (level, texts)=>['Bear', 'Eagle', 'Wolf'].map((n, i)=>({level, name:n, text:texts[i]}));
+const ELEMENTAL_DISCIPLINES = {
+  'Fangs of the Fire Snake':'1 ki: while using Attack, your unarmed strikes reach 10 ft further and deal fire damage; 1 more ki on a hit adds 1d10 fire.',
+  'Fist of Four Thunders':'2 ki: cast Thunderwave.',
+  'Fist of Unbroken Air':'2 ki (+1 per extra 1d10): a creature within 30 ft makes a Strength save or takes 3d10 bludgeoning, is pushed 20 ft and knocked prone (half and nothing else on a success).',
+  'Rush of the Gale Spirits':'2 ki: cast Gust of Wind.',
+  'Shape the Flowing River':'1 ki: shape water or ice in a 30-ft cube within 120 ft.',
+  'Sweeping Cinder Strike':'2 ki: cast Burning Hands.',
+  'Water Whip':'2 ki (+1 per extra 1d10): a creature within 30 ft makes a Dexterity save or takes 3d10 bludgeoning and is knocked prone or pulled 25 ft (half on a success).',
+  'Clench of the North Wind':'3 ki (6th level): cast Hold Person.',
+  'Gong of the Summit':'3 ki (6th level): cast Shatter.',
+  'Flames of the Phoenix':'4 ki (11th level): cast Fireball.',
+  'Mist Stance':'4 ki (11th level): cast Gaseous Form on yourself.',
+  'Ride the Wind':'4 ki (11th level): cast Fly on yourself.',
+  'Breath of Winter':'6 ki (17th level): cast Cone of Cold.',
+  'Eternal Mountain Defense':'5 ki (17th level): cast Stoneskin on yourself.',
+  'River of Hungry Flame':'5 ki (17th level): cast Wall of Fire.',
+  'Wave of Rolling Earth':'6 ki (17th level): cast Wall of Stone.',
+};
+const DISCIPLINE_LEVEL = {'Clench of the North Wind':6, 'Gong of the Summit':6, 'Flames of the Phoenix':11, 'Mist Stance':11, 'Ride the Wind':11,
+  'Breath of Winter':17, 'Eternal Mountain Defense':17, 'River of Hungry Flame':17, 'Wave of Rolling Earth':17};
+const LAND_SPELLS = {
+  Arctic:[[3,'Hold Person'],[3,'Spike Growth'],[5,'Sleet Storm'],[5,'Slow'],[7,'Freedom of Movement'],[7,'Ice Storm'],[9,'Commune with Nature'],[9,'Cone of Cold']],
+  Coast:[[3,'Mirror Image'],[3,'Misty Step'],[5,'Water Breathing'],[5,'Water Walk'],[7,'Control Water'],[7,'Freedom of Movement'],[9,'Conjure Elemental'],[9,'Scrying']],
+  Desert:[[3,'Blur'],[3,'Silence'],[5,'Create Food and Water'],[5,'Protection from Energy'],[7,'Blight'],[7,'Hallucinatory Terrain'],[9,'Insect Plague'],[9,'Wall of Stone']],
+  Forest:[[3,'Barkskin'],[3,'Spider Climb'],[5,'Call Lightning'],[5,'Plant Growth'],[7,'Divination'],[7,'Freedom of Movement'],[9,'Commune with Nature'],[9,'Tree Stride']],
+  Grassland:[[3,'Invisibility'],[3,'Pass without Trace'],[5,'Daylight'],[5,'Haste'],[7,'Divination'],[7,'Freedom of Movement'],[9,'Dream'],[9,'Insect Plague']],
+  Mountain:[[3,'Spider Climb'],[3,'Spike Growth'],[5,'Lightning Bolt'],[5,'Meld into Stone'],[7,'Stone Shape'],[7,'Stoneskin'],[9,'Passwall'],[9,'Wall of Stone']],
+  Swamp:[[3,'Darkness'],[3,"Melf's Acid Arrow"],[5,'Water Walk'],[5,'Stinking Cloud'],[7,'Freedom of Movement'],[7,'Locate Creature'],[9,'Insect Plague'],[9,'Scrying']],
+  Underdark:[[3,'Spider Climb'],[3,'Web'],[5,'Gaseous Form'],[5,'Stinking Cloud'],[7,'Greater Invisibility'],[7,'Stone Shape'],[9,'Cloudkill'],[9,'Insect Plague']],
+};
+// Wild Shape's limits at the druid's level (Circle of the Moon: Circle Forms)
+function wildShapeLimits(){
+  const l = charLevel(), moon = typeof cf !== 'undefined' && cf.subclass === 'Circle of the Moon';
+  const cr = moon ? (l >= 6 ? String(Math.floor(l / 3)) : '1') : l >= 8 ? '1' : l >= 4 ? '1/2' : '1/4';
+  const move = l >= 8 ? 'any beast' : l >= 4 ? 'no flying speed' : 'no flying or swimming speed';
+  return `Challenge rating up to <b>${cr}</b>, ${move}. Lasts up to <b>${Math.max(1, Math.floor(l / 2))} hour${Math.floor(l / 2) === 1 ? '' : 's'}</b>.`;
+}
+
+Object.assign(CLASS_FEATURES, {
+  // Barbarian (2014 PHB)
+  barbarian: {
+    subclassLabel: 'Primal Path', subclassLevel: 3,
+    base: [
+      {level:1, name:'Rage', type:'bonus', uses:{max:rageUses, recharge:'long'}, fx:()=>({until:'1 minute', weapon:'melee', dmg:rageDamage()}),
+        tip:'For the next minute your melee Attack popups add the rage damage (Strength attacks only: untick it for a finesse attack with Dexterity). You resist bludgeoning, piercing and slashing damage while it lasts.',
+        desc:'While raging (not in heavy armor): advantage on Strength checks and saves, +2 damage on melee weapon attacks using Strength (+3 at 9th level, +4 at 16th), and resistance to bludgeoning, piercing and slashing damage. Lasts 1 minute; ends early if you’re knocked unconscious or your turn ends without attacking a hostile creature or taking damage. No spells or concentration while raging. Uses: 2, rising to 6; unlimited at 20th level.'},
+      {level:1, name:'Unarmored Defense', desc:'Without armor, your AC is 10 + your Dexterity modifier + your Constitution modifier; a shield still counts (Turnkeeper uses it).'},
+      {level:2, name:'Reckless Attack', desc:'When you make your first attack on your turn, you can attack recklessly: advantage on melee weapon attacks using Strength this turn, but attacks against you have advantage until your next turn. Pick Advantage in the Attack popup.'},
+      {level:2, name:'Danger Sense', desc:'Advantage on Dexterity saves against effects you can see, such as traps and spells, while you aren’t blinded, deafened or incapacitated.'},
+      {level:3, name:'Primal Path', desc:'Pick your path (above): Berserker or Totem Warrior.'},
+      {level:4, name:'Ability Score Improvement', desc:ASI_TEXT('4, 8, 12, 16 and 19')},
+      {level:5, name:'Extra Attack', attacks:2, desc:'Attack twice when you take the Attack action.'},
+      {level:5, name:'Fast Movement', desc:'Your speed rises by 10 ft while you aren’t wearing heavy armor.'},
+      {level:7, name:'Feral Instinct', desc:'Advantage on initiative rolls. If you’re surprised, you can still act on your first turn if you enter your rage first.'},
+      {level:9, name:'Brutal Critical', desc:'Roll one extra weapon damage die on a melee critical hit (two at 13th level, three at 17th). Turnkeeper adds them.'},
+      {level:11, name:'Relentless Rage', desc:'If you drop to 0 hit points while raging and don’t die outright, make a DC 10 Constitution save to drop to 1 instead. Each later use raises the DC by 5, back to 10 after a short or long rest.'},
+      {level:15, name:'Persistent Rage', desc:'Your rage ends early only if you fall unconscious or choose to end it.'},
+      {level:18, name:'Indomitable Might', desc:'If your total for a Strength check is lower than your Strength score, use the score instead.'},
+      {level:20, name:'Primal Champion', desc:'Your Strength and Constitution scores rise by 4, and their maximum is now 24 (include them in your scores).'},
+    ],
+    subclasses: {
+      'Path of the Berserker': [
+        {level:3, name:'Frenzy', type:'bonus', desc:'When you rage you can go into a frenzy: for the rage, you can make one melee weapon attack as a bonus action on each of your turns after this one. When the rage ends you gain a level of exhaustion.'},
+        {level:6, name:'Mindless Rage', desc:'You can’t be charmed or frightened while raging; one that was on you is suspended for the rage.'},
+        {level:10, name:'Intimidating Presence', type:'action', save:'wis', dc:()=>8 + proficiencyBonus() + abilityScoreMod('cha'),
+          saveNote:'A creature within 30 ft that can see or hear you. On a failure it’s frightened of you until the end of your next turn; extend it with your action each turn. On a success you can’t use this on it for 24 hours.',
+          desc:'Frighten a creature with your menacing presence.'},
+        {level:14, name:'Retaliation', type:'reaction', desc:'When a creature within 5 ft damages you, make a melee weapon attack against it.'},
+      ],
+      'Path of the Totem Warrior': [
+        {level:3, name:'Spirit Seeker', desc:'Cast Beast Sense and Speak with Animals as rituals.'},
+        {level:3, name:'Totem Spirit', choose:true, desc:'Pick a totem animal; its benefit works while you rage.', tiers:TOTEMS(3, [
+          'While raging, resistance to all damage except psychic (Turnkeeper adds it).',
+          'While raging (not in heavy armor), other creatures have disadvantage on opportunity attacks against you, and you can Dash as a bonus action.',
+          'While raging, your friends have advantage on melee attacks against any creature within 5 ft of you that’s hostile to you.'])},
+        {level:6, name:'Aspect of the Beast', choose:true, desc:'Pick a totem animal (it can differ from your Totem Spirit).', tiers:TOTEMS(6, [
+          'Your carrying capacity doubles, and you have advantage on Strength checks to push, pull, lift or break objects.',
+          'You see up to 1 mile clearly, and dim light doesn’t give disadvantage on Perception checks.',
+          'You can track creatures at a fast pace and move stealthily at a normal pace.'])},
+        {level:10, name:'Spirit Walker', desc:'Cast Commune with Nature as a ritual.'},
+        {level:14, name:'Totemic Attunement', choose:true, desc:'Pick a totem animal; its benefit works while you rage.', tiers:TOTEMS(14, [
+          'While raging, a creature within 5 ft that can see or hear you has disadvantage on attacks against anyone but you or another barbarian with this feature.',
+          'While raging, you have a flying speed equal to your walking speed (only on your turn; you fall if you end it in the air).',
+          'While raging, when you hit a Large or smaller creature with a melee weapon attack, you can knock it prone as a bonus action.'])},
+      ],
+    },
+  },
+  // Monk (2014 PHB)
+  monk: {
+    subclassLabel: 'Monastic Tradition', subclassLevel: 3,
+    resources: [{id:'ki', label:'Ki points', level:2, max:()=>charLevel(), recharge:'short'}],
+    base: [
+      {level:1, name:'Unarmored Defense', desc:'Without armor or a shield, your AC is 10 + your Dexterity modifier + your Wisdom modifier (Turnkeeper uses it).'},
+      {level:1, name:'Martial Arts', desc:'With unarmed strikes and monk weapons (shortswords, and simple melee weapons that aren’t two-handed or heavy), while unarmored and without a shield: use Dexterity instead of Strength, roll a d4 for damage (d6 at 5th level, d8 at 11th, d10 at 17th) if it’s higher than the weapon’s die, and when you take the Attack action you can make one unarmed strike as a bonus action. Turnkeeper applies the die and Dexterity.'},
+      {level:2, name:'Ki', desc:'You have ki points equal to your monk level, regained on a short or long rest. Ki save DC: 8 + your proficiency bonus + your Wisdom modifier.'},
+      {level:2, name:'Flurry of Blows', type:'bonus', spends:'ki', useDesc:'a ki point', desc:'After you take the Attack action, spend 1 ki to make two unarmed strikes as a bonus action (use Attack → Unarmed Strike twice).'},
+      {level:2, name:'Patient Defense', type:'bonus', spends:'ki', useDesc:'a ki point', desc:'Spend 1 ki to take the Dodge action as a bonus action.'},
+      {level:2, name:'Step of the Wind', type:'bonus', spends:'ki', useDesc:'a ki point', desc:'Spend 1 ki to Disengage or Dash as a bonus action; your jump distance doubles for the turn.'},
+      {level:2, name:'Unarmored Movement', desc:'Your speed rises by 10 ft while unarmored (15 at 6th level, 20 at 10th, 25 at 14th, 30 at 18th). From 9th level you can move along vertical surfaces and across liquids on your turn.'},
+      {level:3, name:'Monastic Tradition', desc:'Pick your tradition (above): Open Hand, Shadow or the Four Elements.'},
+      {level:3, name:'Deflect Missiles', type:'reaction',
+        roll:{label:'Damage reduced by', cmd:()=>`1d10+${abilityScoreMod('dex') + charLevel()}`, desc:()=>'1d10 + Dexterity modifier + monk level'},
+        desc:'When a ranged weapon attack hits you, reduce its damage by 1d10 + your Dexterity modifier + your monk level. If that reduces it to 0 and you have a hand free, catch the missile and spend 1 ki to throw it back (a monk weapon attack, 20/60 ft).'},
+      {level:4, name:'Ability Score Improvement', desc:ASI_TEXT('4, 8, 12, 16 and 19')},
+      {level:4, name:'Slow Fall', type:'reaction',
+        roll:{label:'Falling damage reduced by', info:()=>`<b>${5 * charLevel()}</b> (5 × your monk level).`},
+        desc:'When you fall, reduce the falling damage by five times your monk level.'},
+      {level:5, name:'Extra Attack', attacks:2, desc:'Attack twice when you take the Attack action.'},
+      {level:5, name:'Stunning Strike', spends:'ki', useDesc:'a ki point', save:'con', dc:kiDC,
+        saveNote:'When you hit with a melee weapon attack, spend 1 ki: on a failure the target is stunned until the end of your next turn.',
+        desc:'Spend 1 ki on a melee hit to try to stun the target.'},
+      {level:6, name:'Ki-Empowered Strikes', desc:'Your unarmed strikes count as magical for overcoming resistance and immunity.'},
+      {level:7, name:'Evasion', desc:'When a Dexterity save would halve damage, you take none on a success and half on a failure.'},
+      {level:7, name:'Stillness of Mind', type:'action', desc:'End one effect on yourself that’s causing you to be charmed or frightened.'},
+      {level:10, name:'Purity of Body', desc:'You’re immune to disease and poison.'},
+      {level:13, name:'Tongue of the Sun and Moon', desc:'You understand all spoken languages, and any creature that knows a language understands you.'},
+      {level:14, name:'Diamond Soul', desc:'Proficiency in all saving throws. When you fail one, spend 1 ki to reroll it and use the second roll.'},
+      {level:15, name:'Timeless Body', desc:'You don’t suffer the frailty of old age, can’t be aged magically, and no longer need food or water.'},
+      {level:18, name:'Empty Body', type:'action', desc:'Spend 4 ki to become invisible for 1 minute with resistance to all damage but force, or 8 ki to cast Astral Projection without material components (only on yourself).'},
+      {level:20, name:'Perfect Self', desc:'When you roll initiative with no ki points left, you regain 4.'},
+    ],
+    subclasses: {
+      'Way of the Open Hand': [
+        {level:3, name:'Open Hand Technique', save:'dex', dc:kiDC,
+          saveNote:'When a Flurry of Blows strike hits, pick one: it makes a Dexterity save or is knocked prone; it makes a Strength save (same DC) or is pushed up to 15 ft; or it can’t take reactions until the end of your next turn (no save).',
+          desc:'Your Flurry of Blows can knock a creature down, push it or stop its reactions.'},
+        {level:6, name:'Wholeness of Body', type:'action', uses:{max:()=>1, recharge:'long'},
+          roll:{label:'Healing', cmd:()=>`${3 * charLevel()}`, desc:()=>'hit points you regain (3 × monk level)', healSelf:true},
+          desc:'Regain hit points equal to three times your monk level. Once per long rest.'},
+        {level:11, name:'Tranquility', desc:'At the end of a long rest you gain the effect of a Sanctuary spell until your next long rest (save DC 8 + Wisdom modifier + proficiency bonus).'},
+        {level:17, name:'Quivering Palm', spends:'ki', useDesc:'3 ki points', save:'con', dc:kiDC,
+          saveNote:'Spend 3 ki when you hit with an unarmed strike to set up the vibrations. Later, within your monk level in days, use your action to end them: on a failure the target drops to 0 hit points; on a success it takes 10d10 necrotic damage.',
+          roll:{label:'Damage on a success', cmd:()=>'10d10', desc:()=>'necrotic damage', type:()=>'necrotic'},
+          desc:'Set deadly vibrations in a creature’s body. Spend the other 2 ki in Resources.'},
+      ],
+      'Way of Shadow': [
+        {level:3, name:'Shadow Arts', type:'action', desc:'Spend 2 ki to cast Darkness, Darkvision, Pass without Trace or Silence without material components. You also know the Minor Illusion cantrip.',
+          tiers:[{level:3, name:'Minor Illusion', text:'Cantrip; cast at will.'}], ability:'wis'},
+        {level:6, name:'Shadow Step', type:'bonus', desc:'In dim light or darkness, teleport up to 60 ft to another unoccupied space in dim light or darkness you can see; advantage on your first melee attack before your turn ends.'},
+        {level:11, name:'Cloak of Shadows', type:'action', desc:'In dim light or darkness, become invisible until you attack, cast a spell or step into bright light.'},
+        {level:17, name:'Opportunist', type:'reaction', desc:'When a creature within 5 ft is hit by someone else’s attack, make a melee attack against it.'},
+      ],
+      'Way of the Four Elements': [
+        {level:3, name:'Disciple of the Elements', picks:{n:()=>charLevel() >= 17 ? 4 : charLevel() >= 11 ? 3 : charLevel() >= 6 ? 2 : 1, label:'elemental discipline',
+            options:()=>Object.keys(ELEMENTAL_DISCIPLINES).filter(n=>charLevel() >= (DISCIPLINE_LEVEL[n] || 3))}, pickText:ELEMENTAL_DISCIPLINES,
+          desc:'You know Elemental Attunement (minor elemental effects) and one more discipline, plus another at 6th, 11th and 17th level. Disciplines cast spells with ki instead of slots, at most your level’s cap of ki per spell (3 at 5th, 4 at 9th, 5 at 13th, 6 at 17th). Spend ki in Resources.'},
+      ],
+    },
+  },
+  // Druid (2014 PHB)
+  druid: {
+    subclassLabel: 'Druid Circle', subclassLevel: 2,
+    base: [
+      {level:1, name:'Druidic', desc:'You know Druidic, the druids’ secret language, and can leave hidden messages in it.'},
+      {level:1, name:'Spellcasting', desc:'Cast druid spells using Wisdom. Prepare Wisdom modifier + druid level spells (minimum 1) after each long rest; cast prepared rituals as rituals.'},
+      {level:2, name:'Wild Shape', type:'action', uses:{max:()=>charLevel() >= 20 ? 0 : 2, recharge:'short'},
+        roll:{label:'Beast shapes you can take', info:()=>wildShapeLimits() + ' Your hit points become the beast’s; when they reach 0 you change back and extra damage carries over.'},
+        desc:'Turn into a beast you’ve seen, twice per short or long rest (unlimited at 20th level). You use the beast’s statistics but keep your mind, skills and saves (use the higher bonus). You can’t cast spells in beast form. The beast’s stat block isn’t in Turnkeeper yet: the DM has it.'},
+      {level:2, name:'Druid Circle', desc:'Pick your circle (above): the Land or the Moon.'},
+      {level:4, name:'Ability Score Improvement', desc:ASI_TEXT('4, 8, 12, 16 and 19')},
+      {level:18, name:'Timeless Body', desc:'You age only 1 year for every 10 that pass.'},
+      {level:18, name:'Beast Spells', desc:'Cast druid spells with verbal and somatic components while in Wild Shape.'},
+      {level:20, name:'Archdruid', desc:'Unlimited Wild Shape, and you ignore verbal, somatic and non-costly material components of druid spells.'},
+    ],
+    subclasses: {
+      'Circle of the Land': [
+        {level:2, name:'Bonus Cantrip', choose:true, ability:'wis', desc:'Learn one more druid cantrip.',
+          tiers:['Druidcraft', 'Guidance', 'Mending', 'Poison Spray', 'Produce Flame', 'Resistance', 'Shillelagh', 'Thorn Whip'].map(name=>({level:2, name, text:'Cantrip; always prepared.'}))},
+        {level:2, name:'Natural Recovery', uses:{max:()=>1, recharge:'long'},
+          roll:{label:'Slots to recover', info:()=>`When you finish a short rest, choose spent spell slots totalling up to <b>${Math.ceil(charLevel() / 2)} slot level${Math.ceil(charLevel() / 2) === 1 ? '' : 's'}</b> (none 6th level or higher) and restore them in Resources.`},
+          desc:'Once per long rest, when you finish a short rest, recover spent spell slots whose levels add up to half your druid level (rounded up), none 6th level or higher.'},
+        {level:2, name:'Circle of the Land', choose:true, desc:'Pick the land where you became a druid; it sets your circle spells.',
+          tiers:Object.keys(LAND_SPELLS).map(n=>({level:2, name:n, text:`Circle spells: ${LAND_SPELLS[n].map(x=>x[1]).join(', ')}.`}))},
+        {level:3, name:'Circle Spells', desc:'Always prepared; they don’t count against your prepared spells. They follow the land you picked.',
+          get tiers(){ const land = typeof getChoice === 'function' ? getChoice('Circle of the Land') : ''; return (LAND_SPELLS[land] || []).map(([level, name])=>({level, name, text:'Circle spell; always prepared.'})); }},
+        {level:6, name:'Land’s Stride', desc:'Nonmagical difficult terrain doesn’t slow you, and nonmagical plants don’t hurt or hold you. Advantage on saves against magical plants that impede movement.'},
+        {level:10, name:'Nature’s Ward', desc:'You can’t be charmed or frightened by elementals or fey, and you’re immune to poison and disease.'},
+        {level:14, name:'Nature’s Sanctuary', desc:'A beast or plant creature that attacks you makes a Wisdom save against your spell save DC; on a failure it must pick another target or the attack misses. On a success it’s immune for 24 hours.'},
+      ],
+      'Circle of the Moon': [
+        {level:2, name:'Combat Wild Shape', type:'bonus', spends:'feat:Wild Shape', useDesc:'a Wild Shape use',
+          roll:{label:'Healing in beast form (per slot level spent)', cmd:()=>'1d8', desc:()=>'spend a spell slot: 1d8 hit points per slot level'},
+          desc:'Use Wild Shape as a bonus action. In beast form, spend a spell slot as a bonus action to regain 1d8 hit points per level of the slot.'},
+        {level:2, name:'Circle Forms', desc:'Your Wild Shape can turn you into a beast of challenge rating 1 (no flying speed until 8th), and from 6th level up to your druid level divided by 3, rounded down.'},
+        {level:6, name:'Primal Strike', desc:'Your attacks in beast form count as magical for overcoming resistance and immunity.'},
+        {level:10, name:'Elemental Wild Shape', desc:'Spend two Wild Shape uses to become an air, earth, fire or water elemental.'},
+        {level:14, name:'Thousand Forms', desc:'Cast Alter Self at will.'},
       ],
     },
   },
