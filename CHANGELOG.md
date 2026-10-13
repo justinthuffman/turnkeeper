@@ -3,6 +3,37 @@
 What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest first.
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
+## 2026-10-13 — Every PHB race, class and subclass
+
+### Added
+- **Every race and subrace in the Player's Handbook:** Dwarf (Hill, Mountain), Halfling (Lightfoot,
+  Stout), Human and Variant Human, Dragonborn, Gnome (Forest, Rock), Half-Elf and High Elf, alongside
+  the Elves, Half-Orc and Tiefling. A Dragonborn picks an ancestry, which sets the breath weapon
+  (damage, shape, save and DC) and the resistance. A High Elf picks a wizard cantrip; a Variant
+  Human gets a feat at 1st level. The Race box suggests the PHB names.
+- **Spell lists for the Cleric, Druid, Sorcerer, Warlock and Ranger**, with 72 more spells (each
+  with a summary and its rolls).
+- **Every class and subclass in the Player's Handbook.** Joining the Paladin, Wizard, Bard and
+  Rogue:
+  - **Fighter:** Fighting Style, Second Wind, Action Surge, up to four attacks; Champion crits on
+    19 (then 18), Battle Master maneuvers and superiority dice, Eldritch Knight spellcasting.
+  - **Cleric:** Channel Divinity, Turn Undead, all seven domains with their domain spells; Divine
+    Strike, Disciple of Life, Potent Spellcasting.
+  - **Ranger:** favored enemies and terrains, Hunter (Colossus Slayer) and Beast Master.
+  - **Sorcerer:** sorcery points, Metamagic, Draconic Bloodline and Wild Magic.
+  - **Warlock:** Pact Magic, Eldritch Invocations, Pact Boon, Mystic Arcanum, and the Archfey,
+    Fiend and Great Old One with their expanded spells.
+  - **Barbarian:** Rage (damage and resistances while it lasts), Unarmored Defense, Brutal
+    Critical; Berserker and Totem Warrior.
+  - **Monk:** Martial Arts, ki and its save DC, Stunning Strike; Open Hand, Shadow and Four
+    Elements.
+  - **Druid:** Wild Shape (with what you can turn into), Circle of the Land (circle spells by
+    land) and Circle of the Moon.
+
+### Changed
+- **Fighting Styles:** Archery (+2 with ranged weapons), Defense (+1 AC in armor) and Two-Weapon
+  Fighting now change the numbers, for every class that has them.
+
 ## 2026-10-12 — Repeat saves
 
 ### Added
