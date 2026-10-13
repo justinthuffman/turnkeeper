@@ -389,7 +389,7 @@ const RITUAL_SPELLS = new Set(['Alarm','Comprehend Languages','Detect Magic','Fi
   "Tenser's Floating Disk",'Unseen Servant','Gentle Repose','Magic Mouth','Feign Death',
   "Leomund's Tiny Hut",'Phantom Steed','Water Breathing',"Drawmij's Instant Summons",'Detect Poison and Disease',
   'Purify Food and Drink','Speak with Animals','Animal Messenger','Locate Animals or Plants',
-  'Commune','Commune with Nature']);
+  'Commune','Commune with Nature','Augury','Beast Sense','Divination','Meld into Stone','Water Walk','Forbiddance']);
 
 const DESCRIPTIONS_RAW = `Acid Splash::Ranged spray of acid; one or two creatures make a Dex save or take acid damage.
 Blade Ward::Self-buff granting resistance to bludgeoning, piercing, and slashing weapon damage until your next turn.
@@ -679,7 +679,79 @@ Resurrection::Return a creature dead no more than a century to full life.
 Glibness::Replace your Charisma check and saving throw rolls with a fixed high number for the duration.
 Power Word: Heal::A word of power fully heals a target and ends many debilitating conditions.
 Animal Messenger::Send a Tiny beast to deliver a short message to a place or person you name.
-Locate Animals or Plants::Learn the direction and distance to the nearest example of a species you name.`;
+Locate Animals or Plants::Learn the direction and distance to the nearest example of a species you name.
+Guidance::A willing creature you touch adds 1d4 to one ability check of its choice before the spell ends.
+Resistance::A willing creature you touch adds 1d4 to one saving throw of its choice before the spell ends.
+Sacred Flame::Radiant flame falls on a creature you can see; it makes a Dex save (cover doesn't help) or takes radiant damage.
+Spare the Dying::Touch a living creature at 0 hit points; it becomes stable. No effect on undead or constructs.
+Druidcraft::Minor nature magic: predict the weather, make a flower bloom, a harmless sensory effect, or light or snuff a small flame.
+Produce Flame::A flame in your hand sheds light; you can hurl it at a creature within 30 ft as a ranged spell attack, which ends the spell.
+Shillelagh::Your club or quarterstaff uses your spellcasting ability for attack and damage rolls, and its damage die becomes a d8, for 1 minute.
+Thorn Whip::A thorny vine lashes a creature in reach (melee spell attack); a Large or smaller target is pulled up to 10 ft closer.
+Eldritch Blast::A beam of crackling energy (ranged spell attack, 1d10 force). More beams at higher levels: 2 at 5th, 3 at 11th, 4 at 17th.
+Create or Destroy Water::Create up to 10 gallons of clean water, or destroy that much (or fog in a 30-ft cube).
+Guiding Bolt::A flash of light streaks at a creature (ranged spell attack); on a hit, the next attack roll against it before the end of your next turn has advantage.
+Inflict Wounds::Touch a creature (melee spell attack) and deal heavy necrotic damage.
+Entangle::Grasping weeds fill a 20-ft square; creatures there make a Str save or are restrained. A restrained creature can use its action to try to break free (Str check).
+Goodberry::Up to ten berries; eating one (an action) restores 1 hit point and provides a day's nourishment. They lose their potency after 24 hours.
+Armor of Agathys::You gain 5 temporary hit points per slot level; while you have them, a creature that hits you in melee takes that much cold damage.
+Arms of Hadar::Dark tendrils erupt around you; each creature within 10 ft makes a Str save or takes necrotic damage and can't take reactions until its next turn.
+Hex::Curse a creature: your hits on it deal an extra 1d6 necrotic, and it has disadvantage on checks with one ability you pick. Move it to a new target when the old one drops to 0.
+Hail of Thorns::Your next ranged weapon hit sprays thorns: the target and each creature within 5 ft make a Dex save or take piercing damage.
+Augury::Ask about a course of action within the next 30 minutes and get an omen: weal, woe, both, or nothing.
+Find Traps::Sense whether any trap is within 120 ft and in line of sight (not where it is or what it does).
+Prayer of Healing::Up to six creatures you can see regain hit points (takes 10 minutes; no effect on undead or constructs).
+Spiritual Weapon::A floating spectral weapon makes a melee spell attack; on later turns, a bonus action moves it 20 ft and attacks again.
+Warding Bond::A willing creature you touch gets +1 AC and saves and resistance to all damage, and you take the same damage it takes, while you're within 60 ft.
+Barkskin::A willing creature's AC can't be less than 16 for the duration.
+Flame Blade::A fiery scimitar forms in your hand; attack with it as a melee spell attack each turn (an action) for fire damage.
+Pass without Trace::You and allies within 30 ft get +10 to Dexterity (Stealth) checks and can't be tracked except by magic.
+Spike Growth::A 20-ft radius of hidden thorns: difficult terrain, and a creature takes piercing damage for every 5 ft it moves through it.
+Beast Sense::Touch a willing beast to see and hear through its senses until the spell ends (you're blinded and deafened to your own surroundings).
+Cordon of Arrows::Plant four pieces of ammunition; each one flies at a creature that comes within 30 ft (Dex save or piercing damage).
+Mass Healing Word::Up to six creatures you can see within 60 ft regain hit points (a bonus action).
+Meld into Stone::Step into a stone object or surface big enough for you and stay inside it for up to 8 hours.
+Spirit Guardians::Spirits circle you in a 15-ft radius: enemies there have their speed halved, and take radiant (or necrotic) damage on a failed Wis save.
+Water Walk::Up to ten willing creatures can move across any liquid surface as if it were solid ground for 1 hour.
+Call Lightning::A storm cloud forms; each turn you can call a bolt down on a point beneath it (Dex save, lightning damage).
+Conjure Animals::Summon fey spirits as beasts: one CR 2, two CR 1, four CR 1/2 or eight CR 1/4 (the DM has their statistics).
+Wind Wall::A wall of strong wind: creatures in it when it appears take bludgeoning damage (Str save, half); it deflects arrows and small missiles.
+Hunger of Hadar::A 20-ft sphere of darkness and cold: creatures inside are blinded, take cold damage at the start of their turns, and acid damage on a failed Dex save at the end.
+Conjure Barrage::Throw a weapon or fire ammunition and it becomes a 60-ft cone of copies; each creature there makes a Dex save or takes the weapon's damage type.
+Lightning Arrow::Your next ranged weapon attack becomes a lightning bolt: lightning damage on a hit (half on a miss), and creatures within 10 ft of the target save or take more.
+Divination::Ask one question about a goal, event or activity within the next 7 days and get a truthful reply (a short phrase, rhyme or omen).
+Conjure Woodland Beings::Summon fey creatures: one CR 2, two CR 1, four CR 1/2 or eight CR 1/4 (the DM has their statistics).
+Dominate Beast::A beast makes a Wis save or is charmed and obeys your telepathic commands; it repeats the save each time it takes damage.
+Giant Insect::Up to ten centipedes, three spiders, five wasps or one scorpion grow into giant versions that obey your commands.
+Grasping Vine::A vine sprouts within 30 ft; as a bonus action it lashes at a creature within 30 ft of it, which makes a Dex save or is pulled 20 ft toward it.
+Contagion::Touch a creature (melee spell attack) and it is poisoned; after three failed Con saves it catches the disease you chose, which lasts 7 days.
+Hallow::Make an area holy or unholy for a long time: celestials, elementals, fey, fiends and undead can't enter, plus one extra effect you choose.
+Insect Plague::A 20-ft sphere of biting locusts: creatures there make a Con save or take piercing damage; it's lightly obscured difficult terrain.
+Antilife Shell::A 10-ft barrier moves with you and keeps out creatures other than undead and constructs.
+Reincarnate::Touch a dead humanoid (dead no longer than 10 days) and it comes back in a new adult body; roll on the table for its race.
+Conjure Volley::Fire ammunition or throw a weapon into the air: a 40-ft radius of copies rains down; each creature there makes a Dex save or takes damage.
+Swift Quiver::Your quiver never runs out, and each turn you can use a bonus action to make two attacks with a weapon that fires its ammunition.
+Blade Barrier::A wall of whirling blades: creatures entering or starting their turn in it make a Dex save or take slashing damage.
+Forbiddance::Ward an area against planar travel, and creatures of the types you choose take damage when they enter it.
+Harm::A creature makes a Con save or takes necrotic damage (half on a success), and its hit point maximum is reduced by the damage for 1 hour.
+Heal::A creature you can see regains 70 hit points and is cured of blindness, deafness and diseases.
+Heroes' Feast::A feast for up to twelve creatures: cured of disease and poison, immune to poison and fear, advantage on Wis saves, and more hit points for 24 hours.
+Planar Ally::Beseech an otherworldly entity, which sends a celestial, elemental or fiend loyal to it to help you for a price.
+Word of Recall::You and up to five willing creatures teleport to a sanctuary you've set up beforehand.
+Conjure Fey::Summon a fey creature of CR 6 or lower, or a fey spirit as a beast; it's friendly while you keep concentration.
+Transport via Plants::Link a large plant within 10 ft to another one anywhere on the same plane; creatures can step through to the other.
+Wall of Thorns::A wall of tangled brush: creatures in it when it appears take piercing damage (Dex save, half), and moving through it is slow and painful.
+Wind Walk::You and up to ten willing creatures become clouds of mist that can fly fast (300 ft) for 8 hours.
+Conjure Celestial::Summon a celestial of CR 4 or lower; it's friendly while you keep concentration.
+Divine Word::Creatures you choose make a Cha save; on a failure, the effect depends on their current hit points, up to being killed outright.
+Fire Storm::Ten 10-ft cubes of roaring flame; each creature in them makes a Dex save or takes fire damage.
+Earthquake::A violent tremor in a 100-ft circle: creatures fall prone, concentration breaks, fissures open and structures may collapse.
+Holy Aura::Creatures you choose within 30 ft get advantage on saves and attacks against them have disadvantage; fiends and undead that hit them may be blinded.
+Animal Shapes::Turn willing creatures into beasts of CR 4 or lower for up to 24 hours.
+Tsunami::A wall of water crashes forward: creatures in it make a Str save or take bludgeoning damage and are carried along; it weakens each round.
+Mass Heal::Restore up to 700 hit points, divided as you choose among creatures you can see, and cure their blindness, deafness and diseases.
+True Resurrection::Bring back a creature dead no longer than 200 years, with a new body if needed.
+Storm of Vengeance::A churning storm cloud: thunder, then acid rain, then lightning bolts, then hail, over several rounds.`;
 
 const DESCRIPTIONS = {};
 DESCRIPTIONS_RAW.trim().split('\n').forEach(line=>{
@@ -704,6 +776,139 @@ function parseSpells(raw){
     return sp;
   });
 }
+// Spells on the cleric, druid, sorcerer, warlock and ranger lists that aren't on the lists above (2014 PHB)
+const MORE_SPELLS_RAW = `0|Guidance|Divination|1 Action|Touch|Concentration, up to 1 minute|V, S
+0|Resistance|Abjuration|1 Action|Touch|Concentration, up to 1 minute|V, S, M
+0|Sacred Flame|Evocation|1 Action|60 feet|Instantaneous|V, S
+0|Spare the Dying|Necromancy|1 Action|Touch|Instantaneous|V, S
+0|Druidcraft|Transmutation|1 Action|30 feet|Instantaneous|V, S
+0|Produce Flame|Conjuration|1 Action|Self|10 minutes|V, S
+0|Shillelagh|Transmutation|1 Bonus Action|Touch|1 minute|V, S, M
+0|Thorn Whip|Transmutation|1 Action|30 feet|Instantaneous|V, S, M
+0|Eldritch Blast|Evocation|1 Action|120 feet|Instantaneous|V, S
+1|Create or Destroy Water|Transmutation|1 Action|30 feet|Instantaneous|V, S, M
+1|Guiding Bolt|Evocation|1 Action|120 feet|1 round|V, S
+1|Inflict Wounds|Necromancy|1 Action|Touch|Instantaneous|V, S
+1|Entangle|Conjuration|1 Action|90 feet|Concentration, up to 1 minute|V, S
+1|Goodberry|Transmutation|1 Action|Touch|Instantaneous|V, S, M
+1|Armor of Agathys|Abjuration|1 Action|Self|1 hour|V, S, M
+1|Arms of Hadar|Conjuration|1 Action|Self (10-foot radius)|Instantaneous|V, S
+1|Hex|Enchantment|1 Bonus Action|90 feet|Concentration, up to 1 hour|V, S, M
+1|Hail of Thorns|Conjuration|1 Bonus Action|Self|Concentration, up to 1 minute|V
+2|Augury|Divination|1 Minute|Self|Instantaneous|V, S, M
+2|Find Traps|Divination|1 Action|120 feet|Instantaneous|V, S
+2|Prayer of Healing|Evocation|10 Minutes|30 feet|Instantaneous|V
+2|Spiritual Weapon|Evocation|1 Bonus Action|60 feet|1 minute|V, S
+2|Warding Bond|Abjuration|1 Action|Touch|1 hour|V, S, M
+2|Barkskin|Transmutation|1 Action|Touch|Concentration, up to 1 hour|V, S, M
+2|Flame Blade|Evocation|1 Bonus Action|Self|Concentration, up to 10 minutes|V, S, M
+2|Pass without Trace|Abjuration|1 Action|Self|Concentration, up to 1 hour|V, S, M
+2|Spike Growth|Transmutation|1 Action|150 feet|Concentration, up to 10 minutes|V, S, M
+2|Beast Sense|Divination|1 Action|Touch|Concentration, up to 1 hour|S
+2|Cordon of Arrows|Transmutation|1 Action|5 feet|8 hours|V, S, M
+3|Mass Healing Word|Evocation|1 Bonus Action|60 feet|Instantaneous|V
+3|Meld into Stone|Transmutation|1 Action|Touch|8 hours|V, S
+3|Spirit Guardians|Conjuration|1 Action|Self (15-foot radius)|Concentration, up to 10 minutes|V, S, M
+3|Water Walk|Transmutation|1 Action|30 feet|1 hour|V, S, M
+3|Call Lightning|Conjuration|1 Action|120 feet|Concentration, up to 10 minutes|V, S
+3|Conjure Animals|Conjuration|1 Action|60 feet|Concentration, up to 1 hour|V, S
+3|Wind Wall|Evocation|1 Action|120 feet|Concentration, up to 1 minute|V, S, M
+3|Hunger of Hadar|Conjuration|1 Action|150 feet|Concentration, up to 1 minute|V, S, M
+3|Conjure Barrage|Conjuration|1 Action|Self (60-foot cone)|Instantaneous|V, S, M
+3|Lightning Arrow|Transmutation|1 Bonus Action|Self|Concentration, up to 1 minute|V, S
+4|Divination|Divination|1 Action|Self|Instantaneous|V, S, M
+4|Conjure Woodland Beings|Conjuration|1 Action|60 feet|Concentration, up to 1 hour|V, S, M
+4|Dominate Beast|Enchantment|1 Action|60 feet|Concentration, up to 1 minute|V, S
+4|Giant Insect|Transmutation|1 Action|30 feet|Concentration, up to 10 minutes|V, S
+4|Grasping Vine|Conjuration|1 Bonus Action|30 feet|Concentration, up to 1 minute|V, S
+5|Contagion|Necromancy|1 Action|Touch|7 days|V, S
+5|Hallow|Evocation|24 Hours|Touch|Until dispelled|V, S, M
+5|Insect Plague|Conjuration|1 Action|300 feet|Concentration, up to 10 minutes|V, S, M
+5|Antilife Shell|Abjuration|1 Action|Self (10-foot radius)|Concentration, up to 1 hour|V, S
+5|Reincarnate|Transmutation|1 Hour|Touch|Instantaneous|V, S, M
+5|Conjure Volley|Conjuration|1 Action|150 feet|Instantaneous|V, S, M
+5|Swift Quiver|Transmutation|1 Bonus Action|Touch|Concentration, up to 1 minute|V, S, M
+6|Blade Barrier|Evocation|1 Action|90 feet|Concentration, up to 10 minutes|V, S
+6|Forbiddance|Abjuration|10 Minutes|Touch|1 day|V, S, M
+6|Harm|Necromancy|1 Action|60 feet|Instantaneous|V, S
+6|Heal|Evocation|1 Action|60 feet|Instantaneous|V, S
+6|Heroes' Feast|Conjuration|10 Minutes|30 feet|Instantaneous|V, S, M
+6|Planar Ally|Conjuration|10 Minutes|60 feet|Instantaneous|V, S
+6|Word of Recall|Conjuration|1 Action|5 feet|Instantaneous|V
+6|Conjure Fey|Conjuration|1 Minute|90 feet|Concentration, up to 1 hour|V, S
+6|Transport via Plants|Conjuration|1 Action|10 feet|1 round|V, S
+6|Wall of Thorns|Conjuration|1 Action|120 feet|Concentration, up to 10 minutes|V, S, M
+6|Wind Walk|Transmutation|1 Minute|30 feet|8 hours|V, S, M
+7|Conjure Celestial|Conjuration|1 Minute|90 feet|Concentration, up to 1 hour|V, S
+7|Divine Word|Evocation|1 Bonus Action|30 feet|Instantaneous|V
+7|Fire Storm|Evocation|1 Action|150 feet|Instantaneous|V, S
+8|Earthquake|Evocation|1 Action|500 feet|Concentration, up to 1 minute|V, S, M
+8|Holy Aura|Abjuration|1 Action|Self|Concentration, up to 1 minute|V, S, M
+8|Animal Shapes|Transmutation|1 Action|30 feet|Concentration, up to 24 hours|V, S
+8|Tsunami|Conjuration|1 Minute|Sight|Concentration, up to 6 rounds|V, S
+9|Mass Heal|Evocation|1 Action|60 feet|Instantaneous|V, S
+9|True Resurrection|Necromancy|1 Hour|Touch|Instantaneous|V, S, M
+9|Storm of Vengeance|Conjuration|1 Action|Sight|Concentration, up to 1 minute|V`;
+// The cleric, druid, sorcerer, warlock and ranger lists (2014 PHB), by spell level; each spell's
+// details come from whichever list above has it
+const CLASS_SPELL_NAMES = {
+  cleric: [
+    /* 0 */ ['Guidance', 'Light', 'Mending', 'Resistance', 'Sacred Flame', 'Spare the Dying', 'Thaumaturgy'],
+    /* 1 */ ['Bane', 'Bless', 'Command', 'Create or Destroy Water', 'Cure Wounds', 'Detect Evil and Good', 'Detect Magic', 'Detect Poison and Disease', 'Guiding Bolt', 'Healing Word', 'Inflict Wounds', 'Protection from Evil and Good', 'Purify Food and Drink', 'Sanctuary', 'Shield of Faith'],
+    /* 2 */ ['Aid', 'Augury', 'Blindness/Deafness', 'Calm Emotions', 'Continual Flame', 'Enhance Ability', 'Find Traps', 'Gentle Repose', 'Hold Person', 'Lesser Restoration', 'Locate Object', 'Prayer of Healing', 'Protection from Poison', 'Silence', 'Spiritual Weapon', 'Warding Bond', 'Zone of Truth'],
+    /* 3 */ ['Animate Dead', 'Beacon of Hope', 'Bestow Curse', 'Clairvoyance', 'Create Food and Water', 'Daylight', 'Dispel Magic', 'Glyph of Warding', 'Magic Circle', 'Mass Healing Word', 'Meld into Stone', 'Protection from Energy', 'Remove Curse', 'Revivify', 'Sending', 'Speak with Dead', 'Spirit Guardians', 'Tongues', 'Water Walk'],
+    /* 4 */ ['Banishment', 'Control Water', 'Death Ward', 'Divination', 'Freedom of Movement', 'Guardian of Faith', 'Locate Creature', 'Stone Shape'],
+    /* 5 */ ['Commune', 'Contagion', 'Dispel Evil and Good', 'Flame Strike', 'Geas', 'Greater Restoration', 'Hallow', 'Insect Plague', 'Legend Lore', 'Mass Cure Wounds', 'Planar Binding', 'Raise Dead', 'Scrying'],
+    /* 6 */ ['Blade Barrier', 'Create Undead', 'Find the Path', 'Forbiddance', 'Harm', 'Heal', "Heroes' Feast", 'Planar Ally', 'True Seeing', 'Word of Recall'],
+    /* 7 */ ['Conjure Celestial', 'Divine Word', 'Etherealness', 'Fire Storm', 'Plane Shift', 'Regenerate', 'Resurrection', 'Symbol'],
+    /* 8 */ ['Antimagic Field', 'Control Weather', 'Earthquake', 'Holy Aura'],
+    /* 9 */ ['Astral Projection', 'Gate', 'Mass Heal', 'True Resurrection'],
+  ],
+  druid: [
+    /* 0 */ ['Druidcraft', 'Guidance', 'Mending', 'Poison Spray', 'Produce Flame', 'Resistance', 'Shillelagh', 'Thorn Whip'],
+    /* 1 */ ['Animal Friendship', 'Charm Person', 'Create or Destroy Water', 'Cure Wounds', 'Detect Magic', 'Detect Poison and Disease', 'Entangle', 'Faerie Fire', 'Fog Cloud', 'Goodberry', 'Healing Word', 'Jump', 'Longstrider', 'Purify Food and Drink', 'Speak with Animals', 'Thunderwave'],
+    /* 2 */ ['Animal Messenger', 'Barkskin', 'Darkvision', 'Enhance Ability', 'Find Traps', 'Flame Blade', 'Flaming Sphere', 'Gust of Wind', 'Heat Metal', 'Hold Person', 'Lesser Restoration', 'Locate Animals or Plants', 'Locate Object', 'Moonbeam', 'Pass without Trace', 'Protection from Poison', 'Spike Growth'],
+    /* 3 */ ['Call Lightning', 'Conjure Animals', 'Daylight', 'Dispel Magic', 'Meld into Stone', 'Plant Growth', 'Protection from Energy', 'Sleet Storm', 'Speak with Plants', 'Water Breathing', 'Water Walk', 'Wind Wall'],
+    /* 4 */ ['Blight', 'Confusion', 'Conjure Minor Elementals', 'Conjure Woodland Beings', 'Control Water', 'Dominate Beast', 'Freedom of Movement', 'Giant Insect', 'Hallucinatory Terrain', 'Ice Storm', 'Locate Creature', 'Polymorph', 'Stone Shape', 'Stoneskin', 'Wall of Fire'],
+    /* 5 */ ['Antilife Shell', 'Awaken', 'Commune with Nature', 'Conjure Elemental', 'Contagion', 'Geas', 'Greater Restoration', 'Insect Plague', 'Mass Cure Wounds', 'Planar Binding', 'Reincarnate', 'Scrying', 'Tree Stride', 'Wall of Stone'],
+    /* 6 */ ['Conjure Fey', 'Find the Path', 'Heal', "Heroes' Feast", 'Move Earth', 'Sunbeam', 'Transport via Plants', 'Wall of Thorns', 'Wind Walk'],
+    /* 7 */ ['Fire Storm', 'Mirage Arcane', 'Plane Shift', 'Regenerate', 'Reverse Gravity'],
+    /* 8 */ ['Animal Shapes', 'Antipathy/Sympathy', 'Control Weather', 'Earthquake', 'Feeblemind', 'Sunburst', 'Tsunami'],
+    /* 9 */ ['Foresight', 'Shapechange', 'Storm of Vengeance', 'True Resurrection'],
+  ],
+  sorcerer: [
+    /* 0 */ ['Acid Splash', 'Blade Ward', 'Chill Touch', 'Dancing Lights', 'Fire Bolt', 'Friends', 'Light', 'Mage Hand', 'Mending', 'Message', 'Minor Illusion', 'Poison Spray', 'Prestidigitation', 'Ray of Frost', 'Shocking Grasp', 'True Strike'],
+    /* 1 */ ['Burning Hands', 'Charm Person', 'Chromatic Orb', 'Color Spray', 'Comprehend Languages', 'Detect Magic', 'Disguise Self', 'Expeditious Retreat', 'False Life', 'Feather Fall', 'Fog Cloud', 'Jump', 'Mage Armor', 'Magic Missile', 'Ray of Sickness', 'Shield', 'Silent Image', 'Sleep', 'Thunderwave', 'Witch Bolt'],
+    /* 2 */ ['Alter Self', 'Blindness/Deafness', 'Blur', 'Cloud of Daggers', 'Crown of Madness', 'Darkness', 'Darkvision', 'Detect Thoughts', 'Enhance Ability', 'Enlarge/Reduce', 'Gust of Wind', 'Hold Person', 'Invisibility', 'Knock', 'Levitate', 'Mirror Image', 'Misty Step', 'Phantasmal Force', 'Scorching Ray', 'See Invisibility', 'Shatter', 'Spider Climb', 'Suggestion', 'Web'],
+    /* 3 */ ['Blink', 'Clairvoyance', 'Counterspell', 'Daylight', 'Dispel Magic', 'Fear', 'Fireball', 'Fly', 'Gaseous Form', 'Haste', 'Hypnotic Pattern', 'Lightning Bolt', 'Major Image', 'Protection from Energy', 'Sleet Storm', 'Slow', 'Stinking Cloud', 'Tongues', 'Water Breathing', 'Water Walk'],
+    /* 4 */ ['Banishment', 'Blight', 'Confusion', 'Dimension Door', 'Dominate Beast', 'Greater Invisibility', 'Ice Storm', 'Polymorph', 'Stoneskin', 'Wall of Fire'],
+    /* 5 */ ['Animate Objects', 'Cloudkill', 'Cone of Cold', 'Creation', 'Dominate Person', 'Hold Monster', 'Insect Plague', 'Seeming', 'Telekinesis', 'Teleportation Circle', 'Wall of Stone'],
+    /* 6 */ ['Arcane Gate', 'Chain Lightning', 'Circle of Death', 'Disintegrate', 'Eyebite', 'Globe of Invulnerability', 'Mass Suggestion', 'Move Earth', 'Sunbeam', 'True Seeing'],
+    /* 7 */ ['Delayed Blast Fireball', 'Etherealness', 'Finger of Death', 'Fire Storm', 'Plane Shift', 'Prismatic Spray', 'Reverse Gravity', 'Teleport'],
+    /* 8 */ ['Dominate Monster', 'Earthquake', 'Incendiary Cloud', 'Power Word: Stun', 'Sunburst'],
+    /* 9 */ ['Gate', 'Meteor Swarm', 'Power Word: Kill', 'Time Stop', 'Wish'],
+  ],
+  warlock: [
+    /* 0 */ ['Blade Ward', 'Chill Touch', 'Eldritch Blast', 'Friends', 'Mage Hand', 'Minor Illusion', 'Poison Spray', 'Prestidigitation', 'True Strike'],
+    /* 1 */ ['Armor of Agathys', 'Arms of Hadar', 'Charm Person', 'Comprehend Languages', 'Expeditious Retreat', 'Hellish Rebuke', 'Hex', 'Illusory Script', 'Protection from Evil and Good', 'Unseen Servant', 'Witch Bolt'],
+    /* 2 */ ['Cloud of Daggers', 'Crown of Madness', 'Darkness', 'Enthrall', 'Hold Person', 'Invisibility', 'Mirror Image', 'Misty Step', 'Ray of Enfeeblement', 'Shatter', 'Spider Climb', 'Suggestion'],
+    /* 3 */ ['Counterspell', 'Dispel Magic', 'Fear', 'Fly', 'Gaseous Form', 'Hunger of Hadar', 'Hypnotic Pattern', 'Magic Circle', 'Major Image', 'Remove Curse', 'Tongues', 'Vampiric Touch'],
+    /* 4 */ ['Banishment', 'Blight', 'Dimension Door', 'Hallucinatory Terrain'],
+    /* 5 */ ['Contact Other Plane', 'Dream', 'Hold Monster', 'Scrying'],
+    /* 6 */ ['Arcane Gate', 'Circle of Death', 'Conjure Fey', 'Create Undead', 'Eyebite', 'Flesh to Stone', 'Mass Suggestion', 'True Seeing'],
+    /* 7 */ ['Etherealness', 'Finger of Death', 'Forcecage', 'Plane Shift'],
+    /* 8 */ ['Demiplane', 'Dominate Monster', 'Feeblemind', 'Glibness', 'Power Word: Stun'],
+    /* 9 */ ['Astral Projection', 'Foresight', 'Imprisonment', 'Power Word: Kill', 'True Polymorph'],
+  ],
+  ranger: [
+    /* 0 */ [],
+    /* 1 */ ['Alarm', 'Animal Friendship', 'Cure Wounds', 'Detect Magic', 'Detect Poison and Disease', 'Ensnaring Strike', 'Fog Cloud', 'Goodberry', 'Hail of Thorns', "Hunter's Mark", 'Jump', 'Longstrider', 'Speak with Animals'],
+    /* 2 */ ['Animal Messenger', 'Barkskin', 'Beast Sense', 'Cordon of Arrows', 'Darkvision', 'Find Traps', 'Lesser Restoration', 'Locate Animals or Plants', 'Locate Object', 'Pass without Trace', 'Protection from Poison', 'Silence', 'Spike Growth'],
+    /* 3 */ ['Conjure Animals', 'Conjure Barrage', 'Daylight', 'Lightning Arrow', 'Nondetection', 'Plant Growth', 'Protection from Energy', 'Speak with Plants', 'Water Breathing', 'Water Walk', 'Wind Wall'],
+    /* 4 */ ['Conjure Woodland Beings', 'Freedom of Movement', 'Grasping Vine', 'Locate Creature', 'Stoneskin'],
+    /* 5 */ ['Commune with Nature', 'Conjure Volley', 'Swift Quiver', 'Tree Stride'],
+  ]
+};
 const SPELL_DATA = {
   wizard: parseSpells(WIZARD_RAW),
   paladin: parseSpells(PALADIN_RAW),
@@ -724,6 +929,13 @@ const RACIAL_SPELL_RAW = `0|Thaumaturgy|Transmutation|1 Action|30 feet|Up to 1 m
 5|Flame Strike|Evocation|1 Action|60 feet|Instantaneous|V, S, M
 5|Tree Stride|Conjuration|1 Action|Self|Concentration, up to 1 minute|V, S`;
 const EXTRA_SPELLS = parseSpells(RACIAL_SPELL_RAW);
+// The class lists above, filled in from every spell's details
+{
+  const pool = [...SPELL_DATA.wizard, ...SPELL_DATA.paladin, ...SPELL_DATA.bard, ...parseSpells(MORE_SPELLS_RAW), ...EXTRA_SPELLS];
+  Object.entries(CLASS_SPELL_NAMES).forEach(([cls, levels])=>{
+    SPELL_DATA[cls] = levels.flatMap(names=>names.map(n=>pool.find(sp=>sp.name === n))).filter(Boolean);
+  });
+}
 /* Roll data for the Cast Prepared Spell popup, checked against dnd5e.wikidot.com (2014).
    attack: 'ranged'|'melee' spell attack.  save: ability the target saves with; onSave: 'half'|'none'.
    parts: damage [{d, type, per (extra dice per slot above the spell's level)}]; cantrips (cantrip:true)
@@ -918,6 +1130,49 @@ const SPELL_ROLLS = {
   'Time Stop': {rolls:[{label:'Turns in a row', d:'1d4+1', desc:'your turns while time is stopped'}], note:'It ends early if anything you do affects another creature or its belongings, or you move more than 1,000 ft from where you cast it.'},
   'True Polymorph': {save:'wis', effect:'Only an unwilling creature saves: on a failure it turns into another creature or an object, or an object into a creature, for up to 1 hour (permanent if you concentrate the whole hour).'},
   'Weird': {save:'wis', effect:'Frightened for up to 1 minute.', ongoing:{d:'4d10', type:'psychic', save:'wis', text:'At the end of each of its turns it makes a Wisdom save: on a failure it takes this damage, on a success the spell ends for it.'}},
+  // Added 2026-10-13 with the cleric, druid, sorcerer, warlock and ranger lists (2014 PHB).
+  // parts[].mod: add your spellcasting modifier; parts[].perEvery: extra dice per that many slot levels.
+  'Sacred Flame': {save:'dex', onSave:'none', cantrip:true, parts:[{d:'1d8', type:'radiant'}], note:'The target gains no benefit from cover for this save.'},
+  'Produce Flame': {attack:'ranged', cantrip:true, parts:[{d:'1d8', type:'fire'}], note:'Throw the flame at a creature within 30 ft; that ends the spell.'},
+  'Thorn Whip': {attack:'melee', cantrip:true, parts:[{d:'1d6', type:'piercing'}], note:'Reach 30 ft. On a hit, a Large or smaller target is pulled up to 10 ft closer.'},
+  'Eldritch Blast': {attack:'ranged', parts:[{d:'1d10', type:'force'}], note:'This is one beam. You get 2 beams at character level 5, 3 at 11 and 4 at 17: roll the attack and damage for each one (they can target different creatures).'},
+  'Guiding Bolt': {attack:'ranged', parts:[{d:'4d6', type:'radiant', per:'1d6'}], note:'On a hit, the next attack roll against the target before the end of your next turn has advantage.'},
+  'Inflict Wounds': {attack:'melee', parts:[{d:'3d10', type:'necrotic', per:'1d10'}]},
+  'Entangle': {save:'str', onSave:'none', effect:'Restrained by the plants. It can use its action for a Strength check against your save DC to break free.', note:'Each creature in the 20-ft square when you cast it.'},
+  'Armor of Agathys': {temp:{flat:5, perFlat:5, desc:'temporary hit points for 1 hour'}, note:'While you have these temporary hit points, a creature that hits you with a melee attack takes cold damage equal to them at the start (5 per slot level).'},
+  'Arms of Hadar': {save:'str', onSave:'half', parts:[{d:'2d6', type:'necrotic', per:'1d6'}], effect:'It can’t take reactions until its next turn.', note:'Each creature within 10 ft of you.'},
+  'Hex': {rider:{d:'1d6', type:'necrotic', on:'every attack hit on the hexed creature (concentration)'}, fx:{target:true, weapon:'any'}, note:'Pick an ability too: the target has disadvantage on ability checks with it. A 3rd- or 4th-level slot lasts 8 hours; 5th or higher, 24 hours.'},
+  'Hail of Thorns': {save:'dex', onSave:'half', parts:[{d:'1d10', type:'piercing', per:'1d10'}], note:'Cast it, then make a ranged weapon attack. When it hits, the target and each creature within 5 ft of it make this save, on top of your weapon’s damage.'},
+  'Prayer of Healing': {heal:{d:'2d8', per:'1d8'}},
+  'Spiritual Weapon': {attack:'melee', parts:[{d:'1d8', type:'force', per:'1d8', perEvery:2, mod:true}], note:'On later turns, a bonus action moves it 20 ft and attacks again. +1d8 for every two slot levels above 2nd.'},
+  'Flame Blade': {attack:'melee', parts:[{d:'3d6', type:'fire', per:'1d6', perEvery:2}], note:'Attack with the blade as an action on later turns too. +1d6 for every two slot levels above 2nd.'},
+  'Spike Growth': {parts:[{d:'2d4', type:'piercing'}], note:'No attack or save: a creature takes this for every 5 ft it moves in the area.'},
+  'Cordon of Arrows': {save:'dex', onSave:'none', parts:[{d:'1d6', type:'piercing'}], note:'Four pieces (two more per slot level above 2nd); each attacks one creature that comes within 30 ft.'},
+  'Mass Healing Word': {heal:{d:'1d4', per:'1d4'}},
+  'Spirit Guardians': {save:'wis', onSave:'half', parts:[{d:'3d8', type:'radiant', per:'1d8'}], note:'Necrotic instead if you’re evil. A creature saves when it enters the area for the first time on a turn or starts its turn there; its speed is halved there.'},
+  'Call Lightning': {save:'dex', onSave:'half', parts:[{d:'3d10', type:'lightning', per:'1d10'}], note:'Each creature within 5 ft of the point. Call another bolt with your action on later turns. Outdoors in a storm: +1d10.'},
+  'Wind Wall': {save:'str', onSave:'half', parts:[{d:'3d8', type:'bludgeoning'}], note:'Each creature in the wall’s area when it appears.'},
+  'Hunger of Hadar': {parts:[{d:'2d6', type:'cold'}], note:'No save: a creature that starts its turn in the sphere takes this.', saveLater:{save:'dex', text:'a creature that ends its turn in the sphere takes 2d6 acid damage on a failure.'}, rolls:[{label:'Acid (end of its turn, failed save)', d:'2d6', desc:'acid damage'}]},
+  'Conjure Barrage': {save:'dex', onSave:'half', parts:[{d:'3d8', type:'the weapon’s or ammunition’s type'}], note:'60-ft cone.'},
+  'Lightning Arrow': {parts:[{d:'4d8', type:'lightning', per:'1d8'}], note:'Make your next ranged weapon attack as usual: a hit deals this lightning damage instead of the weapon’s, a miss half.', saveLater:{save:'dex', text:'each creature within 10 ft of the target takes 2d8 lightning damage (+1d8 per slot level above 3rd), half on a success.'}, rolls:[{label:'Creatures within 10 ft', d:'2d8', desc:'lightning damage (half on a successful save)'}]},
+  'Dominate Beast': {save:'wis', onSave:'none', effect:'Charmed, and it obeys your telepathic commands. It repeats the save each time it takes damage.'},
+  'Grasping Vine': {save:'dex', onSave:'none', effect:'Pulled 20 ft toward the vine.', note:'On later turns, a bonus action makes the vine lash again.'},
+  'Contagion': {attack:'melee', note:'On a hit, the target is poisoned. At the end of each of its turns it makes a Constitution save: three failures and the disease you chose sets in for 7 days; three successes and it recovers.'},
+  'Insect Plague': {save:'con', onSave:'half', parts:[{d:'4d10', type:'piercing', per:'1d10'}], note:'When it appears, and for a creature entering it for the first time on a turn or ending its turn there.'},
+  'Reincarnate': {rolls:[{label:'New race', d:'1d100', desc:'the DM reads the Reincarnate table'}]},
+  'Conjure Volley': {save:'dex', onSave:'half', parts:[{d:'8d8', type:'the weapon’s or ammunition’s type'}], note:'40-ft radius, 20-ft high cylinder.'},
+  'Blade Barrier': {save:'dex', onSave:'half', parts:[{d:'6d10', type:'slashing'}], note:'A creature saves when it enters the wall for the first time on a turn or starts its turn there.'},
+  'Forbiddance': {parts:[{d:'5d10', type:'radiant or necrotic (your choice)'}], note:'No save: a creature of a type you chose takes this when it enters the area for the first time on a turn or starts its turn there.'},
+  'Harm': {save:'con', onSave:'half', parts:[{d:'14d6', type:'necrotic'}], effect:'Its hit point maximum drops by the damage taken, for 1 hour (not below 1).'},
+  'Heal': {heal:{fixed:70, perFixed:10, desc:'hit points regained (no roll); also cures blindness, deafness and diseases'}},
+  "Heroes' Feast": {rolls:[{label:'Hit point maximum increase', d:'2d10', desc:'each creature that ate: added to its hit point maximum and hit points for 24 hours'}]},
+  'Wall of Thorns': {save:'dex', onSave:'half', parts:[{d:'7d8', type:'piercing', per:'1d8'}], note:'Each creature in the area when it appears. Later, a creature entering it for the first time on a turn or ending its turn there saves against 7d8 slashing.'},
+  'Divine Word': {save:'cha', onSave:'none', effect:'By its current hit points: 50 or fewer, deafened 1 minute; 40 or fewer, also blinded 10 minutes; 30 or fewer, also stunned 1 hour; 20 or fewer, killed. A celestial, elemental, fey or fiend is also sent home.'},
+  'Fire Storm': {save:'dex', onSave:'half', parts:[{d:'7d10', type:'fire'}], note:'Up to ten 10-ft cubes.'},
+  'Earthquake': {saveLater:{save:'dex', text:'each creature on the ground in the area when you cast it and at the start of your turns falls prone on a failure; a creature concentrating there makes a Constitution save or loses it.'}, rolls:[{label:'Collapsing structure', d:'5d6', desc:'bludgeoning damage to creatures nearby (Dex save, half)'}]},
+  'Holy Aura': {saveLater:{save:'con', text:'a fiend or undead that hits a warded creature with a melee attack is blinded until the spell ends on a failure.'}},
+  'Tsunami': {save:'str', onSave:'half', parts:[{d:'6d10', type:'bludgeoning'}], note:'The wall moves 50 ft each turn and loses 1d10 of damage each round after the first.'},
+  'Storm of Vengeance': {saveLater:{save:'con', text:'when the storm appears, each creature under it takes 2d6 thunder damage and is deafened for 5 minutes on a failure.'}, rolls:[{label:'Round 1: thunder (Con save)', d:'2d6', desc:'thunder'}, {label:'Round 2: acid rain (no save)', d:'1d6', desc:'acid'}, {label:'Round 3: six lightning bolts (Dex save, half)', d:'10d6', desc:'lightning'}, {label:'Round 4: hailstones (no save)', d:'2d6', desc:'bludgeoning'}], note:'Rounds 5 to 10: gusts and freezing rain, no damage.'},
 };
 // Checked: these don't involve any roll by the caster
 const NO_ROLL_SPELLS = new Set(['Blade Ward','Dancing Lights','Friends','Light','Mage Hand','Mending','Message',
@@ -942,7 +1197,9 @@ const NO_ROLL_SPELLS = new Set(['Blade Ward','Dancing Lights','Friends','Light',
   'Guards and Wards','Move Earth','Programmed Illusion','True Seeing',
   'Etherealness','Forcecage','Mirage Arcane',"Mordenkainen's Magnificent Mansion",'Project Image','Resurrection','Sequester','Simulacrum',
   'Antimagic Field','Clone','Control Weather','Demiplane','Glibness','Mind Blank','Telepathy',
-  'Astral Projection','Foresight','Gate','Power Word: Heal','Power Word: Kill','Shapechange','Wish']);
+  'Astral Projection','Foresight','Gate','Power Word: Heal','Power Word: Kill','Shapechange','Wish',
+  // Cleric, druid, sorcerer, warlock and ranger spells (2026-10-13)
+  'Guidance','Resistance','Spare the Dying','Druidcraft','Shillelagh','Create or Destroy Water','Goodberry','Augury','Find Traps','Warding Bond','Barkskin','Pass without Trace','Beast Sense','Meld into Stone','Water Walk','Conjure Animals','Divination','Conjure Woodland Beings','Giant Insect','Hallow','Antilife Shell','Swift Quiver','Planar Ally','Word of Recall','Conjure Fey','Transport via Plants','Wind Walk','Conjure Celestial','Animal Shapes','Mass Heal','True Resurrection']);
 
 function findSpell(name){
   for(const list of [...Object.values(SPELL_DATA), EXTRA_SPELLS]){

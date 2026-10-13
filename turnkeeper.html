@@ -2828,10 +2828,11 @@ function spellPopupHtml(){
   }
   (r.parts||[]).forEach((p, i)=>{
     const base = p.alt && rollState.alt ? p.alt : p.d;
-    const dice = scaleDice(base, p.per, {up, cantrip, crit: r.attack && crit}) + adeptMi(p.type);
+    const dice = scaleDice(base, p.per, {up:p.perEvery ? Math.floor(up / p.perEvery) : up, cantrip, crit: r.attack && crit}) + adeptMi(p.type);
+    const plus = `${p.bonus ? '+' + p.bonus : ''}${p.mod && s.mod ? fmtMod(s.mod) : ''}`;
     let extra = r.attack ? critToggle() : '';
     if(p.alt) extra += `<div class="roll-toggles" style="margin-top:6px;">${toggleBtn('data-alt','1',r.altLabel,!!rollState.alt)}</div>`;
-    html += cmdBox('Damage', {crit:!!(r.attack && crit), parts:[{expr:`${dice}${p.bonus ? '+' + p.bonus : ''}${i===0 && empowered ? fmtMod(empowered) : ''}`, type:p.type}], magical:true, cmd:`${dice}${p.bonus ? '+' + p.bonus : ''}${i===0 && empowered ? fmtMod(empowered) : ''}`, desc:`${sp.name} damage (${p.type})${i===0 && empowered ? `, +${empowered} Empowered Evocation` : ''}${adeptMi(p.type) ? ', Elemental Adept (1s count as 2s)' : ''}`}, extra);
+    html += cmdBox('Damage', {crit:!!(r.attack && crit), parts:[{expr:`${dice}${plus}${i===0 && empowered ? fmtMod(empowered) : ''}`, type:p.type}], magical:true, cmd:`${dice}${plus}${i===0 && empowered ? fmtMod(empowered) : ''}`, desc:`${sp.name} damage (${p.type})${p.mod && s.mod ? `, ${fmtMod(s.mod)} ${abil}` : ''}${i===0 && empowered ? `, +${empowered} Empowered Evocation` : ''}${adeptMi(p.type) ? ', Elemental Adept (1s count as 2s)' : ''}`}, extra);
   });
   if(r.explosion){
     const x = r.explosion;
@@ -2839,8 +2840,8 @@ function spellPopupHtml(){
       + cmdBox('Explosion damage', {cmd:`${scaleDice(x.d, x.per, {up})}${adeptMi(x.type)}`, desc:`${sp.name} explosion (${x.type})`});
   }
   // Healing adds your spellcasting modifier unless the spell says otherwise (noMod); flat: a fixed amount on top
-  if(r.heal){ const d = scaleDice(r.heal.d, r.heal.per, {up}); html += cmdBox('Healing', {cmd:`${d}${r.heal.flat ? '+' + r.heal.flat : ''}${r.heal.noMod ? '' : fmtMod(s.mod)}`, desc:r.heal.desc || 'hit points regained'}, healWhoHtml(sp.name, MULTI_HEAL[sp.name] || 1)); }
-  if(r.temp){ const flat = (r.temp.flat || 0) + (r.temp.perFlat || 0) * up; html += cmdBox('Temporary hit points', {cmd:`${r.temp.d}${flat ? '+' + flat : ''}`, desc:r.temp.desc || 'temporary hit points for 1 hour'}, tempMeHtml()); }
+  if(r.heal){ const d = r.heal.fixed ? String(r.heal.fixed + (r.heal.perFixed || 0) * up) : scaleDice(r.heal.d, r.heal.per, {up}); html += cmdBox('Healing', {cmd:`${d}${r.heal.flat ? '+' + r.heal.flat : ''}${r.heal.noMod || r.heal.fixed ? '' : fmtMod(s.mod)}`, desc:r.heal.desc || 'hit points regained'}, healWhoHtml(sp.name, MULTI_HEAL[sp.name] || 1)); }
+  if(r.temp){ const flat = (r.temp.flat || 0) + (r.temp.perFlat || 0) * up; html += cmdBox('Temporary hit points', {cmd:r.temp.d ? `${r.temp.d}${flat ? '+' + flat : ''}` : String(flat), desc:r.temp.desc || 'temporary hit points for 1 hour'}, tempMeHtml()); }
   if(r.pool) html += cmdBox('Hit point pool', {cmd:`${scaleDice(r.pool.d, r.pool.per, {up})}`, desc:r.pool.what});
   // check: a spellcasting ability check (Counterspell, Dispel Magic); saveLater: a save the target makes later, not when cast;
   // rolls: other dice the spell calls for (Prismatic Spray's ray, Confusion's behavior)
