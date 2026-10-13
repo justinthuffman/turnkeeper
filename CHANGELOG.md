@@ -3,6 +3,15 @@
 What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest first.
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
+## 2026-10-13 — Oathbreaker and Death Domain
+
+### Added
+- **The Dungeon Master's Guide villain subclasses:** the Oathbreaker (Paladin) and the Death Domain
+  (Cleric), with the DM's permission. The DM turns them on in Campaign settings (off by default);
+  until then players can't pick them, and a character who already has one keeps it. Wired: oath and
+  domain spells, Control Undead, Dreadful Aspect, Aura of Hate (Charisma on your melee damage),
+  Supernatural Resistance, Dread Lord, Reaper, Touch of Death and necrotic Divine Strike.
+
 ## 2026-10-13 — Every PHB race, class and subclass
 
 ### Added
