@@ -860,6 +860,11 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
         <option value="paladin">Paladin</option>
         <option value="bard">Bard</option>
         <option value="rogue">Rogue</option>
+        <option value="cleric">Cleric</option>
+        <option value="druid">Druid</option>
+        <option value="ranger">Ranger</option>
+        <option value="sorcerer">Sorcerer</option>
+        <option value="warlock">Warlock</option>
       </select>
       <span style="color:var(--ink-dim);">(auto-set from imported class, override if needed)</span>
     </div>
@@ -949,6 +954,7 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
 <script src="js/data/spells.js"></script>
 <script src="js/data/races.js"></script>
 <script src="js/data/classes.js"></script>
+<script src="js/data/classes-phb.js"></script>
 <script src="js/data/feats.js"></script>
 <script src="js/char-store.js"></script>
 <script>
@@ -1520,10 +1526,10 @@ function newCombat(){
 const inCombat = ()=>!!(currentCharId && track.combat);
 // Attacks per Attack action: 1, or more from a feature with `attacks` (Extra Attack)
 function attacksPerAction(){
-  return Math.max(1, ...classFeatureItems().filter(t=>t.attacks && charLevel() >= t.level).map(t=>t.attacks));
+  return Math.max(1, ...classFeatureItems().filter(t=>t.attacks && charLevel() >= t.level).map(t=>t.attacks), classPicks('Eldritch Invocations').includes('Thirsting Blade') ? 2 : 1);
 }
 // Once-per-turn features Turnkeeper keeps count of (used when you copy damage that includes them)
-const ONCE_PER_TURN = {sneak:'Sneak Attack', savage:'Savage Attacker'};
+const ONCE_PER_TURN = {sneak:'Sneak Attack', savage:'Savage Attacker', dstrike:'Divine Strike', colossus:'Colossus Slayer'};
 /* The turn cycle: Start of my turn (the round goes up after the first; your reaction comes
    back; the Attack action's attacks and once-per-turn features reset; Dash ends) → End my
    turn (one round passes for everything with a length: 1 minute = 10 turns, so an effect
@@ -1834,6 +1840,15 @@ function healSelf(n){
 }
 
 function hasFeature(name){ return classFeatureItems().some(t=>t.name===name && charLevel() >= t.level); }
+// What's been picked for a feature with several picks (invocations, Metamagic, maneuvers)
+function classPicks(name){
+  const t = classFeatureItems().find(x=>x.name === name && x.picks && charLevel() >= x.level); if(!t) return [];
+  return Array.from({length:t.picks.n()}, (_, i)=>getChoice(`${name} pick ${i + 1}`)).filter(Boolean);
+}
+// Fighting Styles picked (a Champion gets a second one)
+const fightingStyles = ()=>['Fighting Style', 'Additional Fighting Style'].filter(hasFeature).map(getChoice).filter(Boolean);
+// A weapon attack crits on this or higher (Champion: 19, then 18)
+const critMin = ()=>Math.min(20, ...classFeatureItems().filter(t=>t.critMin && charLevel() >= t.level).map(t=>t.critMin));
 function skillMod(name){ const s = state.skills.find(x=>x.name===name); return s && typeof s.mod==='number' ? s.mod : 0; }
 // A d20 roll: "1d20+5", with an " adv" / " dis" word for advantage and disadvantage
 // (Dice core rolls the two d20s and keeps the higher or lower).
@@ -1954,6 +1969,9 @@ function resistNotes(){
   if(hasTrait('Hellish Resistance')) out.push('fire (Hellish Resistance)');
   if(hasTrait('Dwarven Resilience')) out.push('poison (Dwarven Resilience)');
   if(hasTrait('Stout Resilience')) out.push('poison (Stout Resilience)');
+  if(hasFeature('Avatar of Battle')) out.push('nonmagical bludgeoning, piercing and slashing (Avatar of Battle)');
+  if(hasFeature('Thought Shield')) out.push('psychic (Thought Shield)');
+  if(hasFeature('Fiendish Resilience') && getChoice('Fiendish Resilience')) out.push(`${getChoice('Fiendish Resilience')} (Fiendish Resilience)`);
   if(hasTrait('Damage Resistance') && dragonAncestry()) out.push(`${dragonAncestry().type} (Draconic Ancestry)`);
   if(hasFeature('Aura of Warding')) out.push('damage from spells (Aura of Warding)');
   if(hasFeature('Spell Resistance')) out.push('damage from spells (Spell Resistance)');
@@ -1969,6 +1987,9 @@ function myDefense(){
   if(statusState().on.petrified) res.push(...DAMAGE_TYPE_LIST);
   if(hasTrait('Hellish Resistance')) res.push('fire');
   if(hasTrait('Dwarven Resilience') || hasTrait('Stout Resilience')) res.push('poison');
+  if(hasFeature('Avatar of Battle')) res.push('bludgeoning~', 'piercing~', 'slashing~');
+  if(hasFeature('Thought Shield')) res.push('psychic');
+  if(hasFeature('Fiendish Resilience') && getChoice('Fiendish Resilience')) res.push(getChoice('Fiendish Resilience'));
   if(hasTrait('Damage Resistance') && dragonAncestry()) res.push(dragonAncestry().type);
   const active = new Set([...(track.fx || []).map(e=>e.name), track.conc && track.conc.name].filter(Boolean));
   if(active.has('Protection from Poison')) res.push('poison');
@@ -2264,7 +2285,7 @@ const ORDINAL = ['','1st','2nd','3rd','4th','5th','6th','7th','8th','9th'];
 
 function openRollPopup(sel, mode){
   hideTooltip();
-  Object.assign(rollState, {sel, mode, crit:false, autoCrit:false, smite:0, undead:false, alt:false, sneak:false, savage:false, spendInfo:null, smiteSpent:null,
+  Object.assign(rollState, {sel, mode, crit:false, autoCrit:false, smite:0, undead:false, alt:false, sneak:false, savage:false, dstrike:false, colossus:false, spendInfo:null, smiteSpent:null,
     fxList:[], fxOn:{}, fxStarted:null, concEnded:[], fxBefore:null, fxUsed:false, healed:null, healBefore:null, healTo:null, healDone:null, tempMsg:'', selfCast:null, statusBefore:null, target:null, castBefore:null, aim:null,
     insp:false, reactionMarked:false, reactionWasUsed:false, attackNo:0, attackCounted:false, onHitDone:[], hitRolled:!!sel.noHit});
   // In combat: a reaction is marked used when its popup opens (Undo on the slot gives it back);
@@ -2352,8 +2373,9 @@ function toHitCommand(){
     const bonus = parseInt(String(sel.attack.bonus||'0').replace(/\s/g,''),10) || 0;
     const on = fxOn(), toHit = on.reduce((n, e)=>n + (e.toHit || 0), 0);
     const am = sel.ammo, amMagic = am ? am.magic : 0;
-    const extras = [amMagic && `+${amMagic} ${am.name}`, sel.power && `${sel.power} −5`, ...on.filter(e=>e.toHit).map(e=>`+${e.toHit} ${e.name}`), ...on.filter(e=>e.adv).map(e=>`advantage from ${e.name}`), ...inspPart(), ...statusDescParts(rollState.st)].filter(Boolean);
-    return {cmd:d20Cmd(attackMode(), bonus + amMagic - (sel.power ? 5 : 0) + toHit, false, statusDiceStr(rollState.st)), desc:`${sel.attack.name} attack${extras.length ? ` (${extras.join(', ')})` : ''}`};
+    const pw = parseWeaponDamage(sel.attack.damage), archery = pw && /ranged/i.test(pw.props) && fightingStyles().includes('Archery') ? 2 : 0;
+    const extras = [amMagic && `+${amMagic} ${am.name}`, archery && '+2 Archery', sel.power && `${sel.power} −5`, ...on.filter(e=>e.toHit).map(e=>`+${e.toHit} ${e.name}`), ...on.filter(e=>e.adv).map(e=>`advantage from ${e.name}`), ...inspPart(), ...statusDescParts(rollState.st)].filter(Boolean);
+    return {cmd:d20Cmd(attackMode(), bonus + amMagic + archery - (sel.power ? 5 : 0) + toHit, false, statusDiceStr(rollState.st)), desc:`${sel.attack.name} attack${extras.length ? ` (${extras.join(', ')})` : ''}`};
   }
   if(sel.kind==='check'){
     const c = checkInfo(sel.type, sel.key);
@@ -2367,15 +2389,15 @@ function damageCommand(){
   if(!p) return null;
   const melee = /melee/i.test(p.props);
   const twoHanded = /two-handed/i.test(p.props) || /two-handed/i.test(a.name);
-  const style = hasFeature('Fighting Style') ? getChoice('Fighting Style') : '';
+  const styles = fightingStyles(), style = styles[0] || '';
   const notes = [];
   // Great Weapon Fighting: reroll 1s and 2s once, melee weapon held in two hands
   if(hasFeature('Fighting Style') && !style) notes.push('No Fighting Style picked yet: choose one at the top of Character Summary.');
-  const gwf = style==='Great Weapon Fighting' && melee && twoHanded;
+  const gwf = styles.includes('Great Weapon Fighting') && melee && twoHanded;
   if(gwf) notes.push('Great Weapon Fighting: 1s and 2s on the weapon dice are rerolled once');
   // Dueling: +2 damage with a melee weapon in one hand and no other weapons (so never off-hand)
   const offhand = !!rollState.sel.offhand;
-  const dueling = style==='Dueling' && melee && !twoHanded && !offhand && !a.unarmed;
+  const dueling = styles.includes('Dueling') && melee && !twoHanded && !offhand && !a.unarmed;
   if(dueling) notes.push('Dueling: +2 (one-handed, no other weapons)');
   let count = p.count * (rollState.crit ? 2 : 1);
   if(rollState.crit) notes.push('Crit: all damage dice doubled');
@@ -2394,11 +2416,19 @@ function damageCommand(){
   const sneakOk = hasFeature('Sneak Attack') && (/finesse/i.test(p.props) || /ranged/i.test(p.props));
   const sneakDice = Math.ceil(charLevel()/2);
   let sneak = 0;
+  const dsFeat = classFeatureItems().find(t=>t.strike && charLevel() >= t.level), dsOk = !!dsFeat;
+  const dsType = dsFeat ? (dsFeat.strike.type === 'weapon' ? p.type : dsFeat.strike.type) : '';
+  const dsDice = dsOk && rollState.dstrike ? (()=>{ const d = parseDice(divineStrikeDice()); return `${d.n * (rollState.crit ? 2 : 1)}d${d.s}`; })() : '';
+  if(dsDice) notes.push(`Divine Strike: +${dsDice} ${dsType}. Once per turn.`);
+  const colOk = cf.classKey === 'ranger' && hasFeature('Hunter’s Prey') && getChoice('Hunter’s Prey') === 'Colossus Slayer';
+  const colDice = colOk && rollState.colossus ? `${rollState.crit ? 2 : 1}d8` : '';
+  if(colDice) notes.push('Colossus Slayer: only against a creature below its hit point maximum. Once per turn.');
   if(sneakOk && rollState.sneak){ sneak = sneakDice * (rollState.crit ? 2 : 1); notes.push(`Sneak Attack: +${sneakDice}d6${rollState.crit ? ' (doubled for the crit)' : ''}. Once per turn.`); }
   // Two-Weapon Fighting: the off-hand attack adds no ability modifier to damage unless it's negative.
   // (Assumes the damage modifier is the ability modifier; a magic weapon bonus would also be dropped.)
   let mod = p.mod + (dueling ? 2 : 0);
-  if(offhand){ mod = Math.min(p.mod, 0); notes.push('Two-Weapon Fighting: no ability modifier on off-hand damage (unless negative)'); }
+  if(offhand && styles.includes('Two-Weapon Fighting')) notes.push('Two-Weapon Fighting style: your ability modifier is added to off-hand damage');
+  else if(offhand){ mod = Math.min(p.mod, 0); notes.push('Two-Weapon Fighting: no ability modifier on off-hand damage (unless negative)'); }
   // Great Weapon Master / Sharpshooter: a flat +10, so a crit doesn't double it
   const am = rollState.sel.ammo;
   if(am && am.magic){ mod += am.magic; notes.push(`${escapeHtml(am.name)}: +${am.magic} damage`); }
@@ -2427,7 +2457,7 @@ function damageCommand(){
     if(e.until==='hit' && !e.target) notes.push(`${e.name} ends when you copy this damage (it hit).`);
   });
   const base = !p.count ? String(mod) : `${savage ? `(${weaponDice},${weaponDice})kh1` : weaponDice}${mod ? fmtMod(mod) : ''}`;
-  const cmd = `${base}${amDice ? '+' + amDice : ''}${sneak ? `+${sneak}d6` : ''}${radiant ? `+${radiant}d8` : ''}${fxDice.map(f=>'+'+f.dice).join('')}${stDice.map(x=>x.expr).join('')}`;
+  const cmd = `${base}${amDice ? '+' + amDice : ''}${dsDice ? '+' + dsDice : ''}${colDice ? '+' + colDice : ''}${sneak ? `+${sneak}d6` : ''}${radiant ? `+${radiant}d8` : ''}${fxDice.map(f=>'+'+f.dice).join('')}${stDice.map(x=>x.expr).join('')}`;
   // Beside the command: the damage type, then everything the command adds or changes, e.g.
   // "Greatsword damage (slashing), +10 Great Weapon Master, +2d8 Divine Smite (radiant)"
   const extras = [
@@ -2438,6 +2468,8 @@ function damageCommand(){
     rollState.crit && melee && rt.raceKey==='halforc' && p.die && `+1d${p.die} Savage Attacks`,
     dueling && '+2 Dueling',
     power && `+10 ${power}`,
+    dsDice && `+${dsDice} Divine Strike (${dsType})`,
+    colDice && `+${colDice} Colossus Slayer`,
     sneak && `+${sneak}d6 Sneak Attack`,
     smiteDice && `+${smiteDice}d8 Divine Smite (radiant)`,
     improvedDice && `+${improvedDice}d8 Improved Divine Smite (radiant)`,
@@ -2447,10 +2479,10 @@ function damageCommand(){
   const desc = `${a.name} damage${p.type ? ` (${p.type})` : ''}${extras.length ? ', ' + extras.join(', ') : ''}`;
   // The same damage by type, so resistance and vulnerability can change each part
   const fxType = t=>/same type/.test(t || '') || !t ? p.type : t;
-  const parts = [{expr:base, type:p.type}, amDice && {expr:amDice, type:am.dmgType || p.type}, sneak && {expr:`${sneak}d6`, type:p.type}, radiant && {expr:`${radiant}d8`, type:'radiant'},
+  const parts = [{expr:base, type:p.type}, amDice && {expr:amDice, type:am.dmgType || p.type}, dsDice && {expr:dsDice, type:dsType}, colDice && {expr:colDice, type:p.type}, sneak && {expr:`${sneak}d6`, type:p.type}, radiant && {expr:`${radiant}d8`, type:'radiant'},
     ...fxOn().filter(e=>e.dice).map(e=>{ const d = parseDice(e.dice); return {expr:`${d.n * critX}d${d.s}`, type:fxType(e.type)}; }),
     ...stDice.map(x=>({expr:x.expr.replace(/^\+/, ''), type:p.type}))].filter(Boolean);
-  return {cmd, desc, notes, melee, sneakOk, sneakDice, savageOk, consume:true, parts, magical:!!a.magical};
+  return {cmd, desc, notes, melee, sneakOk, sneakDice, savageOk, dsOk, dsType, colOk, consume:true, parts, magical:!!a.magical};
 }
 
 // c.crit: the damage is a crit's (dice already doubled), flagged CRIT before the description
@@ -2818,6 +2850,15 @@ function spellPopupHtml(){
   const empowered = wizardSpell && sp.school==='Evocation' && hasFeature('Empowered Evocation') ? Math.max(1, abilityScoreMod('int')) : 0;
   if(empowered) notes.push(`Empowered Evocation: +${empowered} (Intelligence) added to the damage.`);
   if(wizardSpell && cantrip && r.save && hasFeature('Potent Cantrip')) notes.push('Potent Cantrip: a target that succeeds on the save still takes half the damage.');
+  // Cleric, sorcerer and warlock features that add to a spell's damage (to its first damage roll)
+  const potent = cf.classKey === 'cleric' && cantrip && e.source !== 'Racial' && hasFeature('Potent Spellcasting') ? abilityScoreMod('wis') : 0;
+  if(potent) notes.push(`Potent Spellcasting: ${fmtMod(potent)} (Wisdom) added to the damage.`);
+  const anc = cf.classKey === 'sorcerer' && hasFeature('Elemental Affinity') ? DRAGON_ANCESTRIES.find(a=>a.name === getChoice('Dragon Ancestor')) : null;
+  const affinity = anc && (r.parts || []).some(p=>p.type === anc.type) ? abilityScoreMod('cha') : 0;
+  if(affinity) notes.push(`Elemental Affinity: ${fmtMod(affinity)} (Charisma) added to one ${anc.type} damage roll.`);
+  const agonizing = sp.name === 'Eldritch Blast' && classPicks('Eldritch Invocations').includes('Agonizing Blast') ? abilityScoreMod('cha') : 0;
+  if(agonizing) notes.push(`Agonizing Blast: ${fmtMod(agonizing)} (Charisma) on each beam.`);
+  const addFirst = empowered + potent + affinity + agonizing;
   // Elemental Adept: 1s on the chosen damage type's dice count as 2s (`mi2` on the dice), and resistance is ignored
   const adept = hasFeat('Elemental Adept') ? getChoice('Elemental Adept').toLowerCase() : '';
   const adeptMi = type=>adept && String(type).toLowerCase()===adept ? 'mi2' : '';
@@ -2832,7 +2873,7 @@ function spellPopupHtml(){
     const plus = `${p.bonus ? '+' + p.bonus : ''}${p.mod && s.mod ? fmtMod(s.mod) : ''}`;
     let extra = r.attack ? critToggle() : '';
     if(p.alt) extra += `<div class="roll-toggles" style="margin-top:6px;">${toggleBtn('data-alt','1',r.altLabel,!!rollState.alt)}</div>`;
-    html += cmdBox('Damage', {crit:!!(r.attack && crit), parts:[{expr:`${dice}${plus}${i===0 && empowered ? fmtMod(empowered) : ''}`, type:p.type}], magical:true, cmd:`${dice}${plus}${i===0 && empowered ? fmtMod(empowered) : ''}`, desc:`${sp.name} damage (${p.type})${p.mod && s.mod ? `, ${fmtMod(s.mod)} ${abil}` : ''}${i===0 && empowered ? `, +${empowered} Empowered Evocation` : ''}${adeptMi(p.type) ? ', Elemental Adept (1s count as 2s)' : ''}`}, extra);
+    html += cmdBox('Damage', {crit:!!(r.attack && crit), parts:[{expr:`${dice}${plus}${i===0 && addFirst ? fmtMod(addFirst) : ''}`, type:p.type}], magical:true, cmd:`${dice}${plus}${i===0 && addFirst ? fmtMod(addFirst) : ''}`, desc:`${sp.name} damage (${p.type})${p.mod && s.mod ? `, ${fmtMod(s.mod)} ${abil}` : ''}${i===0 && empowered ? `, +${empowered} Empowered Evocation` : ''}${adeptMi(p.type) ? ', Elemental Adept (1s count as 2s)' : ''}`}, extra);
   });
   if(r.explosion){
     const x = r.explosion;
@@ -2840,7 +2881,12 @@ function spellPopupHtml(){
       + cmdBox('Explosion damage', {cmd:`${scaleDice(x.d, x.per, {up})}${adeptMi(x.type)}`, desc:`${sp.name} explosion (${x.type})`});
   }
   // Healing adds your spellcasting modifier unless the spell says otherwise (noMod); flat: a fixed amount on top
-  if(r.heal){ const d = r.heal.fixed ? String(r.heal.fixed + (r.heal.perFixed || 0) * up) : scaleDice(r.heal.d, r.heal.per, {up}); html += cmdBox('Healing', {cmd:`${d}${r.heal.flat ? '+' + r.heal.flat : ''}${r.heal.noMod || r.heal.fixed ? '' : fmtMod(s.mod)}`, desc:r.heal.desc || 'hit points regained'}, healWhoHtml(sp.name, MULTI_HEAL[sp.name] || 1)); }
+  if(r.heal){
+    let d = r.heal.fixed ? String(r.heal.fixed + (r.heal.perFixed || 0) * up) : scaleDice(r.heal.d, r.heal.per, {up});
+    const disciple = sp.level > 0 && hasFeature('Disciple of Life') ? 2 + sel.slot : 0;
+    if(disciple) notes.push(`Disciple of Life: +${disciple} (2 + the spell’s level).`);
+    if(hasFeature('Supreme Healing') && /^\d+d\d+$/.test(d)){ const x = parseDice(d); d = String(x.n * x.s); notes.push('Supreme Healing: every die counts as its maximum.'); }
+    html += cmdBox('Healing', {cmd:`${d}${r.heal.flat ? '+' + r.heal.flat : ''}${r.heal.noMod || r.heal.fixed ? '' : fmtMod(s.mod)}${disciple ? '+' + disciple : ''}`, desc:r.heal.desc || 'hit points regained'}, healWhoHtml(sp.name, MULTI_HEAL[sp.name] || 1)); }
   if(r.temp){ const flat = (r.temp.flat || 0) + (r.temp.perFlat || 0) * up; html += cmdBox('Temporary hit points', {cmd:r.temp.d ? `${r.temp.d}${flat ? '+' + flat : ''}` : String(flat), desc:r.temp.desc || 'temporary hit points for 1 hour'}, tempMeHtml()); }
   if(r.pool) html += cmdBox('Hit point pool', {cmd:`${scaleDice(r.pool.d, r.pool.per, {up})}`, desc:r.pool.what});
   // check: a spellcasting ability check (Counterspell, Dispel Magic); saveLater: a save the target makes later, not when cast;
@@ -2883,7 +2929,7 @@ function featurePopupHtml(){
   if(/^Channel Divinity/.test(t.name)) html += `<p class="roll-intro">Uses your Channel Divinity (once per short or long rest).</p>`;
   // Dice a feature rolls (Bardic Inspiration, Portent, Song of Rest…) or a worked-out number
   featureRolls(t).forEach(r=>{
-    if(r.cmd) html += cmdBox(r.label, {cmd:r.cmd(), desc:r.desc ? r.desc() : '', ...(r.type && r.type() ? {parts:[{expr:r.cmd(), type:r.type()}], magical:true} : {})});
+    if(r.cmd) html += cmdBox(r.label, {cmd:r.cmd(), desc:r.desc ? r.desc() : '', ...(r.type && r.type() ? {parts:[{expr:r.cmd(), type:r.type()}], magical:true} : {})}, r.healSelf ? healWhoHtml(t.name, 1) : '');
     if(r.info) html += infoBox(r.label, r.info());
   });
   if(t.save && dc) html += infoBox('Saving throw', `Target makes a <b>DC ${dc} ${ABILITY_TEXT(t.save)}</b> saving throw. ${t.saveNote||''}`);
@@ -3032,6 +3078,8 @@ function renderRollPopup(){
       // Decided after seeing the to-hit roll, per the rules: crit and Divine Smite
       let toggles = `<div class="roll-after">After you see the roll:</div><div class="roll-toggles">${toggleBtn('data-crit','1','Crit',rollState.crit)}`
         + (dmg.sneakOk ? toggleBtn('data-sneak','1',`Sneak Attack (+${dmg.sneakDice}d6)${onceUsed('sneak') ? ' · used this turn' : ''}`,!!rollState.sneak) : '')
+        + (dmg.dsOk ? toggleBtn('data-dstrike','1',`Divine Strike (+${divineStrikeDice()})${onceUsed('dstrike') ? ' · used this turn' : ''}`,!!rollState.dstrike) : '')
+        + (dmg.colOk ? toggleBtn('data-colossus','1',`Colossus Slayer (+1d8)${onceUsed('colossus') ? ' · used this turn' : ''}`,!!rollState.colossus) : '')
         + (dmg.savageOk ? toggleBtn('data-savage','1',`Savage Attacker${onceUsed('savage') ? ' · used this turn' : ''}`,!!rollState.savage) : '') + `</div>`;
       if(dmg.sneakOk && !rollState.sneak) toggles += `<div class="roll-after">Sneak Attack needs advantage, or another enemy of the target within 5 ft of it (and no disadvantage). Once per turn.</div>`;
       const smiteLevels = castableSlotLevels(1);
@@ -3093,6 +3141,8 @@ rollPopup.addEventListener('click', e=>{
   const t = e.target.closest('button'); if(!t) return;
   if(t.dataset.crit){ rollState.crit = !rollState.crit; rollState.autoCrit = false; renderRollPopup(); }
   else if(t.dataset.sneak){ rollState.sneak = !rollState.sneak; renderRollPopup(); }
+  else if(t.dataset.dstrike){ rollState.dstrike = !rollState.dstrike; renderRollPopup(); }
+  else if(t.dataset.colossus){ rollState.colossus = !rollState.colossus; renderRollPopup(); }
   else if(t.dataset.savage){ rollState.savage = !rollState.savage; renderRollPopup(); }
   else if(t.dataset.smite !== undefined){
     const lvl = +t.dataset.smite;
@@ -3266,6 +3316,13 @@ function renderFeatureActionDetail(){
    Racial spells are cast at a fixed level (e.g. Hellish Rebuke at 2nd); everything else uses
    the class's spell slots. */
 const FULL_CASTERS = ['bard','cleric','druid','sorcerer','wizard'];
+// A class's spell list; a warlock's patron adds its expanded spells (by spell level, in order)
+function spellListFor(listKey){
+  const list = SPELL_DATA[listKey] || [];
+  if(listKey !== cf.classKey) return list;
+  const extra = classFeatureItems().filter(t=>t.expanded).flatMap(t=>t.tiers).map(x=>findSpell(x.name)).filter(sp=>sp && !list.includes(sp));
+  return extra.length ? [...list, ...extra].sort((a, b)=>a.level - b.level || a.name.localeCompare(b.name)) : list;
+}
 // Highest spell slot level the character has, from the slot tables (see slotTable)
 function maxSlotLevel(){
   const levels = slotTable().filter(s=>s.max>0).map(s=>s.level);
@@ -3278,10 +3335,10 @@ function castableSpells(){
   alwaysPreparedSpells().filter(x=>charLevel() >= x.unlock).forEach(x=>{
     if(seen.has(x.sp.name)) return; seen.add(x.sp.name);
     entries.push({sp:x.sp, source:x.source, ability:x.ability || listAbility,
-      fixedLevel: x.source==='Racial' && x.sp.level > 0 ? (x.castLevel || x.sp.level) : null, note:x.note});
+      fixedLevel: (x.source==='Racial' || x.perRest) && x.sp.level > 0 ? (x.castLevel || x.sp.level) : null, note:x.note});
   });
   [...state.preparedSpells].forEach(n=>{
-    const sp = SPELL_DATA[listKey].find(s=>s.name===n);
+    const sp = spellListFor(listKey).find(s=>s.name===n);
     if(!sp || seen.has(n)) return; seen.add(n);
     entries.push({sp, source:null, ability:listAbility, fixedLevel:null});
   });
@@ -3583,6 +3640,7 @@ const SPELL_LIMITS = {
   warlock:  {cantrips:cantripsAt(2,3,4), known:byLevel20([2,3,4,5,6,7,8,9,10,10,11,11,12,12,13,13,14,14,15,15])},
   wizard:   {cantrips:cantripsAt(3,4,5), prepared:'int'},
   'rogue|Arcane Trickster': {cantrips:lvl=>lvl >= 10 ? 4 : 3, known:byLevel20([0,0,3,4,4,4,5,6,6,7,8,8,9,10,10,11,11,11,12,13])},
+  'fighter|Eldritch Knight': {cantrips:lvl=>lvl >= 10 ? 3 : 2, known:byLevel20([0,0,3,4,4,4,5,6,6,7,8,8,9,10,10,11,11,11,12,13])},
 };
 // {cantrips, spells, kind, maxLevel, why} for the character now, or {none:reason}; null if the class isn't known
 function spellLimits(){
@@ -3645,7 +3703,7 @@ function renderSpellList(){
     area.appendChild(group);
   }
 
-  const list = SPELL_DATA[classKey];
+  const list = spellListFor(classKey);
   updateSpellSelToggle(list);
   // Limits: how many you can pick, and the highest spell level you can
   const lim = spellLimits(), counts = preparedCounts();
@@ -3909,7 +3967,8 @@ function applyCore(core, charId){
   closeClipPanel(); clipBox.value = ''; restoreConfirm = null;
   updateMoveLine();
   const key = (cls || '').toLowerCase();
-  const matchedKey = ['wizard','paladin','bard','rogue'].find(k=>key.includes(k));
+  // An Eldritch Knight uses the wizard list
+  const matchedKey = cf.classKey === 'fighter' ? 'wizard' : Object.keys(SPELL_DATA).find(k=>key.includes(k));
   if(matchedKey){ document.getElementById('spellClassSelect').value = matchedKey; renderSpellList(); }
   livePush();
   tableWas.active = tableWas.myTurn = null; followDmCombat(); applyIncoming(); renderTable();   // a new character: follow the DM's combat afresh
@@ -4114,6 +4173,11 @@ function buildChoices(){
     out.push({key:'choice:'+t.name, label:t.name, value:getChoice(t.name), options:t.tiers.map(x=>x.name), feature:t}));
   traitsForRace(rt.raceKey).filter(t=>t.choose).forEach(t=>
     out.push({key:'choice:'+t.name, label:t.name, value:getChoice(t.name), options:t.tiers.map(x=>x.name), feature:t}));
+  classFeatureItems().filter(t=>t.picks && lvl >= t.level).forEach(t=>{
+    const n = t.picks.n(), picks = Array.from({length:n}, (_, i)=>getChoice(`${t.name} pick ${i + 1}`) || '');
+    out.push({key:'featpick:' + t.name, label:`${t.name} (${n} ${t.picks.label}${n === 1 ? '' : 's'})`, picks, fp:{feat:t.name, n, label:t.picks.label, options:t.picks.options}, feature:true,
+      value: picks.every(Boolean) ? picks.join(', ') : ''});
+  });
   // Ability Score Improvement levels: +2 ability points or a feat (picked in the Feats section)
   const slots = getSlots();
   openFeatSlots().forEach(l=>{
@@ -4284,6 +4348,7 @@ function featureRow(section, t, withBox){
   const lvlLabel = ownLevel > 1 ? ` <span class="rt-lvl">(level ${ownLevel})</span>` : '';
   row.innerHTML = (withBox ? `<input type="checkbox" ${section.pins.has(t.name)?'checked':''}>` : '')
     + `<div><span class="rt-name">${t.name}</span>${lvlLabel}${typeLabel} <span class="rt-desc">&mdash; ${t.desc}</span>`
+    + (t.picks && classPicks(t.name).length ? `<ul class="rt-sub">${classPicks(t.name).map(n=>`<li><span class="rt-subname">${escapeHtml(n)}</span>${t.pickText && t.pickText[n] ? ` &mdash; ${escapeHtml(t.pickText[n])}` : ''}</li>`).join('')}</ul>` : '')
     + ((t.roll || t.rolls) && level >= ownLevel ? ` <button type="button" class="sel-toggle feature-roll" data-feature-roll>Roll</button>` : '')
     + (t.feat && withBox ? ` <button type="button" class="sel-toggle feat-change" data-feat-row-change>Change</button>` : '')
     + (t.feat && t.prereq && withBox ? `<div class="feat-prereq${t.meets && !t.meets() ? ' unmet' : ''}">Prerequisite: ${t.prereq}${t.meets && !t.meets() ? ' (your score is lower)' : ''}</div>` : '')
@@ -4699,9 +4764,9 @@ function applyFeatStats(){
 /* ---------- Always-prepared spells (racial + class) ---------- */
 // Each spell granted by a trait or feature, with the level it unlocks at
 function grantedSpells(source, features, defaultAbility){
-  return features.flatMap(t=>(t.tiers||[]).filter(tier=>!t.choose || tier.name === getChoice(t.name)).map(tier=>({
+  return features.filter(t=>!t.expanded).flatMap(t=>(t.tiers||[]).filter(tier=>!t.choose || tier.name === getChoice(t.name)).map(tier=>({
     sp: findSpell(tier.name), unlock: Math.max(tier.level, t.level||1), source, from: t.name, note: tier.text,
-    ability: t.ability || defaultAbility, castLevel: tier.castLevel
+    ability: t.ability || defaultAbility, castLevel: tier.castLevel, perRest: tier.perRest
   }))).filter(x=>x.sp);
 }
 function alwaysPreparedSpells(){
@@ -4725,7 +4790,7 @@ const SPELLCASTING = {
   paladin:{ability:'cha', from:2}, ranger:{ability:'wis', from:2},
 };
 // Subclasses that add spellcasting to a non-casting class (Eldritch Knight to come with Fighter)
-const SUBCLASS_CASTING = {'rogue|Arcane Trickster': {ability:'int', from:3}};
+const SUBCLASS_CASTING = {'rogue|Arcane Trickster': {ability:'int', from:3}, 'fighter|Eldritch Knight': {ability:'int', from:3}};
 function castingFor(){
   return SPELLCASTING[cf.classKey] || SUBCLASS_CASTING[`${cf.classKey}|${cf.subclass}`] || null;
 }
@@ -4779,7 +4844,7 @@ function slotTable(){
   const l = Math.min(20, Math.max(1, charLevel())), k = cf.classKey;
   const rows = FULL_CASTERS.includes(k) ? FULL_SLOTS[l] : (k==='paladin' || k==='ranger') ? HALF_SLOTS[l] : null;
   if(rows) return rows.map((max,i)=>({level:i+1, max, recharge:'long', id:'slot'+(i+1)}));
-  if(k==='rogue' && cf.subclass==='Arcane Trickster'){ // third-caster table (2014)
+  if((k==='rogue' && cf.subclass==='Arcane Trickster') || (k==='fighter' && cf.subclass==='Eldritch Knight')){ // third-caster table (2014)
     const at = [null,null,null,[2],[3],[3],[3],[4,2],[4,2],[4,2],[4,3],[4,3],[4,3],[4,3,2],[4,3,2],[4,3,2],[4,3,3],[4,3,3],[4,3,3],[4,3,3,1],[4,3,3,1]][l];
     return (at||[]).map((max,i)=>({level:i+1, max, recharge:'long', id:'slot'+(i+1)}));
   }
@@ -4899,6 +4964,9 @@ function trackedResources(){
   featItems().forEach(t=>{
     if(t.uses) out.push({id:'feat:'+t.name, label:t.name, max:t.uses.max(), recharge:rechargeOf(t.uses.recharge), kind:'pips', group:'Feats'});
   });
+  // Mystic Arcanum: the picked spell, once per long rest
+  classFeatureItems().filter(t=>t.choose && lvl >= t.level).forEach(t=>{ const x = (t.tiers || []).find(y=>y.name === getChoice(t.name) && y.perRest);
+    if(x) out.push({id:'race:'+x.name, label:`${x.name} (${t.name})`, max:1, recharge:x.perRest, kind:'pips', group:'Class'}); });
   traitsForRace(rt.raceKey).forEach(t=>{
     if(t.uses) out.push({id:'race:'+t.name, label:t.name, max:t.uses.max(), recharge:rechargeOf(t.uses.recharge), kind:'pips', group:'Racial'});
     (t.tiers||[]).filter(x=>x.perRest && lvl >= x.level).forEach(x=>
@@ -5602,7 +5670,7 @@ window.onDiceRoll = btn=>{
   // attack roll that isn't a 20 turns an automatic Crit back off
   if(btn.closest('#rollPopup') && /^(To hit|Spell attack)$/.test(btn.dataset.roll || '')){
     const was = rollState.crit;
-    if(roll.nat === 20){ rollState.crit = true; rollState.autoCrit = true; }
+    if(roll.nat >= (rollState.sel && rollState.sel.kind === 'weapon' ? critMin() : 20)){ rollState.crit = true; rollState.autoCrit = true; }
     else if(rollState.autoCrit){ rollState.crit = false; rollState.autoCrit = false; }
     if(rollState.crit !== was) setTimeout(renderRollPopup, 0);
   }

@@ -60,10 +60,16 @@ const RACE_PROFS = {
   dwarf:{weapons:['Battleaxe', 'Handaxe', 'Light Hammer', 'Warhammer']}, hilldwarf:{weapons:['Battleaxe', 'Handaxe', 'Light Hammer', 'Warhammer']},
   mountaindwarf:{weapons:['Battleaxe', 'Handaxe', 'Light Hammer', 'Warhammer'], armor:['light', 'medium']},
 };
+const SUBCLASS_PROFS = {
+  'cleric|Life Domain':{armor:['heavy']}, 'cleric|Nature Domain':{armor:['heavy']},
+  'cleric|Tempest Domain':{armor:['heavy'], weapons:['martial']}, 'cleric|War Domain':{armor:['heavy'], weapons:['martial']},
+  'bard|College of Valor':{armor:['medium', 'shields'], weapons:['martial']},
+};
+const subclassProfs = ()=>SUBCLASS_PROFS[`${cf.classKey}|${cf.subclass}`] || {};
 function profSet(kind){
   const out = new Set();
   const add = list=>(list || []).forEach(x=>out.add(String(x).toLowerCase().replace(/ (weapons|armor)$/, '')));
-  add((CLASS_PROFS[cf.classKey] || {})[kind]); add((RACE_PROFS[rt.raceKey] || {})[kind]);
+  add((CLASS_PROFS[cf.classKey] || {})[kind]); add((RACE_PROFS[rt.raceKey] || {})[kind]); add(subclassProfs()[kind]);
   add(((currentCore && currentCore.profs) || {})[kind === 'weapons' ? 'weapons' : 'armor']);
   add(featProfGrants()[kind]);   // Weapon Master, Lightly/Moderately/Heavily Armored
   return out;
@@ -74,7 +80,7 @@ function grantedProfs(){
   const words = list=>(list || []).map(x=>x === 'simple' || x === 'martial' ? cap(x) + ' weapons' : ['light', 'medium', 'heavy'].includes(x) ? cap(x) + ' armor' : x === 'shields' ? 'Shields' : x);
   const cls = CLASS_PROFS[cf.classKey] || {}, race = RACE_PROFS[rt.raceKey] || {}, feats = featProfGrants();
   return [
-    ['Your class', [...words(cls.armor), ...words(cls.weapons)]],
+    ['Your class', [...words(cls.armor), ...words(cls.weapons), ...words(subclassProfs().armor), ...words(subclassProfs().weapons)]],
     ['Your race', [...words(race.armor), ...words(race.weapons)]],
     ['Feats', [...words(feats.armor), ...feats.weapons, ...feats.skills, ...feats.tools, ...feats.languages]],
   ].filter(([, l])=>l.length);
@@ -173,9 +179,11 @@ function equippedAC(core){
   if(!csDb()) return null;
   const e = equipState(), items = invItems(), get = id=>{ const it = items.find(x=>x.id === id); return it ? itemDef(it.name) : null; };
   const armor = e.armor ? get(e.armor) : null, shield = e.shield ? get(e.shield) : null;
-  if(!armor && !shield) return null;
+  const draconic = typeof hasFeature === 'function' && hasFeature('Draconic Resilience');
+  if(!armor && !shield && !draconic) return null;
   const dex = abilityMod((core.scores || {}).dex ?? 10);
-  let ac = armor ? armor.ac + (armor.dex ? (armor.dexMax != null ? Math.min(dex, armor.dexMax) : dex) : 0) + (parseInt(armor.magic, 10) || 0) : 10 + dex;
+  let ac = armor ? armor.ac + (armor.dex ? (armor.dexMax != null ? Math.min(dex, armor.dexMax) : dex) : 0) + (parseInt(armor.magic, 10) || 0) : (draconic ? 13 : 10) + dex;
+  if(armor && typeof fightingStyles === 'function' && fightingStyles().includes('Defense')) ac += 1;   // Defense fighting style
   if(shield) ac += 2 + (parseInt(shield.magic, 10) || 0);
   return ac;
 }
