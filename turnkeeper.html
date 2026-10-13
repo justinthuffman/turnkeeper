@@ -1980,6 +1980,7 @@ function resistNotes(){
   if(hasTrait('Dwarven Resilience')) out.push('poison (Dwarven Resilience)');
   if(hasTrait('Stout Resilience')) out.push('poison (Stout Resilience)');
   if(hasFeature('Avatar of Battle')) out.push('nonmagical bludgeoning, piercing and slashing (Avatar of Battle)');
+  if(hasFeature('Supernatural Resistance')) out.push('nonmagical bludgeoning, piercing and slashing (Supernatural Resistance)');
   if(raging()) out.push(hasFeature('Totem Spirit') && getChoice('Totem Spirit') === 'Bear' ? 'everything but psychic (Rage, Bear totem)' : 'bludgeoning, piercing and slashing (Rage)');
   if(hasFeature('Thought Shield')) out.push('psychic (Thought Shield)');
   if(hasFeature('Fiendish Resilience') && getChoice('Fiendish Resilience')) out.push(`${getChoice('Fiendish Resilience')} (Fiendish Resilience)`);
@@ -1998,7 +1999,7 @@ function myDefense(){
   if(statusState().on.petrified) res.push(...DAMAGE_TYPE_LIST);
   if(hasTrait('Hellish Resistance')) res.push('fire');
   if(hasTrait('Dwarven Resilience') || hasTrait('Stout Resilience')) res.push('poison');
-  if(hasFeature('Avatar of Battle')) res.push('bludgeoning~', 'piercing~', 'slashing~');
+  if(hasFeature('Avatar of Battle') || hasFeature('Supernatural Resistance')) res.push('bludgeoning~', 'piercing~', 'slashing~');
   if(raging()) res.push('bludgeoning', 'piercing', 'slashing', ...(hasFeature('Totem Spirit') && getChoice('Totem Spirit') === 'Bear' ? DAMAGE_TYPE_LIST.filter(t=>t !== 'psychic') : []));
   const imm = (hasFeature('Purity of Body') || hasFeature('Nature’s Ward')) ? ['poison'] : [];
   if(hasFeature('Thought Shield')) res.push('psychic');
@@ -2411,6 +2412,8 @@ function damageCommand(){
   // Dueling: +2 damage with a melee weapon in one hand and no other weapons (so never off-hand)
   const offhand = !!rollState.sel.offhand;
   const dueling = styles.includes('Dueling') && melee && !twoHanded && !offhand && !a.unarmed;
+  const hate = melee && hasFeature('Aura of Hate') ? Math.max(1, abilityScoreMod('cha')) : 0;
+  if(hate) notes.push(`Aura of Hate: +${hate} (Charisma)`);
   if(dueling) notes.push('Dueling: +2 (one-handed, no other weapons)');
   let count = p.count * (rollState.crit ? 2 : 1);
   if(rollState.crit) notes.push('Crit: all damage dice doubled');
@@ -2441,7 +2444,7 @@ function damageCommand(){
   if(sneakOk && rollState.sneak){ sneak = sneakDice * (rollState.crit ? 2 : 1); notes.push(`Sneak Attack: +${sneakDice}d6${rollState.crit ? ' (doubled for the crit)' : ''}. Once per turn.`); }
   // Two-Weapon Fighting: the off-hand attack adds no ability modifier to damage unless it's negative.
   // (Assumes the damage modifier is the ability modifier; a magic weapon bonus would also be dropped.)
-  let mod = p.mod + (dueling ? 2 : 0);
+  let mod = p.mod + (dueling ? 2 : 0) + hate;
   if(offhand && styles.includes('Two-Weapon Fighting')) notes.push('Two-Weapon Fighting style: your ability modifier is added to off-hand damage');
   else if(offhand){ mod = Math.min(p.mod, 0); notes.push('Two-Weapon Fighting: no ability modifier on off-hand damage (unless negative)'); }
   // Great Weapon Master / Sharpshooter: a flat +10, so a crit doesn't double it
@@ -2486,6 +2489,7 @@ function damageCommand(){
     rollState.crit && melee && rt.raceKey==='halforc' && p.die && `+1d${p.die} Savage Attacks`,
     brutal && `+${brutal}d${p.die} Brutal Critical`,
     dueling && '+2 Dueling',
+    hate && `+${hate} Aura of Hate`,
     ...fxFlat.map(f=>`+${f.n} ${f.name}`),
     power && `+10 ${power}`,
     dsDice && `+${dsDice} Divine Strike (${dsType})`,
@@ -4187,7 +4191,7 @@ function buildChoices(){
   const lvl = charLevel(), out = [];
   const entry = CLASS_FEATURES[cf.classKey];
   if(entry && lvl >= entry.subclassLevel){
-    out.push({key:'subclass', label:entry.subclassLabel, value:cf.subclass, options:Object.keys(entry.subclasses)});
+    out.push({key:'subclass', label:entry.subclassLabel, value:cf.subclass, options:pickableSubclasses(entry)});
   }
   classFeatureItems().filter(t=>t.choose && lvl >= t.level).forEach(t=>
     out.push({key:'choice:'+t.name, label:t.name, value:getChoice(t.name), options:t.tiers.map(x=>x.name), feature:t}));
@@ -4495,7 +4499,7 @@ const classSection = makePinSection({
     wrap.style.display = entry ? '' : 'none';
     if(!entry) return;
     document.getElementById('cfSubclassLabel').textContent = entry.subclassLabel + ':';
-    sel.innerHTML = `<option value="">— choose —</option>` + Object.keys(entry.subclasses)
+    sel.innerHTML = `<option value="">— choose —</option>` + pickableSubclasses(entry)
       .map(s=>`<option value="${s}"${s===cf.subclass?' selected':''}>${s}</option>`).join('');
     const note = document.getElementById('cfSubclassNote');
     note.textContent = !cf.subclass ? `Pick one to see its features (gained at level ${entry.subclassLevel}).` : '';
@@ -4538,6 +4542,13 @@ function updateClassFields(){
     : fromClass && charLevel() < entry.subclassLevel ? `${entry.subclassLabel} from your class. Its features start at level ${entry.subclassLevel}.`
     : `${entry.subclassLabel}: chosen at level ${entry.subclassLevel}${charLevel() >= entry.subclassLevel ? '. Pick one in Class Features.' : ''}`;
 }
+// The DMG villain subclasses (Oathbreaker, Death Domain) only when the DM allows them in Campaign
+// settings; one the character already has stays
+function pickableSubclasses(entry){
+  return Object.keys(entry.subclasses).filter(s=>!DMG_SUBCLASSES.includes(s) || s === cf.subclass || (typeof critSettings !== 'undefined' && critSettings.dmgSubclasses));
+}
+// The DM changed Campaign settings: the subclass list follows
+window.tkSettingsChanged = ()=>{ if(currentCharId){ classSection.render(); renderBuild(); } };
 function setupClassFeatures(clsText){
   cf.classText = String(clsText||'').trim();
   cf.classKey = classKeyFrom(clsText);

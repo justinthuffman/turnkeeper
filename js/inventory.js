@@ -63,6 +63,7 @@ const RACE_PROFS = {
 const SUBCLASS_PROFS = {
   'cleric|Life Domain':{armor:['heavy']}, 'cleric|Nature Domain':{armor:['heavy']},
   'cleric|Tempest Domain':{armor:['heavy'], weapons:['martial']}, 'cleric|War Domain':{armor:['heavy'], weapons:['martial']},
+  'cleric|Death Domain':{weapons:['martial']},
   'bard|College of Valor':{armor:['medium', 'shields'], weapons:['martial']},
 };
 const subclassProfs = ()=>SUBCLASS_PROFS[`${cf.classKey}|${cf.subclass}`] || {};

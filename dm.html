@@ -1939,6 +1939,7 @@ function renderSettings(){
   $('csBody').innerHTML = `<div class="cs-opts">
       <label><input type="checkbox" id="csDiceSound"${critSettings.diceSound ? ' checked' : ''}> Dice sounds on every screen</label>
       <label><input type="checkbox" id="csSound"${critSettings.sound ? ' checked' : ''}> Play sound from clips (MP4 and WebM) on every screen</label>
+      <label title="The Dungeon Master’s Guide villain subclasses: the Oathbreaker (Paladin) and the Death Domain (Cleric). Players can pick them only while this is on."><input type="checkbox" id="csDmgSubclasses"${critSettings.dmgSubclasses ? ' checked' : ''}> DMG villain subclasses (Oathbreaker, Death Domain)</label>
       <label title="A house rule: throwing a healing potion at an ally heals them (the thrower rolls). Drinking or giving one is an action either way."><input type="checkbox" id="csThrownPotions"${critSettings.thrownPotions ? ' checked' : ''}> Thrown potions heal</label>
       <label><input type="checkbox" id="csFx"${critFxOn() ? ' checked' : ''}> Show crit GIFs on this screen</label>
       <label>Party leveling <select id="csLeveling"><option value="milestone"${critSettings.leveling === 'xp' ? '' : ' selected'}>Milestone (you say when)</option><option value="xp"${critSettings.leveling === 'xp' ? ' selected' : ''}>Experience points</option></select></label>
@@ -1994,6 +1995,7 @@ $('csBody').addEventListener('change', e=>{
   else if(e.target.id === 'csDiceSound') csWrite('diceSound', e.target.checked);
   else if(e.target.id === 'csLeveling') csWrite('leveling', e.target.value);
   else if(e.target.id === 'csThrownPotions') csWrite('thrownPotions', e.target.checked);
+  else if(e.target.id === 'csDmgSubclasses') csWrite('dmgSubclasses', e.target.checked);
   else if(e.target.id === 'csFx') setCritFxOn(e.target.checked);
   else if(e.target.dataset.csUsehit) csWrite(`gifs/${e.target.dataset.csUsehit}/useHit`, e.target.checked);
 });

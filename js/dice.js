@@ -558,7 +558,8 @@ function cleanCritSettings(raw){
   });
   // leveling: how the party levels up (Campaign settings): 'milestone' (the DM says when) or 'xp'
   // thrownPotions: a house rule (on unless the DM turns it off): a healing potion thrown at an ally heals them
-  return {sound:raw.sound === true, diceSound:raw.diceSound !== false, leveling:raw.leveling === 'xp' ? 'xp' : 'milestone', thrownPotions:raw.thrownPotions !== false, gifs};
+  // dmgSubclasses: the DM allows the Dungeon Master's Guide villain subclasses (Oathbreaker, Death Domain); off unless turned on
+  return {sound:raw.sound === true, diceSound:raw.diceSound !== false, leveling:raw.leveling === 'xp' ? 'xp' : 'milestone', thrownPotions:raw.thrownPotions !== false, dmgSubclasses:raw.dmgSubclasses === true, gifs};
 }
 let critSettings = cleanCritSettings(null);
 // What a crit shows: {gif, text, side} or null. who replaces {who} in flavor text.

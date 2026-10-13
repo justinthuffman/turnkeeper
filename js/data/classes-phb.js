@@ -602,3 +602,36 @@ Object.assign(CLASS_FEATURES, {
     },
   },
 });
+
+/* ---------- Dungeon Master's Guide (2014) villain subclasses ----------
+   The Oathbreaker (Paladin) and the Death Domain (Cleric). Players can pick them only when the DM
+   allows it (Campaign settings → DMG villain subclasses); a character who already has one keeps it. */
+const DMG_SUBCLASSES = ['Oathbreaker', 'Death Domain'];
+CLASS_FEATURES.paladin.subclasses['Oathbreaker'] = [
+  {level:3, name:'Oathbreaker Spells', desc:'Always prepared; they don’t count against your prepared spells.',
+    tiers:oathSpells([[3,'Hellish Rebuke'],[3,'Inflict Wounds'],[5,'Crown of Madness'],[5,'Darkness'],[9,'Animate Dead'],[9,'Bestow Curse'],[13,'Blight'],[13,'Confusion'],[17,'Contagion'],[17,'Dominate Person']])},
+  {level:3, name:'Channel Divinity: Control Undead', type:'action', spends:'channelDivinity', save:'wis',
+    saveNote:'One undead within 30 ft that you can see. On a failure it obeys your commands for 24 hours, or until you use this again. An undead whose challenge rating is equal to or higher than your paladin level is immune.',
+    desc:'Bend an undead creature to your will.'},
+  {level:3, name:'Channel Divinity: Dreadful Aspect', type:'action', spends:'channelDivinity', save:'wis',
+    saveNote:'Each creature of your choice within 30 ft that can see you. On a failure it is frightened of you for 1 minute; if it ends its turn more than 30 ft from you, it repeats the save, ending the effect on a success.',
+    desc:'Channel your darkest emotions to frighten those around you.'},
+  {level:7, name:'Aura of Hate', desc:'You, and any fiends and undead within 10 ft of you (30 ft at 18th level), add your Charisma modifier (minimum +1) to melee weapon damage. Turnkeeper adds it to yours. Only one Aura of Hate counts for a creature.'},
+  {level:15, name:'Supernatural Resistance', desc:'Resistance to bludgeoning, piercing and slashing damage from nonmagical weapons.'},
+  {level:20, name:'Dread Lord', type:'action', uses:{max:()=>1, recharge:'long'},
+    roll:{label:'Shadow attack (bonus action, melee spell attack)', cmd:()=>`3d10${abilityScoreMod('cha') ? fmtMod(abilityScoreMod('cha')) : ''}`, desc:()=>'necrotic damage', type:()=>'necrotic'},
+    desc:'For 1 minute, a 30-ft aura of gloom surrounds you: bright light there becomes dim. Enemies frightened of you take 4d10 psychic damage at the start of their turns, and you and creatures of your choice in the aura are hidden in shadows (attacks against you rely on sight have disadvantage). As a bonus action you can make a melee spell attack with the shadows against a creature in the aura. Once per long rest.'},
+];
+CLASS_FEATURES.cleric.subclasses['Death Domain'] = [
+  {level:1, name:'Domain Spells', desc:'Always prepared; they don’t count against your prepared spells.',
+    tiers:domainSpells([[1,'False Life'],[1,'Ray of Sickness'],[3,'Blindness/Deafness'],[3,'Ray of Enfeeblement'],[5,'Animate Dead'],[5,'Vampiric Touch'],[7,'Blight'],[7,'Death Ward'],[9,'Antilife Shell'],[9,'Cloudkill']])},
+  {level:1, name:'Bonus Proficiency', desc:'Proficiency with martial weapons.'},
+  {level:1, name:'Reaper', choose:true, ability:'wis', desc:'Learn one necromancy cantrip of your choice. When you cast a necromancy cantrip that targets only one creature, it can target two creatures within 5 ft of each other.',
+    tiers:['Chill Touch', 'Spare the Dying'].map(name=>({level:1, name, text:'Cantrip; always prepared.'}))},
+  {level:2, name:'Channel Divinity: Touch of Death', spends:'channelDivinity',
+    roll:{label:'Extra damage on the hit', cmd:()=>`${5 + 2 * charLevel()}`, desc:()=>'necrotic damage (5 + twice your cleric level)', type:()=>'necrotic'},
+    desc:'When you hit a creature with a melee attack, use Channel Divinity to deal extra necrotic damage equal to 5 + twice your cleric level.'},
+  {level:6, name:'Inescapable Destruction', desc:'Necrotic damage from your cleric spells and Channel Divinity ignores resistance to necrotic damage.'},
+  divineStrike('necrotic', 'necrotic'),
+  {level:17, name:'Improved Reaper', desc:'When you cast a necromancy spell of 1st through 5th level that targets only one creature, it can target two creatures within 5 ft of each other (using the material component for each).'},
+];
