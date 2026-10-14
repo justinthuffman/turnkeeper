@@ -3,6 +3,27 @@
 What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest first.
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
+## 2026-10-13 — Action markers, and fixes from a practice combat
+
+### Added
+- **Action and bonus action markers.** In combat, on your turn, the combat bar shows a green dot for
+  your action and an orange triangle for your bonus action (like Baldur's Gate 3). Spells, features,
+  attacks, Dash, Dodge, Hide, Throw, Use Object, off-hand attacks and Cunning Action mark them used;
+  they come back at the start of your turn, and Action Surge adds an action. Nothing is blocked: a
+  popup says when you've already used it, and casting a spell after a bonus-action spell reminds you
+  of the 2014 rule (only a 1-action cantrip).
+
+### Changed
+- **Turnkeeper never tells players a DC.** Repeat saves say which save to roll and send your total to
+  the DM, who decides; campaign effects say which save or check ends them. The DM Screen still shows
+  the DC; the DM tells you if he chooses.
+- **Healing spells** pick who to heal in one place (no extra Target box).
+- **Closing the dice tray** with a click elsewhere also does what you clicked (Heal, the DM's Yes).
+
+### Fixed
+- Spells cast on others sometimes never reached the DM Screen or the turn order (an older saved spell
+  made the whole save fail).
+
 ## 2026-10-13 — Oathbreaker and Death Domain
 
 ### Added
