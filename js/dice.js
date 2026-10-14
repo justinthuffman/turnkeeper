@@ -502,13 +502,15 @@ function showRoll(roll, opts){
 const natWords = roll=>roll.kind === 'hit' ? (roll.nat === 20 ? 'Critical Hit' : 'Critical Miss') : `Natural ${roll.nat}`;
 function hideRoll(){ clearTimeout(diceHideTimer); document.getElementById('diceCard').hidden = true; dicePlaySeq++; clearDice(); }   // dicePlaySeq++: a roll still setting up doesn't show
 // Clicking anywhere outside the tray and the card puts the roll away (not the click that made
-// the roll, and not one on a crit GIF, which closes itself), and still does what was clicked (Heal,
-// the DM's Yes). Clicks on the tray or the card itself don't reach anything behind them.
+// the roll, and not one on a crit GIF, which closes itself). A click on a control still does what
+// it does (Heal, Roll damage, the DM's Yes); a click on empty space (around a roll popup, which
+// would close it) only puts the roll away, so the popup stays for the damage roll.
 let rollShownAt = 0;
 document.addEventListener('click', e=>{
   if(document.getElementById('diceCard').hidden || Date.now() - rollShownAt < 400) return;
   if(e.target.closest && e.target.closest('#diceCard, #diceTray, #critFx')) return;
   hideRoll();
+  if(!(e.target.closest && e.target.closest('button, a[href], input, select, textarea, label, summary, [role="button"]'))){ e.stopPropagation(); e.preventDefault(); }
 }, true);
 document.getElementById('diceCard').addEventListener('click', e=>{ if(e.target.closest('.dc-close')) hideRoll(); });
 // A roll from the database (untrusted): only known shapes and values get through
