@@ -353,6 +353,12 @@ button.ds-mark:hover{border-color:var(--ink);}
 button.turn-chip{cursor:pointer;}
 button.turn-chip:hover{background:var(--panel2); border-color:var(--sea);}
 .turn-chip.used{border-color:var(--orange); background:var(--orange-tint);}
+.turn-chip .pip{display:inline-block; margin-right:5px; vertical-align:-1px;}
+.turn-chip .pip-act{width:10px; height:10px; border-radius:50%; background:#3fb950;}
+.turn-chip .pip-bonus{width:0; height:0; border-left:6px solid transparent; border-right:6px solid transparent; border-bottom:10px solid #f0883e;}
+.turn-chip.spent{opacity:0.55;}
+.turn-chip.spent .pip-act{background:transparent; box-shadow:inset 0 0 0 2px #3fb950;}
+.turn-chip.spent .pip-bonus{border-bottom-color:var(--ink-dim);}
 /* Inspiration beside hit points */
 button.insp-btn{margin-left:8px; padding:1px 10px; border:1px solid var(--border); border-radius:999px; font-size:0.8rem; background:var(--panel2); color:var(--ink-dim); white-space:nowrap;}
 button.insp-btn:hover{background:var(--panel2); border-color:var(--sea);}
@@ -1143,7 +1149,9 @@ document.getElementById('actionButtons').addEventListener('click', e=>{
   const act = btn.dataset.act;
   // Choosing an Action sets whether you're dashing this turn (see updateMoveLine)
   dashActive = act==='dash' && !detailOpenFor('dash');
-  if(detailOpenFor(act)){ closeDetail(); return; }
+  const simple = ['dash', 'disengage', 'dodge', 'help', 'ready'].includes(act);
+  if(detailOpenFor(act)){ if(simple) giveBackAction('act', act); closeDetail(); return; }
+  if(simple && inCombat() && track.combat.onTurn){ if(track.combat.actBy && ['dash', 'disengage', 'dodge', 'help', 'ready'].includes(track.combat.actBy)) giveBackAction('act', track.combat.actBy); takeAction('act', act); }
   document.querySelectorAll('.action-grid button').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
   openAct = act;
@@ -1400,7 +1408,7 @@ function renderCheckDetail(act){
   actionDetail.querySelectorAll('[data-skill]').forEach(b=>b.addEventListener('click', ()=>{ checkFlow.skill = b.dataset.skill; renderCheckDetail(act); }));
   actionDetail.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click', ()=>{ checkFlow.mode = b.dataset.mode; renderCheckDetail(act); }));
   const go = document.getElementById('flowRoll');
-  if(go) go.addEventListener('click', ()=>openRollPopup({kind:'check', label:def.title, type:'skill', key:checkFlow.skill}, checkFlow.mode));
+  if(go) go.addEventListener('click', ()=>openRollPopup({kind:'check', label:def.title, type:'skill', key:checkFlow.skill, takesAction:true}, checkFlow.mode));
 }
 
 /* ---------- Checks & Saves (Anytime): kind → skill/ability → roll mode → Roll → popup ----------
@@ -1550,6 +1558,8 @@ function renderCombat(){
   const per = attacksPerAction();
   const chips = [
     `<button type="button" class="turn-chip${c.reaction ? ' used' : ''}" data-combat="reaction" title="${c.reaction ? 'Used: back at the start of your turn. Click to give it back.' : 'Available. Click to mark it used.'}">Reaction ${c.reaction ? 'used' : 'ready'}</button>`,
+    c.onTurn ? `<button type="button" class="turn-chip${(c.acts || 0) >= actionsMax() ? ' spent' : ''}" data-combat="action" title="${(c.acts || 0) >= actionsMax() ? 'Used this turn: back at the start of your next turn. Click to give it back.' : 'Available. Click to mark it used.'}"><span class="pip pip-act"></span>${actionsMax() > 1 ? `Actions ${Math.min(c.acts || 0, actionsMax())} of ${actionsMax()} used` : (c.acts || 0) ? 'Action used' : 'Action'}</button>` : '',
+    c.onTurn ? `<button type="button" class="turn-chip${c.bonus ? ' spent' : ''}" data-combat="bonus" title="${c.bonus ? 'Used this turn: back at the start of your next turn. Click to give it back.' : 'Available. Click to mark it used.'}"><span class="pip pip-bonus"></span>${c.bonus ? 'Bonus action used' : 'Bonus action'}</button>` : '',
     c.onTurn ? `<button type="button" class="turn-chip${c.attacks >= per ? ' used' : ''}" data-combat="attacks" title="Attacks you've copied from the Attack action this turn. Click to set it back to 0.">Attacks ${c.attacks || 0} of ${per}</button>` : '',
     ...Object.entries(ONCE_PER_TURN).filter(([k])=>c.once && c.once[k]).map(([k, name])=>`<button type="button" class="turn-chip used" data-combat="once" data-once="${k}" title="Once per turn. Click to give it back.">${name} used</button>`),
   ].join('');
@@ -1562,7 +1572,7 @@ function renderCombat(){
 function startOfTurn(){
   const c = track.combat;
   if(c.started) c.round += 1;
-  Object.assign(c, {started:true, onTurn:true, reaction:false, attacks:0, once:{}});
+  Object.assign(c, {started:true, onTurn:true, reaction:false, attacks:0, once:{}, acts:0, bonus:false, surge:0, spells:[], actBy:null, bonusBy:null});
   c.msg = [`Round ${c.round}: your turn. Your reaction is back.`, ...turnEffectNotes()].join(' ');
   // A new turn: Dash from last turn is over
   dashActive = false; bonusDashActive = false;
@@ -1624,6 +1634,8 @@ document.getElementById('combatBar').addEventListener('click', e=>{
   else if(k === 'endturn'){ endOfTurn(); sendTurnEnd(); }
   else {
     if(k === 'reaction') c.reaction = !c.reaction;
+    else if(k === 'action'){ c.acts = (c.acts || 0) >= actionsMax() ? 0 : actionsMax(); c.actBy = null; }
+    else if(k === 'bonus'){ c.bonus = !c.bonus; c.bonusBy = null; }
     else if(k === 'attacks') c.attacks = 0;
     else if(k === 'once') delete c.once[b.dataset.once];
     saveTrack(); renderCombat();
@@ -2092,8 +2104,55 @@ function isReactionSel(sel){
   return !!sel.reaction || (sel.kind==='feature' && sel.feature.type==='reaction') || (sel.kind==='spell' && isReactionSpell(sel.entry.sp));
 }
 const isAttackActionSel = sel=>!sel.reaction && !sel.offhand && !(sel.throwInfo && sel.throwInfo.ownAction) && !sel.noHit && (sel.kind==='weapon' || !!MANEUVERS[sel.kind]);
+/* ---------- Action and bonus action (in combat, on your turn) ----------
+   A green dot and an orange triangle on the combat bar, like Baldur's Gate 3. Something marks them
+   used when it takes them: a spell by its casting time, a feature by its type, the Attack action's
+   first attack, Dash, Disengage, Dodge, Help, Ready, Hide, Search, Throw, Use Object, an off-hand
+   attack, Cunning Action. They come back at the start of your turn. Nothing is ever blocked: a
+   popup says when it's already used, and the DM decides. Action Surge gives one more action.
+   2014 rule: after a bonus-action spell, the only other spell that turn is a 1-action cantrip. */
+const actionsMax = ()=>1 + ((track.combat && track.combat.surge) || 0);
+// 'act' or 'bonus' for what a popup does, or null (a reaction, a free check, the Attack action's attacks)
+function actionKindOf(sel){
+  if(sel.kind === 'spell'){ if(sel.ritual) return null; const t = sel.entry.sp.time || ''; return /Bonus Action/i.test(t) ? 'bonus' : /^1?\s*Action\b/i.test(t) ? 'act' : null; }
+  if(sel.kind === 'feature') return sel.feature.type === 'bonus' ? 'bonus' : sel.feature.type === 'action' ? 'act' : null;
+  if(sel.kind === 'concBonus') return 'bonus';
+  if(sel.kind === 'potion') return 'act';
+  if(sel.kind === 'check') return sel.bonusAct ? 'bonus' : sel.takesAction ? 'act' : null;
+  if(sel.kind === 'weapon') return sel.offhand ? 'bonus' : (sel.noHit || (sel.throwInfo && sel.throwInfo.ownAction)) ? 'act' : null;
+  return null;
+}
+// Mark it used; returns true if it was already used (the popup says so)
+function takeAction(kind, by){
+  const c = track.combat; if(!inCombat() || !c.onTurn || !kind) return false;
+  let was;
+  if(kind === 'bonus'){ was = !!c.bonus; c.bonus = true; c.bonusBy = by || null; }
+  else { was = (c.acts || 0) >= actionsMax(); c.acts = (c.acts || 0) + 1; c.actBy = by || null; }
+  saveTrack(); renderCombat();
+  return was;
+}
+function giveBackAction(kind, by){
+  const c = track.combat; if(!inCombat() || !kind) return;
+  if(kind === 'bonus'){ if(c.bonus && (!by || c.bonusBy === by)){ c.bonus = false; c.bonusBy = null; } }
+  else if((c.acts || 0) > 0 && (!by || c.actBy === by)){ c.acts -= 1; c.actBy = null; }
+  saveTrack(); renderCombat();
+}
+// The bonus-action spell rule, for a spell about to be cast (null if it's fine)
+function spellRuleWarning(sp){
+  const c = track.combat; if(!inCombat() || !c.onTurn) return null;
+  const others = (c.spells || []).filter(x=>x.name !== sp.name);
+  const bonusHere = /Bonus Action/i.test(sp.time || ''), cantripAction = sp.level === 0 && /^1?\s*Action\b/i.test(sp.time || '');
+  const bonusBefore = others.find(x=>x.bonus);
+  if(bonusBefore && !cantripAction) return `You cast ${bonusBefore.name} with your bonus action this turn: the only other spell you can cast this turn is a cantrip with a casting time of 1 action. Check with your DM.`;
+  if(bonusHere && others.some(x=>!(x.level === 0 && x.action))) return `You’ve already cast a spell this turn that isn’t a 1-action cantrip: casting a spell as a bonus action means the only other spell that turn is a 1-action cantrip. Check with your DM.`;
+  return null;
+}
 function turnLineHtml(){
   const c = track.combat; if(!inCombat()) return '';
+  const extra = [rollState.actLine, rollState.spellRule].filter(Boolean).map(t=>`<div class="spent-line warn">${t}</div>`).join('');
+  return turnLineCore(c) + extra;
+}
+function turnLineCore(c){
   if(rollState.reactionMarked) return `<div class="spent-line${rollState.reactionWasUsed ? ' warn' : ''}">${rollState.reactionWasUsed ? 'You’d already used your reaction this round. Check with your DM.' : 'Uses your reaction: it comes back at the start of your turn.'}</div>`;
   if(rollState.attackNo){
     const per = attacksPerAction();
@@ -2299,7 +2358,7 @@ const ORDINAL = ['','1st','2nd','3rd','4th','5th','6th','7th','8th','9th'];
 
 function openRollPopup(sel, mode){
   hideTooltip();
-  Object.assign(rollState, {sel, mode, crit:false, autoCrit:false, smite:0, undead:false, alt:false, sneak:false, savage:false, dstrike:false, colossus:false, spendInfo:null, smiteSpent:null,
+  Object.assign(rollState, {sel, mode, actLine:'', spellRule:null, crit:false, autoCrit:false, smite:0, undead:false, alt:false, sneak:false, savage:false, dstrike:false, colossus:false, spendInfo:null, smiteSpent:null,
     fxList:[], fxOn:{}, fxStarted:null, concEnded:[], fxBefore:null, fxUsed:false, healed:null, healBefore:null, healTo:null, healDone:null, tempMsg:'', selfCast:null, statusBefore:null, target:null, castBefore:null, aim:null,
     insp:false, reactionMarked:false, reactionWasUsed:false, attackNo:0, attackCounted:false, onHitDone:[], hitRolled:!!sel.noHit});
   // In combat: a reaction is marked used when its popup opens (Undo on the slot gives it back);
@@ -2308,6 +2367,13 @@ function openRollPopup(sel, mode){
     const c = track.combat;
     if(isReactionSel(sel)){ rollState.reactionWasUsed = c.reaction; c.reaction = true; rollState.reactionMarked = true; saveTrack(); renderCombat(); }
     else if(isAttackActionSel(sel) && c.onTurn) rollState.attackNo = (c.attacks || 0) + 1;
+    if(sel.kind === 'spell' && c.onTurn && !sel.ritual){
+      rollState.spellRule = spellRuleWarning(sel.entry.sp);
+      c.spells = [...(c.spells || []).filter(x=>x.name !== sel.entry.sp.name), {name:sel.entry.sp.name, level:sel.entry.sp.level, bonus:/Bonus Action/i.test(sel.entry.sp.time || ''), action:/^1?\s*Action\b/i.test(sel.entry.sp.time || '')}];
+    }
+    const ak = actionKindOf(sel);
+    if(ak && c.onTurn && takeAction(ak, 'popup')) rollState.actLine = ak === 'bonus' ? 'You’ve already used your bonus action this turn. Check with your DM.' : 'You’ve already used your action this turn. Check with your DM.';
+    if(sel.kind === 'feature' && sel.feature.name === 'Action Surge' && c.onTurn){ c.surge = Math.min(1, (c.surge || 0) + 1); saveTrack(); renderCombat(); }
   }
   // Using a spell slot, racial use or feature charge is tracked as soon as the popup opens
   let id = null, desc = '';
@@ -3245,6 +3311,7 @@ rollPopup.addEventListener('click', e=>{
     }
     if(t.dataset.countAttack && !rollState.attackCounted && inCombat()){
       track.combat.attacks = (track.combat.attacks || 0) + 1; rollState.attackCounted = true;
+      if(track.combat.attacks === 1 && track.combat.onTurn && takeAction('act', 'attack')){ rollState.actLine = 'You’ve already used your action this turn. Check with your DM.'; setTimeout(renderRollPopup, 0); }
       saveTrack(); renderCombat();
     }
   }
@@ -3562,11 +3629,12 @@ function wireCunningStep(){
     const k = b.dataset.cunning;
     bonusFlow.cunning = bonusFlow.cunning===k ? null : k;
     bonusDashActive = bonusFlow.cunning==='dash';
+    if(k !== 'hide'){ if(bonusFlow.cunning) takeAction('bonus', 'cunning'); else giveBackAction('bonus', 'cunning'); }
     updateMoveLine(); renderBonusDetail();
   }));
   actionDetail.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click', ()=>{ bonusFlow.cmode = b.dataset.mode; renderBonusDetail(); }));
   const go = document.getElementById('flowRoll');
-  if(go) go.addEventListener('click', ()=>openRollPopup({kind:'check', label:'Hide (Cunning Action)', type:'skill', key:'Stealth'}, bonusFlow.cmode));
+  if(go) go.addEventListener('click', ()=>openRollPopup({kind:'check', label:'Hide (Cunning Action)', type:'skill', key:'Stealth', bonusAct:true}, bonusFlow.cmode));
 }
 
 /* ---------- Reactions flow (Anytime): same path as Bonus Action Options ----------
