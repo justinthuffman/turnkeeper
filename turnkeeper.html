@@ -1558,9 +1558,8 @@ function renderCombat(){
   const per = attacksPerAction();
   const chips = [
     `<button type="button" class="turn-chip${c.reaction ? ' used' : ''}" data-combat="reaction" title="${c.reaction ? 'Used: back at the start of your turn. Click to give it back.' : 'Available. Click to mark it used.'}">Reaction ${c.reaction ? 'used' : 'ready'}</button>`,
-    c.onTurn ? `<button type="button" class="turn-chip${(c.acts || 0) >= actionsMax() ? ' spent' : ''}" data-combat="action" title="${(c.acts || 0) >= actionsMax() ? 'Used this turn: back at the start of your next turn. Click to give it back.' : 'Available. Click to mark it used.'}"><span class="pip pip-act"></span>${actionsMax() > 1 ? `Actions ${Math.min(c.acts || 0, actionsMax())} of ${actionsMax()} used` : (c.acts || 0) ? 'Action used' : 'Action'}</button>` : '',
+    c.onTurn ? `<button type="button" class="turn-chip${(c.acts || 0) >= actionsMax() ? ' spent' : ''}" data-combat="action" title="${(c.acts || 0) >= actionsMax() ? 'Used this turn: back at the start of your next turn. Click to give it back.' : 'Available. Click to mark it used.'}"><span class="pip pip-act"></span>${actionsMax() > 1 ? `Actions ${Math.min(c.acts || 0, actionsMax())} of ${actionsMax()} used` : (c.acts || 0) ? `Action used${per > 1 && c.attacks ? ` (attack ${Math.min(c.attacks, per)} of ${per})` : ''}` : 'Action'}</button>` : '',
     c.onTurn ? `<button type="button" class="turn-chip${c.bonus ? ' spent' : ''}" data-combat="bonus" title="${c.bonus ? 'Used this turn: back at the start of your next turn. Click to give it back.' : 'Available. Click to mark it used.'}"><span class="pip pip-bonus"></span>${c.bonus ? 'Bonus action used' : 'Bonus action'}</button>` : '',
-    c.onTurn ? `<button type="button" class="turn-chip${c.attacks >= per ? ' used' : ''}" data-combat="attacks" title="Attacks you've copied from the Attack action this turn. Click to set it back to 0.">Attacks ${c.attacks || 0} of ${per}</button>` : '',
     ...Object.entries(ONCE_PER_TURN).filter(([k])=>c.once && c.once[k]).map(([k, name])=>`<button type="button" class="turn-chip used" data-combat="once" data-once="${k}" title="Once per turn. Click to give it back.">${name} used</button>`),
   ].join('');
   bar.innerHTML = `<span class="combat-round">Round ${c.round}</span>`
@@ -1634,9 +1633,8 @@ document.getElementById('combatBar').addEventListener('click', e=>{
   else if(k === 'endturn'){ endOfTurn(); sendTurnEnd(); }
   else {
     if(k === 'reaction') c.reaction = !c.reaction;
-    else if(k === 'action'){ c.acts = (c.acts || 0) >= actionsMax() ? 0 : actionsMax(); c.actBy = null; }
+    else if(k === 'action'){ const back = (c.acts || 0) >= actionsMax(); c.acts = back ? 0 : actionsMax(); if(back) c.attacks = 0; c.actBy = null; }   // giving the action back resets the Attack action's attacks
     else if(k === 'bonus'){ c.bonus = !c.bonus; c.bonusBy = null; }
-    else if(k === 'attacks') c.attacks = 0;
     else if(k === 'once') delete c.once[b.dataset.once];
     saveTrack(); renderCombat();
   }
