@@ -2621,11 +2621,11 @@ function myRepeatSaves(when){
   arrOf(me.conds).forEach(k=>{
     const d = defs.find(x=>x.name === k.name);
     const save = k.save || (d && d.endKind === 'save' ? saveKeyOf(d.endWhat) : null);
-    const dc = k.save ? k.dc : d && d.endDC, w = k.save ? (k.when || 'end') : d && (d.endWhen || 'end');
-    if(save && dc && w === when) out.push({name:k.name, save, dc:+dc, by:k.by || ''});
+    const w = k.save ? (k.when || 'end') : d && (d.endWhen || 'end');
+    if(save && w === when) out.push({name:k.name, save, by:k.by || ''});
   });
-  allEffects().filter(e=>e.casterChar !== currentCharId && e.save && e.dc && (e.when || 'end') === when && arrOf(e.targets).some(t=>t.char === currentCharId))
-    .forEach(e=>out.push({name:e.name, save:e.save, dc:+e.dc, by:e.caster || '', fx:e.id, casterChar:e.casterChar}));
+  allEffects().filter(e=>e.casterChar !== currentCharId && e.save && (e.when || 'end') === when && arrOf(e.targets).some(t=>t.char === currentCharId))
+    .forEach(e=>out.push({name:e.name, save:e.save, by:e.caster || '', fx:e.id, casterChar:e.casterChar}));
   return out;
 }
 function pendingSaves(){ return (tableActive() && track.combat && Array.isArray(track.combat.saves)) ? track.combat.saves : []; }
@@ -2642,14 +2642,14 @@ function openRepeatSave(){
 }
 function repeatSaveLineHtml(){
   const r = rollState.sel.repeat;
-  const res = r.total === undefined ? '' : r.total >= r.dc ? ` You rolled <b>${r.total}</b>: <b>saved</b>. Your DM ends it.` : ` You rolled <b>${r.total}</b>: failed. It stays on you.`;
-  return `<div class="roll-after">Against <b>${escapeHtml(r.name)}</b>${r.by ? ` (from ${escapeHtml(r.by)})` : ''}: DC <b>${r.dc}</b>. On a success it ends.${res}</div>`;
+  const res = r.total === undefined ? '' : ` You rolled <b>${r.total}</b>; it went to your DM.`;
+  return `<div class="roll-after">Against <b>${escapeHtml(r.name)}</b>${r.by ? ` (from ${escapeHtml(r.by)})` : ''}. Your DM says whether it ends.${res}</div>`;
 }
 function afterRepeatSave(roll){
-  const r = rollState.sel.repeat, ok = roll.total >= r.dc;
+  const r = rollState.sel.repeat;
   r.total = roll.total;
   track.combat.saves = pendingSaves().filter(p=>!(p.name === r.name && p.by === r.by)); saveTrack();
-  if(window.tkSendAct) window.tkSendAct('saved', {what:r.name.slice(0, 80), save:r.save, total:roll.total, dc:r.dc, ok, ...(r.fx ? {fx:String(r.fx).slice(0, 40)} : {}), ...(r.casterChar ? {caster:r.casterChar} : {})});
+  if(window.tkSendAct) window.tkSendAct('saved', {what:r.name.slice(0, 80), save:r.save, total:roll.total, ...(r.fx ? {fx:String(r.fx).slice(0, 40)} : {}), ...(r.casterChar ? {caster:r.casterChar} : {})});
   renderTable(); setTimeout(renderRollPopup, 0);
   if(pendingSaves().length) setTimeout(openRepeatSave, 2500);
 }
@@ -2709,7 +2709,7 @@ function renderTable(){
   banner.className = 'combat-banner' + (mine ? ' mine' : '');
   banner.innerHTML = `<span class="cb-title">⚔ In combat</span><span>Round ${c.round}</span><span>${mine ? '<b>Your turn!</b>' : cur ? `${escapeHtml(cur.name)}’s turn` : ''}</span>`
     + (mine && track.combat && track.combat.onTurn ? `<button type="button" class="ghost cb-end" data-banner-end="1">End my turn</button>` : '')
-    + pendingSaves().slice(0, 1).map(r=>`<button type="button" class="cb-save" data-banner-save="1">Roll your ${SAVE_NAMES[r.save]} save against ${escapeHtml(r.name)} (DC ${r.dc})</button>`).join('');
+    + pendingSaves().slice(0, 1).map(r=>`<button type="button" class="cb-save" data-banner-save="1">Roll your ${SAVE_NAMES[r.save]} save against ${escapeHtml(r.name)}</button>`).join('');
   document.getElementById('tableRound').textContent = `Round ${c.round} · ${(c.round - 1) * 6} seconds in`;
   const effs = allEffects(), live = table.live || {};
   document.getElementById('itable').innerHTML = order.map(o=>{
@@ -2797,7 +2797,8 @@ function aimMax(sel){
   const r = SPELL_ROLLS[sel.entry.sp.name]; if(!r) return 0;
   const up = sel.entry.sp.level ? Math.max(0, (sel.slot || sel.entry.sp.level) - sel.entry.sp.level) : 0;
   if(r.darts) return r.darts.n + up;
-  return r.attack || r.heal ? 1 : r.save ? 12 : 0;
+  if(r.heal && !r.attack && !r.save) return 0;   // healing spells pick who in their own "Heal" box
+  return r.attack ? 1 : r.save ? 12 : 0;
 }
 function aimHtml(){
   const sel = rollState.sel, max = aimMax(sel);

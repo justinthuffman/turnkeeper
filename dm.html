@@ -796,9 +796,15 @@ window.dmActsUpdate = (key, data)=>{
         // A character repeated a save in their Turnkeeper (Hold Person on them): a success asks to end it
         const c = combat.list.find(x=>x.kind === 'pc' && x.name === name); if(!c || !combat.round) return;
         const abil = SAVE_NAMES[a.save] || '', what = String(a.what || '');
-        if(!a.ok){ logLine(`${name} failed the ${abil} save against ${what} (${a.total} against DC ${a.dc})`); saveCombat(); renderInit(); return; }
+        // The DC: the DM's own condition, a campaign effect's, or the caster's spell
+        const k = c.conds.find(x=>x.name === what), d = (window.dmEffectDefs || {})[what];
+        const fxDc = a.fx ? Object.values(effects).map(l=>l && l[a.fx]).find(Boolean) : null;
+        const dc = (k && k.dc) || (d && d.endDC) || (fxDc && fxDc.dc) || null;
+        a.dc = dc; a.ok = dc ? Number(a.total) >= dc : null;
+        if(a.ok === false){ logLine(`${name} failed the ${abil} save against ${what} (${a.total} against DC ${a.dc})`); saveCombat(); renderInit(); return; }
         dmPrompt({
-          html:`<p><b>${esc(name)}</b> saved against <b>${esc(what)}</b>: rolled <b class="dp-roll hit">${esc(a.total)}</b> on a ${esc(abil)} save against DC ${esc(a.dc)}.</p><p class="dp-q">End ${esc(what)} on ${esc(name)}?</p>`,
+          html:a.ok ? `<p><b>${esc(name)}</b> saved against <b>${esc(what)}</b>: rolled <b class="dp-roll hit">${esc(a.total)}</b> on a ${esc(abil)} save against DC ${esc(a.dc)}.</p><p class="dp-q">End ${esc(what)} on ${esc(name)}?</p>`
+            : `<p><b>${esc(name)}</b> rolled <b>${esc(a.total)}</b> on a ${esc(abil)} save against <b>${esc(what)}</b> (no DC set).</p><p class="dp-q">End ${esc(what)} on ${esc(name)}?</p>`,
           yes:()=>endRepeat(c.id, {name:what, fx:a.fx || null, by:''}, a.fx ? char : null),
           no:()=>{ logLine(`${name}: ${what} stays`); saveCombat(); renderInit(); },
         });
@@ -990,7 +996,7 @@ function combatView(){
   const freed = pruneFreed();
   return {active:true, round:combat.round, turn:combat.turn, ...(freed.length ? {freed} : {}), order:ordered().map(c=>{
     const pc = c.kind === 'pc' ? campaign.party.find(p=>p.name === c.name) : null;
-    return {id:c.id, kind:c.kind, name:c.name.slice(0, 100), char:pc ? pc.char : null, init:c.init, down:isDown(c), bloodied:isBloodied(c), conds:c.conds.map(k=>({name:k.name.slice(0, 60), rounds:k.rounds || 0, ...(k.by ? {by:String(k.by).slice(0, 100)} : {}), ...(k.save && k.dc ? {save:k.save, dc:k.dc, when:k.when || 'end'} : {})})),
+    return {id:c.id, kind:c.kind, name:c.name.slice(0, 100), char:pc ? pc.char : null, init:c.init, down:isDown(c), bloodied:isBloodied(c), conds:c.conds.map(k=>({name:k.name.slice(0, 60), rounds:k.rounds || 0, ...(k.by ? {by:String(k.by).slice(0, 100)} : {}), ...(k.save && k.dc ? {save:k.save, when:k.when || 'end'} : {})})),   // never the DC: players don't see it
       // Damage defenses (players' damage rolls do the math); characters' own aren't shared
       ...(()=>{ const d = c.kind !== 'pc' && defenseOf(c); if(!d) return {}; const o = {}; ['res', 'vul', 'imm'].forEach(k=>{ if(d[k] && d[k].length) o[k] = d[k].slice(0, 13); }); return o; })()};   // lengths fit the database rules
   })};
