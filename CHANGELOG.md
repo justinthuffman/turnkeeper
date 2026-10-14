@@ -3,6 +3,15 @@
 What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest first.
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
+## 2026-10-13 — Pick your subclass
+
+### Changed
+- **Subclass is a dropdown you pick from** in Character Summary, once your class reaches its subclass
+  level (a wizard at 2nd, a paladin, bard or rogue at 3rd). Until then it says when, and no subclass
+  applies; at that level the "choice to make" banner shows until you pick. It's no longer guessed
+  from your imported class (a level 2 "Vengeance Paladin" has no oath yet). You can change it from
+  the dropdown; the DM decides if that's allowed.
+
 ## 2026-10-13 — Improvised throws use Dexterity
 
 ### Changed
