@@ -68,6 +68,9 @@ button.ghost:hover{color:var(--ink); border-color:var(--sea-dim);}
 .field input[readonly]{cursor:default; opacity:0.92;}
 .field.wide{grid-column:1 / -1;}   /* the whole row, until fitNameField() sizes it */
 .field.span2{grid-column:span 2;}   /* Campaign: room for the whole name */
+/* Class and Subclass always share a line: one box three columns wide (two on a phone), Subclass
+   twice as wide as Class so the longest names ("Path of the Totem Warrior") fit */
+.class-pair{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,2fr); gap:10px 14px; grid-column:span 2; min-width:0;}   /* fitNameField() widens it to three columns when they fit */
 /* "● Live with the DM" beside the Campaign label */
 .live-tag{text-transform:none; letter-spacing:0; margin-left:4px;}
 .live-tag.on{color:var(--green);}
@@ -78,6 +81,7 @@ button.ghost:hover{color:var(--ink); border-color:var(--sea-dim);}
 .summary-grid .field select#f_subclass{box-sizing:border-box; width:100%; height:36px; background:var(--bg); border:1px solid var(--border); color:var(--ink); border-radius:4px; padding:0 8px; font:inherit;}
 .summary-grid .field select#f_subclass:disabled{color:var(--ink-dim); opacity:1;}
 .summary-grid .field select#f_subclass.need-pick{border-color:var(--orange); box-shadow:0 0 0 1px var(--orange);}
+@media (max-width:520px){ .class-pair{grid-template-columns:minmax(0,1fr) minmax(0,2.4fr);} .summary-grid .field select#f_subclass{font-size:0.85rem; padding:0 4px;} }   /* phones: the longest subclass names still fit */
 
 /* minmax(0,1fr) so the six columns can shrink below the inputs' width; tighter on phones */
 .stats-row{display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:10px; margin-top:14px;}
@@ -696,8 +700,7 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
     <div class="field name wide"><label>Character Name <button type="button" class="sel-toggle name-edit" id="nameEdit" hidden>Rename</button></label><input id="f_name" type="text" readonly></div>
     <div class="field"><label>Level</label><input id="f_level" type="text" readonly></div>
     <div class="field"><label>Race</label><input id="f_race" type="text" readonly></div>
-    <div class="field"><label>Class</label><input id="f_class" type="text" readonly></div>
-    <div class="field"><label>Subclass</label><select id="f_subclass" aria-label="Subclass"></select></div>
+    <div class="class-pair"><div class="field"><label>Class</label><input id="f_class" type="text" readonly></div><div class="field"><label>Subclass</label><select id="f_subclass" aria-label="Subclass"></select></div></div>
     <div class="field span2"><label>Campaign <span class="live-tag" id="campaignLive" hidden></span></label><input id="f_campaign" type="text" readonly title="The campaign this character plays in. Its DM sees the character on the DM Screen."></div>
     <div class="field"><label>AC</label><input id="f_ac" type="text" readonly></div>
     <div class="field"><label>HP (current/max)</label><input id="f_hp" type="text" readonly></div>
@@ -1063,16 +1066,22 @@ function renderAttacksList(){ attackSection.render(); }
 /* ---------- Character Summary layout ----------
    The name box takes as many columns as leave the other fields in full rows (e.g. on a phone
    with two columns it shares a row with Level, so Spell Attack isn't left on a row by itself).
+   Class and Subclass count as one box three columns wide.
    With a whole row free it spans all of it. */
 const summaryGrid = document.querySelector('.summary-grid');
 function fitNameField(){
   const name = summaryGrid.querySelector('.field.name');
-  const cols = getComputedStyle(summaryGrid).gridTemplateColumns.split(' ').filter(Boolean).length || 1;
+  // Columns that fit (minmax(110px, 1fr), 14px gaps), worked out from the width: a box spanning more
+  // columns than fit would add columns of its own
+  const cols = Math.max(1, Math.floor((summaryGrid.clientWidth + 14) / (110 + 14)));
   // Boxes after the name fill cells; .span2 boxes take two, and so does the character's icon
   // (one column, two rows), which the name shares its row with
   const icon = summaryGrid.querySelector('.icon-cell:not([hidden])');
+  // Class and Subclass: three columns, or the whole row when there are fewer
+  const pair = summaryGrid.querySelector('.class-pair'), pairSpan = Math.min(3, cols);
+  if(pair) pair.style.gridColumn = `span ${pairSpan}`;
   const others = [...summaryGrid.children].filter(el=>el!==name && !el.hidden && getComputedStyle(el).display!=='none')
-    .reduce((n, el)=>n + (el.classList.contains('span2') || el === icon ? 2 : 1), 0);
+    .reduce((n, el)=>n + (el.classList.contains('class-pair') ? pairSpan : el.classList.contains('span2') || el === icon ? 2 : 1), 0);
   let span = (cols - others % cols) % cols || cols;
   if(icon && cols > 1) span = Math.min(span, cols - 1);
   name.style.gridColumn = `span ${span}`;
@@ -4603,7 +4612,7 @@ function updateClassFields(){
   subEl.disabled = early;
   subEl.innerHTML = !entry ? `<option value="">${cf.classText ? '—' : ''}</option>`
     : early ? `<option value="">— (at level ${entry.subclassLevel})</option>`
-    : `<option value="">Choose your ${escapeHtml(entry.subclassLabel)}…</option>` + pickableSubclasses(entry).map(s=>`<option value="${escapeHtml(s)}"${s === cf.subclass ? ' selected' : ''}>${escapeHtml(s)}</option>`).join('');
+    : `<option value="">Choose…</option>` + pickableSubclasses(entry).map(s=>`<option value="${escapeHtml(s)}"${s === cf.subclass ? ' selected' : ''}>${escapeHtml(s)}</option>`).join('');
   subEl.classList.toggle('need-pick', !early && !cf.subclass);
   subEl.title = !entry ? '' : early ? `${entry.subclassLabel}: chosen at level ${entry.subclassLevel}.` : cf.subclass ? `${entry.subclassLabel}. Change it here or in Class Features.` : `Choose your ${entry.subclassLabel}.`;
 }
