@@ -3102,7 +3102,7 @@ function applyTurnEffects(c, me){
       const mine = myDefense(), a = d.dmgType && defends(mine.imm, d.dmgType, true) ? 'i' : d.dmgType && defends(mine.res, d.dmgType, true) ? 'r' : '';
       const took = a === 'i' ? 0 : a === 'r' ? Math.floor(n / 2) : n, why = a === 'i' ? ` (immune, from ${n})` : a === 'r' ? ` (resistant: half of ${n})` : '';
       if(took) takeDamage(took);
-      const ends = d.endKind && d.endWhat ? `; a DC ${d.endDC || '?'} ${d.endWhat} ${d.endKind} ends it` : d.duration === 'healed' ? '; it ends when you’re healed' : '';
+      const ends = d.endKind && d.endWhat ? `; a ${d.endWhat} ${d.endKind} can end it (your DM has the DC)` : d.duration === 'healed' ? '; it ends when you’re healed' : '';
       lines.push(`${name}${who}: you take ${took} ${d.dmgType || ''} damage${why}${ends}.`.replace(/\s+/g, ' '));
       shows.push(()=>showDamageFx(damageTheme(d, name), `${name}${who}`, `−${took} HP`, `${d.dmgType ? d.dmgType + ' damage' + (a === 'r' ? ' (resistant: halved)' : a === 'i' ? ' (immune)' : '') + ' · ' : ''}now ${hpNow()} / ${hpMax()}`));
     }
@@ -3116,7 +3116,7 @@ function turnEffectNotes(){
   const defs = allEffectDefs();
   return allEffects().filter(e=>e.casterChar !== currentCharId && arrOf(e.targets).some(t=>t.char === currentCharId)).map(e=>{
     const d = defs.find(x=>x.name === e.name); if(!d || !d.dmg || d.freq !== 'turn') return null;
-    return `${e.name} (from ${e.caster}): take ${d.dmg} ${d.dmgType || ''} damage now, with Damage in Resources${d.endKind && d.endWhat ? `; a DC ${d.endDC || '?'} ${d.endWhat} ${d.endKind} ends it` : ''}${d.duration === 'healed' ? '; it ends once you’re healed' : ''}.`.replace(/\s+/g, ' ');
+    return `${e.name} (from ${e.caster}): take ${d.dmg} ${d.dmgType || ''} damage now, with Damage in Resources${d.endKind && d.endWhat ? `; a ${d.endWhat} ${d.endKind} can end it (your DM has the DC)` : ''}${d.duration === 'healed' ? '; it ends once you’re healed' : ''}.`.replace(/\s+/g, ' ');
   }).filter(Boolean);
 }
 function renderRollPopup(){

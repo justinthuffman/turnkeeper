@@ -65,7 +65,8 @@ function effectText(d){
   const when = d.freq === 'turn' ? ' at the start of each of its turns' : d.freq === 'once' ? ' once' : '';
   if(d.dmg) parts.push(d.kind === 'heal' ? `heals ${d.dmg}${when}` : `${d.dmg} ${d.dmgType || ''} damage${when}`.replace(/\s+/g, ' '));
   if(d.duration) parts.push(d.duration === 'healed' ? 'until healed' : d.duration === 'removed' ? 'until removed' : d.duration);
-  if(d.endKind && d.endWhat) parts.push(`ends on a DC ${d.endDC || '?'} ${d.endWhat} ${d.endKind}${d.endKind === 'save' ? ({start:' (start of each of its turns)', action:' (using its action)'}[d.endWhen] || ' (end of each of its turns)') : ''}`);
+  // Players never see the DC (the DM says it if he wants to); the DM Screen does
+  if(d.endKind && d.endWhat) parts.push(`ends on a ${host().dm ? `DC ${d.endDC || '?'} ` : ''}${d.endWhat} ${d.endKind}${d.endKind === 'save' ? ({start:' (start of each of its turns)', action:' (using its action)'}[d.endWhen] || ' (end of each of its turns)') : ''}`);
   if(d.desc) parts.push(d.desc);
   return parts.join('; ');
 }
