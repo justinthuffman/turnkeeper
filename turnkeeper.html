@@ -1207,9 +1207,10 @@ function throwAttack(name, d, it){
     return {attack:{name:`${name} (thrown)`, bonus:fmtMod(abil + (weaponProficient(d) ? prof : 0) + magic), damage:`${d.dice}${fmtMod(abil + magic)} ${d.dmgType} · Ranged Weapon Attack. thrown`,
       onHit:effectsFor(d.onHit), magical:magic > 0, itemId:it.id}, range:rangeOf(d.range), weapon:true};
   }
+  // Improvised throws use Dexterity (the table's ruling, 2026-10-13); proficiency only with Tavern Brawler
   const u = (d && d.use) || {}, tb = hasFeat('Tavern Brawler') ? prof : 0;
-  const dmg = d && isWeapon(d) ? `1d4${fmtMod(str)} ${d.dmgType}` : u.dmg ? `${u.dmg} ${u.dmgType || ''}` : !d ? `1d4${fmtMod(str)} bludgeoning` : '';
-  return {attack:{name:`${name} (thrown)`, bonus:fmtMod(str + tb), damage:dmg ? `${dmg} · Ranged Weapon Attack. improvised`.replace(/\s+·/, ' ·') : '— · Ranged Weapon Attack. improvised',
+  const dmg = d && isWeapon(d) ? `1d4${fmtMod(dex)} ${d.dmgType}` : u.dmg ? `${u.dmg} ${u.dmgType || ''}` : !d ? `1d4${fmtMod(dex)} bludgeoning` : '';
+  return {attack:{name:`${name} (thrown)`, bonus:fmtMod(dex + tb), damage:dmg ? `${dmg} · Ranged Weapon Attack. improvised`.replace(/\s+·/, ' ·') : '— · Ranged Weapon Attack. improvised',
       onHit:effectsFor(d && isWeapon(d) ? d.onHit : (u.onHit || (d && d.onHit))), itemId:it ? it.id : null},
     range:d && !isWeapon(d) ? rangeOf(u.throwRange || '20') : [20, 60], weapon:!!(d && isWeapon(d)), ownAction:!!(d && !isWeapon(d)), consume:!!(d && !isWeapon(d) && d.consumable !== false), note:u.note || ''};
 }
