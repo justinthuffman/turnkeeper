@@ -3,6 +3,12 @@
 What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest first.
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
+## 2026-10-13 — A tidier combat bar
+
+### Changed
+- **No separate "Attacks x of y" chip.** The action marker covers it; with Extra Attack it reads
+  "Action used (attack 1 of 2)" until your last attack.
+
 ## 2026-10-13 — Dice tray fix
 
 ### Fixed
