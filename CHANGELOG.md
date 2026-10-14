@@ -3,6 +3,13 @@
 What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest first.
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
+## 2026-10-13 — Dice tray fix
+
+### Fixed
+- **Closing the dice tray no longer closes the attack popup.** A click on empty space only puts the
+  dice away, so the popup stays for the damage roll; a click on a button (Roll, Heal, the DM's Yes)
+  still works the first time.
+
 ## 2026-10-13 — Action markers, and fixes from a practice combat
 
 ### Added
