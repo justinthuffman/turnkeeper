@@ -186,7 +186,9 @@ document.addEventListener('click', e=>{
   csFlash('Saved.');
 });
 // The DM changed the Campaign settings (e.g. Party leveling): redraw what depends on them
-window.tkSettingsChanged = ()=>{ if(csDb()) renderDetails(); };
+// (Turnkeeper sets its own first: subclasses, the scene; both run)
+const tkSettingsBefore = window.tkSettingsChanged;
+window.tkSettingsChanged = ()=>{ if(tkSettingsBefore) tkSettingsBefore(); if(csDb()) renderDetails(); };
 document.addEventListener('change', e=>{
   const t = e.target; if(!csDb() || !t.closest || !t.closest('#detailsPanel, #editChar')) return;
   if(t.dataset.bgPick){

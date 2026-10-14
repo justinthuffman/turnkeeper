@@ -559,8 +559,23 @@ function cleanCritSettings(raw){
   // leveling: how the party levels up (Campaign settings): 'milestone' (the DM says when) or 'xp'
   // thrownPotions: a house rule (on unless the DM turns it off): a healing potion thrown at an ally heals them
   // dmgSubclasses: the DM allows the Dungeon Master's Guide villain subclasses (Oathbreaker, Death Domain); off unless turned on
-  return {sound:raw.sound === true, diceSound:raw.diceSound !== false, leveling:raw.leveling === 'xp' ? 'xp' : 'milestone', thrownPotions:raw.thrownPotions !== false, dmgSubclasses:raw.dmgSubclasses === true, gifs};
+  return {sound:raw.sound === true, diceSound:raw.diceSound !== false, leveling:raw.leveling === 'xp' ? 'xp' : 'milestone', thrownPotions:raw.thrownPotions !== false, dmgSubclasses:raw.dmgSubclasses === true, gifs, scene:cleanScene(raw.scene)};
 }
+/* The scene the DM sets (DMG chapter 5, PHB chapter 8, 2014): light, underwater, strong wind, heavy
+   rain or snow, extreme cold or heat, high altitude. call: the DM asked everyone for a save (id, why);
+   its DC stays on the DM Screen. exh: exhaustion levels the DM has added, per character (a count). */
+const SCENE_LIGHT = {bright:'Bright light', dim:'Dim light', dark:'Darkness', magicdark:'Magical darkness'};
+const SCENE_WHY = {cold:'extreme cold', heat:'extreme heat', water:'frigid water'};
+function cleanScene(raw){
+  const s = raw && typeof raw === 'object' ? raw : {}, call = s.call && typeof s.call === 'object' ? s.call : null;
+  const exh = {}; Object.entries(s.exh && typeof s.exh === 'object' ? s.exh : {}).forEach(([k, v])=>{ if(Number.isInteger(v) && v >= 0) exh[String(k)] = v; });
+  return {light:SCENE_LIGHT[s.light] ? s.light : 'bright', under:s.under === true, wind:s.wind === true, rain:s.rain === true,
+    temp:s.temp === 'cold' || s.temp === 'heat' ? s.temp : '', alt:s.alt === true,
+    call:call && Number.isFinite(call.id) && SCENE_WHY[call.why] ? {id:call.id, why:call.why} : null, exh};
+}
+// "Darkness, underwater, strong wind" (empty when nothing special is going on)
+const sceneWords = sc=>[sc.light !== 'bright' && SCENE_LIGHT[sc.light], sc.under && 'underwater', sc.wind && 'strong wind', sc.rain && 'heavy rain or snow',
+  sc.temp === 'cold' && 'extreme cold', sc.temp === 'heat' && 'extreme heat', sc.alt && 'high altitude'].filter(Boolean);
 let critSettings = cleanCritSettings(null);
 // What a crit shows: {gif, text, side} or null. who replaces {who} in flavor text.
 function pickCritFx(kind, nat, who){
