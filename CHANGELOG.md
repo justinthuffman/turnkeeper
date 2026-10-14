@@ -3,6 +3,12 @@
 What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest first.
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
+## 2026-10-13 — Improvised throws use Dexterity
+
+### Changed
+- **Improvised throws use Dexterity** for the attack and the damage (our table's ruling); proficiency
+  still only with Tavern Brawler. Throwing a creature is a Strength check when the DM calls for one.
+
 ## 2026-10-13 — A tidier combat bar
 
 ### Changed
