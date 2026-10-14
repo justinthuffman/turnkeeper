@@ -3,6 +3,12 @@
 What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest first.
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
+## 2026-10-13 — Room for subclass names
+
+### Changed
+- **Class and Subclass share one wider box** in Character Summary, always on the same line, so every
+  subclass name fits (on phones too). The Character Name box gives up the space.
+
 ## 2026-10-13 — Pick your subclass
 
 ### Changed
