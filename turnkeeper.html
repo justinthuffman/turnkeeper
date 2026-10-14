@@ -75,6 +75,9 @@ button.ghost:hover{color:var(--ink); border-color:var(--sea-dim);}
 .field.name input{font-family:var(--font-display); font-size:1.2rem; color:var(--sea);}
 /* One height for every summary box, whatever the theme's font or the name's bigger text, so rows line up */
 .summary-grid .field input{box-sizing:border-box; height:36px; padding-top:0; padding-bottom:0;}
+.summary-grid .field select#f_subclass{box-sizing:border-box; width:100%; height:36px; background:var(--bg); border:1px solid var(--border); color:var(--ink); border-radius:4px; padding:0 8px; font:inherit;}
+.summary-grid .field select#f_subclass:disabled{color:var(--ink-dim); opacity:1;}
+.summary-grid .field select#f_subclass.need-pick{border-color:var(--orange); box-shadow:0 0 0 1px var(--orange);}
 
 /* minmax(0,1fr) so the six columns can shrink below the inputs' width; tighter on phones */
 .stats-row{display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:10px; margin-top:14px;}
@@ -694,7 +697,7 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
     <div class="field"><label>Level</label><input id="f_level" type="text" readonly></div>
     <div class="field"><label>Race</label><input id="f_race" type="text" readonly></div>
     <div class="field"><label>Class</label><input id="f_class" type="text" readonly></div>
-    <div class="field"><label>Subclass</label><input id="f_subclass" type="text" readonly></div>
+    <div class="field"><label>Subclass</label><select id="f_subclass" aria-label="Subclass"></select></div>
     <div class="field span2"><label>Campaign <span class="live-tag" id="campaignLive" hidden></span></label><input id="f_campaign" type="text" readonly title="The campaign this character plays in. Its DM sees the character on the DM Screen."></div>
     <div class="field"><label>AC</label><input id="f_ac" type="text" readonly></div>
     <div class="field"><label>HP (current/max)</label><input id="f_hp" type="text" readonly></div>
@@ -4376,8 +4379,7 @@ function renderBuild(){
     const key = b.dataset.build, opt = b.dataset.opt;
     buildEditing.delete(key);
     if(key==='subclass'){
-      const sel = document.getElementById('cfSubclass');
-      if(sel){ sel.value = opt; sel.dispatchEvent(new Event('change')); }
+      setSubclass(opt);
     } else if(key.startsWith('featability:')){
       setChoice(key.slice('featability:'.length)+' ability', ABILITY_ABBR[opt]);
       applyFeatStats();
@@ -4567,23 +4569,15 @@ const classSection = makePinSection({
     wrap.style.display = entry ? '' : 'none';
     if(!entry) return;
     document.getElementById('cfSubclassLabel').textContent = entry.subclassLabel + ':';
-    sel.innerHTML = `<option value="">— choose —</option>` + pickableSubclasses(entry)
+    const early = charLevel() < entry.subclassLevel;
+    sel.disabled = early;
+    sel.innerHTML = early ? `<option value="">— (at level ${entry.subclassLevel})</option>` : `<option value="">— choose —</option>` + pickableSubclasses(entry)
       .map(s=>`<option value="${s}"${s===cf.subclass?' selected':''}>${s}</option>`).join('');
     const note = document.getElementById('cfSubclassNote');
-    note.textContent = !cf.subclass ? `Pick one to see its features (gained at level ${entry.subclassLevel}).` : '';
+    note.textContent = early ? `You choose it at level ${entry.subclassLevel}.` : !cf.subclass ? 'Pick one to see its features.' : '';
   },
 });
-document.getElementById('cfSubclass').addEventListener('change', e=>{
-  cf.subclass = e.target.value;
-  storageSet(subclassStoreKey(), cf.subclass || null);
-  updateClassFields();
-  classSection.loadPins();
-  classSection.render();
-  updateFeaturesButton();
-  renderResources();
-  renderBuild();
-  if(spellBody.classList.contains('open')) renderSpellList();
-});
+document.getElementById('cfSubclass').addEventListener('change', e=>setSubclass(e.target.value));
 // Choices made for levels the character hasn't reached are deleted when the character opens
 // (Justin, 2026-09-24: e.g. level 13 then back to 2 drops the level 8 feat): the subclass,
 // "pick one" class features (Fighting Style), and feat levels with their own picks.
@@ -4604,12 +4598,28 @@ function dropChoicesAboveLevel(){
 function updateClassFields(){
   const entry = CLASS_FEATURES[cf.classKey], clsEl = document.getElementById('f_class'), subEl = document.getElementById('f_subclass');
   clsEl.value = cf.classKey ? cf.classKey.charAt(0).toUpperCase() + cf.classKey.slice(1) : cf.classText;
-  subEl.value = cf.subclass || fullSubclassName(cf.classKey, cf.classText) || (cf.classText ? '—' : '');
-  const fromClass = !cf.subclass && subclassPrefix(cf.classKey, cf.classText);
-  subEl.title = !entry ? '' : cf.subclass ? `${entry.subclassLabel}. Change it in Class Features.`
-    : fromClass && charLevel() < entry.subclassLevel ? `${entry.subclassLabel} from your class. Its features start at level ${entry.subclassLevel}.`
-    : `${entry.subclassLabel}: chosen at level ${entry.subclassLevel}${charLevel() >= entry.subclassLevel ? '. Pick one in Class Features.' : ''}`;
+  // Below the class's subclass level there's nothing to pick yet; from it, the player picks one
+  const early = !entry || charLevel() < entry.subclassLevel;
+  subEl.disabled = early;
+  subEl.innerHTML = !entry ? `<option value="">${cf.classText ? '—' : ''}</option>`
+    : early ? `<option value="">— (at level ${entry.subclassLevel})</option>`
+    : `<option value="">Choose your ${escapeHtml(entry.subclassLabel)}…</option>` + pickableSubclasses(entry).map(s=>`<option value="${escapeHtml(s)}"${s === cf.subclass ? ' selected' : ''}>${escapeHtml(s)}</option>`).join('');
+  subEl.classList.toggle('need-pick', !early && !cf.subclass);
+  subEl.title = !entry ? '' : early ? `${entry.subclassLabel}: chosen at level ${entry.subclassLevel}.` : cf.subclass ? `${entry.subclassLabel}. Change it here or in Class Features.` : `Choose your ${entry.subclassLabel}.`;
 }
+// Picking a subclass (Character Summary, Class Features or the choices box)
+function setSubclass(name){
+  cf.subclass = name || '';
+  storageSet(subclassStoreKey(), cf.subclass || null);
+  updateClassFields();
+  classSection.loadPins();
+  classSection.render();
+  updateFeaturesButton();
+  renderResources();
+  renderBuild();
+  if(spellBody.classList.contains('open')) renderSpellList();
+}
+document.getElementById('f_subclass').addEventListener('change', e=>setSubclass(e.target.value));
 // The DMG villain subclasses (Oathbreaker, Death Domain) only when the DM allows them in Campaign
 // settings; one the character already has stays
 function pickableSubclasses(entry){
@@ -4623,7 +4633,7 @@ function setupClassFeatures(clsText){
   noteClassTheme(cf.classKey);
   const entry = CLASS_FEATURES[cf.classKey];
   const saved = storageGet(subclassStoreKey());
-  cf.subclass = entry && saved && entry.subclasses[saved] ? saved : subclassFromText(cf.classKey, clsText);
+  cf.subclass = entry && saved && entry.subclasses[saved] ? saved : '';   // picked by the player, never guessed from the class text
   dropChoicesAboveLevel();
   updateClassFields();
   classSection.loadPins();

@@ -92,7 +92,7 @@ function autoProfs(){
   const out = {languages:[], tools:[], vehicles:[], notes:[]};
   if(!currentCore) return out;
   const add = (kind, list, from)=>(list || []).forEach(x=>{ if(!out[kind].some(([n])=>n.toLowerCase() === x.toLowerCase())) out[kind].push([x, from]); });
-  const race = raceLanguages(currentCore.race), sub = cf.subclass || (typeof fullSubclassName === 'function' ? fullSubclassName(cf.classKey, currentCore.cls) : '');
+  const race = raceLanguages(currentCore.race), sub = cf.subclass;
   const cls = classLanguagesTools(cf.classKey, sub, currentCore.level || 1);
   const bg = backgroundOf((currentCore.details || {}).background), feats = featProfGrants();
   add('languages', race.languages, 'Your race'); add('tools', race.tools, 'Your race');
