@@ -580,6 +580,8 @@ if(!user){
       const m = campNames[k], dm = m.dm === user.uid;
       const ch = mine.find(x=>x.rec.campaign === k);
       return `<div class="hub-camp"><b>${esc(m.name)}</b> <span class="hub-note">· ${dm ? 'you’re the DM' : ch ? 'playing ' + esc((ch.rec.core && ch.rec.core.name) || 'a character') : 'player'}</span>`
+        // A player: switch which of their characters plays here
+        + (!dm && mine.some(x=>x.rec.campaign !== k) ? `<div class="hub-row"><select data-swap-pick="${esc(k)}" aria-label="Character to bring">${mine.filter(x=>x.rec.campaign !== k).map(x=>`<option value="${esc(x.id)}">${esc((x.rec.core && x.rec.core.name) || 'Unnamed')}</option>`).join('')}</select><button type="button" class="hub-btn ghost" data-swap="${esc(k)}"${ch ? ` data-old="${esc(ch.id)}"` : ''}>Bring this one instead</button></div>` : '')
         + (dm ? `<div class="hub-row"><a class="hub-btn" href="dm.html?c=${esc(k)}" target="_blank" rel="noopener">Open the DM Screen</a><button type="button" class="hub-btn ghost" data-invite="${esc(k)}">Copy invite link</button><button type="button" class="hub-btn ghost" data-newinvite="${esc(k)}" title="Makes a new link; the old one stops working">New invite link</button></div>` : '')
         + '</div>';
     }).join('') : '<p class="hub-note">You’re not in a campaign yet. Create one (you’ll be its DM), or ask your DM for an invite link.</p>';
@@ -591,6 +593,7 @@ if(!user){
   };
   const inviteUrl = code=>location.origin + location.pathname.replace(/[^/]*$/, '') + 'index.html?join=' + code + (TEST_MODE && !['localhost', '127.0.0.1'].includes(location.hostname) ? '&test=1' : '');
   $('campList').addEventListener('click', async e=>{
+    if(e.target.dataset.swap){ const k = e.target.dataset.swap; window.swapCharacter(k, document.querySelector(`[data-swap-pick="${k}"]`).value, e.target.dataset.old || null, 'campMsg'); return; }
     const k = e.target.dataset.invite || e.target.dataset.newinvite; if(!k) return;
     const m = campNames[k]; let code = m.invite;
     if(e.target.dataset.newinvite){

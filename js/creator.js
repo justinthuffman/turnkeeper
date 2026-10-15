@@ -29,7 +29,7 @@ const DETAIL_AREAS = [['look', 'Appearance', 3], ['traits', 'Personality traits'
 // rolls: kept once rolled (no rerolls), whichever method is picked
 // level: the starting level (the DM says which); hpHow: 'average' or 'roll' for levels after 1st, with
 // hpRolls[i] the roll for level i + 2 (kept once rolled: no rerolls, and no switching to the average)
-const blank = ()=>({step:'race', raceGroup:'', race:'', ancestry:'', asiPick:[], cls:'', subclass:'', level:1, hpHow:'', hpRolls:[], method:'', assignBy:{array:{}, roll:{}}, points:{str:8, dex:8, con:8, int:8, wis:8, cha:8}, rolls:null,
+const blank = ()=>({bringTo:'', step:'race', raceGroup:'', race:'', ancestry:'', asiPick:[], cls:'', subclass:'', level:1, hpHow:'', hpRolls:[], method:'', assignBy:{array:{}, roll:{}}, points:{str:8, dex:8, con:8, int:8, wis:8, cha:8}, rolls:null,
   bg:'', langs:[], tools:[], skills:[], extraSkills:[], expertise:[], equip:{}, picks:{}, cantrips:[], spells:[], book:[],
   name:'', alignment:'', portrait:'', portraitFit:null, ...Object.fromEntries([...DETAIL_TEXT, ...DETAIL_AREAS].map(([k])=>[k, '']))});
 let S = (()=>{ try{ return {...blank(), ...(JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null') || {})}; }catch(e){ return blank(); } })();
@@ -415,7 +415,13 @@ function renderReview(){
     + (S.langs.length || S.tools.length ? `<p>Picked: ${[...S.langs, ...S.tools].filter(Boolean).join(', ')}</p>` : '')
     + `<p>Equipment: ${equipmentList().map(([n, q])=>q > 1 ? `${n} ×${q}` : n).join(', ')}${S.bg ? `, ${BACKGROUND_GEAR[S.bg].gold} gp` : ''}</p>`
     + (p ? `<p>Spells: ${[...S.cantrips, ...(p.book ? S.book : S.spells)].join(', ')}</p>` : '') + `</div>`;
-  h += `<p class="note">${ctx.join ? `Once it’s made, it joins <b>${esc(ctx.join.name)}</b>.` : 'It won’t be in a campaign yet: join one with your DM’s invite link.'} Anything the sheet’s Build box asks for (like a Fighting Style) you pick when it opens.${(S.level || 1) > 1 ? ` Starting at level ${S.level}: your Ability Score Improvements and other level choices are waiting in the Build box, and your DM may give extra gear or gold.` : ''}</p>`
+  if(!ctx.join && ctx.camps.length){
+    if(S.bringTo && !ctx.camps.some(c=>c.key === S.bringTo)) S.bringTo = '';
+    h += `<h3>Campaign</h3><p class="note">A character plays in one campaign at a time, and you play one character in each.</p><div class="chips" style="flex-direction:column; align-items:flex-start">`
+      + `<label class="chip"><input type="radio" name="bringTo" data-bring=""${S.bringTo ? '' : ' checked'}> Not in a campaign yet</label>`
+      + ctx.camps.map(c=>`<label class="chip"><input type="radio" name="bringTo" data-bring="${esc(c.key)}"${S.bringTo === c.key ? ' checked' : ''}> Bring it to ${esc(c.name)}${c.charName ? ` (instead of ${esc(c.charName)}, who stays yours)` : ''}</label>`).join('') + `</div>`;
+  }
+  h += `<p class="note">${ctx.join ? `Once it’s made, it joins <b>${esc(ctx.join.name)}</b>.` : S.bringTo ? '' : ctx.camps.length ? 'You can bring it into a campaign later from the hub.' : 'It won’t be in a campaign yet: join one with your DM’s invite link.'} Anything the sheet’s Build box asks for (like a Fighting Style) you pick when it opens.${(S.level || 1) > 1 ? ` Starting at level ${S.level}: your Ability Score Improvements and other level choices are waiting in the Build box, and your DM may give extra gear or gold.` : ''}</p>`
     + `<p><button type="button" class="btn" id="createGo"${todo.length ? ' disabled' : ''}>Create ${esc(S.name || 'the character')}</button></p><div class="msg" id="createMsg" aria-live="polite"></div>`;
   return h;
 }
@@ -487,6 +493,7 @@ document.addEventListener('change', e=>{
   else if(d.level !== undefined){ S.level = Math.min(20, Math.max(1, +t.value || 1)); if(!subclassNow()) S.subclass = ''; }
   else if(d.hphow){ if(!(d.hphow === 'average' && S.hpRolls.length)) S.hpHow = d.hphow; }
   else if(d.ancestry !== undefined){ S.ancestry = t.value; }
+  else if(d.bring !== undefined){ S.bringTo = d.bring; }
   else if(d.method){ S.method = d.method; }   // each method keeps its own scores
   else if(d.assign){ assign()[d.assign] = t.value === '' ? '' : +t.value; }
   else if(d.bg !== undefined){ S.bg = t.value; S.langs = []; S.tools = []; S.picks = Object.fromEntries(Object.entries(S.picks).filter(([k])=>!k.startsWith('b:'))); }
@@ -562,10 +569,20 @@ async function createCharacter(){
   if(missing('review').length) return;
   btn.disabled = true; msg.textContent = 'Creating…'; msg.className = 'msg';
   try{
-    const {db, user, fb:{ref, push, set, serverTimestamp}} = await tkRequireUser();
+    const {db, user, fb:{ref, push, set, update, serverTimestamp}} = await tkRequireUser();
     const {core, kv} = buildRecord();
-    const r = push(ref(db, CHARS));
-    await set(r, {owner:user.uid, core, kv, t:serverTimestamp()});
+    const r = push(ref(db, CHARS)), camp = !ctx.join && ctx.camps.find(c=>c.key === S.bringTo);
+    await set(r, {owner:user.uid, core, kv, t:serverTimestamp(), ...(camp ? {campaign:camp.key} : {})});
+    if(camp){
+      const patch = {[`${CAMP(camp.key)}/members/${user.uid}/char`]:r.key};
+      if(camp.char && camp.char !== r.key) patch[`${CHARS}/${camp.char}/campaign`] = null;
+      try{ await update(ref(db), patch); }
+      catch(err){
+        console.warn('Bringing it to the campaign:', err);
+        await set(ref(db, `${CHARS}/${r.key}/campaign`), null).catch(()=>{});
+        alert(`${core.name} is made, but couldn’t be brought into ${camp.name}. You can do it from the hub.`);
+      }
+    }
     try{ localStorage.removeItem(DRAFT_KEY); }catch(e){}
     location.href = ctx.join ? `index.html?join=${encodeURIComponent(ctx.join.code)}&pick=${encodeURIComponent(r.key)}` : `turnkeeper.html?char=${encodeURIComponent(r.key)}`;
   }catch(err){
@@ -593,7 +610,9 @@ async function createCharacter(){
       const mine = (await get(ref(db, `${USERS}/${user.uid}/campaigns`))).val() || {};
       for(const k of Object.keys(mine).filter(k=>mine[k] === 'player')){
         const meta = (await get(ref(db, `${CAMP(k)}/meta`)).catch(()=>null))?.val();
-        ctx.camps.push({key:k, name:meta && typeof meta.name === 'string' ? meta.name.slice(0, 80) : k});
+        const char = (await get(ref(db, `${CAMP(k)}/members/${user.uid}/char`)).catch(()=>null))?.val();
+        const charName = typeof char === 'string' ? (await get(ref(db, `${CHARS}/${char}/core/name`)).catch(()=>null))?.val() : null;
+        ctx.camps.push({key:k, name:meta && typeof meta.name === 'string' ? meta.name.slice(0, 80) : k, char:typeof char === 'string' ? char : null, charName:typeof charName === 'string' ? charName.slice(0, 40) : ''});
       }
       if(ctx.camps.length){ ctx.camp = {...ctx.camps[0], settings:await readSettings(ctx.camps[0].key)}; }
     }
