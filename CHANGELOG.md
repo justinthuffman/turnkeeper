@@ -3,6 +3,26 @@
 What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest first.
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
+## 2026-10-15 — The environment
+
+### Added
+- **The DM sets the scene** (DM Screen → Environment): light (bright, dim, darkness, magical
+  darkness), underwater, strong wind, heavy rain or snow, extreme cold or heat, high altitude. Players
+  see it above the Combat Menu, and their rolls follow it (2014 rules): attacks in darkness you can't
+  see through have disadvantage (darkvision counts); underwater, most weapons attack with
+  disadvantage and everyone resists fire; strong wind hampers ranged weapon attacks; Perception gets
+  reminders in dim light, rain and wind.
+- **Calls for saves:** for extreme cold, extreme heat or frigid water, the DM asks for Constitution
+  saves. Players get a banner and roll; the DM sees the totals against the DC (players don't), and a
+  failure can add a level of exhaustion, ticked in that player's Status. Resisting cold (or fire, in
+  heat) succeeds automatically.
+- **Environment** (Combat Menu, Anytime): falling damage (1d6 per 10 feet, up to 20d6, and you land
+  prone) and how long you can hold your breath.
+
+### Fixed
+- Changes the DM makes in Campaign settings (like allowing the DMG subclasses) now reach players
+  without a reload.
+
 ## 2026-10-13 — Room for subclass names
 
 ### Changed
