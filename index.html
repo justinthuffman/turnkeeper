@@ -60,6 +60,9 @@ body{
   padding:64px 20px 48px;
 }
 .title-block{text-align:center; margin-bottom:56px;}
+/* The Turnkeeper logo and name (the same mark as the character sheet's header) */
+h1.brand{display:flex; align-items:center; justify-content:center; gap:14px;}
+.brand-mark{width:1.25em; height:1.25em; flex:0 0 auto;}
 .eyebrow-rule{width:64px; height:1px; background:var(--sea-dim); margin:0 auto 18px;}
 h1{
   font-family:var(--font-display); font-weight:normal; font-size:2.6rem;
@@ -300,7 +303,7 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
 
 <div class="title-block">
   <div class="eyebrow-rule"></div>
-  <h1>Turnkeeper</h1>
+  <h1 class="brand"><svg class="brand-mark" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="16" fill="none" stroke="var(--sea)" stroke-width="2"/><path d="M14 11 H26 M14 29 H26 M15 11 Q15 18 20 20 Q25 18 25 11 M15 29 Q15 22 20 20 Q25 22 25 29" fill="none" stroke="var(--sea)" stroke-width="1.8" stroke-linejoin="round"/><path d="M17.5 27 Q20 24 22.5 27 Z" fill="var(--orange)"/></svg>Turnkeeper</h1>
   <div class="subtitle" id="hubSub">your characters and campaigns</div>
 </div>
 

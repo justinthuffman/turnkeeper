@@ -7,6 +7,8 @@
 <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
 <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
 <link rel="stylesheet" href="css/char-icons.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&display=swap">
+<link rel="stylesheet" href="css/class-themes.css">
 <style>
 :root{
   --bg:#0c1b26; --panel:#13293d; --panel2:#1b3750; --border:#2b4d68;
@@ -168,11 +170,40 @@ h4{font-family:var(--font-display); font-weight:normal; color:var(--ink-dim); fo
 }
 @media (max-width:560px){ .grid3{grid-template-columns:repeat(2, minmax(0, 1fr));} }
 @media (max-width:560px){ .panel{padding:16px 14px;} h1{font-size:1.8rem;} table.abil th, table.abil td{padding:5px 4px;} }
+/* The Turnkeeper logo and name (the same mark as the character sheet's header) */
+h1.brand{display:flex; align-items:center; justify-content:center; gap:14px;}
+.brand-mark{width:1.25em; height:1.25em; flex:0 0 auto;}
+/* Theme picker: a small, quiet "Theme" button that opens a menu of the themes
+   (the same on the tracker and the hub; keep the two in step) */
+.theme-picker{position:relative; display:flex; justify-content:center; margin-top:14px;}
+button.theme-toggle{display:inline-flex; align-items:center; gap:5px; background:none; border:none; padding:4px 6px; border-radius:4px; color:var(--ink-dim); opacity:0.6; font-size:0.72rem; font-family:var(--font-body); cursor:pointer; box-shadow:none; text-shadow:none;}
+button.theme-toggle:hover, button.theme-toggle[aria-expanded="true"]{background:none; opacity:1; color:var(--ink);}
+button.theme-toggle svg{width:13px; height:13px;}
+.theme-menu{
+  position:absolute; bottom:calc(100% + 6px); left:50%; transform:translateX(-50%); z-index:50;
+  display:grid; grid-template-columns:repeat(3, auto); gap:4px 12px; padding:10px 12px;
+  background:var(--panel); border:1px solid var(--border); border-radius:8px; box-shadow:0 8px 24px rgba(0,0,0,0.45);
+}
+.theme-group{grid-column:1 / -1; font-size:0.68rem; text-transform:uppercase; letter-spacing:0.06em; color:var(--sea); border-top:1px solid var(--border); padding-top:8px; margin-top:4px;}
+@media (max-width:520px){ .theme-menu{grid-template-columns:repeat(2, auto);} }
+.theme-menu[hidden]{display:none;}
+button.theme-option{display:flex; align-items:center; gap:8px; background:none; border:none; padding:4px 6px; border-radius:4px; color:var(--ink); font-size:0.78rem; font-family:var(--font-body); white-space:nowrap; cursor:pointer; box-shadow:none; text-shadow:none;}
+button.theme-option:hover{background:var(--panel2);}
+.theme-dot{width:16px; height:16px; border-radius:50%; border:1.5px solid var(--border); flex:0 0 auto;}
+button.theme-option[aria-pressed="true"]{font-weight:600;}
+button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box-shadow:0 0 0 2px var(--panel), 0 0 0 3px var(--ink);}
+.brand-home{display:inline-flex; align-items:center; gap:8px; color:var(--sea); text-decoration:none; font-family:var(--font-display); font-size:1rem; margin-bottom:8px; opacity:0.85;}
+.brand-home:hover{opacity:1;}
+.brand-home .brand-mark{width:1.5em; height:1.5em;}
 </style>
+<script src="js/config.js"></script>
+<script src="js/firebase.js"></script>
+<script src="js/account-store.js"></script>
+<script src="js/themes.js"></script>
 </head>
 <body>
 <div class="wrap">
-  <header><h1>New Character</h1><div class="sub"><span id="forWhat">…</span> · <a href="index.html">back to the hub</a></div></header>
+  <header><a class="brand-home" href="index.html" title="Back to the hub"><svg class="brand-mark" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="16" fill="none" stroke="var(--sea)" stroke-width="2"/><path d="M14 11 H26 M14 29 H26 M15 11 Q15 18 20 20 Q25 18 25 11 M15 29 Q15 22 20 20 Q25 22 25 29" fill="none" stroke="var(--sea)" stroke-width="1.8" stroke-linejoin="round"/><path d="M17.5 27 Q20 24 22.5 27 Z" fill="var(--orange)"/></svg>Turnkeeper</a><h1>New Character</h1><div class="sub"><span id="forWhat">…</span> · <a href="index.html">back to the hub</a></div></header>
   <div class="layout">
     <nav class="steps" id="steps" aria-label="Steps"></nav>
     <div class="main">
@@ -182,12 +213,12 @@ h4{font-family:var(--font-display); font-weight:normal; color:var(--ink-dim); fo
     </div>
     <aside class="summary" id="summary" aria-label="Your character so far"></aside>
   </div>
+  <div class="theme-picker" id="themePicker">
+    <button type="button" class="theme-toggle" id="themeToggle" aria-expanded="false" aria-controls="themeMenu" title="Change the color theme"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 3a9 9 0 0 0 0 18c1.1 0 1.8-.8 1.8-1.7 0-.5-.2-.9-.5-1.2-.3-.3-.5-.7-.5-1.2 0-.9.8-1.7 1.7-1.7H16a5 5 0 0 0 5-5C21 6.4 17 3 12 3zm-5.5 9a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm3-4a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm3 4a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg><span>Theme</span></button>
+    <div class="theme-menu" id="themeMenu" role="group" aria-label="Color theme" hidden></div>
+  </div>
 </div>
 <div id="tooltip"></div>
-<script src="js/config.js"></script>
-<script src="js/firebase.js"></script>
-<script src="js/account-store.js"></script>
-<script src="js/themes.js"></script>
 <script src="js/data/spells.js"></script>
 <script src="js/data/equipment.js"></script>
 <script src="js/data/backgrounds.js"></script>
@@ -199,5 +230,20 @@ h4{font-family:var(--font-display); font-weight:normal; color:var(--ink-dim); fo
 <script src="js/char-icons.js"></script>
 <script src="js/portrait-fit.js"></script>
 <script src="js/creator.js"></script>
+<script>
+// The Theme menu, as on the hub (js/themes.js builds it). The pick is this browser's main theme,
+// shared with the hub.
+// The Theme button opens and closes the menu; a click elsewhere or Escape closes it.
+// It stays open after a pick so themes can be compared.
+function showThemeMenu(open){
+  document.getElementById('themeMenu').hidden = !open;
+  document.getElementById('themeToggle').setAttribute('aria-expanded', String(open));
+}
+document.getElementById('themeToggle').addEventListener('click', ()=>showThemeMenu(document.getElementById('themeMenu').hidden));
+// composedPath, not closest(): picking a theme rebuilds the menu, detaching the clicked button
+document.addEventListener('click', e=>{ if(!e.composedPath().includes(document.getElementById('themePicker'))) showThemeMenu(false); });
+document.addEventListener('keydown', e=>{ if(e.key === 'Escape') showThemeMenu(false); });
+renderThemeMenu();
+</script>
 </body>
 </html>
