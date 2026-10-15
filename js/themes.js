@@ -50,7 +50,7 @@ const CLASS_THEMES = [
    Ezlo's tab can look different. A character with no pick of its own and the hub use the browser's
    main theme (dndTracker:theme), which stays in this browser, so each player picks their own.
    The DM Screen has its own (window.TK_THEME_KEY = dndTracker:dm:theme), saved to the DM's
-   account with the rest of the DM's preferences (js/dm-store.js). */
+   account with the rest of the DM's preferences (js/account-store.js). */
 function charIdNow(){
   if(window.tkCharId) return window.tkCharId;
   try{ return new URLSearchParams(location.search).get('char') || null; }catch(e){ return null; }

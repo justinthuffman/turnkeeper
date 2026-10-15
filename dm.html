@@ -399,9 +399,10 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
 </style>
 <script src="js/config.js"></script>
 <script src="js/firebase.js"></script>
-<!-- The DM's own theme and preferences, saved to the DM account (js/dm-store.js) -->
+<!-- The DM's own theme and preferences, saved to the DM's account (js/account-store.js) -->
 <script>window.TK_THEME_KEY = 'dndTracker:dm:theme';</script>
-<script src="js/dm-store.js"></script>
+<script>window.TK_PREFS = 'dm';</script>
+<script src="js/account-store.js"></script>
 <script src="js/themes.js"></script>
 </head>
 <body>
