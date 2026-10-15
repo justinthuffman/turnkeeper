@@ -16,12 +16,12 @@
   const synced = k=>typeof k === 'string' && (DM ? k.startsWith('dndTracker:dm:') && k !== 'dndTracker:dm:campaign' : PLAYER_KEY.test(k));
   const enc = k=>encodeURIComponent(k).replace(/\./g, '%2E'), dec = k=>decodeURIComponent(k);
   const set0 = Storage.prototype.setItem, remove0 = Storage.prototype.removeItem;
-  let pending = {}, timer = null, fb = null, path = null;
+  let pending = {}, timer = null, fb = null, path = null, ready = false;   // ready: the account's copy is in
   function flush(){
     clearTimeout(timer);
     const patch = pending; pending = {};
     if(!Object.keys(patch).length) return;
-    if(!fb){ Object.assign(pending, patch); timer = setTimeout(flush, 2000); return; }
+    if(!ready){ Object.assign(pending, patch); return; }   // sent once the account's copy is in
     if(!path) return;   // nobody signed in: this browser only
     fb.fb.update(fb.fb.ref(fb.db, path), patch).catch(err=>{
       console.warn('Saving your preferences:', err);
@@ -36,17 +36,19 @@
   addEventListener('visibilitychange', ()=>{ if(document.visibilityState === 'hidden') flush(); });
 
   const localKeys = ()=>{ const out = {}; for(let i = 0; i < localStorage.length; i++){ const k = localStorage.key(i); if(synced(k)) out[k] = localStorage.getItem(k); } return out; };
-  // On opening: the account's copy wins. The first time (none of this page's kind saved yet), this browser's goes up.
+  // On opening: the account's copy wins, even over what the page saved while loading (its defaults).
+  // The first time (none of this page's kind saved yet), this browser's goes up.
   tkFirebase().then(async conn=>{
     fb = conn;
-    if(!conn.user){ pending = {}; return; }
+    if(!conn.user){ pending = {}; ready = true; return; }
     path = `${USERS}/${conn.user.uid}/prefs`;
     const remote = (await fb.fb.get(fb.fb.ref(fb.db, path))).val() || {};
     const theirs = Object.fromEntries(Object.entries(remote).map(([k, v])=>[dec(k), String(v)]).filter(([k])=>synced(k)));
     const mine = localKeys();
+    ready = true;
     if(!Object.keys(theirs).length){ Object.entries(mine).forEach(([k, v])=>{ pending[enc(k)] = v; }); flush(); return; }
     let changed = false;
-    Object.entries(theirs).forEach(([k, v])=>{ if(!(enc(k) in pending) && mine[k] !== v){ set0.call(localStorage, k, v); changed = true; } });
+    Object.entries(theirs).forEach(([k, v])=>{ delete pending[enc(k)]; if(mine[k] !== v){ set0.call(localStorage, k, v); changed = true; } });
     Object.keys(mine).forEach(k=>{ if(!(k in theirs) && !(enc(k) in pending)){ remove0.call(localStorage, k); changed = true; } });
     flush();
     // Show the account's copy: reload once (not again within a minute, in case of a loop)
