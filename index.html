@@ -693,26 +693,51 @@ if(!user){
       if(!real.length) real = (await Promise.all(Object.keys(PORTRAITS).map(async id=>({id, rec:(await get(ref(db, `campaigns/waterdeep/characters/${id}`)).catch(()=>null))?.val()})))).filter(x=>x.rec && x.rec.core);
       const box = $('hubAdmin'); box.hidden = false;
       const myDm = Object.keys(myCamps).filter(k=>myCamps[k] === 'dm' && campNames[k]);
+      const copiesOf = x=>allMine.filter(m=>m.rec.core && (m.rec.core.testCopyOf === x.id || m.rec.core.name === String((x.rec.core.name || 'Character') + ' (test copy)').slice(0, 40)));
       box.innerHTML = `<h2>Admin</h2><div class="hub-row"><a class="hub-btn" href="dm.html${params.get('test') ? '?test=1' : ''}" target="_blank" rel="noopener">Open the DM Screen</a><span class="hub-note">Your test campaigns, plus any game to watch (view only)</span></div>`
         + `<h3 class="hub-sub">Test Copies</h3><p class="hub-note">Copy a real character into the sandbox to try things out. The real one is only read, never changed.</p>`
         + (myDm.length ? `<div class="hub-row"><label class="hub-note">Add each copy to the party of <select id="copyTo"><option value="">no campaign</option>${myDm.map(k=>`<option value="${esc(k)}">${esc(campNames[k].name)}</option>`).join('')}</select></label></div>`
           : '<p class="hub-note">To run them in a fight, create a campaign below first (you’ll be its DM); copies can then join its party.</p>')
-        + (real.length ? real.map(x=>`<div class="hub-row"><b>${esc((x.rec.core && x.rec.core.name) || x.id)}</b><button type="button" class="hub-btn ghost" data-copy="${esc(x.id)}">Copy into the sandbox</button></div>`).join('') : '<p class="hub-note">No real characters found.</p>')
+        + (real.length ? real.map(x=>{ const n = copiesOf(x).length;
+            return `<div class="hub-row"><b>${esc((x.rec.core && x.rec.core.name) || x.id)}</b><button type="button" class="hub-btn ghost" data-copy="${esc(x.id)}">${n ? 'Refresh the test copy' : 'Copy into the sandbox'}</button>`
+              + (n ? `<button type="button" class="hub-btn ghost danger" data-uncopy="${esc(x.id)}">Delete test cop${n === 1 ? 'y' : 'ies (' + n + ')'}</button>` : '') + `</div>`; }).join('') : '<p class="hub-note">No real characters found.</p>')
         + '<div class="hub-msg" id="adminMsg"></div>';
       box.addEventListener('click', async e=>{
-        const id = e.target.dataset.copy; if(!id) return;
+        const id = e.target.dataset.copy || e.target.dataset.uncopy; if(!id) return;
         const x = real.find(r=>r.id === id); if(!x) return;
-        const core = {...x.rec.core, name:String((x.rec.core.name || 'Character') + ' (test copy)').slice(0, 40)};
-        // The kv keys name the character as "@", so they work for the copy as they are
+        const copies = copiesOf(x).sort((m, n)=>(n.rec.t || 0) - (m.rec.t || 0));   // newest first
+        const to = $('copyTo') ? $('copyTo').value : '';
+        // Out of whatever campaign it's in (your test campaign's party, or one you joined with it)
+        const leave = (patch, c)=>{ const k = c.rec.campaign; if(!k) return; if(myCamps[k] === 'dm') patch[`${CAMP(k)}/members/copy-${c.id}`] = null; else if(myCamps[k] === 'player'){ patch[`${CAMP(k)}/members/${user.uid}`] = null; patch[`${USERS}/${user.uid}/campaigns/${k}`] = null; } };
         try{
-          const r = push(ref(db, CHARS));
-          const to = $('copyTo') ? $('copyTo').value : '';
-          await set(r, {owner:user.uid, core, kv:x.rec.kv || {}, t:serverTimestamp(), ...(to ? {campaign:to} : {})});
-          // In your test campaign's party (you're its DM, so you can add it; the DM Screen lists it)
-          if(to) await set(ref(db, `${CAMP(to)}/members/copy-${r.key}`), {role:'player', char:r.key, joined:serverTimestamp()});
-          msg('adminMsg', `${core.name} is ready${to ? ' and in ' + campNames[to].name + '’s party' : ''}.`);
-          window.open('turnkeeper.html?char=' + encodeURIComponent(r.key) + (params.get('test') ? '&test=1' : ''), '_blank', 'noopener');
-        }catch(err){ msg('adminMsg', 'Couldn’t copy it: ' + err.message, true); }
+          if(e.target.dataset.uncopy){
+            if(!confirm(`Delete ${copies.length === 1 ? 'the test copy' : 'all ' + copies.length + ' test copies'} of ${x.rec.core.name}? The real one isn’t touched.`)) return;
+            const patch = {}; copies.forEach(c=>{ patch[`${CHARS}/${c.id}`] = null; leave(patch, c); });
+            await update(ref(db), patch); location.reload(); return;
+          }
+          // One copy per real character: refresh the newest (and delete any extras), or make it
+          const core = {...x.rec.core, name:String((x.rec.core.name || 'Character') + ' (test copy)').slice(0, 40), testCopyOf:x.id};
+          let cid;
+          if(copies.length){
+            cid = copies[0].id;
+            // The kv keys name the character as "@", so they work for the copy as they are
+            const patch = {[`${CHARS}/${cid}/core`]:core, [`${CHARS}/${cid}/kv`]:x.rec.kv || {}, [`${CHARS}/${cid}/t`]:serverTimestamp()};
+            copies.slice(1).forEach(c=>{ patch[`${CHARS}/${c.id}`] = null; leave(patch, c); });
+            await update(ref(db), patch);
+            if(to && copies[0].rec.campaign !== to){
+              const move = {[`${CHARS}/${cid}/campaign`]:to}; leave(move, copies[0]);
+              await update(ref(db), move);
+              await set(ref(db, `${CAMP(to)}/members/copy-${cid}`), {role:'player', char:cid, joined:serverTimestamp()});
+            }
+          } else {
+            const r = push(ref(db, CHARS)); cid = r.key;
+            await set(r, {owner:user.uid, core, kv:x.rec.kv || {}, t:serverTimestamp(), ...(to ? {campaign:to} : {})});
+            // In your test campaign's party (you're its DM, so you can add it; the DM Screen lists it)
+            if(to) await set(ref(db, `${CAMP(to)}/members/copy-${cid}`), {role:'player', char:cid, joined:serverTimestamp()});
+          }
+          msg('adminMsg', `${core.name} is ${copies.length ? 'refreshed from the real one' : 'ready'}${to ? ' and in ' + campNames[to].name + '’s party' : ''}.`);
+          window.open('turnkeeper.html?char=' + encodeURIComponent(cid) + (params.get('test') ? '&test=1' : ''), '_blank', 'noopener');
+        }catch(err){ msg('adminMsg', 'Couldn’t do that: ' + err.message, true); }
       });
     }
   }
