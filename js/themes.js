@@ -47,8 +47,8 @@ const CLASS_THEMES = [
   {key:'class-wizard', name:'Wizard', bg:'#11152f', accent:'#8fb4ff'},
 ];
 /* Each character keeps its own theme (dndTracker:theme:<character ID>), so Krunk's tab and
-   Ezlo's tab can look different. A character with no pick of its own and the hub use the browser's
-   main theme (dndTracker:theme), which stays in this browser, so each player picks their own.
+   Ezlo's tab can look different. A character with no pick of its own wears its class's theme
+   ("My class"); the hub uses the browser's main theme (dndTracker:theme).
    The DM Screen has its own (window.TK_THEME_KEY = dndTracker:dm:theme), saved to the DM's
    account with the rest of the DM's preferences (js/account-store.js). */
 function charIdNow(){
@@ -59,7 +59,8 @@ const themeStoreKey = ()=>{ if(window.TK_THEME_KEY) return window.TK_THEME_KEY; 
 const savedThemeKey = ()=>{
   try{
     if(window.TK_THEME_KEY) return localStorage.getItem(window.TK_THEME_KEY) || DEFAULT_THEME;
-    const id = charIdNow(); return (id && localStorage.getItem('dndTracker:theme:' + id)) || localStorage.getItem('dndTracker:theme') || DEFAULT_THEME;
+    // A character with no pick of its own wears its class's theme (Justin, 2026-10-15)
+    const id = charIdNow(); return id ? localStorage.getItem('dndTracker:theme:' + id) || 'class' : localStorage.getItem('dndTracker:theme') || DEFAULT_THEME;
   }
   catch(e){ return DEFAULT_THEME; }
 };

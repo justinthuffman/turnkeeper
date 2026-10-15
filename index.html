@@ -239,7 +239,26 @@ footer{margin-top:56px; font-size:0.75rem; color:var(--ink-dim); text-align:cent
 .hub-user{font-size:0.8rem; color:var(--ink-dim); margin-top:18px; text-align:center;}
 .hub-user button{background:none; border:none; color:var(--sea); text-decoration:underline; cursor:pointer; font:inherit;}
 .test-tag{display:inline-block; margin-left:8px; font-size:0.7rem; padding:1px 8px; border-radius:999px; border:1px solid var(--orange); color:var(--orange-bright); vertical-align:middle;}
-.card-plain{--frame:linear-gradient(135deg, var(--sea), var(--panel2) 30%, var(--sea-dim) 55%, var(--panel) 78%, var(--sea)); --glow:rgba(120,200,190,0.45); --line:rgba(255,255,255,0.35); --tag-ink:var(--bg);}
+:where(.card-plain){--frame:linear-gradient(135deg, var(--sea), var(--panel2) 30%, var(--sea-dim) 55%, var(--panel) 78%, var(--sea)); --glow:rgba(120,200,190,0.45); --line:rgba(255,255,255,0.35); --tag-ink:var(--bg);}
+/* Class frames for characters made in Turnkeeper (V6): the four hand-made classes above reuse theirs */
+.card-barbarian{--frame:linear-gradient(135deg, #e0a070, #6b2a14 24%, #c0582c 46%, #4a1a0c 70%, #d99a62); --glow:rgba(220,90,50,0.7); --line:#e8a878; --tag-ink:#fff1e6;}
+.card-cleric{--frame:linear-gradient(135deg, #fffaf0, #b8b2a0 24%, #f5efe0 46%, #8a8576 70%, #e8c766); --glow:rgba(255,230,160,0.7); --line:#f3e3a8; --tag-ink:#2b2414;}
+.card-druid{--frame:linear-gradient(135deg, #c8e08a, #3b2a17 24%, #7a9a4a 46%, #2b1f10 70%, #a8d46a); --glow:rgba(150,210,100,0.6); --line:#b9dc8a; --tag-ink:#f0f7e6;}
+.card-fighter{--frame:linear-gradient(135deg, #e6edf3, #4a525b 24%, #aeb8c2 46%, #2c3238 70%, #3d73c4); --glow:rgba(100,150,230,0.6); --line:#b8c8dc; --tag-ink:#0e141a;}
+.card-monk{--frame:linear-gradient(135deg, #f0d48a, #1f5a4a 24%, #6fb8a0 46%, #16403a 70%, #d9a440); --glow:rgba(110,200,170,0.6); --line:#a4dcc8; --tag-ink:#fff8e8;}
+.card-ranger{--frame:linear-gradient(135deg, #b9d68e, #2c3f25 24%, #7a5530 46%, #1f2d1a 70%, #6f8f52); --glow:rgba(130,180,90,0.55); --line:#a9c78a; --tag-ink:#f2f5ea;}
+.card-sorcerer{--frame:linear-gradient(135deg, #ffc09a, #6b1a2a 24%, #e05a4a 46%, #4a0f1a 70%, #ff5f8f); --glow:rgba(255,95,143,0.65); --line:#ffb0a0; --tag-ink:#fff0f3;}
+.card-warlock{--frame:linear-gradient(135deg, #b9f5c9, #1f1428 24%, #6a4a86 46%, #120a18 70%, #5cff9c); --glow:rgba(92,255,156,0.5); --line:#a7e8bb; --tag-ink:#f0fff4;}
+.card-barbarian .fx-p{background:radial-gradient(circle, #ffd2a0, #c4342a 60%, transparent 72%); box-shadow:0 0 6px #c4342a;}
+.card-cleric .fx-p{background:radial-gradient(circle, #fff, #f0d27a 60%, transparent 72%); box-shadow:0 0 6px #ffe7a0;}
+.card-druid .fx-p{background:radial-gradient(circle, #eaffc8, #6fae3c 60%, transparent 72%); box-shadow:0 0 6px #8fd45a;}
+.card-fighter .fx-p{background:radial-gradient(circle, #fff, #8fb4ff 60%, transparent 72%); box-shadow:0 0 6px #6f9ae8;}
+.card-monk .fx-p{background:radial-gradient(circle, #fff6d8, #d9a440 60%, transparent 72%); box-shadow:0 0 6px #6fb8a0;}
+.card-ranger .fx-p{background:radial-gradient(circle, #f0f8d8, #6f8f52 60%, transparent 72%); box-shadow:0 0 6px #9fbd7c;}
+.card-sorcerer .fx-p{background:radial-gradient(circle, #fff, #ff5f8f 55%, transparent 72%); box-shadow:0 0 7px #ff5f8f;}
+.card-warlock .fx-p{background:radial-gradient(circle, #eafff0, #5cff9c 55%, transparent 72%); box-shadow:0 0 7px #5cff9c;}
+.card-plain .fx-p{background:radial-gradient(circle, #fff, var(--line) 60%, transparent 72%);}
+.card-plain:is(.card-paladin, .card-rogue, .card-wizard, .card-bard) .fx-p{box-shadow:0 0 6px var(--line);}
 .card-plain .card-art{display:flex; align-items:center; justify-content:center; background:radial-gradient(circle at 50% 35%, var(--panel2), var(--bg));}
 .card-coin{width:58%; margin-top:-18%;}
 .card-coin .char-icon{width:100%;}
@@ -528,15 +547,21 @@ if(!user){
   await Promise.all(Object.keys(myCamps).map(async k=>{ const m = (await get(ref(db, `${CAMP(k)}/meta`)).catch(()=>null))?.val(); if(m) campNames[k] = m; }));
   $('hubChars').hidden = false;
   const roster = $('myRoster'), tpl = $('knownCards').content;
+  // Sparks that rise on hover (the hand-made cards have their own effects): [x, y, size, drift x, rise, length, delay]
+  const SPARKS = '<div class="card-fx">' + [[18,78,5,10,-150,2.2,0.1], [34,88,4,-8,-170,2.4,0.4], [52,82,6,6,-160,2,0.2], [68,90,4,-12,-180,2.6,0.6],
+    [80,76,5,8,-140,2.1,0.3], [26,70,3,-6,-120,1.9,0.8], [60,72,4,10,-130,2.3,0.9], [44,92,5,-4,-190,2.5,0.5]]
+    .map(([x, y, sz, dx, dy, d, t])=>`<span class="fx-p" style="--x:${x}%;--y:${y}%;--s:${sz}px;--dx:${dx}px;--dy:${dy}px;--d:${d}s;--t:${t}s"></span>`).join('') + '</div>';
   mine.sort((a, b)=>String(a.rec.core && a.rec.core.name || '').localeCompare(String(b.rec.core && b.rec.core.name || ''))).forEach(({id, rec})=>{
     const core = rec.core || {}, name = String(core.name || 'Unnamed').slice(0, 40);
     const known = [...tpl.querySelectorAll('a.card')].find(a=>a.getAttribute('href').includes(id));
     let card;
     if(known){ card = known.cloneNode(true); const n = card.querySelector('.card-name'); if(n) n.textContent = name; }
     else {
-      card = document.createElement('a'); card.className = 'card card-plain'; card.href = 'turnkeeper.html?char=' + id; card.target = '_blank'; card.rel = 'noopener';
+      const cls = iconClassOf(core.cls), fit = clampFit(core.portraitFit);
+      card = document.createElement('a'); card.className = 'card card-plain' + (cls ? ' card-' + cls : ''); card.href = 'turnkeeper.html?char=' + id; card.target = '_blank'; card.rel = 'noopener';
       const pic = typeof core.portrait === 'string' && (v=>/^data:image\/(webp|jpeg|png);base64,[A-Za-z0-9+/=]+$/.test(v) || /^https:\/\/[^\s"'<>]+$/.test(v))(core.portrait) ? core.portrait : '';
-      card.innerHTML = `<div class="card-art">${pic ? `<img src="${esc(pic)}" alt="">` : `<div class="card-coin">${charIconHtml(null, '', '', {name, cls:core.cls})}</div>`}<div class="card-plate"><div class="card-name">${esc(name)}</div><div class="card-sub">${esc([core.race, core.cls].filter(Boolean).join(' ').slice(0, 50))}</div></div></div>`;
+      if(pic) card.style.setProperty('--pos', `${fit.x}% ${fit.y}%`);
+      card.innerHTML = `<div class="card-art">${pic ? `<img src="${esc(pic)}" alt="">` : `<div class="card-coin">${charIconHtml(null, '', '', {name, cls:core.cls})}</div>`}${SPARKS}<div class="card-plate"><div class="card-name">${esc(name)}</div><div class="card-sub">${esc([core.race, core.cls].filter(Boolean).join(' ').slice(0, 50))}</div></div></div>`;
     }
     roster.appendChild(card);
   });
