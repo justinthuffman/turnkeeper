@@ -264,6 +264,16 @@ footer{margin-top:56px; font-size:0.75rem; color:var(--ink-dim); text-align:cent
 .card-plain:is(.card-paladin, .card-rogue, .card-wizard, .card-bard) .fx-p{box-shadow:0 0 6px var(--line);}
 .card-plain .card-art{display:flex; align-items:center; justify-content:center; background:radial-gradient(circle at 50% 35%, var(--panel2), var(--bg));}
 .card-coin{width:58%; margin-top:-18%;}
+/* Archive button on a card (top right): shows on hover or focus, or on a chosen card on a phone */
+.card-archive{position:absolute; top:10px; right:10px; z-index:8; width:30px; height:30px; display:grid; place-items:center; border-radius:50%; border:1px solid rgba(255,255,255,0.4); background:rgba(0,0,0,0.6); color:#fff; cursor:pointer; opacity:0; transition:opacity .2s ease;}
+.card-archive svg{width:16px; height:16px;}
+.card:is(:hover, :focus-within, .is-active) .card-archive, .card-archive:focus-visible{opacity:1;}
+.card-archive:hover{background:rgba(0,0,0,0.85);}
+@media (hover: none){ .card.is-active .card-archive{opacity:1;} }
+.hub-archived{width:100%; max-width:560px; margin-top:18px; background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:10px 16px;}
+.hub-archived[hidden]{display:none;}
+.hub-archived summary{cursor:pointer; color:var(--ink-dim); font-size:0.9rem;}
+.hub-btn.danger{color:var(--orange-bright); border-color:var(--orange);}
 .card-coin .char-icon{width:100%;}
 .card-initial{font-family:var(--font-display); font-size:4.5rem; color:var(--sea); opacity:0.8;}
 .roster.few{grid-template-columns:repeat(auto-fit, minmax(170px, 210px)); justify-content:center;}
@@ -325,6 +335,8 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
   <div class="roster few" id="myRoster"></div>
   <div class="hub-row" style="justify-content:center; margin-top:22px;"><a class="hub-btn" href="create.html">Create a character</a></div>
   <p class="hub-note" id="charsNote"></p>
+  <details class="hub-archived" id="hubArchived" hidden><summary>Archived Characters (<span id="archCount">0</span>)</summary><div id="archList"></div></details>
+  <div class="hub-msg" id="archMsg" aria-live="polite"></div>
 </div>
 
 <div class="hub-panel" id="hubCamps" hidden>
@@ -546,7 +558,8 @@ if(!user){
 
   // My characters (characters/<id> where owner is this account)
   const mineSnap = await get(query(ref(db, CHARS), orderByChild('owner'), equalTo(user.uid))).catch(err=>{ console.warn('My characters:', err); return null; });
-  const mine = Object.entries((mineSnap && mineSnap.val()) || {}).map(([id, rec])=>({id, rec}));
+  const allMine = Object.entries((mineSnap && mineSnap.val()) || {}).map(([id, rec])=>({id, rec}));
+  const mine = allMine.filter(x=>!x.rec.archived), archivedChars = allMine.filter(x=>x.rec.archived);
   const campNames = {};
   const myCamps = me.campaigns && typeof me.campaigns === 'object' ? me.campaigns : {};
   await Promise.all(Object.keys(myCamps).map(async k=>{ const m = (await get(ref(db, `${CAMP(k)}/meta`)).catch(()=>null))?.val(); if(m) campNames[k] = m; }));
@@ -568,10 +581,48 @@ if(!user){
       if(pic) card.style.setProperty('--pos', `${fit.x}% ${fit.y}%`);
       card.innerHTML = `<div class="card-art">${pic ? `<img src="${esc(pic)}" alt="">` : `<div class="card-coin">${charIconHtml(null, '', '', {name, cls:core.cls})}</div>`}${SPARKS}<div class="card-plate"><div class="card-name">${esc(name)}</div><div class="card-sub">${esc([core.race, core.cls].filter(Boolean).join(' ').slice(0, 50))}</div></div></div>`;
     }
+    card.insertAdjacentHTML('beforeend', `<button type="button" class="card-archive" data-archive="${esc(id)}" title="Archive ${esc(name)}" aria-label="Archive ${esc(name)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 4h16a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-.2l-.8 10.1A2 2 0 0 1 17 21H7a2 2 0 0 1-2-1.9L4.2 9H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1zm2.2 5 .8 10h10l.8-10H6.2zM5 6v1h14V6H5zm4 5h6v2H9v-2z"/></svg></button>`);
     roster.appendChild(card);
   });
+  /* Archive: put a character away. It leaves its campaign (and stops playing there), and moves to
+     Archived Characters, where it can be made active again or deleted for good. */
+  const leaveCampaign = (patch, x)=>{
+    const k = x.rec.campaign; if(!k) return;
+    patch[`${CHARS}/${x.id}/campaign`] = null;
+    if(myCamps[k] === 'player'){ patch[`${CAMP(k)}/members/${user.uid}`] = null; patch[`${USERS}/${user.uid}/campaigns/${k}`] = null; }
+    if(myCamps[k] === 'dm') patch[`${CAMP(k)}/members/copy-${x.id}`] = null;   // a test copy in your own campaign's party
+  };
+  roster.addEventListener('click', async e=>{
+    const b = e.target.closest('[data-archive]'); if(!b) return;
+    e.preventDefault(); e.stopPropagation();
+    const x = mine.find(m=>m.id === b.dataset.archive); if(!x) return;
+    const name = (x.rec.core && x.rec.core.name) || 'this character', camp = x.rec.campaign && campNames[x.rec.campaign];
+    if(!confirm(`Archive ${name}?${camp ? ` ${name} leaves ${camp.name}.` : ''} You can make ${name} active again from Archived Characters.`)) return;
+    const patch = {[`${CHARS}/${x.id}/archived`]:true}; leaveCampaign(patch, x);
+    try{ await update(ref(db), patch); location.reload(); }
+    catch(err){ msg('archMsg', 'Couldn’t archive: ' + err.message, true); }
+  }, true);
+  // Archived Characters: make active again, or delete for good (typing the name to be sure)
+  if(archivedChars.length){
+    const box = $('hubArchived'); box.hidden = false;
+    $('archCount').textContent = archivedChars.length;
+    $('archList').innerHTML = archivedChars.map(x=>{ const c = x.rec.core || {};
+      return `<div class="hub-camp"><b>${esc(c.name || 'Unnamed')}</b> <span class="hub-note">· ${esc([c.level ? 'Level ' + c.level : '', c.race, c.cls].filter(Boolean).join(' '))}</span>`
+        + `<div class="hub-row"><button type="button" class="hub-btn ghost" data-unarchive="${esc(x.id)}">Make active</button><button type="button" class="hub-btn ghost danger" data-delete="${esc(x.id)}">Delete forever</button></div></div>`; }).join('');
+    $('archList').addEventListener('click', async e=>{
+      const id = e.target.dataset.unarchive || e.target.dataset.delete; if(!id) return;
+      const x = archivedChars.find(m=>m.id === id), name = String((x.rec.core && x.rec.core.name) || 'Unnamed');
+      try{
+        if(e.target.dataset.unarchive){ await update(ref(db), {[`${CHARS}/${id}/archived`]:null}); location.reload(); return; }
+        const typed = prompt(`Delete ${name} forever? This can’t be undone: everything about ${name} is gone.\n\nType the name to delete: ${name}`);
+        if(typed === null) return;
+        if(typed.trim().toLowerCase() !== name.trim().toLowerCase()){ msg('archMsg', 'The name didn’t match, so nothing was deleted.', true); return; }
+        await set(ref(db, `${CHARS}/${id}`), null); location.reload();
+      }catch(err){ msg('archMsg', 'Couldn’t do that: ' + err.message, true); }
+    });
+  }
   window.wireCards([...roster.querySelectorAll('.card')]);
-  $('charsNote').textContent = mine.length ? (touchScreenHint() ? '' : 'Click a character to open them.') : 'No characters yet. The character creator is coming next; until then your DM (or Claude) can add one for you.';
+  $('charsNote').textContent = mine.length ? (touchScreenHint() ? '' : 'Click a character to open them.') : 'No characters yet. Create one to get started.';
 
   // My campaigns
   $('hubCamps').hidden = false;
