@@ -16,14 +16,28 @@ const RACE_BUILD = {
   'Lightfoot Halfling': {asi:{dex:2, cha:1}, speed:25, size:'Small'},
   'Stout Halfling':     {asi:{dex:2, con:1}, speed:25, size:'Small'},
   'Human':              {asi:{str:1, dex:1, con:1, int:1, wis:1, cha:1}, speed:30, size:'Medium'},
-  'Variant Human':      {asi:{}, pick:2, skills:1, speed:30, size:'Medium', note:'You also get a feat: pick it in the Build box when the character opens.'},
-  'Dragonborn':         {asi:{str:2, cha:1}, speed:30, size:'Medium', note:'Pick your Draconic Ancestry in the Build box when the character opens.'},
+  'Variant Human':      {asi:{}, pick:2, skills:1, speed:30, size:'Medium', note:'An optional rule (Player’s Handbook, page 31) for tables that use feats: instead of +1 to every ability score, you get +1 to two scores, one skill and a feat. Ask your DM before picking it. You pick the feat in the Build box when the character opens.'},
+  'Dragonborn':         {asi:{str:2, cha:1}, speed:30, size:'Medium'},
   'Forest Gnome':       {asi:{int:2, dex:1}, speed:25, size:'Small'},
   'Rock Gnome':         {asi:{int:2, con:1}, speed:25, size:'Small'},
   'Half-Elf':           {asi:{cha:2}, pick:2, skills:2, speed:30, size:'Medium'},
   'Half-Orc':           {asi:{str:2, con:1}, speed:30, size:'Medium', fixedSkills:['Intimidation']},
   'Tiefling':           {asi:{cha:2, int:1}, speed:30, size:'Medium'},
 };
+
+// The nine races, each with its subraces (the race names above). A race with one entry has no subraces.
+const RACE_GROUPS = [
+  {name:'Dwarf', blurb:'Constitution +2 · 25 ft', subs:[['Hill Dwarf'], ['Mountain Dwarf']]},
+  {name:'Elf', blurb:'Dexterity +2 · darkvision', subs:[['High Elf'], ['Wood Elf'], ['Drow', 'Drow (Dark Elf)']]},
+  {name:'Halfling', blurb:'Dexterity +2 · lucky · Small', subs:[['Lightfoot Halfling'], ['Stout Halfling']]},
+  {name:'Human', blurb:'+1 to every score · 30 ft', subs:[['Human', 'Standard Human'], ['Variant Human', 'Variant Human (optional rule)']]},
+  {name:'Dragonborn', blurb:'Strength +2, Charisma +1 · breath weapon', subs:[['Dragonborn']]},
+  {name:'Gnome', blurb:'Intelligence +2 · Small', subs:[['Forest Gnome'], ['Rock Gnome']]},
+  {name:'Half-Elf', blurb:'Charisma +2, +1 to two others', subs:[['Half-Elf']]},
+  {name:'Half-Orc', blurb:'Strength +2, Constitution +1', subs:[['Half-Orc']]},
+  {name:'Tiefling', blurb:'Charisma +2, Intelligence +1', subs:[['Tiefling']]},
+];
+const raceGroupOf = race=>RACE_GROUPS.find(g=>g.subs.some(([r])=>r === race)) || null;
 
 /* Starting equipment: each class has fixed items and a list of "(a) or (b)" choices. An option is
    {label, items:[[name, qty]], pick:[[kind, count]]}: pick asks for "any simple weapon" and so on. */

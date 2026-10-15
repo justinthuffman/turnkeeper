@@ -21,10 +21,11 @@ const ORD = ['', '1st', '2nd', '3rd'];
 
 /* ---------- The draft ---------- */
 const DRAFT_KEY = 'dndTracker:creatorDraft';
-const blank = ()=>({step:'race', race:'', asiPick:[], cls:'', subclass:'', method:'', assign:{}, points:{str:8, dex:8, con:8, int:8, wis:8, cha:8}, rolls:null,
+const blank = ()=>({step:'race', raceGroup:'', race:'', ancestry:'', asiPick:[], cls:'', subclass:'', method:'', assign:{}, points:{str:8, dex:8, con:8, int:8, wis:8, cha:8}, rolls:null,
   bg:'', langs:[], tools:[], skills:[], extraSkills:[], expertise:[], equip:{}, picks:{}, cantrips:[], spells:[], book:[],
   name:'', alignment:'', traits:'', ideals:'', bonds:'', flaws:''});
 let S = (()=>{ try{ return {...blank(), ...(JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null') || {})}; }catch(e){ return blank(); } })();
+if(S.race && !S.raceGroup) S.raceGroup = (raceGroupOf(S.race) || {}).name || '';   // a draft from before races had subraces
 const save = ()=>{ try{ localStorage.setItem(DRAFT_KEY, JSON.stringify(S)); }catch(e){} };
 
 // Which campaign it's for: {key, name, settings}, from an invite link (?join=) or the player's campaigns
@@ -118,7 +119,9 @@ const visibleSteps = ()=>STEPS.filter(([k])=>k !== 'spells' || spellPlan());
 function missing(step){
   const out = [], r = raceB(), c = clsB();
   if(step === 'race'){
-    if(!r) out.push('Pick a race.');
+    if(!S.raceGroup) out.push('Pick a race.');
+    else if(!r) out.push('Pick a subrace.');
+    else if(S.race === 'Dragonborn' && !S.ancestry) out.push('Pick your draconic ancestry.');
     else if(r.pick && S.asiPick.length !== r.pick) out.push(`Pick ${r.pick} ability scores for +1.`);
   }
   if(step === 'class'){
@@ -175,13 +178,18 @@ const asiText = asi=>Object.entries(asi).map(([a, n])=>`${ABIL_NAME[a]} +${n}`).
 
 function renderRace(){
   const r = raceB();
-  let h = `<h2>Race</h2><div class="cards">${PHB_RACES.map(name=>{ const b = RACE_BUILD[name];
-    return `<button type="button" class="pick${S.race === name ? ' on' : ''}" data-race="${esc(name)}"><b>${esc(name)}</b><small>${esc(b.pick ? (asiText(b.asi) ? asiText(b.asi) + ', ' : '') + `+1 to ${b.pick} others` : asiText(b.asi))} · ${b.speed} ft</small></button>`; }).join('')}</div>`;
+  const g = RACE_GROUPS.find(x=>x.name === S.raceGroup);
+  let h = `<h2>Race</h2><div class="cards">${RACE_GROUPS.map(x=>`<button type="button" class="pick${S.raceGroup === x.name ? ' on' : ''}" data-rgroup="${esc(x.name)}"><b>${esc(x.name)}</b><small>${esc(x.blurb)}</small></button>`).join('')}</div>`;
+  if(g && g.subs.length > 1){
+    h += `<h3>${esc(g.name)}: Subrace</h3><div class="cards">${g.subs.map(([name, label])=>{ const b = RACE_BUILD[name];
+      return `<button type="button" class="pick${S.race === name ? ' on' : ''}" data-race="${esc(name)}"><b>${esc(label || name)}</b><small>${esc(b.pick ? (asiText(b.asi) ? asiText(b.asi) + ', ' : '') + `+1 to ${b.pick} scores of your choice` : asiText(b.asi))} · ${b.speed} ft</small></button>`; }).join('')}</div>`;
+  }
   if(r){
     const traits = traitsForRace(raceKeyFrom(S.race));
     h += `<div class="box"><h3>${esc(S.race)}</h3><p class="note">${esc(r.size)} · speed ${r.speed} ft${r.hpPerLevel ? ' · +1 hit point per level' : ''}${r.fixedSkills ? ' · proficient in ' + r.fixedSkills.join(', ') : ''}${r.skills ? ` · ${r.skills} skill${r.skills === 1 ? '' : 's'} of your choice (Skills step)` : ''}</p>`
       + (r.pick ? `<p>Pick ${r.pick} ability scores for +1${r.asi.cha ? ' (not Charisma)' : ''}:</p><div class="chips">${ABIL.filter(a=>!r.asi[a]).map(a=>`<label class="chip"><input type="checkbox" data-asipick="${a}"${S.asiPick.includes(a) ? ' checked' : ''}> ${ABIL_NAME[a]}</label>`).join('')}</div>` : '')
       + (traits.length ? `<ul class="traits">${traits.map(t=>`<li><b>${esc(t.name)}</b> ${esc(t.desc || '')}</li>`).join('')}</ul>` : `<p class="note">${esc((RACIAL_TRAITS[raceKeyFrom(S.race)] || {}).none || '')}</p>`)
+      + (S.race === 'Dragonborn' ? `<p><label>Draconic Ancestry ${sel('data-ancestry', S.ancestry, DRAGON_ANCESTRIES.map(a=>[a.name, `${a.name} (${a.type}, ${a.area}, ${a.save.toUpperCase()} save)`]), 'Pick your dragon…')}</label></p>` : '')
       + (r.note ? `<p class="note">${esc(r.note)}</p>` : '') + `</div>`;
   }
   return h;
@@ -319,6 +327,7 @@ document.addEventListener('click', e=>{
   const b = e.target.closest('button'); if(!b) return;
   if(b.dataset.step){ S.step = b.dataset.step; render(); scrollTo(0, 0); return; }
   if(b.id === 'next' || b.id === 'back'){ const st = visibleSteps(), i = st.findIndex(([k])=>k === S.step); S.step = st[Math.max(0, Math.min(st.length - 1, i + (b.id === 'next' ? 1 : -1)))][0]; render(); scrollTo(0, 0); return; }
+  if(b.dataset.rgroup){ if(S.raceGroup !== b.dataset.rgroup){ const g = RACE_GROUPS.find(x=>x.name === b.dataset.rgroup); S.raceGroup = g.name; S.race = g.subs.length === 1 ? g.subs[0][0] : ''; S.ancestry = ''; S.asiPick = []; S.langs = []; } render(); return; }
   if(b.dataset.race){ if(S.race !== b.dataset.race){ S.race = b.dataset.race; S.asiPick = []; S.langs = []; } render(); return; }
   if(b.dataset.cls){ if(S.cls !== b.dataset.cls){ S.cls = b.dataset.cls; S.subclass = ''; S.skills = []; S.expertise = []; S.equip = {}; S.picks = {}; S.cantrips = []; S.spells = []; S.book = []; S.tools = []; } render(); return; }
   if(b.dataset.pb){ const a = b.dataset.pb; S.points[a] = Math.max(8, Math.min(15, S.points[a] + +b.dataset.d)); render(); return; }
@@ -330,6 +339,7 @@ document.addEventListener('change', e=>{
   const t = e.target, d = t.dataset;
   if(d.asipick){ S.asiPick = toggle(S.asiPick, d.asipick, t.checked, raceB().pick); }
   else if(d.sub !== undefined){ S.subclass = t.value; }
+  else if(d.ancestry !== undefined){ S.ancestry = t.value; }
   else if(d.method){ S.method = d.method; S.assign = {}; }
   else if(d.assign){ S.assign[d.assign] = t.value === '' ? '' : +t.value; }
   else if(d.bg !== undefined){ S.bg = t.value; S.langs = []; S.tools = []; S.picks = Object.fromEntries(Object.entries(S.picks).filter(([k])=>!k.startsWith('b:'))); }
@@ -384,6 +394,7 @@ function buildRecord(){
     [kvKey('gold:@')]:JSON.stringify({log:[{t:Date.now(), d:BACKGROUND_GEAR[S.bg].gold, note:`Starting gold (${S.bg})`}]}),
   };
   if(S.subclass) kv[kvKey('subclass:@')] = S.subclass;
+  if(S.race === 'Dragonborn' && S.ancestry) kv[kvKey('choice:@:Draconic Ancestry')] = S.ancestry;   // the sheet's Build box choice
   if(p){
     const prepared = [...S.cantrips, ...S.spells];
     if(prepared.length) kv[kvKey('prepared:@')] = JSON.stringify(prepared);
