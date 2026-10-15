@@ -5838,6 +5838,7 @@ setupSettings({onOpen:()=>{ if(document.getElementById('setDice').open) fillDice
 </script>
 <script src="js/panel-order.js"></script>
 <script src="js/char-icons.js"></script>
+<script src="js/portrait-fit.js"></script>
 <script src="js/char-sheet.js"></script>
 <script src="js/level-up.js"></script>
 <script src="js/item-forms.js"></script>
@@ -5989,7 +5990,7 @@ showRestoredMsg();   // after a full restore reloaded the page
 window.tkCharIcon = ()=>{
   const cell = document.getElementById('charIconCell');
   const was = cell.hidden;
-  cell.hidden = !applyCharIcon(document.getElementById('charIcon'), currentCharId, `${myName()}’s icon`);
+  cell.hidden = !applyCharIcon(document.getElementById('charIcon'), currentCharId, `${myName()}’s icon`, currentCharId ? currentCore : null);
   if(was !== cell.hidden) fitNameField();   // the Name box makes room beside it
 };
 window.tkCharIcon();

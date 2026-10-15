@@ -11,3 +11,32 @@
 .char-icon.wizard{--ring:conic-gradient(from 210deg, #2c2a33, #8d8aa0, #34313d, #b9b5cc, #24222b, #6f6b83, #2c2a33); --inner:#8b5cf6;}
 .char-icon.rogue{--ring:conic-gradient(from 210deg, #1f2420, #5f6a5f, #252a26, #8a958a, #1b1f1c, #4e584e, #1f2420); --inner:#2f6b3a;}
 .char-icon.paladin{--ring:conic-gradient(from 210deg, #5a4520, #c9a24a, #6b5222, #e8cf86, #4e3a18, #b48a3a, #5a4520); --inner:#e8d27a;}
+/* V6 stage 4: a coin for every class (the four above, and these), and a coin with the character's
+   initial when there's no picture yet */
+.char-icon.barbarian{--ring:conic-gradient(from 210deg, #4a2414, #b0663a, #5c2c16, #d99a62, #3e1c0f, #9a5530, #4a2414); --inner:#a3262a;}
+.char-icon.cleric{--ring:conic-gradient(from 210deg, #6d6a62, #e6e1d2, #7c786e, #fffaf0, #5f5c55, #cfc8b4, #6d6a62); --inner:#e8c766;}
+.char-icon.druid{--ring:conic-gradient(from 210deg, #3b2a17, #8a6a3c, #45311b, #b39264, #33240f, #7a5c32, #3b2a17); --inner:#5c9a3c;}
+.char-icon.fighter{--ring:conic-gradient(from 210deg, #3a3f45, #a7b0b9, #464c53, #d6dde3, #33383d, #8b949d, #3a3f45); --inner:#3f6aa8;}
+.char-icon.monk{--ring:conic-gradient(from 210deg, #1f4a40, #6fb8a0, #245246, #a4dcc8, #1a3f36, #5aa088, #1f4a40); --inner:#d9a440;}
+.char-icon.ranger{--ring:conic-gradient(from 210deg, #263620, #6f8f52, #2c3f25, #9fbd7c, #1f2d1a, #5d7a43, #263620); --inner:#7a5530;}
+.char-icon.sorcerer{--ring:conic-gradient(from 210deg, #5a1f14, #d0703f, #6b2617, #f2a06a, #4a190f, #b85a30, #5a1f14); --inner:#c0303a;}
+.char-icon.warlock{--ring:conic-gradient(from 210deg, #1f1428, #6a4a86, #26182f, #9a78b8, #180f20, #57386f, #1f1428); --inner:#6fbf4a;}
+.char-icon.plain{--ring:conic-gradient(from 210deg, #2b4d68, #8fa6b8, #2b4d68, #c9d6df, #1b3750, #6f8aa0, #2b4d68); --inner:#4fb8a6;}
+.char-icon.initial{container-type:inline-size;}
+.char-icon.initial::before{background:radial-gradient(circle at 50% 35%, #2a3a47, #10171d);}
+.char-icon.initial::after{content:attr(data-initial); position:absolute; inset:0; display:grid; place-items:center; font-family:var(--font-display, Georgia, serif); font-size:42cqw; color:#e9eef2; text-shadow:0 2px 4px #000;}
+/* The portrait editor (js/portrait-fit.js): the coin, big, beside its options */
+.pf{display:flex; gap:18px; align-items:flex-start; flex-wrap:wrap;}
+.pf-coin{width:140px; flex:none; touch-action:none; user-select:none;}
+.pf-coin.pf-drag{cursor:grab;}
+.pf-coin.pf-drag:active{cursor:grabbing;}
+.pf-coin .char-icon{width:100%;}
+.pf-opts{flex:1 1 240px; min-width:0;}
+.pf-zoom{display:flex; align-items:center; gap:10px; font-size:0.85rem;}
+.pf-zoom input{flex:1;}
+.pf-note{color:var(--ink-dim); font-size:0.82rem; margin:6px 0;}
+.pf-link{background:none; border:none; padding:0; color:var(--sea); text-decoration:underline; cursor:pointer; font:inherit; font-size:0.82rem;}
+.pf-row{margin:10px 0 6px;}
+.pf-upload{display:inline-block; border:1px solid var(--sea-dim); color:var(--sea); border-radius:6px; padding:7px 12px; cursor:pointer; font-size:0.88rem;}
+.pf-field{display:flex; flex-direction:column; gap:4px; font-size:0.82rem; color:var(--ink-dim);}
+.pf-field input{width:100%; background:var(--bg); color:var(--ink); border:1px solid var(--border); border-radius:6px; padding:7px 9px; font:inherit;}

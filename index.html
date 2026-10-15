@@ -9,6 +9,7 @@
 <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
 <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
 <link rel="manifest" href="icons/site.webmanifest">
+<link rel="stylesheet" href="css/char-icons.css">
 <meta name="apple-mobile-web-app-title" content="Turnkeeper">
 <style>
 :root{
@@ -240,6 +241,8 @@ footer{margin-top:56px; font-size:0.75rem; color:var(--ink-dim); text-align:cent
 .test-tag{display:inline-block; margin-left:8px; font-size:0.7rem; padding:1px 8px; border-radius:999px; border:1px solid var(--orange); color:var(--orange-bright); vertical-align:middle;}
 .card-plain{--frame:linear-gradient(135deg, var(--sea), var(--panel2) 30%, var(--sea-dim) 55%, var(--panel) 78%, var(--sea)); --glow:rgba(120,200,190,0.45); --line:rgba(255,255,255,0.35); --tag-ink:var(--bg);}
 .card-plain .card-art{display:flex; align-items:center; justify-content:center; background:radial-gradient(circle at 50% 35%, var(--panel2), var(--bg));}
+.card-coin{width:58%; margin-top:-18%;}
+.card-coin .char-icon{width:100%;}
 .card-initial{font-family:var(--font-display); font-size:4.5rem; color:var(--sea); opacity:0.8;}
 .roster.few{grid-template-columns:repeat(auto-fit, minmax(170px, 210px)); justify-content:center;}
 /* The DM's way in: quiet, under the footer */
@@ -272,6 +275,7 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
 <script src="js/firebase.js"></script>
 <script src="js/account-store.js"></script>
 <script src="js/themes.js"></script>
+<script src="js/char-icons.js"></script>
 </head>
 <body>
 
@@ -532,7 +536,7 @@ if(!user){
     else {
       card = document.createElement('a'); card.className = 'card card-plain'; card.href = 'turnkeeper.html?char=' + id; card.target = '_blank'; card.rel = 'noopener';
       const pic = typeof core.portrait === 'string' && (v=>/^data:image\/(webp|jpeg|png);base64,[A-Za-z0-9+/=]+$/.test(v) || /^https:\/\/[^\s"'<>]+$/.test(v))(core.portrait) ? core.portrait : '';
-      card.innerHTML = `<div class="card-art">${pic ? `<img src="${esc(pic)}" alt="">` : `<div class="card-initial">${esc(name.charAt(0).toUpperCase())}</div>`}<div class="card-plate"><div class="card-name">${esc(name)}</div><div class="card-sub">${esc([core.race, core.cls].filter(Boolean).join(' ').slice(0, 50))}</div></div></div>`;
+      card.innerHTML = `<div class="card-art">${pic ? `<img src="${esc(pic)}" alt="">` : `<div class="card-coin">${charIconHtml(null, '', '', {name, cls:core.cls})}</div>`}<div class="card-plate"><div class="card-name">${esc(name)}</div><div class="card-sub">${esc([core.race, core.cls].filter(Boolean).join(' ').slice(0, 50))}</div></div></div>`;
     }
     roster.appendChild(card);
   });

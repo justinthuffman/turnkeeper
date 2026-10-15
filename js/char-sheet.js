@@ -152,10 +152,23 @@ function basicsHtml(c){
 function renderDetails(){
   const panel = document.getElementById('detailsPanel'); if(!panel) return;
   panel.hidden = !csDb(); if(!csDb()) return;
-  const d = currentCore.details || {};
-  document.getElementById('detailsBody').innerHTML = levelHtml() +
-    DETAIL_GROUPS.map(([title, fields])=>`<details class="cs-sec"${title === 'Identity' ? ' open' : ''}><summary>${title}</summary><div class="cs-grid">${fields.map(f=>detailFieldHtml(f, d)).join('')}</div></details>`).join('');
+  const d = currentCore.details || {}, body = document.getElementById('detailsBody');
+  // Sections open now stay open (first time: Identity)
+  const was = body.querySelector('details.cs-sec') ? new Set([...body.querySelectorAll('details.cs-sec[open]')].map(x=>x.dataset.sec)) : new Set(['Identity']);
+  body.innerHTML = levelHtml()
+    + `<details class="cs-sec" data-sec="Portrait"${was.has('Portrait') ? ' open' : ''}><summary>Portrait</summary>${portraitEditorHtml({portrait:currentCore.portrait, fit:currentCore.portraitFit, cls:currentCore.cls, name:currentCore.name || savedName(currentCharId)})}</details>` +
+    DETAIL_GROUPS.map(([title, fields])=>`<details class="cs-sec" data-sec="${title}"${was.has(title) ? ' open' : ''}><summary>${title}</summary><div class="cs-grid">${fields.map(f=>detailFieldHtml(f, d)).join('')}</div></details>`).join('');
 }
+// The portrait (js/portrait-fit.js): saved with the character; the icon in Character Summary follows
+wirePortraitEditor({
+  get:()=>({portrait:currentCore ? currentCore.portrait : '', fit:currentCore ? currentCore.portraitFit : null, cls:currentCore ? currentCore.cls : '', name:currentCore ? currentCore.name : ''}),
+  set:ch=>{
+    if(!csDb()) return;
+    if('portrait' in ch) csSaveCore('portrait', ch.portrait || null);
+    if('fit' in ch) csSaveCore('portraitFit', ch.fit || null);
+    renderDetails(); if(window.tkCharIcon) window.tkCharIcon();
+  },
+});
 /* Edit Character: the set-once basics, behind a button in Settings (a window over the page) */
 function openEditChar(){
   if(!csDb()) return;

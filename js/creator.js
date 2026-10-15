@@ -31,7 +31,7 @@ const DETAIL_AREAS = [['look', 'Appearance', 3], ['traits', 'Personality traits'
 // hpRolls[i] the roll for level i + 2 (kept once rolled: no rerolls, and no switching to the average)
 const blank = ()=>({step:'race', raceGroup:'', race:'', ancestry:'', asiPick:[], cls:'', subclass:'', level:1, hpHow:'', hpRolls:[], method:'', assignBy:{array:{}, roll:{}}, points:{str:8, dex:8, con:8, int:8, wis:8, cha:8}, rolls:null,
   bg:'', langs:[], tools:[], skills:[], extraSkills:[], expertise:[], equip:{}, picks:{}, cantrips:[], spells:[], book:[],
-  name:'', alignment:'', portrait:'', ...Object.fromEntries([...DETAIL_TEXT, ...DETAIL_AREAS].map(([k])=>[k, '']))});
+  name:'', alignment:'', portrait:'', portraitFit:null, ...Object.fromEntries([...DETAIL_TEXT, ...DETAIL_AREAS].map(([k])=>[k, '']))});
 let S = (()=>{ try{ return {...blank(), ...(JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null') || {})}; }catch(e){ return blank(); } })();
 if(S.race && !S.raceGroup) S.raceGroup = (raceGroupOf(S.race) || {}).name || '';   // a draft from before races had subraces
 if(S.assign){ if(S.method === 'array' || S.method === 'roll') S.assignBy[S.method] = S.assign; delete S.assign; }   // a draft from before assignBy
@@ -221,7 +221,7 @@ function renderSummary(){
   const c = clsB(), fin = finalScores(), hp = hpMax(), r = raceB();
   const who = [S.race, c && c.name].filter(Boolean).join(' ');
   const portrait = safePortrait(S.portrait);
-  $('summary').innerHTML = `<div class="sum-head">${portrait ? `<img class="sum-portrait" src="${esc(portrait)}" alt="">` : ''}<div><b>${esc(S.name.trim() || 'New character')}</b>`
+  $('summary').innerHTML = `<div class="sum-head">${charIconHtml(null, '', 'sum-portrait', {portrait, portraitFit:S.portraitFit, cls:c ? c.name : '', name:S.name || '?'})}<div><b>${esc(S.name.trim() || 'New character')}</b>`
     + `<small>${who ? 'Level ' + (S.level || 1) + ' ' + esc(who) : 'Pick a race and class'}${S.subclass ? ` · ${esc(S.subclass)}` : ''}</small></div></div>`
     + (S.bg || S.alignment ? `<p class="sum-line">${[S.bg, S.alignment].filter(Boolean).map(esc).join(' · ')}</p>` : '')
     + `<div class="sum-scores">${ABIL.map(a=>`<span><small>${a.toUpperCase()}</small><b>${fin[a] ?? '—'}</b><i>${fin[a] === null ? '' : fmt(mod(fin[a]))}</i></span>`).join('')}</div>`
@@ -377,16 +377,13 @@ function renderSpells(){
   return h;
 }
 // A portrait: a picture uploaded here (shrunk to a small image) or a link to one (https only)
-const safePortrait = v=>typeof v === 'string' && (/^data:image\/(webp|jpeg|png);base64,[A-Za-z0-9+/=]+$/.test(v) || /^https:\/\/[^\s"'<>]+$/.test(v)) ? v : '';
+const safePortrait = safePortraitUrl;   // js/char-icons.js
 function renderDetails(){
   const input = (k, label, max)=>`<label class="field"><span>${label}</span><input data-f="${k}" maxlength="${max || 40}" value="${esc(S[k])}"></label>`;
   const area = (k, label, rows)=>rows ? `<label class="field"><span>${label}</span><textarea data-f="${k}" rows="${rows}" maxlength="4000">${esc(S[k])}</textarea></label>` : input(k, label, 80);
   const portrait = safePortrait(S.portrait);
   return `<h2>Details</h2>${input('name', 'Name')}<label class="field"><span>Alignment</span>${sel('data-f="alignment"', S.alignment, ALIGNMENTS, '—')}</label>`
-    + `<h3>Portrait</h3><div class="portrait-row"><div class="portrait">${portrait ? `<img src="${esc(portrait)}" alt="Portrait">` : '<span>No picture yet</span>'}</div>`
-    + `<div class="portrait-opts"><label class="btn ghost upload">Upload a picture<input type="file" id="portraitFile" accept="image/*" hidden></label>`
-    + `<label class="field"><span>Or paste a link to one (https://…)</span><input id="portraitLink" maxlength="400" value="${esc(S.portrait.startsWith('https://') ? S.portrait : '')}" placeholder="https://"></label>`
-    + `${portrait ? '<button type="button" class="linkbtn" id="portraitClear">Remove the picture</button>' : ''}<p class="note" id="portraitMsg">Uploaded pictures are shrunk to a small image so they load quickly. Lining it up in the sheet’s circle comes later.</p></div></div>`
+    + `<h3>Portrait</h3>${portraitEditorHtml({portrait:S.portrait, fit:S.portraitFit, cls:clsB() ? clsB().name : '', name:S.name})}`
     + `<h3>Appearance</h3><p class="note">Size: ${raceB() ? esc(raceB().size) : 'set by your race'}</p><div class="grid3">${DETAIL_TEXT.map(([k, l])=>input(k, l)).join('')}</div>`
     + DETAIL_AREAS.slice(0, 1).map(([k, l, r])=>area(k, l, r)).join('')
     + `<h3>Personality</h3>` + DETAIL_AREAS.slice(1, 5).map(([k, l, r])=>area(k, l, r)).join('')
@@ -508,41 +505,10 @@ document.addEventListener('change', e=>{
   else return;
   render();
 });
-// Portrait: an uploaded picture is shrunk (longest side 320 px, then lower quality until it's about
-// 40 KB at most) and kept with the character; a link is kept as it is (https only)
-function shrinkPicture(file){
-  return new Promise((ok, bad)=>{
-    const img = new Image(), url = URL.createObjectURL(file);
-    img.onload = ()=>{
-      URL.revokeObjectURL(url);
-      const scale = Math.min(1, 320 / Math.max(img.width, img.height)), c = document.createElement('canvas');
-      c.width = Math.max(1, Math.round(img.width * scale)); c.height = Math.max(1, Math.round(img.height * scale));
-      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
-      let out = '';
-      for(const q of [0.85, 0.75, 0.6, 0.45, 0.3]){
-        out = c.toDataURL('image/webp', q);
-        if(!out.startsWith('data:image/webp')) out = c.toDataURL('image/jpeg', q);   // browsers without WebP
-        if(out.length <= 55000) break;
-      }
-      out.length <= 55000 ? ok(out) : bad(new Error('too big'));
-    };
-    img.onerror = ()=>{ URL.revokeObjectURL(url); bad(new Error('not a picture')); };
-    img.src = url;
-  });
-}
-document.addEventListener('change', async e=>{
-  if(e.target.id !== 'portraitFile' || !e.target.files[0]) return;
-  $('portraitMsg').textContent = 'Shrinking the picture…';
-  try{ S.portrait = await shrinkPicture(e.target.files[0]); render(); }
-  catch(err){ $('portraitMsg').textContent = 'That picture couldn’t be used. Try a JPG or PNG.'; }
-});
-document.addEventListener('click', e=>{ if(e.target.id === 'portraitClear'){ S.portrait = ''; render(); } });
-document.addEventListener('change', e=>{
-  if(e.target.id !== 'portraitLink') return;
-  const v = e.target.value.trim();
-  if(!v){ if(S.portrait.startsWith('https://')){ S.portrait = ''; render(); } return; }
-  if(!safePortrait(v)){ $('portraitMsg').textContent = 'That link has to start with https:// (a picture’s own address).'; return; }
-  S.portrait = v; render();
+// Portrait: picked and lined up in the class coin (js/portrait-fit.js)
+wirePortraitEditor({
+  get:()=>({portrait:S.portrait, fit:S.portraitFit, cls:clsB() ? clsB().name : '', name:S.name}),
+  set:ch=>{ if('portrait' in ch) S.portrait = ch.portrait; if('fit' in ch) S.portraitFit = ch.fit; render(); },
 });
 // Typing in Details saves without redrawing (so the cursor stays put)
 document.addEventListener('input', e=>{ const k = e.target.dataset && e.target.dataset.f; if(k && e.target.tagName !== 'SELECT'){ S[k] = e.target.value; save(); renderSummary(); $('todo').textContent = missing(S.step).join(' '); } });
@@ -558,7 +524,7 @@ function buildRecord(){
   const core = {name:S.name.trim().slice(0, 40), race:S.race, cls:c.name, level:S.level || 1, scores:fin, saves:[...c.saves], skills,
     hpMax:hp, hpCur:hp, speed:raceB().speed, ac:10 + mod(fin.dex),
     details:{background:S.bg, alignment:S.alignment, xp:XP_FOR[(S.level || 1) - 1], ...Object.fromEntries([...DETAIL_TEXT, ...DETAIL_AREAS].map(([k])=>[k, String(S[k] || '').trim()]).filter(([, v])=>v))}};
-  if(safePortrait(S.portrait)) core.portrait = safePortrait(S.portrait);
+  if(safePortrait(S.portrait)){ core.portrait = safePortrait(S.portrait); core.portraitFit = clampFit(S.portraitFit); }
   const langs = S.langs.filter(Boolean), tools = S.tools.filter(Boolean);
   if(langs.length) core.languages = langs;
   if(tools.length) core.profs = {tools};

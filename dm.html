@@ -906,7 +906,7 @@ function pcCard(pc){
   const turnNow = !may && !!(cur && cur.kind === 'pc' && cur.name === pc.name);
   const allowTag = `<span class="pc-allow${may || turnNow ? '' : ' off'}" title="${may ? `Click the card to stop ${esc(pc.name)} rolling` : turnNow ? `It's ${esc(pc.name)}'s turn, so they can roll. Clicking the card also lets them roll off their turn` : `Click the card to let ${esc(pc.name)} roll`}">${may ? '🎲 Can roll' : turnNow ? '🎲 Their turn' : 'Not rolling'}</span>`;
   // The same icon as the player's tracker (js/char-icons.js), or the plain portrait if there isn't one
-  const icon = charIconHtml(pc.char, `${pc.name}’s icon`, 'pc-icon') || (pc.portrait ? `<img class="pc-portrait" src="${esc(pc.portrait)}" alt="">` : `<span class="pc-portrait pc-initial">${esc(pc.name.charAt(0))}</span>`);
+  const icon = charIconHtml(pc.char, `${pc.name}’s icon`, 'pc-icon', pc.icon) || (pc.portrait ? `<img class="pc-portrait" src="${esc(pc.portrait)}" alt="">` : `<span class="pc-portrait pc-initial">${esc(pc.name.charAt(0))}</span>`);
   const top = sub => `<div class="pc-top">${icon}<div><h3>${esc(pc.name)}</h3><div class="pc-sub">${sub}</div>${allowTag}</div>${liveCornerHtml(pc)}</div>`;
   if(!p || p.error) return `<article class="pc-card${p ? '' : ' loading'}${may ? ' allowed' : turnNow ? ' turn' : ''}" data-char="${pc.char}">${top(p ? '' : 'Loading…')}${p ? `<div class="pc-err">${esc(p.error)}</div>` : ''}${links}</article>`;
   const saves = ABILS.map(a=>{
@@ -2174,10 +2174,10 @@ try{
   window.dmParty = async key=>{
     const members = (await get(ref(db, `${CAMP(key)}/members`))).val() || {};
     const list = await Promise.all(Object.values(members).filter(m=>m && m.role === 'player' && typeof m.char === 'string').map(async m=>{
-      const name = (await get(ref(db, `${CHARS}/${m.char}/core/name`)).catch(()=>null))?.val();
-      const pic = PORTRAITS[m.char] ? null : (await get(ref(db, `${CHARS}/${m.char}/core/portrait`)).catch(()=>null))?.val();
+      const core = (await get(ref(db, `${CHARS}/${m.char}/core`)).catch(()=>null))?.val() || {};
+      const name = core.name, pic = core.portrait;
       const own = typeof pic === 'string' && (v=>/^data:image\/(webp|jpeg|png);base64,[A-Za-z0-9+/=]+$/.test(v) || /^https:\/\/[^\s"'<>]+$/.test(v))(pic) ? pic : null;
-      return {name:typeof name === 'string' && name.trim() ? name.trim().slice(0, 40) : 'A player', char:m.char, portrait:PORTRAITS[m.char] || own};
+      return {name:typeof name === 'string' && name.trim() ? name.trim().slice(0, 40) : 'A player', char:m.char, portrait:PORTRAITS[m.char] || own, icon:{name:core.name, cls:core.cls, portrait:own, portraitFit:core.portraitFit}};
     }));
     return list.sort((a, b)=>a.name.localeCompare(b.name));
   };
