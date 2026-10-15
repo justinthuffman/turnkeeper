@@ -2344,13 +2344,16 @@ function renderStatus(){
   // Who put it on you, when someone else did ('DM' when the DM didn't say who: left out)
   const fromWho = k=>s.ext && s.ext[k] && s.ext[k] !== 'you' && s.ext[k] !== 'DM' ? ` (from ${s.ext[k]})` : '';
   const activeNames = on.map(d=>(d.key==='bardic' ? `Bardic Inspiration (d${s.bi || 6})` : d.name) + fromWho(d.key)).concat(x ? [`Exhaustion ${x}`] : []);
+  // The same, as chips that show what each does on hover (data-tip-*: not the toggles, so hovering or clicking a pin changes nothing)
+  const tipAttr = i=>i < on.length ? `data-tip-status="${on[i].key}"` : `data-tip-exh="${x}"`;
+  const activeChips = activeNames.map((n, i)=>`<span class="fx-chip" ${tipAttr(i)}>${escapeHtml(n)}</span>`);
   // Custom effects on you (Bleeding from Krunk's greataxe), from other players or the DM
   const defs = typeof campaignDefs !== 'undefined' ? allEffectDefs() : [];
   const custom = (tableActive() && typeof effectsOnMe === 'function' ? effectsOnMe(arrOf(table.combat.order).find(o=>o.char === currentCharId)) : [])
     .map(e=>({...e, d:defs.find(x=>x.name === e.name)})).filter(e=>e.d);
   const pinNames = [...activeNames, ...custom.map(e=>e.name + (e.from ? ` (from ${e.from})` : ''))];
   // Folded, the title bar shows everything on you (applied by you, the DM or another player)
-  document.getElementById('statusPins').innerHTML = pinNames.map(n=>`<span class="fx-chip">${escapeHtml(n)}</span>`).join('');
+  document.getElementById('statusPins').innerHTML = [...activeChips, ...custom.map(e=>`<span class="fx-chip" data-tip-effect="${escapeHtml(e.name)}">${escapeHtml(e.name + (e.from ? ` (from ${e.from})` : ''))}</span>`)].join('');
   const item = d=>s.on[d.key] ? `<div class="status-item">${chip(d)}<small>${escapeHtml(d.desc)}${d.lasts ? ` Lasts up to ${escapeHtml(d.lasts)}.` : ''}</small></div>` : chip(d);
   let html = `<div class="status-now">${pinNames.length ? `<b>Now:</b> ${pinNames.map(escapeHtml).join(', ')}` : 'No conditions or effects on you.'}`
     + (activeNames.length ? ` <button type="button" class="sel-toggle" data-status-ui="clear">Clear all</button>` : '') + `</div>`
@@ -2364,19 +2367,23 @@ function renderStatus(){
   // The Combat Menu shows what's active too, and warns when you can't act
   const line = document.getElementById('statusLine'), incap = on.filter(d=>d.incap).map(d=>d.name);
   line.hidden = !activeNames.length;
-  line.innerHTML = activeNames.length ? `<span>Status:</span> ${activeNames.map(n=>`<span class="fx-chip">${escapeHtml(n)}</span>`).join('')}`
+  line.innerHTML = activeNames.length ? `<span>Status:</span> ${activeChips.join('')}`
     + (incap.length ? ` <b class="status-warn">${incap.join(', ')}: you can’t take actions or reactions.</b>` : '') + (x >= 6 ? ` <b class="status-warn">Exhaustion 6: death.</b>` : '') : '';
   updateACBox();
   updateMoveLine();
 }
 // Hovering a status (or an exhaustion level) shows what it does, in the sheet's popup
 function statusTipHtml(el){
-  if(el.dataset.status){ const d = STATUS_BY_KEY[el.dataset.status]; if(!d) return '';
+  const key = el.dataset.status || el.dataset.tipStatus;
+  if(key){ const d = STATUS_BY_KEY[key]; if(!d) return '';
     return `<b>${escapeHtml(d.name)}</b><div class="meta">${escapeHtml(d.desc)}${d.lasts ? ` Lasts up to ${escapeHtml(d.lasts)}: Turnkeeper counts it down each time you end your turn.` : ''}</div>`; }
-  if(el.dataset.exh !== undefined) return `<b>Exhaustion</b><div class="meta">${escapeHtml(EXHAUSTION_TEXT[+el.dataset.exh] || '')}</div>`;
+  const exh = el.dataset.exh ?? el.dataset.tipExh;
+  if(exh !== undefined) return `<b>Exhaustion</b><div class="meta">${escapeHtml(EXHAUSTION_TEXT[+exh] || '')}</div>`;
+  // A custom effect on you (from the campaign's effects: Bleeding…)
+  if(el.dataset.tipEffect){ const d = (typeof allEffectDefs === 'function' ? allEffectDefs() : []).find(x=>x.name === el.dataset.tipEffect); return d ? `<b>${escapeHtml(d.name)}</b><div class="meta">${escapeHtml(effectText(d))}</div>` : ''; }
   return '';
 }
-const statusTipTarget = e=>e.target.closest && e.target.closest('#statusPanel [data-status], #statusPanel [data-exh]');
+const statusTipTarget = e=>e.target.closest && e.target.closest('#statusPanel [data-status], #statusPanel [data-exh], [data-tip-status], [data-tip-exh], [data-tip-effect]');
 document.addEventListener('mouseover', e=>{ const el = statusTipTarget(e); if(!el || tipHeld) return; const h = statusTipHtml(el); if(!h) return; tooltip.innerHTML = h; tooltip.style.display = 'block'; moveTooltip(e); });
 document.addEventListener('mousemove', e=>{ if(statusTipTarget(e)) moveTooltip(e); });
 document.addEventListener('mouseout', e=>{ const el = statusTipTarget(e); if(el && !el.contains(e.relatedTarget)) hideTooltip(); });
