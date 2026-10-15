@@ -273,6 +273,7 @@ footer{margin-top:56px; font-size:0.75rem; color:var(--ink-dim); text-align:cent
 .hub-archived{width:100%; max-width:560px; margin-top:18px; background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:10px 16px;}
 .hub-archived[hidden]{display:none;}
 .hub-archived summary{cursor:pointer; color:var(--ink-dim); font-size:0.9rem;}
+.hub-sub{font-family:var(--font-display); font-weight:normal; color:var(--ink); font-size:1.05rem; margin:16px 0 4px;}
 .hub-btn.danger{color:var(--orange-bright); border-color:var(--orange);}
 .card-coin .char-icon{width:100%;}
 .card-initial{font-family:var(--font-display); font-size:4.5rem; color:var(--sea); opacity:0.8;}
@@ -692,7 +693,8 @@ if(!user){
       if(!real.length) real = (await Promise.all(Object.keys(PORTRAITS).map(async id=>({id, rec:(await get(ref(db, `campaigns/waterdeep/characters/${id}`)).catch(()=>null))?.val()})))).filter(x=>x.rec && x.rec.core);
       const box = $('hubAdmin'); box.hidden = false;
       const myDm = Object.keys(myCamps).filter(k=>myCamps[k] === 'dm' && campNames[k]);
-      box.innerHTML = `<h2>Test Copies</h2><p class="hub-note">Admin: copy a real character into the sandbox to try things out. The real one is only read, never changed.</p>`
+      box.innerHTML = `<h2>Admin</h2><div class="hub-row"><a class="hub-btn" href="dm.html${params.get('test') ? '?test=1' : ''}" target="_blank" rel="noopener">Open the DM Screen</a><span class="hub-note">Your test campaigns, plus any game to watch (view only)</span></div>`
+        + `<h3 class="hub-sub">Test Copies</h3><p class="hub-note">Copy a real character into the sandbox to try things out. The real one is only read, never changed.</p>`
         + (myDm.length ? `<div class="hub-row"><label class="hub-note">Add each copy to the party of <select id="copyTo"><option value="">no campaign</option>${myDm.map(k=>`<option value="${esc(k)}">${esc(campNames[k].name)}</option>`).join('')}</select></label></div>`
           : '<p class="hub-note">To run them in a fight, create a campaign below first (you’ll be its DM); copies can then join its party.</p>')
         + (real.length ? real.map(x=>`<div class="hub-row"><b>${esc((x.rec.core && x.rec.core.name) || x.id)}</b><button type="button" class="hub-btn ghost" data-copy="${esc(x.id)}">Copy into the sandbox</button></div>`).join('') : '<p class="hub-note">No real characters found.</p>')
