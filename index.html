@@ -640,7 +640,10 @@ if(!user){
       let real = Object.entries((await get(ref(db, 'characters')).catch(()=>null))?.val() || {}).map(([id, rec])=>({id, rec}));
       if(!real.length) real = (await Promise.all(Object.keys(PORTRAITS).map(async id=>({id, rec:(await get(ref(db, `campaigns/waterdeep/characters/${id}`)).catch(()=>null))?.val()})))).filter(x=>x.rec && x.rec.core);
       const box = $('hubAdmin'); box.hidden = false;
+      const myDm = Object.keys(myCamps).filter(k=>myCamps[k] === 'dm' && campNames[k]);
       box.innerHTML = `<h2>Test Copies</h2><p class="hub-note">Admin: copy a real character into the sandbox to try things out. The real one is only read, never changed.</p>`
+        + (myDm.length ? `<div class="hub-row"><label class="hub-note">Add each copy to the party of <select id="copyTo"><option value="">no campaign</option>${myDm.map(k=>`<option value="${esc(k)}">${esc(campNames[k].name)}</option>`).join('')}</select></label></div>`
+          : '<p class="hub-note">To run them in a fight, create a campaign below first (you’ll be its DM); copies can then join its party.</p>')
         + (real.length ? real.map(x=>`<div class="hub-row"><b>${esc((x.rec.core && x.rec.core.name) || x.id)}</b><button type="button" class="hub-btn ghost" data-copy="${esc(x.id)}">Copy into the sandbox</button></div>`).join('') : '<p class="hub-note">No real characters found.</p>')
         + '<div class="hub-msg" id="adminMsg"></div>';
       box.addEventListener('click', async e=>{
@@ -650,8 +653,11 @@ if(!user){
         // The kv keys name the character as "@", so they work for the copy as they are
         try{
           const r = push(ref(db, CHARS));
-          await set(r, {owner:user.uid, core, kv:x.rec.kv || {}, t:serverTimestamp()});
-          msg('adminMsg', `${core.name} is ready.`);
+          const to = $('copyTo') ? $('copyTo').value : '';
+          await set(r, {owner:user.uid, core, kv:x.rec.kv || {}, t:serverTimestamp(), ...(to ? {campaign:to} : {})});
+          // In your test campaign's party (you're its DM, so you can add it; the DM Screen lists it)
+          if(to) await set(ref(db, `${CAMP(to)}/members/copy-${r.key}`), {role:'player', char:r.key, joined:serverTimestamp()});
+          msg('adminMsg', `${core.name} is ready${to ? ' and in ' + campNames[to].name + '’s party' : ''}.`);
           window.open('turnkeeper.html?char=' + encodeURIComponent(r.key) + (params.get('test') ? '&test=1' : ''), '_blank', 'noopener');
         }catch(err){ msg('adminMsg', 'Couldn’t copy it: ' + err.message, true); }
       });
