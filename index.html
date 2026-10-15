@@ -335,6 +335,7 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
   <div class="hub-msg" id="campMsg" aria-live="polite"></div>
 </div>
 
+<div class="hub-panel" id="hubAdmin" hidden></div>
 <div class="hub-user" id="hubUser" hidden></div>
 <footer id="hubFoot"></footer>
 
@@ -485,7 +486,7 @@ const randomCode = n=>Array.from(crypto.getRandomValues(new Uint8Array(n)), b=>'
 let f;
 try{ f = await tkFirebase(); }
 catch(err){ $('hubFoot').textContent = 'Couldn’t reach Turnkeeper. Check your connection and reload.'; throw err; }
-const {db, auth, authMod, fb:{ref, get, set, update, query, orderByChild, equalTo, serverTimestamp}} = f;
+const {db, auth, authMod, fb:{ref, get, set, push, update, query, orderByChild, equalTo, serverTimestamp}} = f;
 let user = f.user;
 const EMAIL_KEY = 'tkEmailForSignIn';
 const back = ()=>{ const next = params.get('next'); if(next && /^(turnkeeper|dm)\.html(\?[^#]*)?$/.test(next)) location.href = next; else { const keep = params.get('join'); location.href = 'index.html' + (keep ? '?join=' + encodeURIComponent(keep) : ''); } };
@@ -628,6 +629,34 @@ if(!user){
       $('newCampName').value = ''; renderCamps(); msg('campMsg', `${name} is ready. Copy its invite link for your players.`);
     }catch(err){ msg('campMsg', 'Couldn’t create the campaign: ' + err.message, true); }
   };
+
+  /* Admin (test mode only): copy a real character into the sandbox to try things out. The admin mark
+     (admins/<account>) is set by hand with the Firebase CLI; the real character is only read, never
+     written. Real characters are at characters/<id> (V6), or before the switch-over at the old spot
+     (campaigns/waterdeep/characters/<id>) for the four in PORTRAITS. */
+  if(TEST_MODE){
+    const admin = (await get(ref(db, `admins/${user.uid}`)).catch(()=>null))?.val() === true;
+    if(admin){
+      let real = Object.entries((await get(ref(db, 'characters')).catch(()=>null))?.val() || {}).map(([id, rec])=>({id, rec}));
+      if(!real.length) real = (await Promise.all(Object.keys(PORTRAITS).map(async id=>({id, rec:(await get(ref(db, `campaigns/waterdeep/characters/${id}`)).catch(()=>null))?.val()})))).filter(x=>x.rec && x.rec.core);
+      const box = $('hubAdmin'); box.hidden = false;
+      box.innerHTML = `<h2>Test Copies</h2><p class="hub-note">Admin: copy a real character into the sandbox to try things out. The real one is only read, never changed.</p>`
+        + (real.length ? real.map(x=>`<div class="hub-row"><b>${esc((x.rec.core && x.rec.core.name) || x.id)}</b><button type="button" class="hub-btn ghost" data-copy="${esc(x.id)}">Copy into the sandbox</button></div>`).join('') : '<p class="hub-note">No real characters found.</p>')
+        + '<div class="hub-msg" id="adminMsg"></div>';
+      box.addEventListener('click', async e=>{
+        const id = e.target.dataset.copy; if(!id) return;
+        const x = real.find(r=>r.id === id); if(!x) return;
+        const core = {...x.rec.core, name:String((x.rec.core.name || 'Character') + ' (test copy)').slice(0, 40)};
+        // The kv keys name the character as "@", so they work for the copy as they are
+        try{
+          const r = push(ref(db, CHARS));
+          await set(r, {owner:user.uid, core, kv:x.rec.kv || {}, t:serverTimestamp()});
+          msg('adminMsg', `${core.name} is ready.`);
+          window.open('turnkeeper.html?char=' + encodeURIComponent(r.key) + (params.get('test') ? '&test=1' : ''), '_blank', 'noopener');
+        }catch(err){ msg('adminMsg', 'Couldn’t copy it: ' + err.message, true); }
+      });
+    }
+  }
 
   // Joining from an invite link: pick one of your characters to bring
   const join = params.get('join');
