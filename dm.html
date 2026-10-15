@@ -80,6 +80,7 @@ button.sel-toggle:hover{background:none; color:var(--ink);}
 .pc-mods{font-size:0.74rem; color:var(--racial); display:flex; flex-direction:column; gap:2px;}
 .pc-card > .pc-sublbl{align-self:end;}
 .pc-top{display:flex; gap:10px; align-items:center;}
+.pc-initial{display:grid; place-items:center; font-family:var(--font-display); font-size:1.4rem; color:var(--sea);}
 .pc-portrait{width:52px; height:52px; border-radius:50%; object-fit:cover; object-position:top; border:1px solid var(--border); flex:0 0 auto; background:var(--bg);}
 .pc-icon{width:64px;}   /* the player's icon (css/char-icons.css) */
 .pc-card h3{font-size:1.15rem; color:var(--sea);}
@@ -905,7 +906,7 @@ function pcCard(pc){
   const turnNow = !may && !!(cur && cur.kind === 'pc' && cur.name === pc.name);
   const allowTag = `<span class="pc-allow${may || turnNow ? '' : ' off'}" title="${may ? `Click the card to stop ${esc(pc.name)} rolling` : turnNow ? `It's ${esc(pc.name)}'s turn, so they can roll. Clicking the card also lets them roll off their turn` : `Click the card to let ${esc(pc.name)} roll`}">${may ? '🎲 Can roll' : turnNow ? '🎲 Their turn' : 'Not rolling'}</span>`;
   // The same icon as the player's tracker (js/char-icons.js), or the plain portrait if there isn't one
-  const icon = charIconHtml(pc.char, `${pc.name}’s icon`, 'pc-icon') || `<img class="pc-portrait" src="${pc.portrait}" alt="">`;
+  const icon = charIconHtml(pc.char, `${pc.name}’s icon`, 'pc-icon') || (pc.portrait ? `<img class="pc-portrait" src="${esc(pc.portrait)}" alt="">` : `<span class="pc-portrait pc-initial">${esc(pc.name.charAt(0))}</span>`);
   const top = sub => `<div class="pc-top">${icon}<div><h3>${esc(pc.name)}</h3><div class="pc-sub">${sub}</div>${allowTag}</div>${liveCornerHtml(pc)}</div>`;
   if(!p || p.error) return `<article class="pc-card${p ? '' : ' loading'}${may ? ' allowed' : turnNow ? ' turn' : ''}" data-char="${pc.char}">${top(p ? '' : 'Loading…')}${p ? `<div class="pc-err">${esc(p.error)}</div>` : ''}${links}</article>`;
   const saves = ABILS.map(a=>{
@@ -1971,6 +1972,7 @@ function renderSettings(){
       <label><input type="checkbox" id="csDiceSound"${critSettings.diceSound ? ' checked' : ''}> Dice sounds on every screen</label>
       <label><input type="checkbox" id="csSound"${critSettings.sound ? ' checked' : ''}> Play sound from clips (MP4 and WebM) on every screen</label>
       <label title="The Dungeon Master’s Guide villain subclasses: the Oathbreaker (Paladin) and the Death Domain (Cleric). Players can pick them only while this is on."><input type="checkbox" id="csDmgSubclasses"${critSettings.dmgSubclasses ? ' checked' : ''}> DMG villain subclasses (Oathbreaker, Death Domain)</label>
+      <label title="The Player’s Handbook’s optional Variant Human (page 31): +1 to two ability scores, a skill and a feat at level 1, instead of +1 to every score. Players can pick it in the character creator only while this is on."><input type="checkbox" id="csVariantHuman"${critSettings.variantHuman ? ' checked' : ''}> Variant Human (optional rule)</label>
       <label title="A house rule: throwing a healing potion at an ally heals them (the thrower rolls). Drinking or giving one is an action either way."><input type="checkbox" id="csThrownPotions"${critSettings.thrownPotions ? ' checked' : ''}> Thrown potions heal</label>
       <label><input type="checkbox" id="csFx"${critFxOn() ? ' checked' : ''}> Show crit GIFs on this screen</label>
       <div class="cs-abil" title="Which ways players can make ability scores in the character creator. Keep at least one.">New characters’ ability scores: ${[['array', 'Standard array'], ['pointBuy', 'Point buy'], ['roll', 'Roll 4d6']].map(([k, l])=>`<label><input type="checkbox" data-cs-abil="${k}"${critSettings.abilities[k] ? ' checked' : ''}> ${l}</label>`).join(' ')}</div>
@@ -2028,6 +2030,7 @@ $('csBody').addEventListener('change', e=>{
   else if(e.target.id === 'csLeveling') csWrite('leveling', e.target.value);
   else if(e.target.id === 'csThrownPotions') csWrite('thrownPotions', e.target.checked);
   else if(e.target.id === 'csDmgSubclasses') csWrite('dmgSubclasses', e.target.checked);
+  else if(e.target.id === 'csVariantHuman') csWrite('variantHuman', e.target.checked);
   else if(e.target.id === 'csFx') setCritFxOn(e.target.checked);
   else if(e.target.dataset.csAbil){
     const k = e.target.dataset.csAbil, next = {...critSettings.abilities, [k]:e.target.checked};
@@ -2172,7 +2175,9 @@ try{
     const members = (await get(ref(db, `${CAMP(key)}/members`))).val() || {};
     const list = await Promise.all(Object.values(members).filter(m=>m && m.role === 'player' && typeof m.char === 'string').map(async m=>{
       const name = (await get(ref(db, `${CHARS}/${m.char}/core/name`)).catch(()=>null))?.val();
-      return {name:typeof name === 'string' && name.trim() ? name.trim().slice(0, 40) : 'A player', char:m.char, portrait:PORTRAITS[m.char] || null};
+      const pic = PORTRAITS[m.char] ? null : (await get(ref(db, `${CHARS}/${m.char}/core/portrait`)).catch(()=>null))?.val();
+      const own = typeof pic === 'string' && (v=>/^data:image\/(webp|jpeg|png);base64,[A-Za-z0-9+/=]+$/.test(v) || /^https:\/\/[^\s"'<>]+$/.test(v))(pic) ? pic : null;
+      return {name:typeof name === 'string' && name.trim() ? name.trim().slice(0, 40) : 'A player', char:m.char, portrait:PORTRAITS[m.char] || own};
     }));
     return list.sort((a, b)=>a.name.localeCompare(b.name));
   };

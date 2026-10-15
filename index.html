@@ -531,7 +531,8 @@ if(!user){
     if(known){ card = known.cloneNode(true); const n = card.querySelector('.card-name'); if(n) n.textContent = name; }
     else {
       card = document.createElement('a'); card.className = 'card card-plain'; card.href = 'turnkeeper.html?char=' + id; card.target = '_blank'; card.rel = 'noopener';
-      card.innerHTML = `<div class="card-art"><div class="card-initial">${esc(name.charAt(0).toUpperCase())}</div><div class="card-plate"><div class="card-name">${esc(name)}</div><div class="card-sub">${esc([core.race, core.cls].filter(Boolean).join(' ').slice(0, 50))}</div></div></div>`;
+      const pic = typeof core.portrait === 'string' && (v=>/^data:image\/(webp|jpeg|png);base64,[A-Za-z0-9+/=]+$/.test(v) || /^https:\/\/[^\s"'<>]+$/.test(v))(core.portrait) ? core.portrait : '';
+      card.innerHTML = `<div class="card-art">${pic ? `<img src="${esc(pic)}" alt="">` : `<div class="card-initial">${esc(name.charAt(0).toUpperCase())}</div>`}<div class="card-plate"><div class="card-name">${esc(name)}</div><div class="card-sub">${esc([core.race, core.cls].filter(Boolean).join(' ').slice(0, 50))}</div></div></div>`;
     }
     roster.appendChild(card);
   });

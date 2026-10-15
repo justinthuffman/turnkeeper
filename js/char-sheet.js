@@ -88,7 +88,7 @@ const DETAIL_GROUPS = [
   ['Identity', [['background', 'Background', 'bg'], ['alignment', 'Alignment', 'align'], ['xp', 'Experience points', 'xp'], ['lifestyle', 'Lifestyle', 'lifestyle'], ['bgFeature', 'Background feature', 'area']]],
   ['Appearance', [['age', 'Age'], ['height', 'Height'], ['weight', 'Weight'], ['eyes', 'Eyes'], ['skin', 'Skin'], ['hair', 'Hair'], ['look', 'Appearance', 'area']]],
   ['Personality', [['traits', 'Personality traits', 'area'], ['ideals', 'Ideals', 'area'], ['bonds', 'Bonds', 'area'], ['flaws', 'Flaws', 'area']]],
-  ['Story', [['backstory', 'Backstory', 'area'], ['allies', 'Allies & organizations', 'area'], ['symbol', 'Symbol (allies & organizations)'], ['extraFeatures', 'Additional features & traits', 'area']]],
+  ['Story', [['backstory', 'Backstory', 'area'], ['allies', 'Allies & organizations', 'area'], ['symbol', 'Symbol (allies & organizations)'], ['extraFeatures', 'Additional features & traits', 'area'], ['treasure', 'Treasure', 'area']]],
 ];
 // Experience needed for each level (Player's Handbook, 2014): XP_FOR[n] reaches level n + 1
 const XP_FOR = [0, 300, 900, 2700, 6500, 14000, 23000, 34000, 48000, 64000, 85000, 100000, 120000, 140000, 165000, 195000, 225000, 265000, 305000, 355000];

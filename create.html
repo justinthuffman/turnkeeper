@@ -112,6 +112,45 @@ table.abil th:first-child{text-align:left; font-weight:normal;}
 .msg.err{color:var(--orange-bright);}
 .foot{margin-top:18px; text-align:center;}
 .foot button{background:none; border:none; color:var(--ink-dim); text-decoration:underline; cursor:pointer; font:inherit; font-size:0.8rem;}
+.wrap{max-width:1120px;}
+.layout{display:grid; grid-template-columns:minmax(0, 1fr) 270px; gap:18px; align-items:start;}
+.summary{position:sticky; top:16px; background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:14px; font-size:0.85rem;}
+.sum-head{display:flex; gap:10px; align-items:center;}
+.sum-head b{display:block; font-family:var(--font-display); font-weight:normal; font-size:1.2rem; color:var(--sea);}
+.sum-head small{color:var(--ink-dim);}
+.sum-portrait{width:48px; height:48px; border-radius:50%; object-fit:cover; border:2px solid var(--sea-dim); flex:none;}
+.sum-scores{display:grid; grid-template-columns:repeat(6, 1fr); gap:4px; margin:10px 0 6px;}
+.sum-scores span{display:flex; flex-direction:column; align-items:center; background:var(--bg); border:1px solid var(--border); border-radius:6px; padding:3px 0;}
+.sum-scores small{font-size:0.62rem; color:var(--ink-dim);}
+.sum-scores b{font-size:1rem;}
+.sum-scores i{font-style:normal; font-size:0.7rem; color:var(--ink-dim);}
+.sum-line{margin:6px 0; color:var(--ink);}
+.sum-line span{color:var(--ink-dim); margin-right:4px;}
+.items{list-style:none; margin:6px 0; padding:0; font-size:0.86rem;}
+.items li{margin:4px 0;}
+.items li span{color:var(--ink-dim);}
+.tipname{text-decoration:underline dotted; text-underline-offset:3px; cursor:help;}
+.chip.spell .sname{cursor:help; text-decoration:underline dotted; text-underline-offset:3px;}
+.slotpick, .toolpick{margin:6px 0;}
+.slotpick .note{display:block;}
+.grid3{display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:0 12px;}
+.portrait-row{display:flex; gap:16px; align-items:flex-start; flex-wrap:wrap;}
+.portrait{width:120px; height:120px; border-radius:50%; overflow:hidden; border:2px solid var(--sea-dim); background:var(--bg); display:grid; place-items:center; flex:none;}
+.portrait img{width:100%; height:100%; object-fit:cover;}
+.portrait span{color:var(--ink-dim); font-size:0.78rem; text-align:center; padding:8px;}
+.portrait-opts{flex:1 1 240px; min-width:0;}
+.upload{display:inline-block;}
+.linkbtn{background:none; border:none; color:var(--sea); text-decoration:underline; cursor:pointer; font:inherit; padding:0;}
+#tooltip{position:fixed; z-index:999; max-width:min(300px, calc(100vw - 28px)); background:var(--panel2); border:1px solid var(--sea-dim); color:var(--ink); font-size:0.8rem; padding:10px 12px; border-radius:6px; box-shadow:0 6px 20px rgba(0,0,0,.5); display:none; pointer-events:none;}
+#tooltip b{color:var(--sea); display:block; margin-bottom:4px; font-family:var(--font-display); font-size:0.9rem;}
+#tooltip .meta{color:var(--ink-dim); line-height:1.5;}
+#tooltip a{color:var(--sea); pointer-events:auto;}
+#tooltip.tip-held{pointer-events:auto; border-color:var(--sea);}
+#tooltip .tip-link{margin-top:8px; display:flex; flex-direction:column; gap:2px;}
+#tooltip .tip-hint{color:var(--ink-dim); font-size:0.72rem; font-style:italic;}
+#tooltip.tip-held .tip-hint{display:none;}
+@media (max-width:860px){ .layout{grid-template-columns:1fr;} .summary{position:static; order:-1;} }
+@media (max-width:560px){ .grid3{grid-template-columns:repeat(2, minmax(0, 1fr));} }
 @media (max-width:560px){ .panel{padding:16px 14px;} h1{font-size:1.8rem;} table.abil th, table.abil td{padding:5px 4px;} }
 </style>
 </head>
@@ -119,10 +158,16 @@ table.abil th:first-child{text-align:left; font-weight:normal;}
 <div class="wrap">
   <header><h1>New Character</h1><div class="sub"><span id="forWhat">…</span> · <a href="index.html">back to the hub</a></div></header>
   <nav class="steps" id="steps" aria-label="Steps"></nav>
-  <main class="panel" id="body"><p class="note">Loading…</p></main>
-  <div class="nav"><button type="button" class="btn ghost" id="back">Back</button><span class="todo" id="todo" aria-live="polite"></span><button type="button" class="btn" id="next">Next</button></div>
-  <div class="foot"><button type="button" id="startOver">Start over</button></div>
+  <div class="layout">
+    <div class="main">
+      <main class="panel" id="body"><p class="note">Loading…</p></main>
+      <div class="nav"><button type="button" class="btn ghost" id="back">Back</button><span class="todo" id="todo" aria-live="polite"></span><button type="button" class="btn" id="next">Next</button></div>
+      <div class="foot"><button type="button" id="startOver">Start over</button></div>
+    </div>
+    <aside class="summary" id="summary" aria-label="Your character so far"></aside>
+  </div>
 </div>
+<div id="tooltip"></div>
 <script src="js/config.js"></script>
 <script src="js/firebase.js"></script>
 <script src="js/account-store.js"></script>

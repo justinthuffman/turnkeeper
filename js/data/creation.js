@@ -162,3 +162,58 @@ const STANDARD_ARRAY = [15, 14, 13, 12, 10, 8];
 const POINT_BUY_COST = {8:0, 9:1, 10:2, 11:3, 12:4, 13:5, 14:7, 15:9};
 const POINT_BUY_TOTAL = 27;
 const ABILITY_METHODS = [['array', 'Standard array'], ['pointBuy', 'Point buy (27 points)'], ['roll', 'Roll 4d6, drop the lowest']];
+
+/* ---------- Descriptions for the creator (paraphrased from the Player's Handbook, 2014) ---------- */
+// Backgrounds: who you were, and what the background's feature does
+const BACKGROUND_INFO = {
+  'Acolyte':      ['You served in a temple, performing sacred rites for a god or pantheon.', 'You and your companions can get free healing and care at temples of your faith, and its priests will support you (within reason).'],
+  'Charlatan':    ['A smooth talker who knows what makes people tick, and how to use it.', 'You have a second identity, with papers, contacts and a disguise, and you can forge documents you’ve seen.'],
+  'Criminal':     ['You have a history of breaking the law and friends in the underworld.', 'A reliable contact links you to a network of criminals and can pass messages for you over long distances.'],
+  'Entertainer':  ['You come alive in front of an audience: music, dance, acting or stories.', 'You can always find a place to perform, earning free modest lodging and food, and locals come to recognize you.'],
+  'Folk Hero':    ['An ordinary person who became a champion of the common folk by standing up to a tyrant or a disaster.', 'Common folk will shelter and hide you, unless that puts them in danger.'],
+  'Guild Artisan':['A trained craftsperson and member of a guild.', 'Your guild offers lodging and food if you need it, legal help and political connections, for dues of 5 gp a month.'],
+  'Hermit':       ['You lived alone for years, seeking something: enlightenment, quiet, or answers.', 'Your seclusion led you to a unique discovery or truth (work out what it is with your DM).'],
+  'Noble':        ['Born into wealth, a title and privilege.', 'People assume you belong in high society, and you can get an audience with local nobles.'],
+  'Outlander':    ['Raised in the wilds, far from towns and cities.', 'You remember maps and land well, and can find food and water for yourself and up to five others each day if the land allows.'],
+  'Sage':         ['You spent years studying lore, books and scrolls.', 'When you don’t know something, you often know where, or from whom, you could learn it.'],
+  'Sailor':       ['You spent years at sea, weathering storms and working ships.', 'You can get free passage on a sailing ship for you and your companions, in return for helping the crew.'],
+  'Soldier':      ['You trained for war in an army or a mercenary company.', 'Soldiers loyal to your old organization recognize your rank; you can use their camps and borrow simple gear.'],
+  'Urchin':       ['You grew up alone and poor on city streets.', 'You know a city’s hidden routes: outside combat, you and your companions travel through a city twice as fast.'],
+};
+// Equipment packs (their contents) and tools, focuses and the like (what they're for)
+const ITEM_INFO = {
+  "Burglar's Pack":   'Contains: backpack, bag of 1,000 ball bearings, 10 feet of string, bell, 5 candles, crowbar, hammer, 10 pitons, hooded lantern, 2 flasks of oil, 5 days of rations, tinderbox, waterskin, 50 feet of hempen rope. For sneaking in and getting out.',
+  "Diplomat's Pack":  'Contains: chest, 2 map or scroll cases, fine clothes, bottle of ink, ink pen, lamp, 2 flasks of oil, 5 sheets of paper, vial of perfume, sealing wax, soap. For formal company, letters and court.',
+  "Dungeoneer's Pack":'Contains: backpack, crowbar, hammer, 10 pitons, 10 torches, tinderbox, 10 days of rations, waterskin, 50 feet of hempen rope. For caves, ruins and dungeons.',
+  "Entertainer's Pack":'Contains: backpack, bedroll, 2 costumes, 5 candles, 5 days of rations, waterskin, disguise kit. For performing on the road.',
+  "Explorer's Pack":  'Contains: backpack, bedroll, mess kit, tinderbox, 10 torches, 10 days of rations, waterskin, 50 feet of hempen rope. The all-round travel kit.',
+  "Priest's Pack":    'Contains: backpack, blanket, 10 candles, tinderbox, alms box, 2 blocks of incense, censer, vestments, 2 days of rations, waterskin. For religious duties on the road.',
+  "Scholar's Pack":   'Contains: backpack, book of lore, bottle of ink, ink pen, 10 sheets of parchment, little bag of sand, small knife. For study and note-taking.',
+  'Disguise Kit':     'Cosmetics, hair dye and small props for changing how you look. Proficiency adds to checks to create a disguise.',
+  'Forgery Kit':      'Papers, inks, seals and wax for copying documents and handwriting.',
+  'Herbalism Kit':    'Clippers, a mortar and pestle and pouches. Identify and use plants; make antitoxin and potions of healing.',
+  "Thieves' Tools":   'Lockpicks, a small file, a mirror and narrow tools. Pick locks and disarm traps.',
+  "Poisoner's Kit":   'Vials, chemicals and glassware for making and handling poisons.',
+  "Navigator's Tools":'Charts and instruments for finding your way at sea.',
+  'Component Pouch':  'A belt pouch holding the material components your spells need (any that don’t have a gold cost).',
+  'Spellbook':        'A wizard’s spellbook: it holds your wizard spells. You prepare spells from it each day.',
+  'Shield':           'Carried in one hand: +2 to your Armor Class.',
+};
+const ITEM_TYPE_INFO = {
+  'Gaming Set':        'A game you know well: proficiency helps you play, read opponents and cheat.',
+  'Musical Instrument':'An instrument you can play well. A bard can use one as a spellcasting focus.',
+  "Artisan's Tools":   'The tools of a trade: proficiency lets you craft and repair things of that kind, and know about them.',
+  'Arcane Focus':      'A crystal, orb, rod, staff or wand that a sorcerer, warlock or wizard uses in place of material components (any without a gold cost).',
+  'Holy Symbol':       'An amulet, emblem or reliquary that a cleric or paladin uses in place of material components (any without a gold cost).',
+  'Druidic Focus':     'Mistletoe, a totem, a wooden staff or a yew wand that a druid uses in place of material components (any without a gold cost).',
+  'Equipment Pack':    'A bundle of adventuring gear.',
+};
+// One line about an item: its description, or (weapons, armor) what it does in play
+function itemInfo(name){
+  const d = typeof equipmentByName === 'function' ? equipmentByName(name) : null;
+  if(ITEM_INFO[name]) return ITEM_INFO[name];
+  if(!d) return '';
+  if(d.dice) return `${d.dice} ${d.dmgType}${typeof weaponPropsText === 'function' && weaponPropsText(d) ? ' · ' + weaponPropsText(d) : ''} · ${d.martial ? 'martial' : 'simple'} ${d.melee ? 'melee' : 'ranged'} weapon.`;
+  if(d.ac) return `${d.category ? d.category.replace(/^\w/, c=>c.toUpperCase()) + ' armor: ' : ''}AC ${d.ac}${d.dex ? d.dexMax ? ` + Dex (max ${d.dexMax})` : ' + Dex' : ''}${d.str ? ` · needs Strength ${d.str}` : ''}${d.stealthDis ? ' · disadvantage on Stealth' : ''}.`;
+  return ITEM_TYPE_INFO[d.type] || d.notes || '';
+}

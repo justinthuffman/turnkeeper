@@ -21,11 +21,19 @@ const ORD = ['', '1st', '2nd', '3rd'];
 
 /* ---------- The draft ---------- */
 const DRAFT_KEY = 'dndTracker:creatorDraft';
-const blank = ()=>({step:'race', raceGroup:'', race:'', ancestry:'', asiPick:[], cls:'', subclass:'', method:'', assign:{}, points:{str:8, dex:8, con:8, int:8, wis:8, cha:8}, rolls:null,
+// Details: the same fields as the sheet's Character Details (js/char-sheet.js DETAIL_GROUPS), plus treasure
+const DETAIL_TEXT = [['age', 'Age'], ['height', 'Height'], ['weight', 'Weight'], ['eyes', 'Eyes'], ['skin', 'Skin'], ['hair', 'Hair']];
+const DETAIL_AREAS = [['look', 'Appearance', 3], ['traits', 'Personality traits', 3], ['ideals', 'Ideals', 2], ['bonds', 'Bonds', 2], ['flaws', 'Flaws', 2],
+  ['backstory', 'Backstory', 5], ['allies', 'Allies & organizations', 3], ['symbol', 'Symbol (allies & organizations)', 0], ['extraFeatures', 'Additional features & traits', 3], ['treasure', 'Treasure', 2]];
+// assignBy: each method's own assignment (standard array and rolled scores), so switching methods keeps both;
+// rolls: kept once rolled (no rerolls), whichever method is picked
+const blank = ()=>({step:'race', raceGroup:'', race:'', ancestry:'', asiPick:[], cls:'', subclass:'', method:'', assignBy:{array:{}, roll:{}}, points:{str:8, dex:8, con:8, int:8, wis:8, cha:8}, rolls:null,
   bg:'', langs:[], tools:[], skills:[], extraSkills:[], expertise:[], equip:{}, picks:{}, cantrips:[], spells:[], book:[],
-  name:'', alignment:'', traits:'', ideals:'', bonds:'', flaws:''});
+  name:'', alignment:'', portrait:'', ...Object.fromEntries([...DETAIL_TEXT, ...DETAIL_AREAS].map(([k])=>[k, '']))});
 let S = (()=>{ try{ return {...blank(), ...(JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null') || {})}; }catch(e){ return blank(); } })();
 if(S.race && !S.raceGroup) S.raceGroup = (raceGroupOf(S.race) || {}).name || '';   // a draft from before races had subraces
+if(S.assign){ if(S.method === 'array' || S.method === 'roll') S.assignBy[S.method] = S.assign; delete S.assign; }   // a draft from before assignBy
+const assign = ()=>S.assignBy[S.method] || (S.assignBy[S.method] = {});
 const save = ()=>{ try{ localStorage.setItem(DRAFT_KEY, JSON.stringify(S)); }catch(e){} };
 
 // Which campaign it's for: {key, name, settings}, from an invite link (?join=) or the player's campaigns
@@ -36,6 +44,8 @@ function allowedMethods(){
   const ok = ABILITY_METHODS.filter(([k])=>!a || a[k] !== false);
   return ok.length ? ok : ABILITY_METHODS;
 }
+// Variant Human is an optional rule: offered only when the campaign's DM turns it on
+const variantHumanOk = ()=>settings().variantHuman === true;
 
 /* ---------- Worked out from the draft ---------- */
 const raceB = ()=>RACE_BUILD[S.race] || null, clsB = ()=>CLASS_BUILD[S.cls] || null, bgB = ()=>BACKGROUNDS[S.bg] || null;
@@ -43,7 +53,7 @@ function arrayValues(){ return S.method === 'roll' ? (S.rolls || []).map(r=>r.to
 function baseScores(){
   if(S.method === 'pointBuy') return {...S.points};
   const vals = arrayValues(), out = {};
-  ABIL.forEach(a=>{ const i = S.assign[a]; out[a] = i === undefined || i === '' || vals[i] === undefined ? null : vals[i]; });
+  ABIL.forEach(a=>{ const i = assign()[a]; out[a] = i === undefined || i === '' || vals[i] === undefined ? null : vals[i]; });
   return out;
 }
 function raceBonus(){
@@ -161,12 +171,18 @@ function missing(step){
 }
 
 /* ---------- Drawing ---------- */
+// A race's subraces this campaign offers (Variant Human only when the DM turns it on)
+const subsOf = g=>g.subs.filter(([n])=>n !== 'Variant Human' || variantHumanOk());
 function render(){
+  // A draft's Variant Human, where this campaign doesn't use it, goes back to the standard human
+  if(S.race === 'Variant Human' && !variantHumanOk()){ S.race = 'Human'; S.asiPick = []; S.extraSkills = []; }
   const steps = visibleSteps();
   if(!steps.some(([k])=>k === S.step)) S.step = 'race';
+  hideTip(true);
   $('steps').innerHTML = steps.map(([k, l], i)=>`<button type="button" class="step${k === S.step ? ' on' : ''}${k !== 'review' && !missing(k).length ? ' done' : ''}" data-step="${k}"><span>${i + 1}</span>${l}</button>`).join('');
   $('body').innerHTML = ({race:renderRace, class:renderClass, abilities:renderAbilities, background:renderBackground, skills:renderSkills,
     equipment:renderEquipment, spells:renderSpells, details:renderDetails, review:renderReview})[S.step]();
+  renderSummary();
   const i = steps.findIndex(([k])=>k === S.step);
   $('back').hidden = i === 0; $('next').hidden = i === steps.length - 1;
   const todo = S.step === 'review' ? [] : missing(S.step);
@@ -175,13 +191,31 @@ function render(){
 }
 const sel = (attr, value, options, blankLabel)=>`<select ${attr}>${blankLabel !== undefined ? `<option value="">${esc(blankLabel)}</option>` : ''}${options.map(o=>{ const [v, l] = Array.isArray(o) ? o : [o, o]; return `<option value="${esc(v)}"${String(v) === String(value) ? ' selected' : ''}>${esc(l)}</option>`; }).join('')}</select>`;
 const asiText = asi=>Object.entries(asi).map(([a, n])=>`${ABIL_NAME[a]} +${n}`).join(', ');
+// An item's name with its description on hover (click holds it), and a list of items with their descriptions
+const itemTip = (name, label)=>itemInfo(name) ? `<span class="tipname" data-tip="${esc(name)}">${esc(label || name)}</span>` : esc(label || name);
+const itemLines = list=>`<ul class="items">${list.map(([n, q])=>`<li><b>${esc(n)}${q > 1 ? ` ×${q}` : ''}</b>${itemInfo(n) ? ` <span>${esc(itemInfo(n))}</span>` : ''}</li>`).join('')}</ul>`;
+
+/* The character so far: a card beside the steps (above them on a phone) that fills in as picks are made */
+function renderSummary(){
+  const c = clsB(), fin = finalScores(), hp = hpMax(), r = raceB();
+  const who = [S.race, c && c.name].filter(Boolean).join(' ');
+  const portrait = safePortrait(S.portrait);
+  $('summary').innerHTML = `<div class="sum-head">${portrait ? `<img class="sum-portrait" src="${esc(portrait)}" alt="">` : ''}<div><b>${esc(S.name.trim() || 'New character')}</b>`
+    + `<small>${who ? 'Level 1 ' + esc(who) : 'Pick a race and class'}${S.subclass ? ` · ${esc(S.subclass)}` : ''}</small></div></div>`
+    + (S.bg || S.alignment ? `<p class="sum-line">${[S.bg, S.alignment].filter(Boolean).map(esc).join(' · ')}</p>` : '')
+    + `<div class="sum-scores">${ABIL.map(a=>`<span><small>${a.toUpperCase()}</small><b>${fin[a] ?? '—'}</b><i>${fin[a] === null ? '' : fmt(mod(fin[a]))}</i></span>`).join('')}</div>`
+    + `<p class="sum-line">${[hp ? `HP ${hp}` : '', r ? `Speed ${r.speed} ft` : '', c ? `Hit die d${c.hd}` : ''].filter(Boolean).join(' · ') || '&nbsp;'}</p>`
+    + (allSkills().length ? `<p class="sum-line"><span>Skills</span> ${allSkills().map(s=>S.expertise.includes(s) ? s + '*' : s).map(esc).join(', ')}</p>` : '')
+    + ([...S.langs, ...S.tools].filter(Boolean).length ? `<p class="sum-line"><span>Picked</span> ${[...S.langs, ...S.tools].filter(Boolean).map(esc).join(', ')}</p>` : '')
+    + (spellPlan() && [...S.cantrips, ...S.book, ...S.spells].length ? `<p class="sum-line"><span>Spells</span> ${[...new Set([...S.cantrips, ...S.book, ...S.spells])].map(esc).join(', ')}</p>` : '');
+}
 
 function renderRace(){
   const r = raceB();
-  const g = RACE_GROUPS.find(x=>x.name === S.raceGroup);
+  const g = RACE_GROUPS.find(x=>x.name === S.raceGroup), subs = g ? subsOf(g) : [];
   let h = `<h2>Race</h2><div class="cards">${RACE_GROUPS.map(x=>`<button type="button" class="pick${S.raceGroup === x.name ? ' on' : ''}" data-rgroup="${esc(x.name)}"><b>${esc(x.name)}</b><small>${esc(x.blurb)}</small></button>`).join('')}</div>`;
-  if(g && g.subs.length > 1){
-    h += `<h3>${esc(g.name)}: Subrace</h3><div class="cards">${g.subs.map(([name, label])=>{ const b = RACE_BUILD[name];
+  if(subs.length > 1){
+    h += `<h3>${esc(g.name)}: Subrace</h3><div class="cards">${subs.map(([name, label])=>{ const b = RACE_BUILD[name];
       return `<button type="button" class="pick${S.race === name ? ' on' : ''}" data-race="${esc(name)}"><b>${esc(label || name)}</b><small>${esc(b.pick ? (asiText(b.asi) ? asiText(b.asi) + ', ' : '') + `+1 to ${b.pick} scores of your choice` : asiText(b.asi))} · ${b.speed} ft</small></button>`; }).join('')}</div>`;
   }
   if(r){
@@ -217,21 +251,20 @@ function renderAbilities(){
   if(S.method && !methods.some(([k])=>k === S.method)) S.method = '';
   if(!S.method && methods.length === 1) S.method = methods[0][0];
   let h = `<h2>Ability Scores</h2>${ctx.camp ? `<p class="note">${esc(ctx.camp.name)} allows: ${methods.map(m=>m[1]).join(', ')}.</p>` : ''}
-    <div class="chips">${methods.map(([k, l])=>`<label class="chip"><input type="radio" name="method" data-method="${k}"${S.method === k ? ' checked' : ''}${S.method === 'roll' && S.rolls && k !== 'roll' ? ' disabled' : ''}> ${l}</label>`).join('')}</div>`;
-  if(S.method === 'roll' && S.rolls) h += `<p class="note">You’ve rolled, so these are your scores. (Start over to begin again.)</p>`;
+    <div class="chips">${methods.map(([k, l])=>`<label class="chip"><input type="radio" name="method" data-method="${k}"${S.method === k ? ' checked' : ''}> ${l}</label>`).join('')}</div>`;
   if(!S.method) return h;
-  const base = baseScores(), bonus = raceBonus(), fin = finalScores();
+  const bonus = raceBonus(), fin = finalScores();
   if(S.method === 'roll'){
-    h += S.rolls ? `<div class="rolls">${S.rolls.map((r, i)=>`<span class="rollset">${r.dice.map((d, j)=>`<i class="${j === r.drop ? 'drop' : ''}">${d}</i>`).join('')}<b>${r.total}</b></span>`).join('')}</div>`
-      : `<p><button type="button" class="btn" id="rollScores">Roll 4d6 six times</button> <span class="note">Each set drops its lowest die. You roll once.</span></p>`;
+    h += S.rolls ? `<div class="rolls">${S.rolls.map(r=>`<span class="rollset">${r.dice.map((d, j)=>`<i class="${j === r.drop ? 'drop' : ''}">${d}</i>`).join('')}<b>${r.total}</b></span>`).join('')}</div><p class="note">These are your rolls: they stay if you switch methods and come back (no rerolls).</p>`
+      : `<p><button type="button" class="btn" id="rollScores">Roll 4d6 six times</button> <span class="note">Each set drops its lowest die. You roll once, but you can still switch to another method afterwards.</span></p>`;
     if(!S.rolls) return h;
   }
-  const vals = arrayValues(), used = Object.values(S.assign).filter(v=>v !== '' && v !== undefined).map(String);
+  const vals = arrayValues(), A = assign(), used = Object.values(A).filter(v=>v !== '' && v !== undefined).map(String);
   h += `<table class="abil"><tr><th></th><th>${S.method === 'pointBuy' ? 'Points' : 'Score'}</th><th>Race</th><th>Total</th><th>Mod</th></tr>`
     + ABIL.map(a=>{
       const cell = S.method === 'pointBuy'
         ? `<button type="button" class="mini" data-pb="${a}" data-d="-1"${S.points[a] <= 8 ? ' disabled' : ''}>−</button> <b>${S.points[a]}</b> <button type="button" class="mini" data-pb="${a}" data-d="1"${S.points[a] >= 15 || POINT_BUY_COST[S.points[a] + 1] - POINT_BUY_COST[S.points[a]] > POINT_BUY_TOTAL - pointsSpent() ? ' disabled' : ''}>+</button>`
-        : sel(`data-assign="${a}"`, S.assign[a] ?? '', vals.map((v, i)=>[i, v]).filter(([i])=>!used.includes(String(i)) || String(S.assign[a]) === String(i)), '—');
+        : sel(`data-assign="${a}"`, A[a] ?? '', vals.map((v, i)=>[i, v]).filter(([i])=>!used.includes(String(i)) || String(A[a]) === String(i)), '—');
       return `<tr><th>${ABIL_NAME[a]}</th><td>${cell}</td><td>${bonus[a] ? '+' + bonus[a] : ''}</td><td><b>${fin[a] ?? '—'}</b></td><td>${fin[a] === null ? '' : fmt(mod(fin[a]))}</td></tr>`;
     }).join('') + `</table>`;
   if(S.method === 'pointBuy') h += `<p class="note">Points left: <b>${POINT_BUY_TOTAL - pointsSpent()}</b> of 27 (scores 8 to 15 before your race’s bonus).</p>`;
@@ -239,13 +272,19 @@ function renderAbilities(){
   return h;
 }
 function renderBackground(){
-  const bg = bgB(), li = languageInfo(), tc = toolChoices();
+  const bg = bgB(), li = languageInfo(), tc = toolChoices(), info = BACKGROUND_INFO[S.bg];
   let h = `<h2>Background</h2><p>${sel('data-bg', S.bg, Object.keys(BACKGROUNDS), 'Pick a background…')}</p>`;
-  if(bg) h += `<div class="box"><p class="note">Skills: ${bg.skills.join(', ')}${bg.tools ? ' · tools: ' + bg.tools.join(', ') : ''}${bg.vehicles ? ' · ' + bg.vehicles.join(', ') : ''} · feature: ${esc(bg.feature)} · starting gold ${BACKGROUND_GEAR[S.bg].gold} gp</p></div>`;
+  if(bg){
+    h += `<div class="box"><h3>${esc(S.bg)}</h3>${info ? `<p>${esc(info[0])}</p>` : ''}`
+      + `<p class="note"><b>Skills:</b> ${bg.skills.join(', ')}${bg.languages ? ` · <b>Languages:</b> ${bg.languages} of your choice` : ''}${bg.vehicles ? ` · <b>Vehicles:</b> ${bg.vehicles.join(', ')}` : ''} · <b>Starting gold:</b> ${BACKGROUND_GEAR[S.bg].gold} gp</p>`
+      + (bg.tools ? `<p class="note"><b>Tools:</b></p>${itemLines(bg.tools.map(t=>[t, 1]))}` : '')
+      + `<p class="note"><b>Feature: ${esc(bg.feature)}.</b> ${info ? esc(info[1]) : ''}</p></div>`;
+  }
   h += `<h3>Languages</h3><p class="note">You speak ${li.known.join(', ')}.${li.extra ? ` Pick ${li.extra} more:` : ''}</p>`;
   for(let i = 0; i < li.extra; i++) h += `<p>${sel(`data-lang="${i}"`, S.langs[i] || '', LANGUAGES.filter(l=>!li.known.includes(l) && (!S.langs.includes(l) || S.langs[i] === l)), 'Pick a language…')}</p>`;
   if(tc.length){
-    h += `<h3>Tools</h3>` + tc.map((t, i)=>`<p><label>${esc(t.label)} ${sel(`data-tool="${i}"`, S.tools[i] || '', t.kinds.flatMap(k=>WEAPON_PICKS[k].list().map(x=>x.name)).filter(n=>!S.tools.includes(n) || S.tools[i] === n), 'Pick one…')}</label></p>`).join('');
+    h += `<h3>Tools</h3>` + tc.map((t, i)=>`<div class="toolpick"><label>${esc(t.label)} ${sel(`data-tool="${i}"`, S.tools[i] || '', t.kinds.flatMap(k=>WEAPON_PICKS[k].list().map(x=>x.name)).filter(n=>!S.tools.includes(n) || S.tools[i] === n), 'Pick one…')}</label>`
+      + `<p class="note">${esc(S.tools[i] ? itemInfo(S.tools[i]) : t.kinds.map(k=>ITEM_TYPE_INFO[{gaming:'Gaming Set', instrument:'Musical Instrument', artisan:"Artisan's Tools"}[k]]).join(' Or: '))}</p></div>`).join('');
   }
   return h;
 }
@@ -268,23 +307,27 @@ function renderSkills(){
 function renderEquipment(){
   const c = clsB(); if(!c) return '<h2>Equipment</h2><p class="note">Pick a class first.</p>';
   const slots = pickSlots(), bg = BACKGROUND_GEAR[S.bg];
-  const slotSel = key=>{ const p = slots.find(x=>x.key === key); return p ? sel(`data-epick="${key}"`, S.picks[key] || '', WEAPON_PICKS[p.kind].list().map(x=>x.name), `Pick ${WEAPON_PICKS[p.kind].label}…`) : ''; };
-  let h = `<h2>Equipment</h2><h3>${c.name}</h3>`;
+  const slotSel = key=>{ const p = slots.find(x=>x.key === key); if(!p) return '';
+    return `<div class="slotpick">${sel(`data-epick="${key}"`, S.picks[key] || '', WEAPON_PICKS[p.kind].list().map(x=>x.name), `Pick ${WEAPON_PICKS[p.kind].label}…`)}${S.picks[key] ? `<span class="note">${esc(itemInfo(S.picks[key]))}</span>` : ''}</div>`; };
+  let h = `<h2>Equipment</h2><p class="note">Hover over (or tap) an underlined item to see what it is.</p><h3>${c.name}</h3>`;
   c.choices.forEach((group, i)=>{
-    h += `<div class="choice">${group.map((o, j)=>`<label class="chip"><input type="radio" name="eq${i}" data-equip="${i}" value="${j}"${(S.equip[i] || 0) === j ? ' checked' : ''}> ${esc(o.label)}</label>`).join('<span class="or">or</span>')}`
-      + `<div>${slots.filter(p=>p.key.startsWith(`c${i}:${S.equip[i] || 0}:`)).map(p=>slotSel(p.key)).join(' ')}</div></div>`;
+    const chosen = group[S.equip[i] || 0];
+    h += `<div class="choice">${group.map((o, j)=>`<label class="chip"><input type="radio" name="eq${i}" data-equip="${i}" value="${j}"${(S.equip[i] || 0) === j ? ' checked' : ''}> ${o.items.length === 1 && !o.pick.length ? itemTip(o.items[0][0], o.label) : esc(o.label)}</label>`).join('<span class="or">or</span>')}`
+      + (chosen.items.length ? itemLines(chosen.items) : '')
+      + slots.filter(p=>p.key.startsWith(`c${i}:${S.equip[i] || 0}:`)).map(p=>slotSel(p.key)).join('') + `</div>`;
   });
-  const fixed = c.fixed.map(([n, q])=>q > 1 ? `${n} ×${q}` : n);
-  h += `<p class="note">Also: ${fixed.join(', ') || 'nothing else'}${(c.fixedPick || []).length ? ', and' : '.'}</p>${slots.filter(p=>p.key.startsWith('f:')).map(p=>slotSel(p.key)).join(' ')}`;
-  if(bg) h += `<h3>${esc(S.bg)}</h3><p class="note">${bg.items.map(([n, q])=>q > 1 ? `${n} ×${q}` : n).join(', ')}, and ${bg.gold} gp.</p>${slots.filter(p=>p.key.startsWith('b:')).map(p=>slotSel(p.key)).join(' ')}`;
+  h += `<h3>Also from your class</h3>${c.fixed.length ? itemLines(c.fixed) : ''}${slots.filter(p=>p.key.startsWith('f:')).map(p=>slotSel(p.key)).join('')}`;
+  if(bg) h += `<h3>From your background (${esc(S.bg)})</h3>${itemLines(bg.items)}${slots.filter(p=>p.key.startsWith('b:')).map(p=>slotSel(p.key)).join('')}<p class="note">And ${bg.gold} gp.</p>`;
   else h += `<p class="note">Pick a background to add its equipment.</p>`;
   h += `<p class="note">Armor, a shield and weapons go on (equipped) automatically. Change them any time in the Inventory tab.</p>`;
   return h;
 }
+// Spells: the box with the checkbox picks it; hovering the name shows the spell, clicking the name holds that open
+function spellOf(s){ return {...s, desc:s.desc || (typeof DESCRIPTIONS === 'object' && DESCRIPTIONS[s.name]) || ''}; }
 function renderSpells(){
   const p = spellPlan(); if(!p) return '';
-  const row = (s, attr, list, n, on)=>`<label class="chip spell" title="${esc([s.school, s.time, s.range, s.desc || (typeof DESCRIPTIONS === 'object' && DESCRIPTIONS[s.name]) || ''].filter(Boolean).join(' · '))}"><input type="checkbox" ${attr}="${esc(s.name)}"${on ? ' checked' : ''}${!on && list.length >= n ? ' disabled' : ''}> ${esc(s.name)}</label>`;
-  let h = `<h2>Spells</h2><p class="note">Hover (or long-press) a spell to see what it does. Your spellcasting ability is ${ABIL_NAME[p.ability]}.</p>`
+  const row = (s, attr, list, n, on)=>`<span class="chip spell"><input type="checkbox" ${attr}="${esc(s.name)}" aria-label="${esc(s.name)}"${on ? ' checked' : ''}${!on && list.length >= n ? ' disabled' : ''}> <span class="sname" data-sp="${esc(s.name)}">${esc(s.name)}</span></span>`;
+  let h = `<h2>Spells</h2><p class="note">Hover over a spell’s name to see what it does; click the name to keep it open (with a link to the full rules). Tick the box to pick it. Your spellcasting ability is ${ABIL_NAME[p.ability]}.</p>`
     + `<h3>Cantrips: pick ${p.cantrips}</h3><div class="chips">${p.cantripList.map(s=>row(s, 'data-cantrip', S.cantrips, p.cantrips, S.cantrips.includes(s.name))).join('')}</div>`;
   if(p.known) h += `<h3>1st-level spells known: pick ${p.known}</h3><div class="chips">${p.spellList.map(s=>row(s, 'data-spell', S.spells, p.known, S.spells.includes(s.name))).join('')}</div>`;
   if(p.book){
@@ -297,11 +340,22 @@ function renderSpells(){
   }
   return h;
 }
+// A portrait: a picture uploaded here (shrunk to a small image) or a link to one (https only)
+const safePortrait = v=>typeof v === 'string' && (/^data:image\/(webp|jpeg|png);base64,[A-Za-z0-9+/=]+$/.test(v) || /^https:\/\/[^\s"'<>]+$/.test(v)) ? v : '';
 function renderDetails(){
-  const f = (k, label, rows)=>`<label class="field"><span>${label}</span>${rows ? `<textarea data-f="${k}" rows="${rows}" maxlength="1000">${esc(S[k])}</textarea>` : `<input data-f="${k}" maxlength="40" value="${esc(S[k])}">`}</label>`;
-  return `<h2>Details</h2>${f('name', 'Name')}<label class="field"><span>Alignment</span>${sel('data-f="alignment"', S.alignment, ALIGNMENTS, '—')}</label>`
-    + f('traits', 'Personality traits', 3) + f('ideals', 'Ideals', 2) + f('bonds', 'Bonds', 2) + f('flaws', 'Flaws', 2)
-    + `<p class="note">You can fill in the rest (appearance, backstory, allies) on the sheet’s Details tab.</p>`;
+  const input = (k, label, max)=>`<label class="field"><span>${label}</span><input data-f="${k}" maxlength="${max || 40}" value="${esc(S[k])}"></label>`;
+  const area = (k, label, rows)=>rows ? `<label class="field"><span>${label}</span><textarea data-f="${k}" rows="${rows}" maxlength="4000">${esc(S[k])}</textarea></label>` : input(k, label, 80);
+  const portrait = safePortrait(S.portrait);
+  return `<h2>Details</h2>${input('name', 'Name')}<label class="field"><span>Alignment</span>${sel('data-f="alignment"', S.alignment, ALIGNMENTS, '—')}</label>`
+    + `<h3>Portrait</h3><div class="portrait-row"><div class="portrait">${portrait ? `<img src="${esc(portrait)}" alt="Portrait">` : '<span>No picture yet</span>'}</div>`
+    + `<div class="portrait-opts"><label class="btn ghost upload">Upload a picture<input type="file" id="portraitFile" accept="image/*" hidden></label>`
+    + `<label class="field"><span>Or paste a link to one (https://…)</span><input id="portraitLink" maxlength="400" value="${esc(S.portrait.startsWith('https://') ? S.portrait : '')}" placeholder="https://"></label>`
+    + `${portrait ? '<button type="button" class="linkbtn" id="portraitClear">Remove the picture</button>' : ''}<p class="note" id="portraitMsg">Uploaded pictures are shrunk to a small image so they load quickly. Lining it up in the sheet’s circle comes later.</p></div></div>`
+    + `<h3>Appearance</h3><p class="note">Size: ${raceB() ? esc(raceB().size) : 'set by your race'}</p><div class="grid3">${DETAIL_TEXT.map(([k, l])=>input(k, l)).join('')}</div>`
+    + DETAIL_AREAS.slice(0, 1).map(([k, l, r])=>area(k, l, r)).join('')
+    + `<h3>Personality</h3>` + DETAIL_AREAS.slice(1, 5).map(([k, l, r])=>area(k, l, r)).join('')
+    + `<h3>Story</h3>` + DETAIL_AREAS.slice(5).map(([k, l, r])=>area(k, l, r)).join('')
+    + `<p class="note">All of this can be changed later on the sheet’s Details tab.</p>`;
 }
 function hpMax(){ const c = clsB(), con = finalScores().con; return c && con !== null ? Math.max(1, c.hd + mod(con) + ((raceB() && raceB().hpPerLevel) || 0)) : null; }
 function renderReview(){
@@ -320,6 +374,50 @@ function renderReview(){
   return h;
 }
 
+/* ---------- The popup (as on the sheet) ----------
+   Hovering a spell's name (or an underlined item) shows what it is. Clicking the name holds the box
+   in place, so its link can be clicked; clicking anywhere else, or Escape, lets it go. */
+let tipHeld = false;
+function tipHtml(el){
+  if(el.dataset.sp){
+    const p = spellPlan(), s = p && [...p.cantripList, ...p.spellList].find(x=>x.name === el.dataset.sp); if(!s) return '';
+    const sp = spellOf(s);
+    return `<b>${esc(sp.name)}</b><div class="meta">${esc(sp.school || '')}${sp.time ? ' &middot; ' + esc(sp.time) : ''}${sp.ritual ? ' (Ritual)' : ''}${sp.range ? `<br>Range: ${esc(sp.range)} &middot; Duration: ${esc(sp.duration)}<br>Components: ${esc(sp.comp)}` : ''}</div>`
+      + `<div class="meta" style="margin-top:6px; color:var(--ink);">${esc(sp.desc)}</div>`
+      + `<div class="tip-link"><a href="https://dnd5e.wikidot.com/spell:${slugify(sp.name)}" target="_blank" rel="noopener">Full rules on dnd5e.wikidot.com ↗</a><span class="tip-hint">Click the spell to keep this open</span></div>`;
+  }
+  if(el.dataset.tip) return `<b>${esc(el.dataset.tip)}</b><div class="meta">${esc(itemInfo(el.dataset.tip))}</div>`;
+  return '';
+}
+function showTip(e, el){
+  if(tipHeld) return;
+  const html = tipHtml(el); if(!html) return;
+  const t = $('tooltip'); t.innerHTML = html; t.style.display = 'block'; moveTip(e);
+}
+function moveTip(e){
+  if(tipHeld) return;
+  const t = $('tooltip'), pad = 14, rect = t.getBoundingClientRect(), w = rect.width || 280, h = rect.height || 80;
+  let x = e.clientX + pad, y = e.clientY + pad;
+  if(x + w + pad > innerWidth) x = Math.max(pad, e.clientX - w - pad);
+  if(y + h + pad > innerHeight) y = Math.max(pad, e.clientY - h - pad);
+  t.style.left = x + 'px'; t.style.top = y + 'px';
+}
+function hideTip(force){
+  if(tipHeld && force !== true) return;
+  tipHeld = false; const t = $('tooltip'); if(t){ t.classList.remove('tip-held'); t.style.display = 'none'; }
+}
+const tipTarget = e=>e.target.closest && e.target.closest('[data-sp], [data-tip]');
+document.addEventListener('mouseover', e=>{ const el = tipTarget(e); if(el) showTip(e, el); });
+document.addEventListener('mousemove', e=>{ if(tipTarget(e)) moveTip(e); });
+document.addEventListener('mouseout', e=>{ const el = tipTarget(e); if(el && !el.contains(e.relatedTarget)) hideTip(); });
+document.addEventListener('click', e=>{
+  const el = tipTarget(e);
+  // Hold it open (an item named inside an option's label picks the option instead: its description shows below it)
+  if(el && !el.closest('label')){ tipHeld = false; showTip(e, el); tipHeld = true; $('tooltip').classList.add('tip-held'); return; }
+  if(tipHeld && !$('tooltip').contains(e.target)) hideTip(true);
+}, true);
+document.addEventListener('keydown', e=>{ if(tipHeld && e.key === 'Escape') hideTip(true); });
+
 /* ---------- Changes ---------- */
 const toggle = (list, v, on, max)=>{ const l = list.filter(x=>x !== v); if(on && l.length < (max ?? 99)) l.push(v); return l; };
 function d4d6(){ const r = new Uint32Array(4); crypto.getRandomValues(r); const dice = [...r].map(x=>1 + x % 6); const drop = dice.indexOf(Math.min(...dice)); return {dice, drop, total:dice.reduce((s, d)=>s + d, 0) - dice[drop]}; }
@@ -327,11 +425,11 @@ document.addEventListener('click', e=>{
   const b = e.target.closest('button'); if(!b) return;
   if(b.dataset.step){ S.step = b.dataset.step; render(); scrollTo(0, 0); return; }
   if(b.id === 'next' || b.id === 'back'){ const st = visibleSteps(), i = st.findIndex(([k])=>k === S.step); S.step = st[Math.max(0, Math.min(st.length - 1, i + (b.id === 'next' ? 1 : -1)))][0]; render(); scrollTo(0, 0); return; }
-  if(b.dataset.rgroup){ if(S.raceGroup !== b.dataset.rgroup){ const g = RACE_GROUPS.find(x=>x.name === b.dataset.rgroup); S.raceGroup = g.name; S.race = g.subs.length === 1 ? g.subs[0][0] : ''; S.ancestry = ''; S.asiPick = []; S.langs = []; } render(); return; }
+  if(b.dataset.rgroup){ if(S.raceGroup !== b.dataset.rgroup){ const g = RACE_GROUPS.find(x=>x.name === b.dataset.rgroup), subs = subsOf(g); S.raceGroup = g.name; S.race = subs.length === 1 ? subs[0][0] : ''; S.ancestry = ''; S.asiPick = []; S.langs = []; } render(); return; }
   if(b.dataset.race){ if(S.race !== b.dataset.race){ S.race = b.dataset.race; S.asiPick = []; S.langs = []; } render(); return; }
   if(b.dataset.cls){ if(S.cls !== b.dataset.cls){ S.cls = b.dataset.cls; S.subclass = ''; S.skills = []; S.expertise = []; S.equip = {}; S.picks = {}; S.cantrips = []; S.spells = []; S.book = []; S.tools = []; } render(); return; }
   if(b.dataset.pb){ const a = b.dataset.pb; S.points[a] = Math.max(8, Math.min(15, S.points[a] + +b.dataset.d)); render(); return; }
-  if(b.id === 'rollScores'){ if(!S.rolls){ S.rolls = Array.from({length:6}, d4d6); S.assign = {}; } render(); return; }
+  if(b.id === 'rollScores'){ if(!S.rolls){ S.rolls = Array.from({length:6}, d4d6); S.assignBy.roll = {}; } render(); return; }
   if(b.id === 'startOver'){ if(confirm('Start over? This clears everything you’ve picked.')){ S = blank(); render(); } return; }
   if(b.id === 'createGo') createCharacter();
 });
@@ -340,8 +438,8 @@ document.addEventListener('change', e=>{
   if(d.asipick){ S.asiPick = toggle(S.asiPick, d.asipick, t.checked, raceB().pick); }
   else if(d.sub !== undefined){ S.subclass = t.value; }
   else if(d.ancestry !== undefined){ S.ancestry = t.value; }
-  else if(d.method){ S.method = d.method; S.assign = {}; }
-  else if(d.assign){ S.assign[d.assign] = t.value === '' ? '' : +t.value; }
+  else if(d.method){ S.method = d.method; }   // each method keeps its own scores
+  else if(d.assign){ assign()[d.assign] = t.value === '' ? '' : +t.value; }
   else if(d.bg !== undefined){ S.bg = t.value; S.langs = []; S.tools = []; S.picks = Object.fromEntries(Object.entries(S.picks).filter(([k])=>!k.startsWith('b:'))); }
   else if(d.lang){ S.langs[+d.lang] = t.value; }
   else if(d.tool){ S.tools[+d.tool] = t.value; }
@@ -357,8 +455,44 @@ document.addEventListener('change', e=>{
   else return;
   render();
 });
+// Portrait: an uploaded picture is shrunk (longest side 320 px, then lower quality until it's about
+// 40 KB at most) and kept with the character; a link is kept as it is (https only)
+function shrinkPicture(file){
+  return new Promise((ok, bad)=>{
+    const img = new Image(), url = URL.createObjectURL(file);
+    img.onload = ()=>{
+      URL.revokeObjectURL(url);
+      const scale = Math.min(1, 320 / Math.max(img.width, img.height)), c = document.createElement('canvas');
+      c.width = Math.max(1, Math.round(img.width * scale)); c.height = Math.max(1, Math.round(img.height * scale));
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      let out = '';
+      for(const q of [0.85, 0.75, 0.6, 0.45, 0.3]){
+        out = c.toDataURL('image/webp', q);
+        if(!out.startsWith('data:image/webp')) out = c.toDataURL('image/jpeg', q);   // browsers without WebP
+        if(out.length <= 55000) break;
+      }
+      out.length <= 55000 ? ok(out) : bad(new Error('too big'));
+    };
+    img.onerror = ()=>{ URL.revokeObjectURL(url); bad(new Error('not a picture')); };
+    img.src = url;
+  });
+}
+document.addEventListener('change', async e=>{
+  if(e.target.id !== 'portraitFile' || !e.target.files[0]) return;
+  $('portraitMsg').textContent = 'Shrinking the picture…';
+  try{ S.portrait = await shrinkPicture(e.target.files[0]); render(); }
+  catch(err){ $('portraitMsg').textContent = 'That picture couldn’t be used. Try a JPG or PNG.'; }
+});
+document.addEventListener('click', e=>{ if(e.target.id === 'portraitClear'){ S.portrait = ''; render(); } });
+document.addEventListener('change', e=>{
+  if(e.target.id !== 'portraitLink') return;
+  const v = e.target.value.trim();
+  if(!v){ if(S.portrait.startsWith('https://')){ S.portrait = ''; render(); } return; }
+  if(!safePortrait(v)){ $('portraitMsg').textContent = 'That link has to start with https:// (a picture’s own address).'; return; }
+  S.portrait = v; render();
+});
 // Typing in Details saves without redrawing (so the cursor stays put)
-document.addEventListener('input', e=>{ const k = e.target.dataset && e.target.dataset.f; if(k && e.target.tagName !== 'SELECT'){ S[k] = e.target.value; save(); $('todo').textContent = missing(S.step).join(' '); } });
+document.addEventListener('input', e=>{ const k = e.target.dataset && e.target.dataset.f; if(k && e.target.tagName !== 'SELECT'){ S[k] = e.target.value; save(); renderSummary(); $('todo').textContent = missing(S.step).join(' '); } });
 
 /* ---------- Creating it ---------- */
 // kv keys the way js/char-store.js keeps them: no "dndTracker:", the character as "@", percent-encoded
@@ -370,7 +504,8 @@ function buildRecord(){
   const skills = {}; allSkills().forEach(s=>skills[s] = S.expertise.includes(s) ? 'e' : 'p');
   const core = {name:S.name.trim().slice(0, 40), race:S.race, cls:c.name, level:1, scores:fin, saves:[...c.saves], skills,
     hpMax:hp, hpCur:hp, speed:raceB().speed, ac:10 + mod(fin.dex),
-    details:{background:S.bg, alignment:S.alignment, traits:S.traits.trim(), ideals:S.ideals.trim(), bonds:S.bonds.trim(), flaws:S.flaws.trim(), xp:0}};
+    details:{background:S.bg, alignment:S.alignment, xp:0, ...Object.fromEntries([...DETAIL_TEXT, ...DETAIL_AREAS].map(([k])=>[k, String(S[k] || '').trim()]).filter(([, v])=>v))}};
+  if(safePortrait(S.portrait)) core.portrait = safePortrait(S.portrait);
   const langs = S.langs.filter(Boolean), tools = S.tools.filter(Boolean);
   if(langs.length) core.languages = langs;
   if(tools.length) core.profs = {tools};
@@ -426,7 +561,7 @@ async function createCharacter(){
   const params = new URLSearchParams(location.search), code = params.get('join');
   const readSettings = async key=>{
     const out = {};
-    for(const k of ['abilities', 'dmgSubclasses']){ try{ out[k] = (await get(ref(db, `${CAMP(key)}/settings/${k}`))).val(); }catch(e){} }
+    for(const k of ['abilities', 'dmgSubclasses', 'variantHuman']){ try{ out[k] = (await get(ref(db, `${CAMP(key)}/settings/${k}`))).val(); }catch(e){} }
     return out;
   };
   try{

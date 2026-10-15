@@ -558,9 +558,10 @@ function cleanCritSettings(raw){
   });
   // leveling: how the party levels up (Campaign settings): 'milestone' (the DM says when) or 'xp'
   // thrownPotions: a house rule (on unless the DM turns it off): a healing potion thrown at an ally heals them
+  // variantHuman: the character creator offers the optional Variant Human; off unless turned on
   // abilities: which ability score methods the character creator offers (all three unless turned off)
   // dmgSubclasses: the DM allows the Dungeon Master's Guide villain subclasses (Oathbreaker, Death Domain); off unless turned on
-  return {sound:raw.sound === true, diceSound:raw.diceSound !== false, leveling:raw.leveling === 'xp' ? 'xp' : 'milestone', thrownPotions:raw.thrownPotions !== false, dmgSubclasses:raw.dmgSubclasses === true, abilities:Object.fromEntries(['array', 'pointBuy', 'roll'].map(k=>[k, !raw.abilities || raw.abilities[k] !== false])), gifs, scene:cleanScene(raw.scene)};
+  return {sound:raw.sound === true, diceSound:raw.diceSound !== false, leveling:raw.leveling === 'xp' ? 'xp' : 'milestone', thrownPotions:raw.thrownPotions !== false, dmgSubclasses:raw.dmgSubclasses === true, variantHuman:raw.variantHuman === true, abilities:Object.fromEntries(['array', 'pointBuy', 'roll'].map(k=>[k, !raw.abilities || raw.abilities[k] !== false])), gifs, scene:cleanScene(raw.scene)};
 }
 /* The scene the DM sets (DMG chapter 5, PHB chapter 8, 2014): light, underwater, strong wind, heavy
    rain or snow, extreme cold or heat, high altitude. call: the DM asked everyone for a save (id, why);
