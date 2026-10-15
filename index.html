@@ -495,7 +495,8 @@ if(!user){
     if(!TEST_MODE) return;
     const name = (prompt('A name for this test account (e.g. Test DM, Test Player 1):') || '').trim().slice(0, 60);
     if(!name) return;
-    try{ const cred = await authMod.signInAnonymously(auth); await set(ref(db, `${USERS}/${cred.user.uid}`), {name}); back(); }
+    // Each tab is its own test account (so one tab can be the DM and another a player)
+    try{ await authMod.setPersistence(auth, authMod.browserSessionPersistence); const cred = await authMod.signInAnonymously(auth); await set(ref(db, `${USERS}/${cred.user.uid}`), {name}); back(); }
     catch(err){ msg('authMsg', 'Test sign-in didn’t work: ' + err.message, true); }
   };
 } else {

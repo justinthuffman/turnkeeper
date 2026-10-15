@@ -4115,7 +4115,7 @@ function showAttrTooltip(e, itemName, abilityName){
 }
 
 // The campaigns and their party: js/config.js
-function campaignFor(charId){ return charId === currentCharId ? tkCampaign.name : 'None'; }
+function campaignFor(charId){ return tkCampaign.name; }   // the open character's (set before it's shown)
 // A short line under the header while a character opens ("Opening the character…"), or a problem
 function setStatus(msg, cls){
   const el = document.getElementById('loadStatus');
