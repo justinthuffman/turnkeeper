@@ -330,6 +330,7 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
 <div class="hub-panel" id="hubCamps" hidden>
   <h2>My Campaigns</h2>
   <div id="campList"></div>
+  <div class="hub-row"><input type="text" id="joinCode" maxlength="300" placeholder="Paste an invite link or code" aria-label="Invite link or code"><button type="button" class="hub-btn" id="joinCodeGo">Join a campaign</button></div>
   <div class="hub-row"><input type="text" id="newCampName" maxlength="80" placeholder="A new campaign’s name" aria-label="New campaign name"><button type="button" class="hub-btn ghost" id="newCampGo">Create a campaign</button></div>
   <div class="hub-msg" id="campMsg" aria-live="polite"></div>
 </div>
@@ -584,6 +585,10 @@ if(!user){
     }).join('') : '<p class="hub-note">You’re not in a campaign yet. Create one (you’ll be its DM), or ask your DM for an invite link.</p>';
   };
   renderCamps();
+  window.swapCharacter = async (key, id, oldId, msgId)=>{
+    try{ await swapCharacterIn(db, {ref, update}, user, key, id, oldId); location.href = 'index.html'; }
+    catch(err){ msg(msgId, 'Couldn’t switch characters: ' + err.message, true); }
+  };
   const inviteUrl = code=>location.origin + location.pathname.replace(/[^/]*$/, '') + 'index.html?join=' + code + (TEST_MODE && !['localhost', '127.0.0.1'].includes(location.hostname) ? '&test=1' : '');
   $('campList').addEventListener('click', async e=>{
     const k = e.target.dataset.invite || e.target.dataset.newinvite; if(!k) return;
@@ -596,6 +601,14 @@ if(!user){
     try{ await navigator.clipboard.writeText(inviteUrl(code)); msg('campMsg', `Invite link for ${m.name} copied${e.target.dataset.newinvite ? ' (the old link no longer works)' : ''}. Send it to your players.`); }
     catch(err){ prompt('Copy this invite link:', inviteUrl(code)); }
   });
+  // Join with an invite link or code pasted in: the same as opening the link
+  const joinFromBox = ()=>{
+    const v = $('joinCode').value.trim(), m = v.match(/[?&]join=([A-Za-z0-9]+)/), code = (m ? m[1] : v).toLowerCase();
+    if(!/^[a-z0-9]{8,40}$/.test(code)){ msg('campMsg', 'That doesn’t look like an invite link or code. Ask your DM to copy it again.', true); return; }
+    location.href = 'index.html?join=' + code + (params.get('test') ? '&test=1' : '');
+  };
+  $('joinCodeGo').onclick = joinFromBox;
+  $('joinCode').addEventListener('keydown', e=>{ if(e.key === 'Enter') joinFromBox(); });
   // Create a campaign: you're its DM; it gets an invite code
   $('newCampGo').onclick = async ()=>{
     const name = $('newCampName').value.trim().slice(0, 80); if(!name){ msg('campMsg', 'Give the campaign a name first.', true); return; }
@@ -619,7 +632,15 @@ if(!user){
     const inv = (await get(ref(db, `${DBROOT}invites/${join}`)).catch(()=>null))?.val();
     const box = $('hubJoin'); box.hidden = false;
     if(!inv || !inv.key) box.innerHTML = '<h2>Join a Campaign</h2><p class="hub-note">That invite link doesn’t work any more. Ask your DM for a new one.</p>';
-    else if(myCamps[inv.key]) box.innerHTML = `<h2>Join a Campaign</h2><p class="hub-note">You’re already in <b>${esc(inv.name)}</b>.</p>`;
+    else if(myCamps[inv.key] === 'dm') box.innerHTML = `<h2>Join a Campaign</h2><p class="hub-note">You’re the DM of <b>${esc(inv.name)}</b>.</p>`;
+    else if(myCamps[inv.key]){
+      // A player there already: they can bring a different character of theirs instead (one per campaign)
+      const now = mine.find(x=>x.rec.campaign === inv.key), others = mine.filter(x=>x.rec.campaign !== inv.key);
+      box.innerHTML = `<h2>${esc(inv.name)}</h2><p class="hub-note">You’re already in it${now ? ', playing <b>' + esc((now.rec.core && now.rec.core.name) || 'a character') + '</b>' : ''}.</p>`
+        + (others.length ? `<p class="hub-note">Bring a different character instead?</p><div class="hub-row"><select id="swapChar">${others.map(x=>`<option value="${esc(x.id)}"${x.id === params.get('pick') ? ' selected' : ''}>${esc((x.rec.core && x.rec.core.name) || 'Unnamed')}</option>`).join('')}</select><button type="button" class="hub-btn" id="swapGo">Bring this one</button></div><div class="hub-msg" id="joinMsg"></div>` : '');
+      const go = $('swapGo');
+      if(go) go.onclick = ()=>swapCharacter(inv.key, $('swapChar').value, now && now.id, 'joinMsg');
+    }
     else {
       const free = mine;
       box.innerHTML = `<h2>Join ${esc(inv.name)}</h2>` + (free.length
@@ -639,6 +660,12 @@ if(!user){
       };
     }
   }
+}
+async function swapCharacterIn(db, fb, user, key, id, oldId){
+  const {ref, update} = fb;
+  const patch = {[`${CAMP(key)}/members/${user.uid}/char`]:id, [`${CHARS}/${id}/campaign`]:key};
+  if(oldId && oldId !== id) patch[`${CHARS}/${oldId}/campaign`] = null;
+  await update(ref(db), patch);
 }
 function touchScreenHint(){ return window.matchMedia('(hover: none)').matches; }
 </script>
