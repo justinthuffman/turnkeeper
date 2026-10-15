@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Claim Your Character · Turnkeeper</title>
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
+<!-- Before the move to accounts (V6): each player says which character is theirs (or that they're
+     the DM) and signs in; that account gets the character when Turnkeeper switches over.
+     Self-contained, so it works beside the current site: only js/config.js is shared.
+     Saved at claims/<who> {name, at} (anyone can see who's taken what, so only a name) and claimsBy/<account> = who
+     (private). Each pick and each account can claim once; a mistake is cleared by hand. -->
+<style>
+:root{--bg:#151011; --panel:#221a1b; --panel2:#2f2425; --border:#4b3638; --ink:#f3eae7; --ink-dim:#b9a4a1; --sea:#d9a955; --sea-dim:#8a6630; --orange:#b8433a; --font-display:Georgia, 'Palatino Linotype', serif; --font-body:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;}
+*{box-sizing:border-box;}
+body{margin:0; min-height:100vh; background:var(--bg); color:var(--ink); font-family:var(--font-body); padding:48px 16px; display:flex; flex-direction:column; align-items:center;}
+h1{font-family:var(--font-display); font-weight:normal; color:var(--sea); font-size:2.2rem; margin:0; display:flex; align-items:center; gap:12px;}
+h1 svg{width:1.2em; height:1.2em;}
+.sub{font-family:var(--font-display); font-style:italic; color:var(--ink-dim); margin:8px 0 30px; text-align:center;}
+.who{display:grid; grid-template-columns:repeat(5, minmax(0, 1fr)); gap:14px; width:100%; max-width:860px;}
+@media (max-width:720px){ .who{grid-template-columns:repeat(2, minmax(0, 1fr)); max-width:420px;} }
+.pick{position:relative; background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:10px; text-align:center; cursor:pointer; color:var(--ink); font:inherit; display:flex; flex-direction:column; align-items:center; gap:8px;}
+.pick img, .pick .dm-mark{width:100%; aspect-ratio:1; object-fit:cover; object-position:50% 15%; border-radius:50%; border:3px solid var(--sea-dim);}
+.pick .dm-mark{display:grid; place-items:center; background:radial-gradient(circle at 50% 35%, var(--panel2), var(--bg)); font-family:var(--font-display); font-size:2.4rem; color:var(--sea);}
+.pick b{font-family:var(--font-display); font-weight:normal; font-size:1.2rem;}
+.pick small{color:var(--ink-dim); font-size:0.78rem; min-height:1.2em;}
+.pick:hover:not(:disabled), .pick.on{border-color:var(--sea); box-shadow:0 0 0 1px var(--sea) inset;}
+.pick:disabled{cursor:default; opacity:0.55;}
+.pick.mine{opacity:1; border-color:var(--sea);}
+.panel{width:100%; max-width:520px; background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:18px 20px; margin-top:24px;}
+.panel[hidden]{display:none;}
+.panel h2{font-family:var(--font-display); font-weight:normal; color:var(--sea); margin:0 0 10px; font-size:1.3rem;}
+.row{display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin:10px 0;}
+.row input{flex:1 1 220px; min-width:0; background:var(--bg); border:1px solid var(--border); color:var(--ink); border-radius:6px; padding:9px 10px; font:inherit;}
+.btn{background:var(--sea); color:var(--bg); border:none; border-radius:6px; padding:9px 14px; font:inherit; font-weight:600; cursor:pointer;}
+.btn.ghost{background:transparent; color:var(--sea); border:1px solid var(--sea-dim);}
+.btn:disabled{opacity:0.5; cursor:default;}
+.note{color:var(--ink-dim); font-size:0.88rem; margin:6px 0;}
+.msg{min-height:1.2em; font-size:0.9rem; color:var(--sea);}
+.msg.err{color:#ea9257;}
+.test{margin-top:20px; font-size:0.75rem; color:#ea9257;}
+</style>
+<script src="js/config.js"></script>
+</head>
+<body>
+<h1><svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="16" fill="none" stroke="var(--sea)" stroke-width="2"/><path d="M14 11 H26 M14 29 H26 M15 11 Q15 18 20 20 Q25 18 25 11 M15 29 Q15 22 20 20 Q25 22 25 29" fill="none" stroke="var(--sea)" stroke-width="1.8" stroke-linejoin="round"/><path d="M17.5 27 Q20 24 22.5 27 Z" fill="var(--orange)"/></svg>Turnkeeper</h1>
+<div class="sub">Turnkeeper is moving to accounts. Who are you?</div>
+<div class="who" id="who"></div>
+<div class="panel" id="step" hidden></div>
+<p class="test" id="testNote" hidden>Test mode: claims here are practice ones, kept apart from the real game.</p>
+<script type="module">
+const WHO = [
+  {key:'krunk', name:'Krunk', what:'Half-Orc Paladin', img:'portraits/krunk.jpg'},
+  {key:'bel', name:'Bel', what:'Tiefling Bard', img:'portraits/bel.webp'},
+  {key:'ezlo', name:'Ezlo', what:'Drow Wizard', img:'portraits/ezlo.webp'},
+  {key:'venthor', name:'Venthor', what:'Wood Elf Rogue', img:'portraits/venthor.webp'},
+  {key:'dm', name:'The DM', what:'Dungeon Master'},
+];
+const ROOT = TEST_MODE ? 'sandbox/' : '', EMAIL_KEY = 'tkClaimEmail', PICK_KEY = 'tkClaimPick';
+const $ = id=>document.getElementById(id);
+const esc = s=>String(s ?? '').replace(/[&<>"']/g, c=>({'&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'}[c]));
+$('testNote').hidden = !TEST_MODE;
+const [appMod, authMod, fb] = await Promise.all(['firebase-app.js', 'firebase-auth.js', 'firebase-database.js'].map(f=>import(FB + f)));
+const app = appMod.initializeApp(FIREBASE_CONFIG), auth = authMod.getAuth(app), db = fb.getDatabase(app);
+const {ref, get, update, onValue, serverTimestamp} = fb;
+let claims = {}, user = null, mine = null, pick = null;
+// The current site signs everyone in anonymously; that doesn't count (except test accounts, in test mode)
+const real = u=>!!u && (!u.isAnonymous || TEST_MODE);
+const nameOf = u=>String(u.displayName || (u.email || '').split('@')[0] || (u.isAnonymous ? 'Test account' : 'Someone')).slice(0, 60);
+
+function drawWho(){
+  $('who').innerHTML = WHO.map(w=>{
+    const c = claims[w.key], isMine = mine === w.key;
+    return `<button type="button" class="pick${pick === w.key ? ' on' : ''}${isMine ? ' mine' : ''}" data-who="${w.key}"${(c && !isMine) || (mine && !isMine) ? ' disabled' : ''}>`
+      + (w.img ? `<img src="${w.img}" alt="">` : `<span class="dm-mark">DM</span>`)
+      + `<b>${esc(w.name)}</b><small>${isMine ? 'You' : c ? 'Claimed by ' + esc(c.name) : esc(w.what)}</small></button>`;
+  }).join('');
+}
+function drawStep(){
+  const box = $('step'), w = WHO.find(x=>x.key === (mine || pick));
+  if(mine){ box.hidden = false; box.innerHTML = `<h2>You’re ${esc(w.name)}</h2><p class="note">That’s all for now. When Turnkeeper moves to accounts, ${mine === 'dm' ? 'the campaign and your DM Screen' : esc(w.name)} will be waiting for you, and on this device you’ll already be signed in.</p><p class="note">Picked the wrong one? Tell Justin and he’ll clear it.</p>`; return; }
+  if(!w){ box.hidden = true; return; }
+  box.hidden = false;
+  if(!real(user)){
+    box.innerHTML = `<h2>${w.key === 'dm' ? 'You’re the DM?' : `You’re ${esc(w.name)}’s player?`}</h2><p class="note">Sign in with the account you’ll use for Turnkeeper. That’s what ${w.key === 'dm' ? 'the campaign' : esc(w.name)} will belong to.</p>`
+      + `<div class="row"><button type="button" class="btn" id="google">Sign in with Google</button></div>`
+      + `<div class="row"><input type="email" id="email" placeholder="Or your email address" autocomplete="email"><button type="button" class="btn ghost" id="emailGo">Email me a sign-in link</button></div><div class="msg" id="msg"></div>`;
+    return;
+  }
+  box.innerHTML = `<h2>Claim ${esc(w.name)}?</h2><p class="note">Signed in as <b>${esc(nameOf(user))}</b>${user.email ? ` (${esc(user.email)})` : ''}. ${w.key === 'dm' ? 'You’ll be the DM of Crisis in Waterdeep.' : `${esc(w.name)} will be yours.`} You can only claim once.</p>`
+    + `<div class="row"><button type="button" class="btn" id="claimGo">Yes, I’m ${esc(w.name === 'The DM' ? 'the DM' : w.name)}</button><button type="button" class="btn ghost" id="signOut">Not me: sign out</button></div><div class="msg" id="msg"></div>`;
+}
+const say = (t, err)=>{ const m = $('msg'); if(m){ m.textContent = t; m.className = 'msg' + (err ? ' err' : ''); } };
+const draw = ()=>{ drawWho(); drawStep(); };
+
+document.addEventListener('click', async e=>{
+  const b = e.target.closest('button'); if(!b) return;
+  if(b.dataset.who){ pick = b.dataset.who; try{ localStorage.setItem(PICK_KEY, pick); }catch(err){} draw(); $('step').scrollIntoView({behavior:'smooth', block:'nearest'}); return; }
+  if(b.id === 'google'){
+    try{ await authMod.signInWithPopup(auth, new authMod.GoogleAuthProvider()); }
+    catch(err){ if(/popup/.test(err.code || '')) authMod.signInWithRedirect(auth, new authMod.GoogleAuthProvider()); else say('Couldn’t sign in: ' + err.message, true); }
+  }
+  if(b.id === 'emailGo'){
+    const email = $('email').value.trim(); if(!/^\S+@\S+\.\S+$/.test(email)){ say('That doesn’t look like an email address.', true); return; }
+    try{
+      await authMod.sendSignInLinkToEmail(auth, email, {url:location.href.split('?')[0] + (TEST_MODE && location.search.includes('test') ? '?test=1' : ''), handleCodeInApp:true});
+      try{ localStorage.setItem(EMAIL_KEY, email); }catch(err){}
+      say(`Sent! Open the link in the email to ${email} on this device.`);
+    }catch(err){ say('Couldn’t send the link: ' + err.message, true); }
+  }
+  if(b.id === 'signOut'){ await authMod.signOut(auth); }
+  if(b.id === 'claimGo'){
+    const who = pick; if(!who || !real(user)) return;
+    b.disabled = true;
+    try{
+      await update(ref(db), {[`${ROOT}claims/${who}`]:{name:nameOf(user), at:serverTimestamp()}, [`${ROOT}claimsBy/${user.uid}`]:who});
+      mine = who; try{ localStorage.removeItem(PICK_KEY); }catch(err){}
+      draw();
+    }catch(err){ say('Couldn’t claim: someone may have just claimed it, or this account already has. Reload to see.', true); b.disabled = false; }
+  }
+});
+
+// Coming back from the emailed link
+if(authMod.isSignInWithEmailLink(auth, location.href)){
+  let email = null; try{ email = localStorage.getItem(EMAIL_KEY); }catch(e){}
+  if(!email) email = prompt('Which email address did you use?');
+  if(email){ try{ await authMod.signInWithEmailLink(auth, email.trim(), location.href); try{ localStorage.removeItem(EMAIL_KEY); }catch(e){} history.replaceState(null, '', location.pathname + (TEST_MODE && location.search.includes('test') ? '?test=1' : '')); }catch(err){ alert('That sign-in link didn’t work (it may have expired). Try again.'); } }
+}
+try{ pick = localStorage.getItem(PICK_KEY); }catch(e){}
+onValue(ref(db, `${ROOT}claims`), s=>{ claims = s.val() || {}; draw(); }, ()=>{});
+authMod.onAuthStateChanged(auth, async u=>{
+  user = u; mine = null;
+  if(real(u)){ try{ mine = (await get(ref(db, `${ROOT}claimsBy/${u.uid}`))).val(); }catch(e){} }
+  draw();
+});
+draw();
+</script>
+</body>
+</html>
