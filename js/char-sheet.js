@@ -90,8 +90,7 @@ const DETAIL_GROUPS = [
   ['Personality', [['traits', 'Personality traits', 'area'], ['ideals', 'Ideals', 'area'], ['bonds', 'Bonds', 'area'], ['flaws', 'Flaws', 'area']]],
   ['Story', [['backstory', 'Backstory', 'area'], ['allies', 'Allies & organizations', 'area'], ['symbol', 'Symbol (allies & organizations)'], ['extraFeatures', 'Additional features & traits', 'area'], ['treasure', 'Treasure', 'area']]],
 ];
-// Experience needed for each level (Player's Handbook, 2014): XP_FOR[n] reaches level n + 1
-const XP_FOR = [0, 300, 900, 2700, 6500, 14000, 23000, 34000, 48000, 64000, 85000, 100000, 120000, 140000, 165000, 195000, 225000, 265000, 305000, 355000];
+// Experience needed for each level: XP_FOR, js/data/levels.js
 function xpLine(xp, level){
   if(level >= 20) return `${xp.toLocaleString()} XP: level 20 is the highest.`;
   const need = XP_FOR[level];
@@ -180,6 +179,9 @@ document.addEventListener('click', e=>{
   const lv = Math.min(20, Math.max(1, (currentCore.level || 1) + Number(b.dataset.levelStep)));
   if(lv === currentCore.level) return;
   const up = lv > currentCore.level;
+  // Level Up walks through the new level (js/level-up.js); Level down takes off what that level added
+  if(up && window.tkLevelUp){ window.tkLevelUp(); return; }
+  if(!up && window.tkLevelDown){ window.tkLevelDown(); return; }
   csSaveCore('level', lv, true);
   const m = document.getElementById('cdLevelMsg');
   if(m) m.textContent = up ? `Now level ${lv}. Raise your hit point maximum in Edit Character, and pick any new features or spells.` : `Back to level ${lv}. Lower your hit point maximum in Edit Character if it went up.`;

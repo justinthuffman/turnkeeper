@@ -538,6 +538,17 @@ button.flow-btn .src-tag{color:var(--ink); border-color:rgba(255,255,255,0.6);}
 .legend .dot{width:9px; height:9px; border-radius:50%; display:inline-block;}
 
 /* Tooltip */
+/* Level Up (js/level-up.js): uses the Edit Character window's look */
+.lu-box{max-width:620px;}
+.lu-sec{border-top:1px solid var(--border); padding:10px 0;}
+.lu-sec h3{margin:0 0 6px; font-family:var(--font-display); font-weight:normal; color:var(--sea); font-size:1.05rem;}
+.lu-row{display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin:6px 0;}
+.lu-hp{font-size:0.92rem;}
+.lu-list{margin:4px 0; padding-left:18px; font-size:0.88rem;}
+.lu-list li{margin:5px 0;}
+.lu-list select, .lu-sec select{margin-top:4px; max-width:100%;}
+.lu-warn{color:var(--orange-bright, var(--orange));}
+.lu-foot{border-top:1px solid var(--border); padding-top:12px;}
 #tooltip{
   position:fixed; z-index:999; max-width:min(280px, calc(100vw - 28px)); background:var(--tooltip-bg); border:1px solid var(--sea-dim);
   color:var(--ink); font-size:0.8rem; padding:10px 12px; border-radius:6px; box-shadow:0 6px 20px rgba(0,0,0,.5);
@@ -972,6 +983,7 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
 <script src="js/data/races.js"></script>
 <script src="js/data/classes.js"></script>
 <script src="js/data/classes-phb.js"></script>
+<script src="js/data/levels.js"></script>
 <script src="js/data/feats.js"></script>
 <script src="js/char-store.js"></script>
 <script>
@@ -3562,7 +3574,7 @@ function renderFeatureActionDetail(){
    Each castable spell is an "entry": {sp, source ('Racial'|'Class'|null), ability, fixedLevel}.
    Racial spells are cast at a fixed level (e.g. Hellish Rebuke at 2nd); everything else uses
    the class's spell slots. */
-const FULL_CASTERS = ['bard','cleric','druid','sorcerer','wizard'];
+// FULL_CASTERS: js/data/levels.js
 // A class's spell list; a warlock's patron adds its expanded spells (by spell level, in order)
 function spellListFor(listKey){
   const list = SPELL_DATA[listKey] || [];
@@ -3870,26 +3882,7 @@ function renderReactionsDetail(){
 }
 
 
-/* ---------- How many spells a character can prepare or know (2014 PHB class tables) ----------
-   Prepared casters (Cleric, Druid, Paladin, Wizard): ability modifier + class level (half,
-   rounded down, for the Paladin), minimum 1. Known casters: the class table's Spells Known. Cantrips are counted
-   separately from the Cantrips Known column. Always-prepared spells (Oath, racial) don't count.
-   No spell above the highest spell slot level the character has. Keys are class keys, or
-   'class|Subclass' for a subclass that adds spellcasting. */
-const byLevel20 = arr=>lvl=>arr[Math.min(20, Math.max(1, lvl)) - 1];
-const cantripsAt = (n1, n4, n10)=>lvl=>lvl >= 10 ? n10 : lvl >= 4 ? n4 : n1;
-const SPELL_LIMITS = {
-  bard:     {cantrips:cantripsAt(2,3,4), known:byLevel20([4,5,6,7,8,9,10,11,12,14,15,15,16,18,19,19,20,22,22,22])},
-  cleric:   {cantrips:cantripsAt(3,4,5), prepared:'wis'},
-  druid:    {cantrips:cantripsAt(2,3,4), prepared:'wis'},
-  paladin:  {prepared:'cha', half:true},
-  ranger:   {known:byLevel20([0,2,3,3,4,4,5,5,6,6,7,7,8,8,9,9,10,10,11,11])},
-  sorcerer: {cantrips:cantripsAt(4,5,6), known:byLevel20([2,3,4,5,6,7,8,9,10,11,12,12,13,13,14,14,15,15,15,15])},
-  warlock:  {cantrips:cantripsAt(2,3,4), known:byLevel20([2,3,4,5,6,7,8,9,10,10,11,11,12,12,13,13,14,14,15,15])},
-  wizard:   {cantrips:cantripsAt(3,4,5), prepared:'int'},
-  'rogue|Arcane Trickster': {cantrips:lvl=>lvl >= 10 ? 4 : 3, known:byLevel20([0,0,3,4,4,4,5,6,6,7,8,8,9,10,10,11,11,11,12,13])},
-  'fighter|Eldritch Knight': {cantrips:lvl=>lvl >= 10 ? 3 : 2, known:byLevel20([0,0,3,4,4,4,5,6,6,7,8,8,9,10,10,11,11,11,12,13])},
-};
+/* ---------- How many spells a character can prepare or know: SPELL_LIMITS, js/data/levels.js ---------- */
 // {cantrips, spells, kind, maxLevel, why} for the character now, or {none:reason}; null if the class isn't known
 function spellLimits(){
   if(!cf.classKey) return null;
@@ -4802,7 +4795,7 @@ function setupClassFeatures(clsText){
 }
 
 // feats.js: moved to js/data/feats.js
-const ASI_LEVELS = {fighter:[4,6,8,12,14,16,19], rogue:[4,8,10,12,16,19]};
+// ASI_LEVELS: js/data/levels.js
 function featSlotLevels(){ const l = ASI_LEVELS[cf.classKey] || [4,8,12,16,19]; return rt.raceKey === 'varianthuman' ? [1, ...l] : l; }
 function openFeatSlots(){ return featSlotLevels().filter(l=>l <= charLevel()); }
 const featMem = new Map();
@@ -5100,11 +5093,7 @@ function sourceTag(source){ return `<span class="src-tag src-${source.toLowerCas
 /* ---------- Resource tracking: HP, spell slots, limited-use features, rests ----------
    Tracked per character as {hp, used:{id: amount spent}}.
    Slot tables are the 2014 class tables (checked on dnd5e.wikidot.com). */
-const FULL_SLOTS = [[], [2],[3],[4,2],[4,3],[4,3,2],[4,3,3],[4,3,3,1],[4,3,3,2],[4,3,3,3,1],[4,3,3,3,2],
-  [4,3,3,3,2,1],[4,3,3,3,2,1],[4,3,3,3,2,1,1],[4,3,3,3,2,1,1],[4,3,3,3,2,1,1,1],[4,3,3,3,2,1,1,1],
-  [4,3,3,3,2,1,1,1,1],[4,3,3,3,3,1,1,1,1],[4,3,3,3,3,2,1,1,1],[4,3,3,3,3,2,2,1,1]];
-const HALF_SLOTS = [[], [],[2],[3],[3],[4,2],[4,2],[4,3],[4,3],[4,3,2],[4,3,2],
-  [4,3,3],[4,3,3],[4,3,3,1],[4,3,3,1],[4,3,3,2],[4,3,3,2],[4,3,3,3,1],[4,3,3,3,1],[4,3,3,3,2],[4,3,3,3,2]];
+// FULL_SLOTS, HALF_SLOTS: js/data/levels.js
 function abilityScoreMod(a){ return abilityMod(document.getElementById('s_'+a).value); }
 // [{level, max, recharge, id}] for the character's class and level
 function slotTable(){
@@ -5138,7 +5127,7 @@ function songOfRestDie(){ const l = charLevel(); return l >= 17 ? 12 : l >= 13 ?
    the die + your Constitution modifier. A long rest gives back half your total (at least 1;
    see takeRest). Durable: each die heals at least twice your Con modifier (minimum 2), done
    with `mi` on the die. Tracked as track.used.hitDice. */
-const HIT_DIE = {barbarian:12, fighter:10, paladin:10, ranger:10, bard:8, cleric:8, druid:8, monk:8, rogue:8, warlock:8, sorcerer:6, wizard:6};
+// HIT_DIE: js/data/levels.js
 function hitDie(){ return HIT_DIE[cf.classKey] || 0; }
 const hd = {open:false, n:1, done:null};   // the Spend panel: how many, and the last spend (for Undo)
 function hitDiceCmd(n){
@@ -5850,6 +5839,7 @@ setupSettings({onOpen:()=>{ if(document.getElementById('setDice').open) fillDice
 <script src="js/panel-order.js"></script>
 <script src="js/char-icons.js"></script>
 <script src="js/char-sheet.js"></script>
+<script src="js/level-up.js"></script>
 <script src="js/item-forms.js"></script>
 <script src="js/inventory.js"></script>
 <script src="js/tabs.js"></script>
