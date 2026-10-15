@@ -173,16 +173,24 @@ function missing(step){
 /* ---------- Drawing ---------- */
 // A race's subraces this campaign offers (Variant Human only when the DM turns it on)
 const subsOf = g=>g.subs.filter(([n])=>n !== 'Variant Human' || variantHumanOk());
+function focusSelector(el){
+  if(el.id) return '#' + CSS.escape(el.id);
+  const attr = [...el.attributes].find(x=>x.name.startsWith('data-')); if(!attr) return null;
+  return `${el.tagName.toLowerCase()}[${attr.name}="${CSS.escape(attr.value)}"]` + (el.type === 'radio' ? `[value="${CSS.escape(el.value)}"]` : '');
+}
 function render(){
   // A draft's Variant Human, where this campaign doesn't use it, goes back to the standard human
   if(S.race === 'Variant Human' && !variantHumanOk()){ S.race = 'Human'; S.asiPick = []; S.extraSkills = []; }
   const steps = visibleSteps();
   if(!steps.some(([k])=>k === S.step)) S.step = 'race';
   hideTip(true);
+  // Keep the keyboard where it was across the redraw (the same box, found by its id or data attribute)
+  const a = document.activeElement, again = a && $('body').contains(a) ? focusSelector(a) : null;
   $('steps').innerHTML = steps.map(([k, l], i)=>`<button type="button" class="step${k === S.step ? ' on' : ''}${k !== 'review' && !missing(k).length ? ' done' : ''}" data-step="${k}"><span>${i + 1}</span>${l}</button>`).join('');
   $('body').innerHTML = ({race:renderRace, class:renderClass, abilities:renderAbilities, background:renderBackground, skills:renderSkills,
     equipment:renderEquipment, spells:renderSpells, details:renderDetails, review:renderReview})[S.step]();
   renderSummary();
+  if(again){ const el = $('body').querySelector(again); if(el) el.focus({preventScroll:true}); }
   const i = steps.findIndex(([k])=>k === S.step);
   $('back').hidden = i === 0; $('next').hidden = i === steps.length - 1;
   const todo = S.step === 'review' ? [] : missing(S.step);
@@ -451,6 +459,7 @@ document.addEventListener('change', e=>{
   else if(d.cantrip){ S.cantrips = toggle(S.cantrips, d.cantrip, t.checked, spellPlan().cantrips); }
   else if(d.book){ S.book = toggle(S.book, d.book, t.checked, spellPlan().book); }
   else if(d.spell){ const p = spellPlan(); S.spells = toggle(S.spells, d.spell, t.checked, p.known || Math.min(p.prepared, p.book || 99)); }
+  else if(d.f && t.tagName !== 'SELECT'){ S[d.f] = t.value; save(); return; }   // typed text: already saved as it was typed; no redraw (Tab moves on)
   else if(d.f){ S[d.f] = t.value; }
   else return;
   render();

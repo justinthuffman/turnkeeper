@@ -112,8 +112,12 @@ table.abil th:first-child{text-align:left; font-weight:normal;}
 .msg.err{color:var(--orange-bright);}
 .foot{margin-top:18px; text-align:center;}
 .foot button{background:none; border:none; color:var(--ink-dim); text-decoration:underline; cursor:pointer; font:inherit; font-size:0.8rem;}
-.wrap{max-width:1120px;}
-.layout{display:grid; grid-template-columns:minmax(0, 1fr) 270px; gap:18px; align-items:start;}
+/* Three columns: the steps (left), the step itself (centered on the page), the character card (right).
+   The side columns are the same width so the middle stays centered. */
+.wrap{max-width:1280px;}
+.layout{display:grid; grid-template-columns:240px minmax(0, 760px) 240px; justify-content:center; gap:20px; align-items:start;}
+.layout > .steps{flex-direction:column; flex-wrap:nowrap; align-items:stretch; justify-content:flex-start; position:sticky; top:16px; margin:0;}
+.layout > .steps .step{border-radius:8px; padding:8px 12px 8px 8px; font-size:0.92rem;}
 .summary{position:sticky; top:16px; background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:14px; font-size:0.85rem;}
 .sum-head{display:flex; gap:10px; align-items:center;}
 .sum-head b{display:block; font-family:var(--font-display); font-weight:normal; font-size:1.2rem; color:var(--sea);}
@@ -149,7 +153,14 @@ table.abil th:first-child{text-align:left; font-weight:normal;}
 #tooltip .tip-link{margin-top:8px; display:flex; flex-direction:column; gap:2px;}
 #tooltip .tip-hint{color:var(--ink-dim); font-size:0.72rem; font-style:italic;}
 #tooltip.tip-held .tip-hint{display:none;}
-@media (max-width:860px){ .layout{grid-template-columns:1fr;} .summary{position:static; order:-1;} }
+/* Narrower: the steps go back across the top, and the card sits above the step */
+@media (max-width:1100px){
+  .layout{grid-template-columns:minmax(0, 760px);}
+  .layout > .steps{position:static; flex-direction:row; flex-wrap:wrap; justify-content:center;}
+  .layout > .steps .step{border-radius:999px; padding:5px 12px 5px 6px; font-size:0.85rem;}
+  .summary{position:static; order:-1;}
+  .layout > .steps{order:-2;}
+}
 @media (max-width:560px){ .grid3{grid-template-columns:repeat(2, minmax(0, 1fr));} }
 @media (max-width:560px){ .panel{padding:16px 14px;} h1{font-size:1.8rem;} table.abil th, table.abil td{padding:5px 4px;} }
 </style>
@@ -157,8 +168,8 @@ table.abil th:first-child{text-align:left; font-weight:normal;}
 <body>
 <div class="wrap">
   <header><h1>New Character</h1><div class="sub"><span id="forWhat">…</span> · <a href="index.html">back to the hub</a></div></header>
-  <nav class="steps" id="steps" aria-label="Steps"></nav>
   <div class="layout">
+    <nav class="steps" id="steps" aria-label="Steps"></nav>
     <div class="main">
       <main class="panel" id="body"><p class="note">Loading…</p></main>
       <div class="nav"><button type="button" class="btn ghost" id="back">Back</button><span class="todo" id="todo" aria-live="polite"></span><button type="button" class="btn" id="next">Next</button></div>
