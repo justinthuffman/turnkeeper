@@ -23,9 +23,10 @@ const clampFit = f=>{ const n = (v, lo, hi, d)=>Number.isFinite(+v) ? Math.min(h
 const iconUrl = p=>p.startsWith('data:') ? p : new URL(p, document.baseURI).href;
 // What a character's icon shows: {img} (framed), {face, zoom, pos, ring}, or {initial, ring}; core is optional
 function charIconSpec(char, core){
-  const own = core && safePortraitUrl(core.portrait), ring = (core && iconClassOf(core.cls)) || (CHAR_ICONS[char] || {}).ring || 'plain';
+  const own = core && safePortraitUrl(core.portrait), ring = (core && iconClassOf(core.cls)) || (CHAR_ICONS[char] || (core && CHAR_ICONS[core.testCopyOf]) || {}).ring || 'plain';
   if(own){ const f = clampFit(core.portraitFit); return {face:own, zoom:f.zoom + '%', pos:`${f.x}% ${f.y}%`, ring}; }
   if(char && CHAR_ICONS[char]) return CHAR_ICONS[char];
+  if(core && CHAR_ICONS[core.testCopyOf]) return CHAR_ICONS[core.testCopyOf];   // a test copy of one of the four
   if(core) return {initial:String(core.name || '?').trim().charAt(0).toUpperCase() || '?', ring};
   return null;
 }

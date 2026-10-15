@@ -572,9 +572,10 @@ if(!user){
     .map(([x, y, sz, dx, dy, d, t])=>`<span class="fx-p" style="--x:${x}%;--y:${y}%;--s:${sz}px;--dx:${dx}px;--dy:${dy}px;--d:${d}s;--t:${t}s"></span>`).join('') + '</div>';
   mine.sort((a, b)=>String(a.rec.core && a.rec.core.name || '').localeCompare(String(b.rec.core && b.rec.core.name || ''))).forEach(({id, rec})=>{
     const core = rec.core || {}, name = String(core.name || 'Unnamed').slice(0, 40);
-    const known = [...tpl.querySelectorAll('a.card')].find(a=>a.getAttribute('href').includes(id));
+    // One of the four hand-made cards (a test copy of one wears its original's card, opening the copy)
+    const known = [...tpl.querySelectorAll('a.card')].find(a=>a.getAttribute('href').includes(id) || (core.testCopyOf && a.getAttribute('href').includes(core.testCopyOf)));
     let card;
-    if(known){ card = known.cloneNode(true); const n = card.querySelector('.card-name'); if(n) n.textContent = name; }
+    if(known && !core.portrait){ card = known.cloneNode(true); card.href = 'turnkeeper.html?char=' + id + (params.get('test') ? '&test=1' : ''); const n = card.querySelector('.card-name'); if(n) n.textContent = name; }
     else {
       const cls = iconClassOf(core.cls), fit = clampFit(core.portraitFit);
       card = document.createElement('a'); card.className = 'card card-plain' + (cls ? ' card-' + cls : ''); card.href = 'turnkeeper.html?char=' + id; card.target = '_blank'; card.rel = 'noopener';

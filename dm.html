@@ -2211,7 +2211,7 @@ try{
       const core = (await get(ref(db, `${CHARS}/${m.char}/core`)).catch(()=>null))?.val() || {};
       const name = core.name, pic = core.portrait;
       const own = typeof pic === 'string' && (v=>/^data:image\/(webp|jpeg|png);base64,[A-Za-z0-9+/=]+$/.test(v) || /^https:\/\/[^\s"'<>]+$/.test(v))(pic) ? pic : null;
-      return {name:typeof name === 'string' && name.trim() ? name.trim().slice(0, 40) : 'A player', char:m.char, portrait:PORTRAITS[m.char] || own, icon:{name:core.name, cls:core.cls, portrait:own, portraitFit:core.portraitFit}};
+      return {name:typeof name === 'string' && name.trim() ? name.trim().slice(0, 40) : 'A player', char:m.char, portrait:PORTRAITS[m.char] || own, icon:{name:core.name, cls:core.cls, portrait:own, portraitFit:core.portraitFit, testCopyOf:core.testCopyOf}};
     }));
     return list.sort((a, b)=>a.name.localeCompare(b.name));
   };
