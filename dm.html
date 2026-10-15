@@ -310,6 +310,7 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
 .top-right{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
 .cs-popup{width:min(980px, 100%);}
 .cs-lock{display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:10px;}
+.cs-abil{flex-basis:100%; display:flex; flex-wrap:wrap; gap:6px 14px; align-items:center;}
 .cs-opts{display:flex; flex-wrap:wrap; gap:8px 18px; align-items:center; margin:10px 0 4px; font-size:0.85rem;}
 .cs-tip{font-size:0.78rem; color:var(--ink-dim); margin:4px 0 0;}
 .cs-row{border-top:1px solid var(--border); padding:12px 0 4px; margin-top:10px;}
@@ -1972,6 +1973,7 @@ function renderSettings(){
       <label title="The Dungeon Master’s Guide villain subclasses: the Oathbreaker (Paladin) and the Death Domain (Cleric). Players can pick them only while this is on."><input type="checkbox" id="csDmgSubclasses"${critSettings.dmgSubclasses ? ' checked' : ''}> DMG villain subclasses (Oathbreaker, Death Domain)</label>
       <label title="A house rule: throwing a healing potion at an ally heals them (the thrower rolls). Drinking or giving one is an action either way."><input type="checkbox" id="csThrownPotions"${critSettings.thrownPotions ? ' checked' : ''}> Thrown potions heal</label>
       <label><input type="checkbox" id="csFx"${critFxOn() ? ' checked' : ''}> Show crit GIFs on this screen</label>
+      <div class="cs-abil" title="Which ways players can make ability scores in the character creator. Keep at least one.">New characters’ ability scores: ${[['array', 'Standard array'], ['pointBuy', 'Point buy'], ['roll', 'Roll 4d6']].map(([k, l])=>`<label><input type="checkbox" data-cs-abil="${k}"${critSettings.abilities[k] ? ' checked' : ''}> ${l}</label>`).join(' ')}</div>
       <label>Party leveling <select id="csLeveling"><option value="milestone"${critSettings.leveling === 'xp' ? '' : ' selected'}>Milestone (you say when)</option><option value="xp"${critSettings.leveling === 'xp' ? ' selected' : ''}>Experience points</option></select></label>
       <button type="button" class="ghost" id="csSeed">Add the old !tk GIFs to To Hit</button></div>
     <p class="cs-tip">On a natural 20 or 1, a player’s roll shows one GIF or clip and one flavor line from its row, on every screen, after the dice land. <b>{who}</b> in flavor text becomes the roller’s name. A row with “Use the To Hit pool” ticked, or with nothing in its own pool, uses To Hit’s. Paste the GIF’s own address (ending in .gif, .mp4 or .webm): on Tenor or Giphy, right-click the GIF, open it in a new tab, and copy that tab’s address. Links that won’t show are marked <span class="cs-bad">bad link</span>.</p>
@@ -2027,6 +2029,11 @@ $('csBody').addEventListener('change', e=>{
   else if(e.target.id === 'csThrownPotions') csWrite('thrownPotions', e.target.checked);
   else if(e.target.id === 'csDmgSubclasses') csWrite('dmgSubclasses', e.target.checked);
   else if(e.target.id === 'csFx') setCritFxOn(e.target.checked);
+  else if(e.target.dataset.csAbil){
+    const k = e.target.dataset.csAbil, next = {...critSettings.abilities, [k]:e.target.checked};
+    if(!Object.values(next).some(Boolean)){ e.target.checked = true; csMsg('Keep at least one way to make ability scores.'); return; }
+    csWrite(`abilities/${k}`, e.target.checked);
+  }
   else if(e.target.dataset.csUsehit) csWrite(`gifs/${e.target.dataset.csUsehit}/useHit`, e.target.checked);
 });
 $('csBody').addEventListener('keydown', e=>{

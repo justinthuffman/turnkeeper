@@ -226,7 +226,7 @@ footer{margin-top:56px; font-size:0.75rem; color:var(--ink-dim); text-align:cent
 .hub-section .roster{margin-top:4px;}
 .hub-row{display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin:10px 0;}
 .hub-row input[type=email], .hub-row input[type=text]{flex:1 1 220px; min-width:0; background:var(--bg); border:1px solid var(--border); color:var(--ink); border-radius:6px; padding:9px 10px; font:inherit;}
-.hub-btn{background:var(--sea); color:var(--bg); border:none; border-radius:6px; padding:9px 14px; font:inherit; font-weight:600; cursor:pointer;}
+.hub-btn{background:var(--sea); color:var(--bg); border:none; border-radius:6px; padding:9px 14px; font:inherit; font-weight:600; cursor:pointer; text-decoration:none; display:inline-block;}
 .hub-btn.ghost{background:transparent; color:var(--sea); border:1px solid var(--sea-dim);}
 .hub-btn:disabled{opacity:0.5; cursor:default;}
 .hub-note{color:var(--ink-dim); font-size:0.85rem; margin:6px 0;}
@@ -297,6 +297,7 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
 <div class="hub-section" id="hubChars" hidden>
   <h2>My Characters</h2>
   <div class="roster few" id="myRoster"></div>
+  <div class="hub-row" style="justify-content:center; margin-top:22px;"><a class="hub-btn" href="create.html">Create a character</a></div>
   <p class="hub-note" id="charsNote"></p>
 </div>
 
@@ -589,8 +590,8 @@ if(!user){
     else {
       const free = mine;
       box.innerHTML = `<h2>Join ${esc(inv.name)}</h2>` + (free.length
-        ? `<p class="hub-note">Which character are you bringing? (A character plays in one campaign at a time; bringing one here takes it out of any other.)</p><div class="hub-row"><select id="joinChar">${free.map(x=>`<option value="${esc(x.id)}">${esc((x.rec.core && x.rec.core.name) || 'Unnamed')}${x.rec.campaign ? ' (now in ' + esc((campNames[x.rec.campaign] || {}).name || 'another campaign') + ')' : ''}</option>`).join('')}</select><button type="button" class="hub-btn" id="joinGo">Join</button></div><div class="hub-msg" id="joinMsg"></div>`
-        : '<p class="hub-note">You need a character to bring. The character creator is coming next.</p>');
+        ? `<p class="hub-note">Which character are you bringing? (A character plays in one campaign at a time; bringing one here takes it out of any other.)</p><div class="hub-row"><select id="joinChar">${free.map(x=>`<option value="${esc(x.id)}"${x.id === params.get('pick') ? ' selected' : ''}>${esc((x.rec.core && x.rec.core.name) || 'Unnamed')}${x.rec.campaign ? ' (now in ' + esc((campNames[x.rec.campaign] || {}).name || 'another campaign') + ')' : ''}</option>`).join('')}</select><button type="button" class="hub-btn" id="joinGo">Join</button></div><div class="hub-msg" id="joinMsg"></div><p class="hub-note">Or <a href="create.html?join=${esc(join)}">make a new character</a> for it.</p>`
+        : `<p class="hub-note">You need a character to bring.</p><div class="hub-row"><a class="hub-btn" href="create.html?join=${esc(join)}">Make a character for ${esc(inv.name)}</a></div>`);
       const go = $('joinGo');
       if(go) go.onclick = async ()=>{
         const id = $('joinChar').value, ch = free.find(x=>x.id === id), was = ch && ch.rec.campaign;
