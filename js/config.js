@@ -10,25 +10,29 @@ const FIREBASE_CONFIG = {
 };
 const FB = 'https://www.gstatic.com/firebasejs/12.19.0/';
 
-// Campaigns and their party. Hard-coded for now (Justin, 2026-09-28): later, players join a
-// campaign from their account or a DM's invite link. `char` is the character's ID in the
-// Turnkeeper database (campaigns/<campaign>/characters/<char>).
-const CAMPAIGNS = [
-  {key:'waterdeep', name:'Crisis in Waterdeep', party:[
-    {name:'Bel', char:'14TFj-bb1ixAUl9bw_tNdcIpWtnYxeV8JW5f2kIbiW_Q', portrait:'portraits/bel.webp'},
-    {name:'Ezlo', char:'1GqXXArCfLC42oVTF9XVrbNeKbw868HF1ih2S7VpX8jk', portrait:'portraits/ezlo.webp'},
-    {name:'Krunk', char:'1vIvEke6E12m7il5voB2n5rJAqwgJeWf_2BZYJSKpYgU', portrait:'portraits/krunk.jpg'},
-    {name:'Venthor', char:'1mS5Z2jgmi4U-bdEPP0JvZIkI-7puhWGjwlF8i6JIYbo', portrait:'portraits/venthor.webp'},
-  ]},
-];
-// The campaign a character belongs to, or undefined
-const campaignOfChar = id=>CAMPAIGNS.find(c=>c.party.some(p=>p.char === id));
+// Portraits for characters that have one in portraits/ (the hub's cards and the DM Screen's party).
+// The character creator will let players add their own (V6 stage 4).
+const PORTRAITS = {
+  '14TFj-bb1ixAUl9bw_tNdcIpWtnYxeV8JW5f2kIbiW_Q':'portraits/bel.webp',
+  '1GqXXArCfLC42oVTF9XVrbNeKbw868HF1ih2S7VpX8jk':'portraits/ezlo.webp',
+  '1vIvEke6E12m7il5voB2n5rJAqwgJeWf_2BZYJSKpYgU':'portraits/krunk.jpg',
+  '1mS5Z2jgmi4U-bdEPP0JvZIkI-7puhWGjwlF8i6JIYbo':'portraits/venthor.webp',
+};
 
 // Test mode (?test=1 on the address, or any copy on this computer: localhost or a local file):
-// everything goes to a separate 'test' campaign in the database, so testing never touches the
-// real game
+// everything lives under sandbox/ in the database (its own accounts' records, characters and
+// campaigns), so testing never touches the real game
 const TEST_MODE = (new URLSearchParams(location.search).has('test') || ['localhost', '127.0.0.1', '[::1]', ''].includes(location.hostname));
-const FBK = key=>TEST_MODE ? 'test' : key;
+/* V6: where things live in the database
+     users/<account>              name, email, and the campaigns they're in ({key: 'dm' | 'player'})
+     characters/<id>              owner (account), campaign (key or none), core, kv (js/char-store.js)
+     campaigns/<key>/meta         name, dm (account), invite (the code in its invite link)
+     campaigns/<key>/members/<account>  role, char
+     campaigns/<key>/…            combat, settings, live, effects, acts, rolls… (as before) */
+const DBROOT = TEST_MODE ? 'sandbox/' : '';
+const CAMP = key=>`${DBROOT}campaigns/${key}`;
+const CHARS = `${DBROOT}characters`;
+const USERS = `${DBROOT}users`;
 // Shared data is untrusted: strip HTML characters from every key and string
 const clean = v=>typeof v === 'string' ? v.replace(/[<>"&`]/g, '').slice(0, 200) : Array.isArray(v) ? v.map(clean)
   : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k, x])=>[k.replace(/[<>"&`]/g, ''), clean(x)])) : v;

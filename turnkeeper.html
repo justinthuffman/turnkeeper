@@ -2663,7 +2663,9 @@ const TARGETED = {
 const table = {combat:null, effects:{}, live:{}};
 const tableWas = {active:null, myTurn:null};
 const arrOf = x=>Array.isArray(x) ? x : Object.values(x || {});
-function myCampaignKey(){ const c = campaignOfChar(currentCharId); return c ? c.key : null; }
+// V6: the campaign the open character plays in (from its record), or null
+let tkCampaign = {key:null, name:'None'};
+function myCampaignKey(){ return currentCharId ? tkCampaign.key : null; }
 function tableActive(){ return !!(currentCharId && myCampaignKey() && table.combat && table.combat.active); }
 function myName(){ return document.getElementById('f_name').value || 'You'; }
 const tkConnected = ()=>!!(window.tkLive && window.tkLive.connected && myCampaignKey());
@@ -4113,7 +4115,7 @@ function showAttrTooltip(e, itemName, abilityName){
 }
 
 // The campaigns and their party: js/config.js
-function campaignFor(charId){ const c = campaignOfChar(charId); return c ? c.name : 'None'; }
+function campaignFor(charId){ return charId === currentCharId ? tkCampaign.name : 'None'; }
 // A short line under the header while a character opens ("Opening the character…"), or a problem
 function setStatus(msg, cls){
   const el = document.getElementById('loadStatus');
@@ -4221,13 +4223,17 @@ function applyCore(core, charId){
   if(window.renderCharSheet) window.renderCharSheet();   // V5 panels (js/char-sheet.js)
 }
 
-async function openDbCharacter(id, campaignKey){
+async function openDbCharacter(id){
   setStatus('Opening the character…');
   try{
     const db = await tkDbReady();
-    if(window.tkFollowDefs) window.tkFollowDefs(campaignKey);   // the campaign's custom items and effects
-    const rec = await db.getChar(campaignKey, id);
-    if(!rec || !rec.core) throw new Error('That character isn’t in the Turnkeeper database yet.');
+    const rec = await db.getChar(null, id);
+    if(!rec || !rec.core) throw new Error('That character isn’t in the Turnkeeper database, or it isn’t yours to open.');
+    // V6: the campaign it plays in comes from the record (none: it's not in a campaign yet)
+    const campaignKey = typeof rec.campaign === 'string' && /^[a-z0-9-]{2,40}$/.test(rec.campaign) ? rec.campaign : null;
+    if(campaignKey && window.tkFollowDefs) window.tkFollowDefs(campaignKey);   // the campaign's custom items and effects
+    const meta = campaignKey ? await db.campaignMeta(campaignKey).catch(()=>null) : null;
+    tkCampaign = {key:campaignKey, name:meta && typeof meta.name === 'string' ? meta.name.slice(0, 80) : campaignKey ? 'Your campaign' : 'None'};
     Object.assign(charStore, {id, campaign:campaignKey, kv:rec.kv || {}, pending:{}});
     followCharacter();   // changes made elsewhere show here (js/char-store.js)
     applyCore(rec.core, id);
@@ -5273,7 +5279,7 @@ function livePush(){ clearTimeout(liveTimer); liveTimer = setTimeout(()=>{ apply
 // ("sheet" from before characters moved to the database), which would make the whole save fail.
 const sharedTarget = t=>({...(typeof t.id === 'number' ? {id:t.id} : {}), name:String(t.name || '').slice(0, 100), ...(t.char || t.sheet ? {char:String(t.char || t.sheet)} : {})});
 function liveSnapshot(){
-  const camp = campaignOfChar(currentCharId);
+  const camp = myCampaignKey() ? {key:myCampaignKey()} : null;
   if(!currentCharId || !camp) return null;
   const st = statusState(), rounds = st.rounds || {};
   const cur = hpNow(), max = hpMax();
@@ -5836,8 +5842,7 @@ setupSettings({onOpen:()=>{ if(document.getElementById('setDice').open) fillDice
   const id = params.get('char') || (old && old[1]);
   if(id && /^[A-Za-z0-9_-]{6,60}$/.test(id)){
     if(!params.get('char')) history.replaceState(null, '', '?char=' + id);
-    const camp = params.get('c') || (campaignOfChar(id) || CAMPAIGNS[0]).key;
-    await openDbCharacter(id, camp);
+    await openDbCharacter(id);
   } else setStatus('Open a character from the Turnkeeper hub.', '');
 })();
 </script>
@@ -6007,28 +6012,30 @@ window.tkCharIcon();
    Anything failing here leaves the tracker working as before. Settings: js/config.js;
    connecting: js/firebase.js. */
 try{
-  const {db, fb:{ref, get, set, update, onValue, onDisconnect, serverTimestamp, runTransaction}} = await tkFirebase();
+  const {db, user, fb:{ref, get, set, update, onValue, onDisconnect, serverTimestamp, runTransaction}} = await tkRequireUser();
+  window.tkUser = {uid:user.uid, name:user.displayName || '', anon:user.isAnonymous};
   // V5: characters in the database (js/char-store.js). Records come back raw: applyCore and the
   // tracker's loaders check each value, and kv values are JSON or plain text they parse themselves.
-  const charRef = (c, id, part)=>ref(db, `campaigns/${FBK(c)}/characters/${id}${part ? '/' + part : ''}`);
+  const charRef = (c, id, part)=>ref(db, `${CHARS}/${id}${part ? '/' + part : ''}`);   // V6: characters/<id>, whatever campaign they're in
   window.tkDb = {
     getChar: async (c, id)=>(await get(charRef(c, id))).val(),
     // Live sync (js/char-store.js): the whole record whenever it changes; returns a stop function
     followChar: (c, id, cb)=>onValue(charRef(c, id), s=>cb(s.val()), err=>console.warn('Following the character:', err)),
-    listChars: async c=>(await get(ref(db, `campaigns/${FBK(c)}/characters`))).val() || {},
+    // A campaign's name (meta), for Character Summary's Campaign box
+    campaignMeta: async c=>c ? (await get(ref(db, `${CAMP(c)}/meta`))).val() : null,
     setCore: (c, id, core)=>update(charRef(c, id), {core, t:serverTimestamp()}),
     // Part of the record: {details:{…}, languages:[…]} → core/details, core/languages
     updateCore: (c, id, patch)=>update(charRef(c, id), {...Object.fromEntries(Object.entries(patch).map(([k, v])=>['core/' + k, v === undefined ? null : v])), t:serverTimestamp()}),
     updateKv: (c, id, patch)=>update(charRef(c, id), {...Object.fromEntries(Object.entries(patch).map(([k, v])=>['kv/' + k, v])), t:serverTimestamp()}),
     // The campaign's shared custom items (Grun's Greataxe) and effects (Bleeding): {name, json, by, t}
-    deleteDef: (c, part, id)=>set(ref(db, `campaigns/${FBK(c)}/${part}/${id}`), null),
-    saveDef: (c, part, id, name, def, by)=>set(ref(db, `campaigns/${FBK(c)}/${part}/${id}`), {name:String(name).slice(0, part === 'items' ? 80 : 60), json:JSON.stringify(def), by:String(by || '').slice(0, 60), t:serverTimestamp()}),
+    deleteDef: (c, part, id)=>set(ref(db, `${CAMP(c)}/${part}/${id}`), null),
+    saveDef: (c, part, id, name, def, by)=>set(ref(db, `${CAMP(c)}/${part}/${id}`), {name:String(name).slice(0, part === 'items' ? 80 : 60), json:JSON.stringify(def), by:String(by || '').slice(0, 60), t:serverTimestamp()}),
   };
   // Follow a campaign's custom items and effects (every player's list updates as they're added)
   const defsFollowed = new Set();
   window.tkFollowDefs = c=>{
     if(defsFollowed.has(c)) return; defsFollowed.add(c);
-    ['items', 'effectDefs'].forEach(part=>onValue(ref(db, `campaigns/${FBK(c)}/${part}`),
+    ['items', 'effectDefs'].forEach(part=>onValue(ref(db, `${CAMP(c)}/${part}`),
       s=>{ if(window.tkDefsUpdate) window.tkDefsUpdate(part, s.val() || {}); }, err=>console.warn('Custom items:', err)));
   };
   const compared = new Set(), watched = new Set(), healWatched = new Set();
@@ -6036,19 +6043,19 @@ try{
   const following = new Set();
   function follow(key){
     if(following.has(key)) return; following.add(key);
-    ['combat', 'effects', 'live'].forEach(part=>onValue(ref(db, `campaigns/${FBK(key)}/${part}`),
+    ['combat', 'effects', 'live'].forEach(part=>onValue(ref(db, `${CAMP(key)}/${part}`),
       s=>window.tkTableUpdate(part, clean(s.val())), err=>console.warn('Following the table:', err)));
     // Dice: who the DM has allowed to roll, and everyone's latest roll (played on this screen too)
     // (rolls and settings arrive raw: their links must keep every character, and js/dice.js
     // checks every field itself: cleanRoll, cleanCritSettings)
-    ['allow', 'rolls', 'settings'].forEach(part=>onValue(ref(db, `campaigns/${FBK(key)}/${part}`),
+    ['allow', 'rolls', 'settings'].forEach(part=>onValue(ref(db, `${CAMP(key)}/${part}`),
       s=>window.tkDiceUpdate(part, part === 'allow' ? clean(s.val()) : s.val()), err=>{ console.warn('Dice from the table:', err); if(part === 'allow') window.tkDiceUpdate('allow', {}); }));
   }
   async function push(){
     const snap = liveSnapshot();
     if(!snap){ showLive(null); return; }
     follow(snap.campaign);
-    const node = ref(db, `campaigns/${FBK(snap.campaign)}/live/${snap.char}`);
+    const node = ref(db, `${CAMP(snap.campaign)}/live/${snap.char}`);
     if(!compared.has(snap.char)){
       compared.add(snap.char);
       const remote = (await get(node)).val();
@@ -6056,17 +6063,17 @@ try{
     }
     await set(node, {...snap.data, online:true, t:serverTimestamp()});
     // What you've cast on others (Hunter's Mark on Goblin 2, Bless on Venthor)
-    await set(ref(db, `campaigns/${FBK(snap.campaign)}/effects/${snap.char}`), Object.keys(snap.effects).length ? snap.effects : null);
+    await set(ref(db, `${CAMP(snap.campaign)}/effects/${snap.char}`), Object.keys(snap.effects).length ? snap.effects : null);
     // Closing the page marks it closed (after the first write, so the record exists); t stays the last change
     if(!watched.has(snap.char)){ watched.add(snap.char); await onDisconnect(node).update({online:false}); }
     // Healing sent to this character by someone else (heals/<this character>/<id>). Each one is taken
     // with a transaction that deletes it, so only one open copy of this character adds the HP.
     if(!healWatched.has(snap.char)){
       healWatched.add(snap.char);
-      onValue(ref(db, `campaigns/${FBK(snap.campaign)}/heals/${snap.char}`), s=>{
+      onValue(ref(db, `${CAMP(snap.campaign)}/heals/${snap.char}`), s=>{
         Object.keys(s.val() || {}).forEach(id=>{
           let got = null;
-          runTransaction(ref(db, `campaigns/${FBK(snap.campaign)}/heals/${snap.char}/${id}`), cur=>{ got = cur; return null; })
+          runTransaction(ref(db, `${CAMP(snap.campaign)}/heals/${snap.char}/${id}`), cur=>{ got = cur; return null; })
             .then(r=>{ if(r.committed && got && window.tkHealed) window.tkHealed(clean(got)); })
             .catch(err=>console.warn('Healing from the party:', err));
         });
@@ -6078,20 +6085,20 @@ try{
   // Tell the DM Screen something happened here: 'last' (who you're attacking) or 'turnEnd'
   window.tkSendAct = (kind, data)=>{
     const snap = liveSnapshot(); if(!snap) return;
-    set(ref(db, `campaigns/${FBK(snap.campaign)}/acts/${snap.char}/${kind}`), {...data, t:serverTimestamp()})
+    set(ref(db, `${CAMP(snap.campaign)}/acts/${snap.char}/${kind}`), {...data, t:serverTimestamp()})
       .catch(err=>console.warn('Telling the DM:', err));
   };
   // Share a roll: the latest per character, replaced by the next (every screen plays it)
   window.tkSendRoll = roll=>{
     const snap = liveSnapshot(); if(!snap) return;
-    set(ref(db, `campaigns/${FBK(snap.campaign)}/rolls/${snap.char}`), {...roll, t:serverTimestamp()})
+    set(ref(db, `${CAMP(snap.campaign)}/rolls/${snap.char}`), {...roll, t:serverTimestamp()})
       .catch(err=>console.warn('Sharing the roll:', err));
   };
   // Heal someone else: it waits on their heals list until their Turnkeeper takes it
   window.tkSendHeal = (char, heal)=>{
     const snap = liveSnapshot(); if(!snap) return Promise.reject(new Error('Not live'));
     const id = 'h' + Date.now() + Math.floor(Math.random() * 1000);
-    return set(ref(db, `campaigns/${FBK(snap.campaign)}/heals/${char}/${id}`), {...heal, fromChar:snap.char, t:serverTimestamp()});
+    return set(ref(db, `${CAMP(snap.campaign)}/heals/${char}/${id}`), {...heal, fromChar:snap.char, t:serverTimestamp()});
   };
   window.tkLive = {connected:true, push(){ queue = queue.then(push).catch(err=>{ console.warn('Live sharing:', err); showLive('err'); }); }};
   window.tkLive.push();   // share the character that's already open

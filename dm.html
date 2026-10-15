@@ -614,8 +614,9 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
    initiative tracker, 2014 DMG encounter difficulty, a rules reference and session notes.
    Everything the DM enters is saved in this browser, per campaign.
    ============================================================ */
-// The campaigns and their party: js/config.js
-let campaign = CAMPAIGNS[0];
+// V6: the campaign open here: one this account DMs, with its party from the campaign's members
+// (filled in once signed in: dmStart, setCampaign). party: [{name, char, portrait}]
+let campaign = {key:'', name:'', party:[]};
 
 /* ---------- Small helpers ---------- */
 const $ = id => document.getElementById(id);
@@ -1018,7 +1019,7 @@ function publishCombat(){
   clearTimeout(publishTimer);
   const turn = combat.round ? combat.turn : null;
   if(turn !== partyTurn){ partyTurn = turn; renderParty(); }
-  publishTimer = setTimeout(()=>{ if(window.dmPublishCombat) window.dmPublishCombat(campaign.key, combatView()); }, 300);
+  publishTimer = setTimeout(()=>{ if(window.dmPublishCombat && campaign.key) window.dmPublishCombat(campaign.key, combatView()); }, 300);   // V6: once a campaign is open
 }
 function logLine(text){ combat.log.unshift({round:combat.round, text}); combat.log = combat.log.slice(0, 80); }
 function ordered(){
@@ -1669,26 +1670,36 @@ $('notesBox').addEventListener('input', ()=>{
   notesTimer = setTimeout(()=>{ try{ localStorage.setItem(storeKey('notes'), $('notesBox').value); $('notesMsg').textContent = 'Saved'; }catch(e){ $('notesMsg').textContent = 'Couldn’t save in this browser'; } }, 400);
 });
 
-/* ---------- Campaign ---------- */
-$('campaignSelect').innerHTML = CAMPAIGNS.map(c=>`<option value="${c.key}">${esc(c.name)}</option>`).join('');
-function setCampaign(key){
-  campaign = CAMPAIGNS.find(c=>c.key === key) || CAMPAIGNS[0];
+/* ---------- Campaign (V6: the campaigns this account DMs) ---------- */
+let dmCampaigns = [];   // [{key, name}]
+async function setCampaign(key){
+  const c = dmCampaigns.find(x=>x.key === key) || dmCampaigns[0]; if(!c) return;
+  campaign = {key:c.key, name:c.name, party:[]};
   try{ localStorage.setItem('dndTracker:dm:campaign', campaign.key); }catch(e){}
   $('campaignSelect').value = campaign.key;
   combat = loadJSON(storeKey('combat'), null) || {list:[], round:0, turn:null, log:[], nextId:1};
   live = {};
-  loadNotes(); renderInit(); renderEncounter(); loadParty();
+  loadNotes(); renderInit(); renderEncounter();
   if(window.renderRecentRolls) window.renderRecentRolls();
   if(window.dmLiveWatch) window.dmLiveWatch(campaign.key);
+  // The party: the campaign's players and the characters they brought
+  campaign.party = window.dmParty ? await window.dmParty(campaign.key).catch(err=>{ console.warn('The party:', err); return []; }) : [];
+  loadParty();
 }
+// From the module script once signed in: the campaigns this account DMs (none: say how to make one)
+window.dmStart = list=>{
+  dmCampaigns = list;
+  $('campaignSelect').innerHTML = list.map(c=>`<option value="${esc(c.key)}">${esc(c.name)}</option>`).join('');
+  if(!list.length){ $('partyGrid').innerHTML = '<p class="panel-note">You aren’t the DM of a campaign yet. Make one on the <a href="index.html">Turnkeeper hub</a>: Create a campaign.</p>'; return; }
+  // The campaign in the link (the hub's Open the DM Screen: dm.html?c=<key>), else the last one open here
+  let saved = new URLSearchParams(location.search).get('c'); if(!saved){ try{ saved = localStorage.getItem('dndTracker:dm:campaign'); }catch(e){} }
+  setCampaign(list.some(c=>c.key === saved) ? saved : list[0].key);
+};
 $('campaignSelect').addEventListener('change', e=>setCampaign(e.target.value));
 
 /* ---------- Themes and the Settings gear (js/themes.js, the same as the tracker) ---------- */
 setupSettings({onOpen:()=>{ if($('setDice').open) fillDiceStyleMenu(); }});
 
-let savedCampaign = null;
-try{ savedCampaign = localStorage.getItem('dndTracker:dm:campaign'); }catch(e){}
-setCampaign(savedCampaign || CAMPAIGNS[0].key);
 </script>
 <script src="js/data/equipment.js"></script>
 <script src="js/item-forms.js"></script>
@@ -2139,41 +2150,57 @@ renderDmItems();
    Signs in invisibly and follows campaigns/<campaign>/live, handing each change to
    dmLiveUpdate. Settings: js/config.js; connecting: js/firebase.js. */
 try{
-  const {db, fb:{ref, get, onValue, set, push, serverTimestamp}} = await tkFirebase();
+  const {db, user, fb:{ref, get, onValue, set, push, serverTimestamp}} = await tkRequireUser();
+  window.dmUser = {uid:user.uid, name:user.displayName || ''};
   // V5: a character's record in the Turnkeeper database (its base facts), or null if it isn't there yet
   // The campaign's custom items and effects (js/item-forms.js saves through these)
   window.dmDefs = {
-    saveDef:(c, part, id, name, def, by)=>set(ref(db, `campaigns/${FBK(c)}/${part}/${id}`), {name:String(name).slice(0, part === 'items' ? 80 : 60), json:JSON.stringify(def), by:String(by || '').slice(0, 60), t:serverTimestamp()}),
-    deleteDef:(c, part, id)=>set(ref(db, `campaigns/${FBK(c)}/${part}/${id}`), null),
+    saveDef:(c, part, id, name, def, by)=>set(ref(db, `${CAMP(c)}/${part}/${id}`), {name:String(name).slice(0, part === 'items' ? 80 : 60), json:JSON.stringify(def), by:String(by || '').slice(0, 60), t:serverTimestamp()}),
+    deleteDef:(c, part, id)=>set(ref(db, `${CAMP(c)}/${part}/${id}`), null),
   };
-  window.dmGetCore = async (key, id)=>(await get(ref(db, `campaigns/${FBK(key)}/characters/${id}/core`))).val();
+  window.dmGetCore = async (key, id)=>(await get(ref(db, `${CHARS}/${id}/core`))).val();   // V6: characters/<id>
+  // The party: each player member and their character ({name, char, portrait})
+  window.dmParty = async key=>{
+    const members = (await get(ref(db, `${CAMP(key)}/members`))).val() || {};
+    const list = await Promise.all(Object.values(members).filter(m=>m && m.role === 'player' && typeof m.char === 'string').map(async m=>{
+      const name = (await get(ref(db, `${CHARS}/${m.char}/core/name`)).catch(()=>null))?.val();
+      return {name:typeof name === 'string' && name.trim() ? name.trim().slice(0, 40) : 'A player', char:m.char, portrait:PORTRAITS[m.char] || null};
+    }));
+    return list.sort((a, b)=>a.name.localeCompare(b.name));
+  };
   let stops = [];
   window.dmLiveWatch = key=>{
     stops.forEach(f=>f()); stops = [];
     const fail = err=>{ console.warn('Live updates:', err); window.dmLiveStatus('err', err.message); };
-    stops.push(onValue(ref(db, `campaigns/${FBK(key)}/live`), snap=>{ window.dmLiveStatus('on'); window.dmLiveUpdate(key, clean(snap.val())); }, fail));
-    stops.push(onValue(ref(db, `campaigns/${FBK(key)}/effects`), snap=>window.dmEffectsUpdate(key, clean(snap.val())), fail));
+    stops.push(onValue(ref(db, `${CAMP(key)}/live`), snap=>{ window.dmLiveStatus('on'); window.dmLiveUpdate(key, clean(snap.val())); }, fail));
+    stops.push(onValue(ref(db, `${CAMP(key)}/effects`), snap=>window.dmEffectsUpdate(key, clean(snap.val())), fail));
     // V5: the campaign's custom effects (Bleeding: 2 slashing every turn), for start-of-turn reminders
-    stops.push(onValue(ref(db, `campaigns/${FBK(key)}/effectDefs`), snap=>{ const out = {}; Object.values(snap.val() || {}).forEach(r=>{ try{ const d = JSON.parse(r.json); if(d && r.name) out[String(r.name)] = d; }catch(e){} }); BUILTIN_EFFECTS.forEach(d=>{ if(!out[d.name]) out[d.name] = d; }); window.dmEffectDefs = out; if(window.dmDefsUpdate) window.dmDefsUpdate('effectDefs', snap.val()); if(window.dmEffectDefsChanged) window.dmEffectDefsChanged(); }, fail));
-    stops.push(onValue(ref(db, `campaigns/${FBK(key)}/items`), snap=>{ if(window.dmDefsUpdate) window.dmDefsUpdate('items', snap.val()); }, fail));
-    stops.push(onValue(ref(db, `campaigns/${FBK(key)}/acts`), snap=>window.dmActsUpdate(key, clean(snap.val())), fail));
-    stops.push(onValue(ref(db, `campaigns/${FBK(key)}/allow`), snap=>window.dmAllowUpdate(key, clean(snap.val())), fail));
+    stops.push(onValue(ref(db, `${CAMP(key)}/effectDefs`), snap=>{ const out = {}; Object.values(snap.val() || {}).forEach(r=>{ try{ const d = JSON.parse(r.json); if(d && r.name) out[String(r.name)] = d; }catch(e){} }); BUILTIN_EFFECTS.forEach(d=>{ if(!out[d.name]) out[d.name] = d; }); window.dmEffectDefs = out; if(window.dmDefsUpdate) window.dmDefsUpdate('effectDefs', snap.val()); if(window.dmEffectDefsChanged) window.dmEffectDefsChanged(); }, fail));
+    stops.push(onValue(ref(db, `${CAMP(key)}/items`), snap=>{ if(window.dmDefsUpdate) window.dmDefsUpdate('items', snap.val()); }, fail));
+    stops.push(onValue(ref(db, `${CAMP(key)}/acts`), snap=>window.dmActsUpdate(key, clean(snap.val())), fail));
+    stops.push(onValue(ref(db, `${CAMP(key)}/allow`), snap=>window.dmAllowUpdate(key, clean(snap.val())), fail));
     // Rolls and settings arrive raw: their links must keep every character (js/dice.js checks every field)
-    stops.push(onValue(ref(db, `campaigns/${FBK(key)}/rolls`), snap=>window.dmRollsUpdate(key, snap.val()), fail));
-    stops.push(onValue(ref(db, `campaigns/${FBK(key)}/settings`), snap=>window.dmSettingsUpdate(key, snap.val()), fail));
-    stops.push(onValue(ref(db, `campaigns/${FBK(key)}/dm`), snap=>window.dmLibraryUpdate(key, snap.val()), fail));   // saved monsters and encounters (checked in js/dm-library.js)
+    stops.push(onValue(ref(db, `${CAMP(key)}/rolls`), snap=>window.dmRollsUpdate(key, snap.val()), fail));
+    stops.push(onValue(ref(db, `${CAMP(key)}/settings`), snap=>window.dmSettingsUpdate(key, snap.val()), fail));
+    stops.push(onValue(ref(db, `${CAMP(key)}/dm`), snap=>window.dmLibraryUpdate(key, snap.val()), fail));   // saved monsters and encounters (checked in js/dm-library.js)
   };
   // The players' view of combat (see combatView: no HP, AC or notes)
-  window.dmPublishCombat = (key, view)=>set(ref(db, `campaigns/${FBK(key)}/combat`), {...view, t:serverTimestamp()})
+  window.dmPublishCombat = (key, view)=>set(ref(db, `${CAMP(key)}/combat`), {...view, t:serverTimestamp()})
     .catch(err=>console.warn('Publishing combat:', err));
   // Campaign settings: set a value, or add one to a pool (add: a new key, like a GIF link)
   // Saved monsters and encounters: set one, or add a new one (a new key)
-  window.dmLibraryWrite = (key, path, value, add)=>add ? push(ref(db, `campaigns/${FBK(key)}/dm/${path}`), value) : set(ref(db, `campaigns/${FBK(key)}/dm/${path}`), value);
-  window.dmSettingsWrite = (key, path, value, add)=>add ? push(ref(db, `campaigns/${FBK(key)}/settings/${path}`), value) : set(ref(db, `campaigns/${FBK(key)}/settings/${path}`), value);
+  window.dmLibraryWrite = (key, path, value, add)=>add ? push(ref(db, `${CAMP(key)}/dm/${path}`), value) : set(ref(db, `${CAMP(key)}/dm/${path}`), value);
+  window.dmSettingsWrite = (key, path, value, add)=>add ? push(ref(db, `${CAMP(key)}/settings/${path}`), value) : set(ref(db, `${CAMP(key)}/settings/${path}`), value);
   // Let a player roll, or stop them (a click on their Party card)
-  window.dmSetAllow = (key, char, on)=>set(ref(db, `campaigns/${FBK(key)}/allow/${char}`), on ? true : null)
+  window.dmSetAllow = (key, char, on)=>set(ref(db, `${CAMP(key)}/allow/${char}`), on ? true : null)
     .catch(err=>{ console.warn('Allowing rolls:', err); window.dmLiveStatus('err', err.message); });
-  window.dmLiveWatch(window.dmCampaignKey());
+  // The campaigns this account DMs (users/<account>/campaigns: key → 'dm' | 'player'), with their names
+  const mine = (await get(ref(db, `${USERS}/${user.uid}/campaigns`))).val() || {};
+  const dmList = await Promise.all(Object.keys(mine).filter(k=>mine[k] === 'dm').map(async k=>{
+    const meta = (await get(ref(db, `${CAMP(k)}/meta`))).val() || {};
+    return meta.dm === user.uid ? {key:k, name:typeof meta.name === 'string' ? meta.name.slice(0, 80) : k} : null;
+  }));
+  window.dmStart(dmList.filter(Boolean));
   window.dmPublishNow();
 }catch(err){
   console.warn('Live updates unavailable:', err);

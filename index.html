@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Crisis in Waterdeep</title>
+<title>Turnkeeper</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 40 40%27%3E%3Crect width=%2740%27 height=%2740%27 rx=%279%27 fill=%27%230c1b26%27/%3E%3Ccircle cx=%2720%27 cy=%2720%27 r=%2715%27 fill=%27none%27 stroke=%27%234fb8a6%27 stroke-width=%272.5%27/%3E%3Cpath d=%27M14 11H26M14 29H26M15 11Q15 18 20 20Q25 18 25 11M15 29Q15 22 20 20Q25 22 25 29%27 fill=%27none%27 stroke=%27%234fb8a6%27 stroke-width=%272.2%27 stroke-linejoin=%27round%27/%3E%3Cpath d=%27M17 27.5Q20 23.5 23 27.5Z%27 fill=%27%23d97b3f%27/%3E%3C/svg%3E">
 <!-- Phones: iOS ignores SVG icons and wants a PNG apple-touch-icon (home screen, bookmarks, Safari) -->
 <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
@@ -218,6 +218,30 @@ h1{
   .card-fx{display:none;}
 }
 footer{margin-top:56px; font-size:0.75rem; color:var(--ink-dim); text-align:center;}
+/* ---------- V6 hub: signing in, My characters, My campaigns ---------- */
+.hub-panel{width:100%; max-width:560px; background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:18px 20px; margin:0 0 22px;}
+.hub-panel[hidden], .hub-section[hidden]{display:none;}
+.hub-panel h2, .hub-section h2{font-family:var(--font-display); font-weight:normal; color:var(--sea); font-size:1.3rem; margin:0 0 12px;}
+.hub-section{width:100%; max-width:920px; margin:0 0 34px; display:flex; flex-direction:column; align-items:center;}
+.hub-section .roster{margin-top:4px;}
+.hub-row{display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin:10px 0;}
+.hub-row input[type=email], .hub-row input[type=text]{flex:1 1 220px; min-width:0; background:var(--bg); border:1px solid var(--border); color:var(--ink); border-radius:6px; padding:9px 10px; font:inherit;}
+.hub-btn{background:var(--sea); color:var(--bg); border:none; border-radius:6px; padding:9px 14px; font:inherit; font-weight:600; cursor:pointer;}
+.hub-btn.ghost{background:transparent; color:var(--sea); border:1px solid var(--sea-dim);}
+.hub-btn:disabled{opacity:0.5; cursor:default;}
+.hub-note{color:var(--ink-dim); font-size:0.85rem; margin:6px 0;}
+.hub-msg{min-height:1.2em; font-size:0.85rem; color:var(--sea);}
+.hub-msg.err{color:var(--orange-bright);}
+.hub-camp{border-top:1px solid var(--border); padding:12px 0;}
+.hub-camp:first-of-type{border-top:none;}
+.hub-camp b{font-family:var(--font-display); font-size:1.05rem;}
+.hub-user{font-size:0.8rem; color:var(--ink-dim); margin-top:18px; text-align:center;}
+.hub-user button{background:none; border:none; color:var(--sea); text-decoration:underline; cursor:pointer; font:inherit;}
+.test-tag{display:inline-block; margin-left:8px; font-size:0.7rem; padding:1px 8px; border-radius:999px; border:1px solid var(--orange); color:var(--orange-bright); vertical-align:middle;}
+.card-plain{--frame:linear-gradient(135deg, var(--sea), var(--panel2) 30%, var(--sea-dim) 55%, var(--panel) 78%, var(--sea)); --glow:rgba(120,200,190,0.45); --line:rgba(255,255,255,0.35); --tag-ink:var(--bg);}
+.card-plain .card-art{display:flex; align-items:center; justify-content:center; background:radial-gradient(circle at 50% 35%, var(--panel2), var(--bg));}
+.card-initial{font-family:var(--font-display); font-size:4.5rem; color:var(--sea); opacity:0.8;}
+.roster.few{grid-template-columns:repeat(auto-fit, minmax(170px, 210px)); justify-content:center;}
 /* The DM's way in: quiet, under the footer */
 .dm-link{margin-top:10px; font-size:0.75rem; text-align:center;}
 .dm-link a{color:var(--ink-dim); text-decoration:underline; text-underline-offset:2px;}
@@ -252,11 +276,41 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
 
 <div class="title-block">
   <div class="eyebrow-rule"></div>
-  <h1>Crisis in Waterdeep</h1>
-  <div class="subtitle">the party</div>
+  <h1>Turnkeeper</h1>
+  <div class="subtitle" id="hubSub">your characters and campaigns</div>
 </div>
 
-<div class="roster">
+<!-- Signing in (V6): Google, or a link by email; on this computer, test accounts too -->
+<div class="hub-panel" id="hubAuth" hidden>
+  <h2>Sign In</h2>
+  <p class="hub-note">Your characters and campaigns follow your account to any device.</p>
+  <div class="hub-row"><button type="button" class="hub-btn" id="signGoogle">Sign in with Google</button></div>
+  <div class="hub-row"><input type="email" id="signEmail" placeholder="Or your email address" autocomplete="email" aria-label="Email address"><button type="button" class="hub-btn ghost" id="signEmailGo">Email me a sign-in link</button></div>
+  <div class="hub-row" id="signTestRow" hidden><button type="button" class="hub-btn ghost" id="signTest">Test sign-in (this computer only)</button><span class="hub-note">A throwaway test account, for trying things out in test mode.</span></div>
+  <div class="hub-msg" id="authMsg" aria-live="polite"></div>
+</div>
+
+<!-- Joining a campaign from an invite link (index.html?join=<code>) -->
+<div class="hub-panel" id="hubJoin" hidden></div>
+
+<div class="hub-section" id="hubChars" hidden>
+  <h2>My Characters</h2>
+  <div class="roster few" id="myRoster"></div>
+  <p class="hub-note" id="charsNote"></p>
+</div>
+
+<div class="hub-panel" id="hubCamps" hidden>
+  <h2>My Campaigns</h2>
+  <div id="campList"></div>
+  <div class="hub-row"><input type="text" id="newCampName" maxlength="80" placeholder="A new campaign’s name" aria-label="New campaign name"><button type="button" class="hub-btn ghost" id="newCampGo">Create a campaign</button></div>
+  <div class="hub-msg" id="campMsg" aria-live="polite"></div>
+</div>
+
+<div class="hub-user" id="hubUser" hidden></div>
+<footer id="hubFoot"></footer>
+
+<!-- The party's hand-made cards (portrait and class effect), used when their owner signs in -->
+<template id="knownCards">
   <a class="card card-bard" href="turnkeeper.html?char=14TFj-bb1ixAUl9bw_tNdcIpWtnYxeV8JW5f2kIbiW_Q" target="_blank" rel="noopener">
     <div class="card-art">
       <img src="portraits/bel.webp" alt="Portrait of Bel">
@@ -331,10 +385,7 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
       <div class="card-plate"><div class="card-name">Venthor</div><div class="card-sub">Wood Elf Rogue</div></div>
     </div>
   </a>
-</div>
-
-<footer>Click a character to open them.</footer>
-<div class="dm-link"><a href="dm.html">DM Screen</a></div>
+</template>
 <div class="theme-picker" id="themePicker">
   <button type="button" class="theme-toggle" id="themeToggle" aria-expanded="false" aria-controls="themeMenu" title="Change the color theme"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 3a9 9 0 0 0 0 18c1.1 0 1.8-.8 1.8-1.7 0-.5-.2-.9-.5-1.2-.3-.3-.5-.7-.5-1.2 0-.9.8-1.7 1.7-1.7H16a5 5 0 0 0 5-5C21 6.4 17 3 12 3zm-5.5 9a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm3-4a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm3 4a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg><span>Theme</span></button>
   <div class="theme-menu" id="themeMenu" role="group" aria-label="Color theme" hidden></div>
@@ -364,7 +415,7 @@ const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').match
 const touchScreen = window.matchMedia('(hover: none)').matches;
 function startClip(card){ const v = card.querySelector('.card-video'); if(v && !reduceMotion){ v.currentTime = 0; v.play().catch(()=>{}); } }
 function stopClip(card){ const v = card.querySelector('.card-video'); if(v){ v.pause(); v.currentTime = 0; } }
-const cards = [...document.querySelectorAll('.card')];
+function wireCards(cards){
 if(!touchScreen){
   cards.forEach(card=>{
     card.addEventListener('mouseenter', ()=>startClip(card)); card.addEventListener('focus', ()=>startClip(card));
@@ -385,22 +436,175 @@ if(!touchScreen){
     card.addEventListener('click', e=>{ if(!card.classList.contains('is-active')){ e.preventDefault(); select(card); } });
   });
   document.addEventListener('click', e=>{ if(!e.target.closest('.card')) select(null); });
-  document.querySelector('footer').textContent = 'Tap a character to see them, then tap again to open them.';
+  document.getElementById('hubFoot').textContent = 'Tap a character to see them, then tap again to open them.';
 }
+}
+window.wireCards = wireCards;
 </script>
 <script type="module">
-// Each card shows the character's name from the Turnkeeper database. A copy of the site on this
-// computer uses the test campaign. Settings: js/config.js; connecting: js/firebase.js.
-try{
-  const {db, fb:{ref, get}} = await tkFirebase();
-  document.querySelectorAll('.roster a.card').forEach(async a=>{
-    const m = /[?&]char=([A-Za-z0-9_-]+)/.exec(a.getAttribute('href')), c = m && campaignOfChar(m[1]); if(!c) return;
-    const core = (await get(ref(db, `campaigns/${FBK(c.key)}/characters/${m[1]}/core`))).val();
-    if(!core) return;
-    const name = a.querySelector('.card-name');
-    if(name && typeof core.name === 'string' && core.name.trim()) name.textContent = core.name.trim().slice(0, 40);
+/* ---------- The hub (V6) ----------
+   Sign in (Google, or a link by email; test accounts only in test mode), then: My characters (the
+   ones this account owns), My campaigns (as DM: open the DM Screen, copy the invite link; as a
+   player: the character you brought), Create a campaign, and Join a campaign from an invite link
+   (?join=<code>). ?next= sends you back where you came from after signing in.
+   Settings: js/config.js; connecting: js/firebase.js. */
+const $ = id=>document.getElementById(id);
+const esc = v=>String(v ?? '').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const params = new URLSearchParams(location.search);
+const msg = (id, text, err)=>{ const el = $(id); el.textContent = text || ''; el.classList.toggle('err', !!err); };
+const randomCode = n=>Array.from(crypto.getRandomValues(new Uint8Array(n)), b=>'abcdefghjkmnpqrstuvwxyz23456789'[b % 31]).join('');
+let f;
+try{ f = await tkFirebase(); }
+catch(err){ $('hubFoot').textContent = 'Couldn’t reach Turnkeeper. Check your connection and reload.'; throw err; }
+const {db, auth, authMod, fb:{ref, get, set, update, query, orderByChild, equalTo, serverTimestamp}} = f;
+let user = f.user;
+const EMAIL_KEY = 'tkEmailForSignIn';
+const back = ()=>{ const next = params.get('next'); if(next && /^(turnkeeper|dm)\.html(\?[^#]*)?$/.test(next)) location.href = next; else { const keep = params.get('join'); location.href = 'index.html' + (keep ? '?join=' + encodeURIComponent(keep) : ''); } };
+
+// Finishing a sign-in from an email link
+if(!user && authMod.isSignInWithEmailLink(auth, location.href)){
+  let email = null; try{ email = localStorage.getItem(EMAIL_KEY); }catch(e){}
+  if(!email) email = prompt('To finish signing in, type the email address the link was sent to:');
+  if(email){
+    try{ await authMod.signInWithEmailLink(auth, email.trim(), location.href); try{ localStorage.removeItem(EMAIL_KEY); }catch(e){} back(); }
+    catch(err){ msg('authMsg', 'That sign-in link didn’t work (it may have expired). Ask for a new one.', true); }
+  }
+}
+
+if(!user){
+  $('hubAuth').hidden = false;
+  if(TEST_MODE){ $('signTestRow').hidden = false; $('hubSub').innerHTML = 'your characters and campaigns <span class="test-tag">test mode</span>'; }
+  $('signGoogle').onclick = async ()=>{
+    msg('authMsg', '');
+    try{ await authMod.signInWithPopup(auth, new authMod.GoogleAuthProvider()); back(); }
+    catch(err){
+      if(err.code === 'auth/popup-blocked' || err.code === 'auth/operation-not-supported-in-this-environment') authMod.signInWithRedirect(auth, new authMod.GoogleAuthProvider());
+      else if(err.code !== 'auth/popup-closed-by-user' && err.code !== 'auth/cancelled-popup-request') msg('authMsg', 'Google sign-in didn’t work: ' + err.message, true);
+    }
+  };
+  $('signEmailGo').onclick = async ()=>{
+    const email = $('signEmail').value.trim();
+    if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){ msg('authMsg', 'Type your email address first.', true); return; }
+    try{
+      await authMod.sendSignInLinkToEmail(auth, email, {url:location.href, handleCodeInApp:true});
+      try{ localStorage.setItem(EMAIL_KEY, email); }catch(e){}
+      msg('authMsg', `A sign-in link is on its way to ${email}. Open it on this device. (Check spam if it doesn’t arrive.)`);
+    }catch(err){ msg('authMsg', 'Couldn’t send the link: ' + err.message, true); }
+  };
+  $('signTest').onclick = async ()=>{
+    if(!TEST_MODE) return;
+    const name = (prompt('A name for this test account (e.g. Test DM, Test Player 1):') || '').trim().slice(0, 60);
+    if(!name) return;
+    try{ const cred = await authMod.signInAnonymously(auth); await set(ref(db, `${USERS}/${cred.user.uid}`), {name}); back(); }
+    catch(err){ msg('authMsg', 'Test sign-in didn’t work: ' + err.message, true); }
+  };
+} else {
+  // Signed in: make sure the account has a record (name and email), then show everything
+  const userRef = ref(db, `${USERS}/${user.uid}`);
+  let me = (await get(userRef)).val() || {};
+  if(!me.name){
+    const name = (user.displayName || (user.email || '').split('@')[0] || 'Player').slice(0, 60);
+    await update(userRef, {name, ...(user.email ? {email:user.email.slice(0, 120)} : {})});
+    me = {...me, name, email:user.email};
+  }
+  if(params.get('next')){ back(); }
+  $('hubUser').hidden = false;
+  $('hubUser').innerHTML = `Signed in as <b>${esc(me.name)}</b>${user.email ? ` (${esc(user.email)})` : user.isAnonymous ? ' (test account)' : ''}${TEST_MODE ? ' <span class="test-tag">test mode</span>' : ''} · <button type="button" id="signOut">Sign out</button>`;
+  $('signOut').onclick = async ()=>{ await authMod.signOut(auth); location.href = 'index.html'; };
+  $('hubSub').textContent = `welcome, ${me.name}`;
+
+  // My characters (characters/<id> where owner is this account)
+  const mineSnap = await get(query(ref(db, CHARS), orderByChild('owner'), equalTo(user.uid))).catch(err=>{ console.warn('My characters:', err); return null; });
+  const mine = Object.entries((mineSnap && mineSnap.val()) || {}).map(([id, rec])=>({id, rec}));
+  const campNames = {};
+  const myCamps = me.campaigns && typeof me.campaigns === 'object' ? me.campaigns : {};
+  await Promise.all(Object.keys(myCamps).map(async k=>{ const m = (await get(ref(db, `${CAMP(k)}/meta`)).catch(()=>null))?.val(); if(m) campNames[k] = m; }));
+  $('hubChars').hidden = false;
+  const roster = $('myRoster'), tpl = $('knownCards').content;
+  mine.sort((a, b)=>String(a.rec.core && a.rec.core.name || '').localeCompare(String(b.rec.core && b.rec.core.name || ''))).forEach(({id, rec})=>{
+    const core = rec.core || {}, name = String(core.name || 'Unnamed').slice(0, 40);
+    const known = [...tpl.querySelectorAll('a.card')].find(a=>a.getAttribute('href').includes(id));
+    let card;
+    if(known){ card = known.cloneNode(true); const n = card.querySelector('.card-name'); if(n) n.textContent = name; }
+    else {
+      card = document.createElement('a'); card.className = 'card card-plain'; card.href = 'turnkeeper.html?char=' + id; card.target = '_blank'; card.rel = 'noopener';
+      card.innerHTML = `<div class="card-art"><div class="card-initial">${esc(name.charAt(0).toUpperCase())}</div><div class="card-plate"><div class="card-name">${esc(name)}</div><div class="card-sub">${esc([core.race, core.cls].filter(Boolean).join(' ').slice(0, 50))}</div></div></div>`;
+    }
+    roster.appendChild(card);
   });
-}catch(err){ console.warn('Character links:', err); }
+  window.wireCards([...roster.querySelectorAll('.card')]);
+  $('charsNote').textContent = mine.length ? (touchScreenHint() ? '' : 'Click a character to open them.') : 'No characters yet. The character creator is coming next; until then your DM (or Claude) can add one for you.';
+
+  // My campaigns
+  $('hubCamps').hidden = false;
+  const renderCamps = ()=>{
+    const keys = Object.keys(myCamps).filter(k=>campNames[k]);
+    $('campList').innerHTML = keys.length ? keys.map(k=>{
+      const m = campNames[k], dm = m.dm === user.uid;
+      const ch = mine.find(x=>x.rec.campaign === k);
+      return `<div class="hub-camp"><b>${esc(m.name)}</b> <span class="hub-note">· ${dm ? 'you’re the DM' : ch ? 'playing ' + esc((ch.rec.core && ch.rec.core.name) || 'a character') : 'player'}</span>`
+        + (dm ? `<div class="hub-row"><a class="hub-btn" href="dm.html?c=${esc(k)}" target="_blank" rel="noopener">Open the DM Screen</a><button type="button" class="hub-btn ghost" data-invite="${esc(k)}">Copy invite link</button><button type="button" class="hub-btn ghost" data-newinvite="${esc(k)}" title="Makes a new link; the old one stops working">New invite link</button></div>` : '')
+        + '</div>';
+    }).join('') : '<p class="hub-note">You’re not in a campaign yet. Create one (you’ll be its DM), or ask your DM for an invite link.</p>';
+  };
+  renderCamps();
+  const inviteUrl = code=>location.origin + location.pathname.replace(/[^/]*$/, '') + 'index.html?join=' + code + (TEST_MODE && !['localhost', '127.0.0.1'].includes(location.hostname) ? '&test=1' : '');
+  $('campList').addEventListener('click', async e=>{
+    const k = e.target.dataset.invite || e.target.dataset.newinvite; if(!k) return;
+    const m = campNames[k]; let code = m.invite;
+    if(e.target.dataset.newinvite){
+      code = randomCode(10);
+      try{ await update(ref(db), {[`${DBROOT}invites/${m.invite}`]:null, [`${DBROOT}invites/${code}`]:{key:k, name:m.name}, [`${CAMP(k)}/meta/invite`]:code}); m.invite = code; }
+      catch(err){ msg('campMsg', 'Couldn’t make a new link: ' + err.message, true); return; }
+    }
+    try{ await navigator.clipboard.writeText(inviteUrl(code)); msg('campMsg', `Invite link for ${m.name} copied${e.target.dataset.newinvite ? ' (the old link no longer works)' : ''}. Send it to your players.`); }
+    catch(err){ prompt('Copy this invite link:', inviteUrl(code)); }
+  });
+  // Create a campaign: you're its DM; it gets an invite code
+  $('newCampGo').onclick = async ()=>{
+    const name = $('newCampName').value.trim().slice(0, 80); if(!name){ msg('campMsg', 'Give the campaign a name first.', true); return; }
+    const key = (name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 30) || 'campaign') + '-' + randomCode(4);
+    const code = randomCode(10);
+    try{
+      await update(ref(db), {
+        [`${CAMP(key)}/meta`]:{name, dm:user.uid, invite:code, created:serverTimestamp()},
+        [`${CAMP(key)}/members/${user.uid}`]:{role:'dm', joined:serverTimestamp()},
+        [`${DBROOT}invites/${code}`]:{key, name},
+        [`${USERS}/${user.uid}/campaigns/${key}`]:'dm',
+      });
+      myCamps[key] = 'dm'; campNames[key] = {name, dm:user.uid, invite:code};
+      $('newCampName').value = ''; renderCamps(); msg('campMsg', `${name} is ready. Copy its invite link for your players.`);
+    }catch(err){ msg('campMsg', 'Couldn’t create the campaign: ' + err.message, true); }
+  };
+
+  // Joining from an invite link: pick one of your characters to bring
+  const join = params.get('join');
+  if(join && /^[a-z0-9]{8,40}$/.test(join)){
+    const inv = (await get(ref(db, `${DBROOT}invites/${join}`)).catch(()=>null))?.val();
+    const box = $('hubJoin'); box.hidden = false;
+    if(!inv || !inv.key) box.innerHTML = '<h2>Join a Campaign</h2><p class="hub-note">That invite link doesn’t work any more. Ask your DM for a new one.</p>';
+    else if(myCamps[inv.key]) box.innerHTML = `<h2>Join a Campaign</h2><p class="hub-note">You’re already in <b>${esc(inv.name)}</b>.</p>`;
+    else {
+      const free = mine;
+      box.innerHTML = `<h2>Join ${esc(inv.name)}</h2>` + (free.length
+        ? `<p class="hub-note">Which character are you bringing? (A character plays in one campaign at a time; bringing one here takes it out of any other.)</p><div class="hub-row"><select id="joinChar">${free.map(x=>`<option value="${esc(x.id)}">${esc((x.rec.core && x.rec.core.name) || 'Unnamed')}${x.rec.campaign ? ' (now in ' + esc((campNames[x.rec.campaign] || {}).name || 'another campaign') + ')' : ''}</option>`).join('')}</select><button type="button" class="hub-btn" id="joinGo">Join</button></div><div class="hub-msg" id="joinMsg"></div>`
+        : '<p class="hub-note">You need a character to bring. The character creator is coming next.</p>');
+      const go = $('joinGo');
+      if(go) go.onclick = async ()=>{
+        const id = $('joinChar').value, ch = free.find(x=>x.id === id), was = ch && ch.rec.campaign;
+        const patch = {
+          [`${CAMP(inv.key)}/members/${user.uid}`]:{role:'player', char:id, invite:join, joined:serverTimestamp()},
+          [`${CHARS}/${id}/campaign`]:inv.key,
+          [`${USERS}/${user.uid}/campaigns/${inv.key}`]:'player',
+        };
+        if(was && was !== inv.key){ patch[`${CAMP(was)}/members/${user.uid}`] = null; patch[`${USERS}/${user.uid}/campaigns/${was}`] = null; }
+        try{ await update(ref(db), patch); location.href = 'index.html'; }
+        catch(err){ msg('joinMsg', 'Couldn’t join: ' + err.message, true); }
+      };
+    }
+  }
+}
+function touchScreenHint(){ return window.matchMedia('(hover: none)').matches; }
 </script>
 </body>
 </html>
