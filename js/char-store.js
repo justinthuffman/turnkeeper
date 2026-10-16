@@ -9,7 +9,7 @@
    stored without "dndTracker:" and with the character's ID as "@" ("track:@", "choice:@:Fighting
    Style"), percent-encoded for Firebase. Theme, the backup date and the class-theme hint stay in
    the browser. Writes are batched (0.4 s) and sent through window.tkDb (the Firebase module). */
-const PER_BROWSER_KEY = /^dndTracker:(theme|backupAt|classOf|open):/;
+const PER_BROWSER_KEY = /^dndTracker:(theme|classOf|open):/;
 const charStore = {id:null, campaign:null, kv:null, pending:{}, timer:null};
 const encodeKvKey = k=>encodeURIComponent(k).replace(/\./g, '%2E');
 function charKvKey(key){

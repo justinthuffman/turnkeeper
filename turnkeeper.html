@@ -430,20 +430,6 @@ button.pip:hover{border-color:var(--ink);}
 .pool b{font-family:var(--font-display); font-size:1.15rem; color:var(--sea); font-weight:normal; min-width:2.5em; text-align:right;}
 .pool button{padding:3px 9px; font-size:0.8rem;}
 .res-group{font-size:0.72rem; text-transform:uppercase; letter-spacing:0.06em; color:var(--sea-dim); margin:12px 0 2px;}
-.backup{margin-top:12px; padding-top:10px; border-top:1px solid var(--border);}
-.backup button{padding:5px 12px; font-size:0.82rem;}
-/* Backup buttons look like the skill/save chips: light blue pill, orange when clicked (or, for
-   the Copy/Restore From Clipboard switch, orange while its box is open) */
-.backup button.chip-btn{background:var(--panel2); border:1px solid var(--border); border-radius:999px; color:var(--ink); padding:4px 14px; font-size:0.8rem; transition:background .15s ease, border-color .15s ease;}
-.backup button.chip-btn:hover{background:var(--panel2); border-color:var(--sea-dim);}
-.backup button.chip-btn:active,
-.backup button.chip-btn.on{background:var(--orange-tint); border-color:var(--orange); color:var(--ink);}
-.backup .slide-inner > *{margin-bottom:8px;}
-#clipBox{width:100%; background:var(--panel2); border:1px solid var(--border); color:var(--ink); border-radius:4px; padding:8px; font-family:ui-monospace, Consolas, monospace; font-size:0.78rem; resize:vertical;}
-.backup-msg{font-size:0.8rem; color:var(--green);}
-.backup-msg.err{color:var(--danger);}
-.clip-panel{display:flex; flex-direction:column; gap:8px;}
-.clip-panel[hidden]{display:none;}
 .restore-actions{display:flex; flex-wrap:wrap; align-items:center; gap:10px;}
 .spent-line{font-size:0.82rem; color:var(--ink-dim); margin:8px 0 0; padding:6px 10px; border-left:3px solid var(--sea-dim); background:var(--panel2); border-radius:3px;}
 .spent-line.warn{border-left-color:var(--danger); color:var(--ink);}
@@ -626,12 +612,6 @@ button.flow-btn .src-tag{color:var(--ink); border-color:rgba(255,255,255,0.6);}
 footer{text-align:center; color:var(--ink-dim); font-size:0.75rem; margin-top:30px;}
 /* Theme picker: a small, quiet "Theme" button that opens a menu of the themes
    (the same on the tracker and the hub; keep the two in step) */
-.leave-bar{position:fixed; left:50%; bottom:16px; transform:translateX(-50%); z-index:250; width:max-content; max-width:calc(100vw - 32px); box-sizing:border-box;
-  display:flex; flex-wrap:wrap; align-items:center; gap:10px; padding:10px 14px; background:var(--panel); border:1px solid var(--orange);
-  border-radius:10px; box-shadow:0 10px 30px rgba(0,0,0,0.55); font-size:0.88rem; color:var(--ink);}
-.leave-bar button.chip-btn{background:var(--panel2); border:1px solid var(--border); border-radius:999px; color:var(--ink); padding:5px 14px; font-size:0.82rem;}
-.leave-bar button.chip-btn:hover{border-color:var(--sea-dim);}
-.restored-msg{margin:0 0 12px; padding:8px 12px; border:1px solid var(--sea-dim); border-radius:6px; background:var(--panel2); font-size:0.85rem;}
 .theme-picker{position:relative; display:flex; justify-content:center; margin-top:14px;}
 button.theme-toggle{display:inline-flex; align-items:center; gap:5px; background:none; border:none; padding:4px 6px; border-radius:4px; color:var(--ink-dim); opacity:0.6; font-size:0.72rem; font-family:var(--font-body); cursor:pointer; box-shadow:none; text-shadow:none;}
 button.theme-toggle:hover, button.theme-toggle[aria-expanded="true"]{background:none; opacity:1; color:var(--ink);}
@@ -702,7 +682,7 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
 
 <header class="top">
   <h1 class="brand"><a class="brand-link" href="index.html" title="Back to all characters"><svg class="brand-mark" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="16" fill="none" stroke="var(--sea)" stroke-width="2"/><path d="M14 11 H26 M14 29 H26 M15 11 Q15 18 20 20 Q25 18 25 11 M15 29 Q15 22 20 20 Q25 22 25 29" fill="none" stroke="var(--sea)" stroke-width="1.8" stroke-linejoin="round"/><path d="M17.5 27 Q20 24 22.5 27 Z" fill="var(--orange)"/></svg>Turnkeeper</a></h1>
-  <!-- SETTINGS: theme, dice and tray, panels, backup, leaving the page (the gear, top right) -->
+  <!-- SETTINGS: theme, dice and tray, panels (the gear, top right) -->
   <div class="settings" id="settings">
     <button type="button" class="gear-btn" id="settingsBtn" aria-expanded="false" aria-controls="settingsPop" title="Settings" aria-label="Settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.49.49 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.48.48 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.48.48 0 0 0-.59.22L2.74 8.87a.48.48 0 0 0 .12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32a.48.48 0 0 0-.12-.61l-2.01-1.58zM12 15.6a3.6 3.6 0 1 1 0-7.2 3.6 3.6 0 0 1 0 7.2z"/></svg></button>
     <div class="settings-pop" id="settingsPop" role="dialog" aria-label="Settings" hidden>
@@ -720,28 +700,6 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
       <details class="set-sec" id="setPanels"><summary>Panels</summary>
         <p class="set-note">Drag a panel by its ⠿ grip to move it, and click its title to fold it.</p>
         <div class="restore-actions"><button type="button" class="chip-btn" id="panelReset">Reset panel order</button><button type="button" class="chip-btn" id="panelOpenAll">Open every panel</button></div>
-      </details>
-      <details class="set-sec backup" id="setBackup"><summary>Backup</summary>
-        <p class="set-note">A copy of everything saved for this character: HP, spell slots and charges, prepared spells and spellbook, pins, choices, feats, your dice and tray, and your theme and panel settings. It’s all saved to the character already; keep this copy somewhere safe, like a note on your phone, just in case.</p>
-        <div class="restore-actions">
-          <button type="button" class="chip-btn" id="downloadUsageBtn">Back up to .txt</button>
-          <button type="button" class="chip-btn" id="restoreFileBtn">Restore from .txt</button>
-          <input type="file" id="restoreFile" accept=".txt,text/plain" hidden>
-          <button type="button" class="chip-btn" id="clipToggleBtn" aria-expanded="false" aria-controls="clipPanel">Copy/Restore From Clipboard</button>
-        </div>
-        <div class="clip-panel" id="clipPanel" hidden>
-          <textarea id="clipBox" rows="6" aria-label="Backup text: copy it, or clear it and paste a backup to restore" placeholder="Paste a backup here, then click Restore"></textarea>
-          <div class="restore-actions">
-            <button type="button" class="chip-btn" id="clipCopy">Copy</button>
-            <button type="button" class="chip-btn" id="clipRestore">Restore</button>
-            <button type="button" class="chip-btn" id="clipClear">Clear</button>
-          </div>
-        </div>
-        <div class="backup-msg" id="backupMsg" aria-live="polite"></div>
-      </details>
-      <details class="set-sec" id="setLeave"><summary>Leaving the Page</summary>
-        <label class="set-check"><input type="checkbox" id="askBackup"> Ask before I close or leave the page if I haven’t backed up my latest changes</label>
-        <p class="set-note">Your browser shows its own “Leave site?” box; choose Cancel, then back up here.</p>
       </details>
     </div>
   </div>
@@ -4306,8 +4264,6 @@ function applyCore(core, charId){
   renderStatus();
   concUi.check = null; renderConc();   // no save waiting for a freshly loaded character
   document.getElementById('restMsg').textContent = '';
-  document.getElementById('backupMsg').textContent = '';
-  closeClipPanel(); clipBox.value = ''; restoreConfirm = null;
   updateMoveLine();
   const key = (cls || '').toLowerCase();
   // An Eldritch Knight uses the wizard list
@@ -4361,7 +4317,7 @@ async function openDbCharacter(id){
 // Storage can be unavailable (private mode, blocked site data), so pins also live in memory.
 let currentCharId = '';
 function storageGet(key){ const db = charStoreGet(key); if(db !== undefined) return db; try{ return localStorage.getItem(key); }catch(e){ return null; } }
-function storageSet(key, val){ if(!charStoreSet(key, val)){ try{ if(val===null) localStorage.removeItem(key); else localStorage.setItem(key, val); }catch(e){} } noteChange(key); }
+function storageSet(key, val){ if(!charStoreSet(key, val)){ try{ if(val===null) localStorage.removeItem(key); else localStorage.setItem(key, val); }catch(e){} } }
 /* ---------- Character name ----------
    The character's name is its own field (core.name, set in Edit Character or by Rename); a
    character with none is asked for one once. */
@@ -4613,6 +4569,11 @@ function spellChoices(){
 const pendingChoices = ()=>currentCharId ? [...buildChoices().filter(c=>!c.value), ...spellChoices()] : [];
 // Center something on screen once the panels and sections opening around it have finished sliding.
 // find() looks it up each time: a section can redraw (and replace it) while opening.
+// A tall panel (Spells): its top just below whatever sticks to the top of the screen (tabs, the banner)
+function topWhenOpen(find){ [60, 450, 900].forEach(ms=>setTimeout(()=>{ const el = find(); if(!el) return;
+  // where each sticky bar ends once stuck (its CSS top plus its height)
+  const covered = Math.max(0, ...[...document.querySelectorAll('body *')].map(x=>[x, getComputedStyle(x)]).filter(([x, st])=>(st.position === 'sticky' || st.position === 'fixed') && st.top !== 'auto' && parseFloat(st.top) < 40 && x.offsetHeight && x.offsetHeight < innerHeight / 3 && !el.contains(x)).map(([x, st])=>parseFloat(st.top) + x.offsetHeight));
+  window.scrollTo({top:el.getBoundingClientRect().top + scrollY - covered - 8, behavior:'smooth'}); }, ms)); }
 function centerWhenOpen(find){ [60, 450, 900].forEach(ms=>setTimeout(()=>{ const el = find(); if(el) el.scrollIntoView({behavior:'smooth', block:'center'}); }, ms)); }
 function renderChoiceBanner(){
   const b = document.getElementById('choiceBanner'); if(!b) return;
@@ -4621,7 +4582,7 @@ function renderChoiceBanner(){
   if(p.length) b.innerHTML = `<span>⚠</span><span><b>${p.length === 1 ? 'A choice to make' : `${p.length} choices to make`}</b> before you play: ${p.map(c=>escapeHtml(c.featSlot ? `level ${c.featSlot} ability scores or a feat` : c.label)).join(', ')}.</span><span class="cb-go">Go to ${p.length === 1 ? 'it' : 'them'}</span>`;
 }
 function goToChoices(){
-  if(pendingChoices().every(c=>c.spells)){ if(window.showTab) showTab('spells'); tkPanels.expand('spellsPanel'); centerWhenOpen(()=>document.getElementById('spellsPanel')); return; }
+  if(pendingChoices().every(c=>c.spells)){ if(window.showTab) showTab('spells'); tkPanels.expand('spellsPanel'); topWhenOpen(()=>document.getElementById('spellsPanel')); return; }
   if(window.showTab) showTab('overview');
   tkPanels.expand('summaryPanel');
   const box = document.getElementById('buildBox');
@@ -5668,7 +5629,6 @@ function renderResources(){
   if(cur !== null) document.getElementById('f_hp').value = `${cur} / ${max === null ? '?' : max}${temp ? ` (+${temp} temp)` : ''}`;
 
   const rows = document.getElementById('resRows');
-  document.getElementById('setBackup').hidden = !currentCharId;
   if(!currentCharId){ rows.innerHTML = `<p class="empty-note">Open a character to track resources.</p>`; return; }
   let html = hitDiceHtml();
   const slots = slotTable().filter(s=>s.max>0);
@@ -5699,253 +5659,8 @@ function renderResources(){
   rows.querySelectorAll('[data-pool]').forEach(b=>b.addEventListener('click', ()=>spend(b.dataset.pool, +b.dataset.n)));
 }
 
-/* ---------- Usage notes: a copy-and-paste backup of what changes between rests ----------
-   "Copy usage notes" copies readable lines (HP, slots and charges left) plus a restore code, to
-   paste somewhere safe (e.g. a note on your phone). "Restore from notes" accepts the whole paste, just
-   the code, or just the readable lines. Only rest-related state: never pins or choices. */
-function usageItems(){
-  return [
-    ...slotTable().filter(s=>s.max>0).map(s=>({id:s.id, max:s.max,
-      label: s.pact ? `Pact Magic slots (${ORDINAL[s.level]} level)` : `${ORDINAL[s.level] || s.level+'th'}-level slots`})),
-    ...trackedResources().map(r=>({id:r.id, max:r.max, label: r.kind==='pool' ? `${r.label} pool` : r.label})),
-    ...(hitDie() ? [{id:'hitDice', max:maxFor('hitDice'), label:`Hit Dice (d${hitDie()})`}] : []),
-  ];
-}
-const charDisplayName = ()=>document.getElementById('f_name').value.trim() || 'Unnamed character';
-function encodeUsage(obj){ return btoa(unescape(encodeURIComponent(JSON.stringify(obj)))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); }
-function decodeUsage(s){
-  const b = s.replace(/-/g,'+').replace(/_/g,'/'); const pad = b + '==='.slice((b.length + 3) % 4);
-  return JSON.parse(decodeURIComponent(escape(atob(pad))));
-}
-function usageNotesText(){
-  const items = usageItems(), used = {};
-  items.forEach(i=>{ const u = Math.min(i.max, track.used[i.id] || 0); if(u) used[i.id] = u; });
-  const when = new Date().toLocaleString(undefined, {month:'short', day:'numeric', year:'numeric', hour:'numeric', minute:'2-digit'});
-  const lines = [`Turnkeeper usage notes: ${charDisplayName()} (level ${charLevel()}), ${when}`];
-  if(hpNow() !== null) lines.push(`Hit points: ${hpNow()} / ${hpMax() === null ? '?' : hpMax()}`);
-  items.forEach(i=>lines.push(`${i.label}: ${remaining(i.id)} of ${i.max} left`));
-  lines.push('', 'This backup has everything this browser keeps for the character (HP, charges, spells, pins,',
-    'choices, feats, dice and tray) and your theme and panel settings, all in the code below.');
-  lines.push(`Restore code: TK2:${encodeUsage({v:2, c:currentCharId, n:charDisplayName(), k:backupKeys()})}`);
-  return lines.join('\n');
-}
-/* Full backup (TK2): every key this browser keeps for this character, plus your settings
-   (theme, panel order and folding, dice sound, crit GIFs, the leaving-the-page question).
-   Keys are saved with the character's ID swapped for "@", so a backup restores onto the same
-   character in another browser. Other characters' data in this browser isn't included. */
-const BACKUP_GLOBAL = ['dndTracker:theme', 'dndTracker:panels', 'dndTracker:collapsed', 'dndTracker:diceSound', 'dndTracker:critFx', 'dndTracker:askBackup'];
-const backupAtKey = id=>`dndTracker:backupAt:${id || currentCharId}`;
-function backupKeys(id){
-  id = id || currentCharId;
-  const out = {};
-  try{
-    for(let i = 0; i < localStorage.length; i++){
-      const k = localStorage.key(i);
-      if(!k || !k.startsWith('dndTracker:') || k.startsWith('dndTracker:backupAt:') || k.startsWith('dndTracker:dm:')) continue;
-      if(k.includes(id) || BACKUP_GLOBAL.includes(k) || k.startsWith('dndTracker:open:')) out[k.split(id).join('@')] = localStorage.getItem(k);
-    }
-  }catch(e){}
-  // V5: a database character's saved data (kv keys are already "track:@" form)
-  if(charStore.kv && charStore.id === id) Object.entries(charStore.kv).forEach(([k, v])=>{ try{ out['dndTracker:' + decodeURIComponent(k)] = v; }catch(e){} });
-  return out;
-}
-// Replace what this browser keeps for a character (and the settings) with `keys`. For a database
-// character, its keys go to the database (returns that write's promise); the rest stay in the browser.
-function writeBackupKeys(id, keys){
-  const ok = k=>/^dndTracker:[^<>]{1,200}$/.test(k) && !k.startsWith('dndTracker:dm:');
-  const db = charStore.kv && charStore.id === id;
-  const isChar = k=>k.includes('@');
-  Object.keys(backupKeys(id)).forEach(k=>{ if(!(db && isChar(k))) localStorage.removeItem(k.split('@').join(id)); });
-  Object.entries(keys || {}).forEach(([k, v])=>{ if(typeof v === 'string' && ok(k) && !(db && isChar(k))) localStorage.setItem(k.split('@').join(id), v); });
-  if(!db) return Promise.resolve();
-  const patch = {};
-  Object.keys(charStore.kv).forEach(k=>{ patch[k] = null; });
-  Object.entries(keys || {}).forEach(([k, v])=>{ if(typeof v === 'string' && ok(k) && isChar(k) && !PER_BROWSER_KEY.test(k)) patch[encodeKvKey(k.replace(/^dndTracker:/, ''))] = v; });
-  clearTimeout(charStore.timer); charStore.pending = {};
-  return tkDbReady().then(d=>d.updateKv(charStore.campaign, charStore.id, patch));
-}
-async function restoreFull(parsed){
-  try{
-    // Undo: what this character had, kept in this tab until it's used or the tab closes
-    sessionStorage.setItem('dndTracker:undoRestore', JSON.stringify({c:currentCharId, k:backupKeys()}));
-    await writeBackupKeys(currentCharId, parsed.keys);
-    storageSet(backupAtKey(), String(Date.now()));
-    sessionStorage.setItem('dndTracker:restoredFrom', parsed.name || '');
-  }catch(e){ setBackupMsg('Couldn’t restore: ' + (e.message || 'this browser isn’t letting Turnkeeper save.'), true); return false; }
-  leavingOk = true; location.reload();
-  return true;
-}
-// After a full restore reloads the page: say so, with Undo
-function showRestoredMsg(){
-  let from = null; try{ from = sessionStorage.getItem('dndTracker:restoredFrom'); sessionStorage.removeItem('dndTracker:restoredFrom'); }catch(e){}
-  if(from === null) return;
-  const box = document.createElement('div');
-  box.className = 'restored-msg'; box.setAttribute('role', 'status');
-  box.innerHTML = `Restored everything from your backup${from ? ` of ${escapeHtml(from)}` : ''}. <button type="button" class="sel-toggle" id="restoreUndo">Undo</button> <button type="button" class="sel-toggle" id="restoreOk">OK</button>`;
-  document.querySelector('header.top').after(box);
-  document.getElementById('restoreOk').onclick = ()=>box.remove();
-  document.getElementById('restoreUndo').onclick = async ()=>{
-    try{
-      const u = JSON.parse(sessionStorage.getItem('dndTracker:undoRestore') || 'null'); if(!u) return;
-      await writeBackupKeys(u.c, u.k); sessionStorage.removeItem('dndTracker:undoRestore');
-    }catch(e){ return; }
-    leavingOk = true; location.reload();
-  };
-}
-/* Leaving the page: if you've changed something since your last backup, the browser asks
-   ("Leave site?"). Browsers only allow their own wording here. Off in Settings → Leaving the Page. */
-var leavingOk = false, lastChange = 0, userActed = false;   // var: storageSet can run before this line
-['pointerdown', 'keydown'].forEach(t=>addEventListener(t, ()=>{ userActed = true; }, {capture:true, once:true}));
-function noteChange(key){ if(userActed && currentCharId && key.includes(currentCharId) && !key.startsWith('dndTracker:backupAt:')) lastChange = Date.now(); }
-addEventListener('beforeunload', e=>{
-  // A database character saves to the server as it changes, so there's nothing to lose by leaving
-  if(charStore.kv){ flushCharStore(); return; }
-  if(leavingOk || !currentCharId || !lastChange || storageGet('dndTracker:askBackup') === 'off') return;
-  if(lastChange > (+storageGet(backupAtKey()) || 0)){
-    e.preventDefault(); e.returnValue = '';
-    // The browser's box can't hold buttons. If the player chooses Cancel (stays), this runs and
-    // offers the backup right away; if they leave, the page is gone and it never shows.
-    setTimeout(showLeaveBackupBar, 400);
-  }
-});
-// "You have changes since your last backup": one click to the .txt file or the code
-function showLeaveBackupBar(){
-  if(document.getElementById('leaveBar')) return;
-  const bar = document.createElement('div');
-  bar.id = 'leaveBar'; bar.className = 'leave-bar'; bar.setAttribute('role', 'alert');
-  bar.innerHTML = `<span>You’ve changed things since your last backup.</span>`
-    + `<button type="button" class="chip-btn" data-leave="txt">Back up to .txt</button>`
-    + `<button type="button" class="chip-btn" data-leave="copy">Copy backup code</button>`
-    + `<button type="button" class="roll-close" data-leave="close" aria-label="Close">&times;</button>`;
-  document.body.appendChild(bar);
-  bar.addEventListener('click', e=>{
-    const b = e.target.closest('[data-leave]'); if(!b) return;
-    if(b.dataset.leave === 'txt'){ document.getElementById('downloadUsageBtn').click(); bar.querySelector('span').textContent = 'Backup file downloaded. You can close the page now.'; }
-    else if(b.dataset.leave === 'copy'){
-      const text = usageNotesText();
-      const done = ok=>{ if(ok) markBackedUp(); bar.querySelector('span').textContent = ok ? 'Copied. Paste it somewhere safe, then you can close the page.' : 'Couldn’t copy. Use Settings → Backup instead.'; };
-      if(navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(text).then(()=>done(true), ()=>done(fallbackCopy(text)));
-      else done(fallbackCopy(text));
-    }
-    else bar.remove();
-  });
-}
-const markBackedUp = ()=>{ if(currentCharId) storageSet(backupAtKey(), String(Date.now())); };
-{
-  const ask = document.getElementById('askBackup');
-  ask.checked = storageGet('dndTracker:askBackup') !== 'off';
-  ask.addEventListener('change', ()=>storageSet('dndTracker:askBackup', ask.checked ? null : 'off'));
-}
-// Returns {charId, name, hp, used:{id:n}, full} or null. `full` (from a code) means ids it
-// doesn't mention were unused; readable lines only change what they mention.
-function parseUsageNotes(text){
-  const m2 = text.match(/TK2:([A-Za-z0-9_-]+)/);
-  if(m2){
-    try{ const o = decodeUsage(m2[1]); if(o && o.k && typeof o.k === 'object') return {charId:o.c || null, name:o.n || '', keys:o.k, full:true}; }
-    catch(e){ /* fall back */ }
-  }
-  const m = text.match(/TK1:([A-Za-z0-9_-]+)/);
-  if(m){
-    try{ const o = decodeUsage(m[1]); return {charId:o.c || null, name:o.n || '', hp: typeof o.hp==='number' ? o.hp : null, used:o.u || {}, full:true}; }
-    catch(e){ /* fall back to the readable lines */ }
-  }
-  const out = {charId:null, name:'', hp:null, used:{}, full:false}; let found = 0;
-  const head = text.match(/usage notes:\s*(.+?)\s*\(level/i); if(head) out.name = head[1];
-  const hp = text.match(/Hit points:\s*(\d+)/i); if(hp){ out.hp = +hp[1]; found++; }
-  usageItems().forEach(i=>{
-    const esc = i.label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const lm = text.match(new RegExp('^\\s*' + esc + ':\\s*(\\d+)\\s*of\\s*(\\d+)', 'mi'));
-    if(lm){ out.used[i.id] = Math.max(0, i.max - (+lm[1])); found++; }
-  });
-  return found ? out : null;
-}
-// Backup UI: "Back up to .txt", "Restore from .txt", and "Copy/Restore From Clipboard", which opens
-// ONE box (filled with the current backup) with Copy, Restore (from what's in the box) and Clear
-// (empty it to paste a backup in). Layout per Justin, 2026-09-24.
-let restoreConfirm = null, usageUndo = null;   // restoreConfirm: text waiting for "use it anyway"
-function setBackupMsg(html, err){ const m = document.getElementById('backupMsg'); m.innerHTML = html; m.classList.toggle('err', !!err); }
-// Restore from backup text. `again` says how to confirm a different character's backup.
-function restoreFromText(text, again){
-  const parsed = parseUsageNotes(text || '');
-  if(!parsed){ setBackupMsg('No backup found. Use a backup made with "Back up to .txt" or "Copy", or just its restore code.', true); return false; }
-  const other = parsed.charId ? parsed.charId !== currentCharId : (parsed.name && parsed.name !== charDisplayName());
-  if(other && restoreConfirm !== text){
-    restoreConfirm = text;
-    setBackupMsg(`This backup is for ${escapeHtml(parsed.name || 'a different character')}, not ${escapeHtml(charDisplayName())}. ${again} to use it anyway.`, true);
-    return false;
-  }
-  restoreConfirm = null;
-  if(parsed.keys) return restoreFull(parsed);
-  usageUndo = JSON.stringify({hp:track.hp, used:track.used});
-  const known = new Set(usageItems().map(i=>i.id));
-  const used = parsed.full ? {} : {...track.used};
-  Object.entries(parsed.used).forEach(([id, n])=>{ if(known.has(id)) used[id] = n; });
-  track.used = used;
-  if(parsed.hp !== null) track.hp = hpMax() !== null ? Math.max(0, Math.min(hpMax(), parsed.hp)) : parsed.hp;
-  saveTrack(); renderResources();
-  setBackupMsg(`Restored from your backup${parsed.hp !== null ? ` (HP ${hpNow()} / ${hpMax()})` : ''}. <button type="button" class="sel-toggle" id="usageUndo">Undo</button>`);
-  document.getElementById('usageUndo').onclick = ()=>{
-    const s = JSON.parse(usageUndo); track.hp = s.hp; track.used = s.used; usageUndo = null;
-    saveTrack(); renderResources(); setBackupMsg('Restore undone.');
-  };
-  return true;
-}
-
-// Back up to .txt, e.g. turnkeeper-Krunk-usage-2026-09-24.txt
-document.getElementById('downloadUsageBtn').addEventListener('click', ()=>{
-  const url = URL.createObjectURL(new Blob([usageNotesText() + '\n'], {type:'text/plain'}));
-  const safe = charDisplayName().replace(/[^A-Za-z0-9]+/g,'-').replace(/^-+|-+$/g,'') || 'character';
-  const a = document.createElement('a');
-  a.href = url; a.download = `turnkeeper-${safe}-backup-${new Date().toISOString().slice(0,10)}.txt`;
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(()=>URL.revokeObjectURL(url), 2000);
-  markBackedUp();
-  setBackupMsg('Backup file downloaded. Keep it somewhere safe.');
-});
-
-// Restore from .txt (choosing the same file again confirms a different character's backup)
-document.getElementById('restoreFileBtn').addEventListener('click', ()=>document.getElementById('restoreFile').click());
-document.getElementById('restoreFile').addEventListener('change', e=>{
-  const file = e.target.files && e.target.files[0]; e.target.value = '';
-  if(!file) return;
-  if(file.size > 100000){ setBackupMsg('That file is too big to be a Turnkeeper backup.', true); return; }
-  const reader = new FileReader();
-  reader.onload = ()=>restoreFromText(String(reader.result || ''), 'Choose the same file again');
-  reader.onerror = ()=>setBackupMsg('Couldn’t read that file. Try Copy/Restore From Clipboard instead.', true);
-  reader.readAsText(file);
-});
-
-// Copy/Restore From Clipboard: one box
-const clipPanel = document.getElementById('clipPanel'), clipBox = document.getElementById('clipBox');
-function closeClipPanel(){
-  clipPanel.hidden = true;
-  const t = document.getElementById('clipToggleBtn'); t.setAttribute('aria-expanded','false'); t.classList.remove('on');
-}
-// One-click buttons flash orange briefly so the click registers, like tapping a chip
-document.querySelectorAll('.backup button.chip-btn:not(#clipToggleBtn)').forEach(b=>b.addEventListener('click', ()=>{
-  b.classList.add('on'); clearTimeout(b._flash); b._flash = setTimeout(()=>b.classList.remove('on'), 600);
-}));
-document.getElementById('clipToggleBtn').addEventListener('click', e=>{
-  const open = clipPanel.hidden;
-  clipPanel.hidden = !open; e.currentTarget.setAttribute('aria-expanded', String(open));
-  e.currentTarget.classList.toggle('on', open);
-  restoreConfirm = null; setBackupMsg('');
-  if(open) clipBox.value = usageNotesText();   // filled once on opening, so pasting isn't overwritten
-});
-document.getElementById('clipCopy').addEventListener('click', ()=>{
-  const text = clipBox.value;
-  if(!text.trim()){ setBackupMsg('The box is empty. Close and reopen Copy/Restore From Clipboard to get your current backup.', true); return; }
-  const done = ok=>{ if(ok) markBackedUp(); setBackupMsg(ok ? 'Copied. Paste it somewhere safe, like a note on your phone.' : 'Couldn’t copy automatically. Select the text in the box and copy it.', !ok); };
-  if(navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(text).then(()=>done(true), ()=>done(fallbackCopy(text)));
-  else done(fallbackCopy(text));
-});
-document.getElementById('clipRestore').addEventListener('click', ()=>restoreFromText(clipBox.value, 'Click Restore again'));
-document.getElementById('clipClear').addEventListener('click', ()=>{
-  clipBox.value = ''; restoreConfirm = null;
-  setBackupMsg('Box cleared. Paste a backup (Ctrl+V), then click Restore.');
-  clipBox.focus();
-});
-clipBox.addEventListener('input', ()=>{ restoreConfirm = null; });
+// Leaving the page: whatever's still waiting to be saved goes to the server first
+addEventListener('beforeunload', ()=>{ if(charStore.kv) flushCharStore(); });
 
 // Plain collapsible sections (no pinning): Saving Throws, Skills, Attacks
 document.querySelectorAll('.collapsible').forEach(wrap=>{
@@ -6168,7 +5883,6 @@ const tkPanels = setupPanelOrder({container:'.wrap', save:o=>{ try{ localStorage
 try{ tkPanels.apply(JSON.parse(localStorage.getItem(PANEL_KEY) || 'null')); }catch(e){}
 document.getElementById('panelReset').addEventListener('click', ()=>tkPanels.reset());
 document.getElementById('panelOpenAll').addEventListener('click', ()=>tkPanels.collapsed().forEach(id=>tkPanels.expand(id)));
-showRestoredMsg();   // after a full restore reloaded the page
 
 /* The character's icon, beside the name in the Character Summary (js/char-icons.js) */
 window.tkCharIcon = ()=>{

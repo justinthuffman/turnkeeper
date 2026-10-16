@@ -3,6 +3,16 @@
 What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest first.
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
+## 2026-10-16 — Spells to pick, and no more backups
+
+### Fixed
+- **"Go to them" for spells to pick** opens the Spells panel at its top (where it says how many to pick),
+  not partway down the spell list.
+
+### Removed
+- **Settings → Backup and Leaving the Page:** everything is saved to your account as you go, so there's
+  nothing to back up and nothing to lose by closing the page.
+
 ## 2026-10-16 — Turnkeeper V6: accounts, campaigns and the character creator
 
 ### Added

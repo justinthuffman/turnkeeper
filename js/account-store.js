@@ -12,7 +12,7 @@
    Kept per browser: the last-open campaign, backups' dates, which characters were open. */
 (()=>{
   const DM = window.TK_PREFS === 'dm';
-  const PLAYER_KEY = /^dndTracker:(theme(:[^:]+)?|panels|collapsed|diceSound|critFx|tabs|askBackup)$/;
+  const PLAYER_KEY = /^dndTracker:(theme(:[^:]+)?|panels|collapsed|diceSound|critFx|tabs)$/;
   const synced = k=>typeof k === 'string' && (DM ? k.startsWith('dndTracker:dm:') && k !== 'dndTracker:dm:campaign' : PLAYER_KEY.test(k));
   const enc = k=>encodeURIComponent(k).replace(/\./g, '%2E'), dec = k=>decodeURIComponent(k);
   const set0 = Storage.prototype.setItem, remove0 = Storage.prototype.removeItem;
