@@ -981,14 +981,12 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
 </div>
 <div class="panel" id="notesPanel" hidden>
   <div class="panel-head"><h2>Notes</h2><span class="cs-save-msg" id="notesMsg" aria-live="polite"></span></div>
-  <div class="notes-tabs"><button type="button" class="chip-btn" data-notes-tab="write" aria-pressed="true">Write</button><button type="button" class="chip-btn" data-notes-tab="preview" aria-pressed="false">Preview</button></div>
   <div id="notesWrite">
     <div class="notes-tools" role="toolbar" aria-label="Formatting">
       <button type="button" data-mark="bold" title="Bold"><b>B</b></button><button type="button" data-mark="italic" title="Italic"><i>I</i></button><button type="button" data-mark="underline" title="Underline"><u>U</u></button><button type="button" data-mark="strike" title="Strikethrough"><s>S</s></button><button type="button" data-mark="heading" title="Heading">H</button><button type="button" data-mark="quote" title="Quote">&ldquo;</button><button type="button" data-mark="list" title="List">&bull;</button><button type="button" data-mark="code" title="Code">&lt;/&gt;</button><button type="button" data-mark="block" title="Code block">{ }</button>
     </div>
-    <textarea id="notesText" rows="10" aria-label="Notes" placeholder="Anything you want to remember. **bold**, *italic*, __underline__, ~~strike~~, > quote, - list"></textarea>
+    <div id="notesText" class="notes-edit" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Notes" data-placeholder="Anything you want to remember. Start a line with - for a list, # for a heading or > for a quote."></div>
   </div>
-  <div class="notes-preview" id="notesPreview" hidden></div>
 </div>
 
 

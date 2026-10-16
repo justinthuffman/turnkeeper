@@ -9,10 +9,10 @@
 .cs-grid.cs-scores{grid-template-columns:repeat(auto-fill, minmax(110px, 1fr));}
 .cs-field{display:flex; flex-direction:column; gap:3px; font-size:0.72rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--ink-dim);}
 .cs-field.cs-wide{grid-column:1 / -1;}
-.cs-field input, .cs-field select, .cs-field textarea, .cs-add input, .gold-row input, #notesText{
+.cs-field input, .cs-field select, .cs-field textarea, .cs-add input, .gold-row input{
   background:var(--panel2); border:1px solid var(--border); color:var(--ink); border-radius:4px; padding:6px 8px;
   font-size:0.9rem; font-family:var(--font-body); text-transform:none; letter-spacing:normal; width:100%; box-sizing:border-box;}
-.cs-field textarea, #notesText{resize:vertical; line-height:1.4;}
+.cs-field textarea{resize:vertical; line-height:1.4;}
 .cs-sub{font-size:0.7rem; text-transform:uppercase; letter-spacing:0.06em; color:var(--sea); margin:12px 0 6px;}
 .cs-checks{display:flex; flex-wrap:wrap; gap:6px 16px; font-size:0.85rem;}
 .cs-check{display:flex; align-items:center; gap:6px; cursor:pointer;}
@@ -31,7 +31,7 @@
 .cs-chip-auto{padding-right:10px; border-style:dashed;}
 .cs-chip-auto small{color:var(--ink-dim); font-size:0.7rem; margin-left:2px;}
 .cs-add{display:flex; gap:6px; margin-top:6px; max-width:420px;}
-.cs-add .chip-btn, .notes-tabs .chip-btn{background:var(--panel2); border:1px solid var(--border); border-radius:999px; color:var(--ink); padding:4px 14px; font-size:0.8rem;}
+.cs-add .chip-btn{background:var(--panel2); border:1px solid var(--border); border-radius:999px; color:var(--ink); padding:4px 14px; font-size:0.8rem;}
 /* Gold */
 .gold-bal{font-family:var(--font-display); font-size:1.4rem; color:var(--sea); margin-left:auto;}
 .gold-row{display:flex; flex-wrap:wrap; gap:8px; align-items:center;}
@@ -46,18 +46,19 @@ table.ledger td.pos{color:var(--green); white-space:nowrap;}
 table.ledger td.neg{color:var(--danger); white-space:nowrap;}
 table.ledger td:last-child, table.ledger th:last-child{text-align:right;}
 /* Notes */
-.notes-tabs{display:flex; gap:6px; margin-bottom:8px;}
-.notes-tabs .chip-btn[aria-pressed="true"]{border-color:var(--sea); color:var(--sea);}
 .notes-tools{display:flex; flex-wrap:wrap; gap:4px; margin-bottom:6px;}
 .notes-tools button{background:var(--panel2); border:1px solid var(--border); color:var(--ink); padding:3px 9px; min-width:32px; font-size:0.85rem; border-radius:4px; box-shadow:none;}
-.notes-preview{background:var(--panel2); border:1px solid var(--border); border-radius:4px; padding:10px 14px; min-height:120px; line-height:1.5;}
-.notes-preview p{margin:0 0 8px;}
-.notes-preview blockquote{margin:6px 0; padding:4px 12px; border-left:3px solid var(--sea-dim); color:var(--ink-dim);}
-.notes-preview code{background:var(--bg); padding:1px 5px; border-radius:3px; font-family:ui-monospace, Consolas, monospace; font-size:0.85em;}
-.notes-preview pre{background:var(--bg); padding:8px 10px; border-radius:4px; overflow-x:auto;}
-.notes-preview pre code{background:none; padding:0;}
-.notes-preview ul, .notes-preview ol{margin:4px 0 8px 22px; padding:0;}
-.notes-preview h4, .notes-preview h5, .notes-preview h6{margin:10px 0 6px; color:var(--sea);}
+.notes-edit{background:var(--panel2); border:1px solid var(--border); border-radius:4px; padding:10px 14px; min-height:220px; line-height:1.5; color:var(--ink); outline:none; overflow-wrap:anywhere;}
+.notes-edit:focus{border-color:var(--sea-dim);}
+.notes-edit{position:relative;}
+.notes-edit.blank::before{content:attr(data-placeholder); position:absolute; left:14px; right:14px; top:10px; color:var(--ink-dim); pointer-events:none;}
+.notes-edit p{margin:0;}
+.notes-edit blockquote{margin:6px 0; padding:4px 12px; border-left:3px solid var(--sea-dim); color:var(--ink-dim);}
+.notes-edit code{background:var(--bg); padding:1px 5px; border-radius:3px; font-family:ui-monospace, Consolas, monospace; font-size:0.85em;}
+.notes-edit pre{background:var(--bg); padding:8px 10px; border-radius:4px; overflow-x:auto;}
+.notes-edit pre code{background:none; padding:0;}
+.notes-edit ul, .notes-edit ol{margin:4px 0 8px 22px; padding:0;}
+.notes-edit h4, .notes-edit h5, .notes-edit h6{margin:10px 0 6px; color:var(--sea);}
 /* Inventory and Equipment (js/inventory.js) */
 .inv-add{max-width:none;}
 .inv-add #invName{flex:1 1 260px;}
