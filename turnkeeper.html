@@ -570,6 +570,13 @@ button.flow-btn .src-tag{color:var(--ink); border-color:rgba(255,255,255,0.6);}
 .view-banner.test{background:#6a3fb5;}
 .view-banner button{background:rgba(0,0,0,0.25); color:#fff; border:1px solid rgba(255,255,255,0.6); border-radius:6px; padding:3px 10px; font:inherit; cursor:pointer;}
 .lu-box{max-width:620px;}
+/* Picking one thing (a subclass, a Fighting Style…): cards with what each does (js/data/subclass-info.js) */
+.pick-cards{display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:8px; margin:6px 0; flex:1 1 100%;}
+.pick-card{display:flex; flex-direction:column; gap:4px; text-align:left; padding:9px 11px; border-radius:8px; border:1px solid var(--border); background:var(--panel2); color:var(--ink); font:inherit; font-size:0.84rem; line-height:1.4; cursor:pointer;}
+.pick-card b{font-family:var(--font-display); font-weight:normal; color:var(--sea); font-size:1rem;}
+.pick-card small{color:var(--ink-dim); font-size:0.74rem;}
+.pick-card:hover{border-color:var(--sea-dim);}
+.pick-card.on{border-color:var(--sea); box-shadow:0 0 0 1px var(--sea) inset;}
 /* The level-up screen (js/level-up.js playLevelUpFx) */
 #lvlFx{position:fixed; inset:0; z-index:3000; display:grid; place-items:center; background:radial-gradient(ellipse at 50% 40%, rgba(40,28,10,0.92), rgba(5,4,8,0.97) 70%); opacity:0; transition:opacity .45s ease; overflow:hidden;}
 #lvlFx.on{opacity:1;} #lvlFx.off{opacity:0;}
@@ -1048,6 +1055,7 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
 <script src="js/data/classes.js"></script>
 <script src="js/data/classes-phb.js"></script>
 <script src="js/data/levels.js"></script>
+<script src="js/data/subclass-info.js"></script>
 <script src="js/data/feats.js"></script>
 <script src="js/char-store.js"></script>
 <script>
@@ -4629,6 +4637,13 @@ window.addEventListener('click', e=>{
   b.classList.remove('shake'); void b.offsetWidth; b.classList.add('shake');
   b.scrollIntoView({behavior:'smooth', block:'nearest'});
 }, true);
+// A choice's options: cards with what each does for a subclass or a "pick one" feature, plain buttons otherwise
+function buildOptionsHtml(c){
+  const opts = c.options || [];
+  const descOf = o=>c.key === 'subclass' ? (SUBCLASS_INFO[o] || '') : c.feature && c.feature.tiers ? ((c.feature.tiers.find(t=>t.name === o) || {}).text || '') : '';
+  if(!opts.some(descOf)) return opts.map(o=>`<button type="button" class="flow-btn${c.value===o?' active':''}" data-build="${escapeHtml(c.key)}" data-opt="${escapeHtml(o)}">${o}</button>`).join('');
+  return `<div class="pick-cards">${opts.map(o=>`<button type="button" class="pick-card${c.value === o ? ' on' : ''}" data-build="${escapeHtml(c.key)}" data-opt="${escapeHtml(o)}"><b>${escapeHtml(o)}</b><span>${escapeHtml(descOf(o))}</span>${c.key === 'subclass' ? `<small>${escapeHtml(subclassFeatureLine(cf.classKey, o))}</small>` : ''}</button>`).join('')}</div>`;
+}
 function renderBuild(){
   renderChoiceBanner();
   const box = document.getElementById('buildBox'); if(!box) return;
@@ -4645,7 +4660,7 @@ function renderBuild(){
         + (c.fp ? c.picks.map((v, i)=>`<select class="build-pick" data-feat-pick="${escapeHtml(c.fp.feat)}" data-i="${i + 1}" aria-label="${escapeHtml(c.fp.feat)} ${c.fp.label} ${i + 1}"><option value="">${c.fp.label[0].toUpperCase() + c.fp.label.slice(1)} ${i + 1}…</option>`
             + c.fp.options().filter(o=>o === v || !c.picks.includes(o)).map(o=>`<option${o === v ? ' selected' : ''}>${escapeHtml(o)}</option>`).join('') + `</select>`).join('')
           + (c.value ? `<button type="button" class="flow-btn" data-build-done="${escapeHtml(c.key)}">Done</button>` : '') : '')
-        + (c.options||[]).map(o=>`<button type="button" class="flow-btn${c.value===o?' active':''}" data-build="${escapeHtml(c.key)}" data-opt="${escapeHtml(o)}">${o}</button>`).join('')
+        + buildOptionsHtml(c)
         + `</div>`).join('') + `</div>`;
   }
   if(made.length){
@@ -4852,7 +4867,7 @@ const classSection = makePinSection({
     sel.innerHTML = early ? `<option value="">— (at level ${entry.subclassLevel})</option>` : `<option value="">— choose —</option>` + pickableSubclasses(entry)
       .map(s=>`<option value="${s}"${s===cf.subclass?' selected':''}>${s}</option>`).join('');
     const note = document.getElementById('cfSubclassNote');
-    note.textContent = early ? `You choose it at level ${entry.subclassLevel}.` : !cf.subclass ? 'Pick one to see its features.' : '';
+    note.textContent = early ? `You choose it at level ${entry.subclassLevel}.` : !cf.subclass ? 'Pick one to see its features (the choices box at the top describes each).' : (SUBCLASS_INFO[cf.subclass] || '');
   },
 });
 document.getElementById('cfSubclass').addEventListener('change', e=>setSubclass(e.target.value));

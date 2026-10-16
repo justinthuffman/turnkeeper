@@ -236,7 +236,7 @@ function renderClass(){
     h += `<div class="box"><h3>${c.name}${L > 1 ? ` · Level ${L}` : ''}</h3><p class="note">Hit die d${c.hd} · saving throws: ${c.saves.map(a=>ABIL_NAME[a]).join(', ')} · ${c.skills.n} skills${SPELL_LIMITS[S.cls] ? ' · casts spells' : ''}</p>`;
     if(subclassNow()){
       const subs = Object.keys(entry.subclasses).filter(s=>!DMG_SUBCLASSES.includes(s) || dmgOk);
-      h += `<p><label>${entry.subclassLabel} ${sel('data-sub', S.subclass, subs, 'Pick one…')}</label></p>`;
+      h += `<h3>${esc(entry.subclassLabel)}</h3>${pickCardsHtml('data-subpick', S.subclass, subclassOptions(S.cls, subs))}`;
     } else if(entry) h += `<p class="note">${L >= entry.subclassLevel ? `Your sheet asks for your ${esc(entry.subclassLabel)} when it opens.` : `You pick your ${esc(entry.subclassLabel)} at level ${entry.subclassLevel}.`}</p>`;
     // Hit points after 1st level, by the campaign's rule: the player's pick (average or a roll for each
     // level, kept once rolled), or always the average, rolled or the maximum
@@ -435,6 +435,7 @@ document.addEventListener('click', e=>{
   const b = e.target.closest('button'); if(!b) return;
   if(b.dataset.step){ S.step = b.dataset.step; render(); scrollTo(0, 0); return; }
   if(b.id === 'next' || b.id === 'back'){ const st = visibleSteps(), i = st.findIndex(([k])=>k === S.step); S.step = st[Math.max(0, Math.min(st.length - 1, i + (b.id === 'next' ? 1 : -1)))][0]; render(); scrollTo(0, 0); return; }
+  if(b.dataset.subpick){ S.subclass = S.subclass === b.dataset.subpick ? '' : b.dataset.subpick; render(); return; }
   if(b.dataset.rgroup){ if(S.raceGroup !== b.dataset.rgroup){ const g = RACE_GROUPS.find(x=>x.name === b.dataset.rgroup), subs = subsOf(g); S.raceGroup = g.name; S.race = subs.length === 1 ? subs[0][0] : ''; S.ancestry = ''; S.asiPick = []; S.langs = []; } render(); return; }
   if(b.dataset.race){ if(S.race !== b.dataset.race){ S.race = b.dataset.race; S.asiPick = []; S.langs = []; } render(); return; }
   if(b.dataset.cls){ if(S.cls !== b.dataset.cls){ S.cls = b.dataset.cls; S.subclass = ''; S.hpHow = ''; S.hpRolls = []; S.goldRoll = null; S.gearHow = ''; S.skills = []; S.expertise = []; S.equip = {}; S.picks = {}; S.tools = []; } render(); return; }

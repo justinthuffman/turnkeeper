@@ -73,12 +73,12 @@ function renderLevelUp(){
   // Subclass
   if(needSub){
     const subs = pickableSubclasses(entry);
-    h += `<div class="lu-sec"><h3>${csEsc(entry.subclassLabel)}</h3><select data-lu-sub><option value="">Pick one…</option>${subs.map(s=>`<option${s === LU.sub ? ' selected' : ''}>${csEsc(s)}</option>`).join('')}</select></div>`;
+    h += `<div class="lu-sec"><h3>${csEsc(entry.subclassLabel)}</h3>${pickCardsHtml('data-lu-subpick', LU.sub, subclassOptions(cf.classKey, subs))}</div>`;
   }
   // New features
   if(list.length || racial.length){
     h += `<div class="lu-sec"><h3>New at Level ${LU.to}</h3><ul class="lu-list">${list.map(t=>`<li><b>${csEsc(t.name)}</b> ${csEsc(t.desc || '')}`
-      + (t.choose ? `<div><select data-lu-choice="${csEsc(t.name)}"><option value="">Pick one…</option>${(t.tiers || []).map(x=>`<option${LU.choices[t.name] === x.name ? ' selected' : ''}>${csEsc(x.name)}</option>`).join('')}</select></div>` : '')
+      + (t.choose ? pickCardsHtml('data-lu-choicepick', LU.choices[t.name], (t.tiers || []).map(x=>({name:x.name, desc:x.text || ''})), ` data-feat="${csEsc(t.name)}"`) : '')
       + `</li>`).join('')}${racial.map(t=>`<li><b>${csEsc(t.name)}</b> ${csEsc(t.desc)}</li>`).join('')}</ul>`
       + (picksNow.length ? `<p class="cs-none">${picksNow.map(t=>csEsc(t.name)).join(', ')}: make your picks in the Build box after leveling up.</p>` : '') + `</div>`;
   } else if(!needSub) h += `<div class="lu-sec"><h3>New at Level ${LU.to}</h3><p class="cs-none">No new class features at this level${spells && spells.length ? ', but your spellcasting grows' : ''}.</p></div>`;
@@ -120,6 +120,8 @@ function openLevelUp(){
     dlg.addEventListener('click', e=>{
       if(e.target === dlg || e.target.closest('[data-lu-close]')){ dlg.hidden = true; return; }
       const b = e.target.closest('button'); if(!b) return;
+      if(b.dataset.luSubpick){ LU.sub = LU.sub === b.dataset.luSubpick ? '' : b.dataset.luSubpick; renderLevelUp(); return; }
+      if(b.dataset.luChoicepick){ const f = b.dataset.feat; LU.choices[f] = LU.choices[f] === b.dataset.luChoicepick ? '' : b.dataset.luChoicepick; renderLevelUp(); return; }
       if(b.dataset.luHp){ const die = hitDie(), rule = luHpRule(); if(b.dataset.luHp === 'average' && rule !== 'choice') return; if(b.dataset.luHp === 'roll' && !['choice', 'roll'].includes(rule)) return; if(b.dataset.luHp === 'roll'){ if(!LU.hp || LU.hp.how !== 'roll') LU.hp = {how:'roll', value:luRoll(die)}; } else LU.hp = {how:'average', value:hpAverage(die)}; renderLevelUp(); }
       else if(b.dataset.luGo !== undefined) finishLevelUp();
     });
