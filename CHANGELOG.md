@@ -8,7 +8,7 @@ Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wi
 ### Added
 - **Sign in** (Google or an email link) on the hub. Your characters and campaigns follow your account to
   any device, and so do your settings (theme, dice, panel order). Open your sheet from the hub's My
-  Characters; old `?char=` links no longer work.
+  Characters (an old bookmark to your sheet still works: it asks you to sign in first).
 - **Campaigns:** a DM makes a campaign and shares its invite link or code; players join with one of
   their characters (and can bring a different one instead). Crisis in Waterdeep's four characters now
   belong to the players who claimed them.
