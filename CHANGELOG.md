@@ -3,6 +3,38 @@
 What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest first.
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
+## 2026-10-16 — Turnkeeper V6: accounts, campaigns and the character creator
+
+### Added
+- **Sign in** (Google or an email link) on the hub. Your characters and campaigns follow your account to
+  any device, and so do your settings (theme, dice, panel order). Open your sheet from the hub's My
+  Characters; old `?char=` links no longer work.
+- **Campaigns:** a DM makes a campaign and shares its invite link or code; players join with one of
+  their characters (and can bring a different one instead). Crisis in Waterdeep's four characters now
+  belong to the players who claimed them.
+- **Character creator** (hub → New character): race and subrace, class (starting at any level), ability
+  scores by the methods the DM allows, background, skills, equipment or starting gold, details and a
+  portrait, with a character card that fills in as you go. Spells are picked on the sheet afterwards.
+- **Portraits:** upload or link a picture and drag and zoom it into a coin ring in your class's colors
+  (sheet → Details → Portrait).
+- **Level Up:** a Level Up window on the sheet (hit points, new features and choices, subclass, ability
+  increase or feat, spells), with a level-up screen listing what you unlocked. The DM can level one
+  character or the whole party up (or back down) from the DM Screen.
+- **Subclasses and "pick one" features are cards** that say what each one does, everywhere you choose one.
+- **Choices to make** now include spells you haven't picked yet, and rolling waits until they're made
+  (other players' rolls are skipped meanwhile, not saved up).
+- **Wild Shape** (druids) with stat blocks for SRD beasts, and the Beast Master's **animal companion**;
+  both show on the DM Screen's party cards.
+- **Archive characters** on the hub, bring them back, or delete one for good.
+- **DM Screen:** one Campaign settings screen (character creation, leveling, table rules, sounds and
+  reactions; no password), including hit points per level (Waterdeep: always the maximum), starting gear,
+  encumbrance, ammunition and lifestyle; a Test room with copies of the party, fresh from a long rest.
+
+### Changed
+- Status and Magic on You show their descriptions on hover (and under a status that's on).
+- The class shown everywhere is your class plus the subclass you picked (no more "Vengeance Paladin"
+  at level 2).
+
 ## 2026-10-15 — The environment
 
 ### Added
