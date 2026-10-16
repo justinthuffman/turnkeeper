@@ -392,6 +392,12 @@ button.insp-btn.on{border-color:var(--orange); background:var(--orange-tint); co
 .beast-line{display:flex; flex-wrap:wrap; gap:4px 14px; margin:4px 0;}
 .beast-abil{display:grid; grid-template-columns:repeat(6, minmax(0, 1fr)); gap:4px; margin:6px 0; text-align:center;}
 .beast-abil small{display:block; color:var(--ink-dim); font-size:0.66rem;}
+.comp-head, .comp-hp{display:flex; flex-wrap:wrap; gap:8px 14px; align-items:center; margin:6px 0;}
+.comp-nick{width:12em; margin-left:4px;}
+.comp-amt{width:4.5em;}
+.comp-hp-num b{font-size:1.2rem;}
+.comp-hp-num.down{color:var(--orange-bright, var(--orange));}
+.comp-attack{margin:6px 0; padding:6px 0; border-bottom:1px dashed var(--border);}
 .beast-sub{margin-top:8px; font-family:var(--font-display); color:var(--sea); border-bottom:1px solid var(--border);}
 /* Off: just the buttons, side by side; on: the button with what it does underneath, on its own line */
 .status-list.status-compact{display:flex; flex-wrap:wrap; gap:6px; align-items:flex-start;}
@@ -859,6 +865,12 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
 <div class="panel" id="wildPanel" hidden>
   <div class="panel-head"><h2>Wild Shape</h2><div class="status-pins" id="wildPins"></div></div>
   <div class="wild-body"></div>
+</div>
+
+<!-- The Beast Master's companion (rangers): js/companion.js -->
+<div class="panel" id="compPanel" hidden>
+  <div class="panel-head"><h2>Companion</h2><div class="status-pins" id="compPins"></div></div>
+  <div class="comp-body"></div>
 </div>
 
 <div class="panel" id="statusPanel" hidden>
@@ -5888,6 +5900,7 @@ setupSettings({onOpen:()=>{ if(document.getElementById('setDice').open) fillDice
 <script src="js/level-up.js"></script>
 <script src="js/data/beasts.js"></script>
 <script src="js/wild-shape.js"></script>
+<script src="js/companion.js"></script>
 <script src="js/item-forms.js"></script>
 <script src="js/inventory.js"></script>
 <script src="js/tabs.js"></script>
