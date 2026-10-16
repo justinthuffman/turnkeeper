@@ -376,6 +376,23 @@ button.insp-btn.on{border-color:var(--orange); background:var(--orange-tint); co
 .status-item .status-chip{flex:none;}
 .status-item small, .status-desc{font-size:0.76rem; color:var(--ink-dim); line-height:1.35;}
 .status-desc{margin:4px 0 0;}
+/* Wild Shape (js/wild-shape.js): the beasts to pick from, and a beast's stat block */
+.wild-actions{display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin:6px 0;}
+.wild-search{width:100%; margin:8px 0; padding:7px 9px; background:var(--bg); color:var(--ink); border:1px solid var(--border); border-radius:6px; font:inherit;}
+.wild-list{display:flex; flex-direction:column; gap:4px; max-height:420px; overflow:auto;}
+.wild-row{display:flex; flex-wrap:wrap; align-items:center; gap:6px 10px; padding:5px 6px; border-radius:6px; border:1px solid transparent;}
+.wild-row.open{border-color:var(--border); background:var(--panel2);}
+.wild-row .cs-none{flex:1 1 200px;}
+.wild-name{background:none; border:none; padding:0; color:var(--sea); font:inherit; font-weight:600; cursor:pointer; text-decoration:underline dotted; text-underline-offset:3px;}
+.beast-card{flex:1 1 100%; font-size:0.84rem; line-height:1.45; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:10px 12px; margin-top:6px;}
+.beast-card p{margin:5px 0;}
+.beast-top{display:flex; justify-content:space-between; gap:8px; flex-wrap:wrap; font-family:var(--font-display);}
+.beast-top b{color:var(--sea); font-size:1.05rem;}
+.beast-top span{color:var(--ink-dim); font-style:italic;}
+.beast-line{display:flex; flex-wrap:wrap; gap:4px 14px; margin:4px 0;}
+.beast-abil{display:grid; grid-template-columns:repeat(6, minmax(0, 1fr)); gap:4px; margin:6px 0; text-align:center;}
+.beast-abil small{display:block; color:var(--ink-dim); font-size:0.66rem;}
+.beast-sub{margin-top:8px; font-family:var(--font-display); color:var(--sea); border-bottom:1px solid var(--border);}
 /* Off: just the buttons, side by side; on: the button with what it does underneath, on its own line */
 .status-list.status-compact{display:flex; flex-wrap:wrap; gap:6px; align-items:flex-start;}
 .status-list.status-compact .status-item{flex:1 1 100%;}
@@ -838,6 +855,12 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
 </div>
 
 <!-- STATUS: conditions and magic on you; they change your rolls, speed, HP and AC -->
+<!-- Wild Shape (druids): js/wild-shape.js -->
+<div class="panel" id="wildPanel" hidden>
+  <div class="panel-head"><h2>Wild Shape</h2><div class="status-pins" id="wildPins"></div></div>
+  <div class="wild-body"></div>
+</div>
+
 <div class="panel" id="statusPanel" hidden>
   <div class="panel-head"><h2>Status</h2><div class="status-pins" id="statusPins"></div></div>
   <div class="status-body"></div>
@@ -5863,6 +5886,8 @@ setupSettings({onOpen:()=>{ if(document.getElementById('setDice').open) fillDice
 <script src="js/portrait-fit.js"></script>
 <script src="js/char-sheet.js"></script>
 <script src="js/level-up.js"></script>
+<script src="js/data/beasts.js"></script>
+<script src="js/wild-shape.js"></script>
 <script src="js/item-forms.js"></script>
 <script src="js/inventory.js"></script>
 <script src="js/tabs.js"></script>
