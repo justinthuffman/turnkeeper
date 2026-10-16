@@ -315,7 +315,7 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
 <div class="title-block">
   <div class="eyebrow-rule"></div>
   <h1 class="brand"><svg class="brand-mark" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="16" fill="none" stroke="var(--sea)" stroke-width="2"/><path d="M14 11 H26 M14 29 H26 M15 11 Q15 18 20 20 Q25 18 25 11 M15 29 Q15 22 20 20 Q25 22 25 29" fill="none" stroke="var(--sea)" stroke-width="1.8" stroke-linejoin="round"/><path d="M17.5 27 Q20 24 22.5 27 Z" fill="var(--orange)"/></svg>Turnkeeper</h1>
-  <div class="subtitle" id="hubSub">your characters and campaigns</div>
+  <div class="subtitle" id="hubSub">Your characters and campaigns</div>
 </div>
 
 <!-- Signing in (V6): Google, or a link by email; on this computer, test accounts too -->
@@ -516,7 +516,7 @@ if(!user && authMod.isSignInWithEmailLink(auth, location.href)){
 
 if(!user){
   $('hubAuth').hidden = false;
-  if(TEST_MODE){ $('signTestRow').hidden = false; $('hubSub').innerHTML = 'your characters and campaigns <span class="test-tag">test mode</span>'; }
+  if(TEST_MODE){ $('signTestRow').hidden = false; $('hubSub').innerHTML = 'Your characters and campaigns <span class="test-tag">test mode</span>'; }
   $('signGoogle').onclick = async ()=>{
     msg('authMsg', '');
     try{ await authMod.signInWithPopup(auth, new authMod.GoogleAuthProvider()); back(); }
@@ -555,7 +555,7 @@ if(!user){
   $('hubUser').hidden = false;
   $('hubUser').innerHTML = `Signed in as <b>${esc(me.name)}</b>${user.email ? ` (${esc(user.email)})` : user.isAnonymous ? ' (test account)' : ''}${TEST_MODE ? ' <span class="test-tag">test mode</span>' : ''} · <button type="button" id="signOut">Sign out</button>`;
   $('signOut').onclick = async ()=>{ await authMod.signOut(auth); location.href = 'index.html'; };
-  $('hubSub').textContent = `welcome, ${me.name}`;
+  $('hubSub').textContent = `Welcome, ${me.name}`;
 
   // My characters (characters/<id> where owner is this account)
   const mineSnap = await get(query(ref(db, CHARS), orderByChild('owner'), equalTo(user.uid))).catch(err=>{ console.warn('My characters:', err); return null; });
