@@ -83,6 +83,10 @@ button.sel-toggle:hover{background:none; color:var(--ink);}
 .view-banner{position:sticky; top:0; z-index:60; background:var(--orange, #b8433a); color:#fff; text-align:center; padding:6px 12px; font-size:0.85rem; font-weight:600;}
 .view-banner[hidden]{display:none;}
 body.view-only .panel button:not(.panel-head *), body.view-only .panel input, body.view-only .panel select:not(#campaignSelect){cursor:not-allowed;}
+.pc-beast{font-size:0.8rem; color:var(--sea); margin:2px 0;}
+.pc-comp{font-size:0.8rem; margin:4px 0; color:var(--ink-dim);}
+.pc-comp b{color:var(--ink);}
+.pc-comp.down{color:var(--orange-bright, #ea9257);}
 .pc-initial{display:grid; place-items:center; font-family:var(--font-display); font-size:1.4rem; color:var(--sea);}
 .pc-portrait{width:52px; height:52px; border-radius:50%; object-fit:cover; object-position:top; border:1px solid var(--border); flex:0 0 auto; background:var(--bg);}
 .pc-icon{width:64px;}   /* the player's icon (css/char-icons.css) */
@@ -720,12 +724,15 @@ function liveHtml(pc){
   if(L.exh) chips.push(`<span class="live-chip cond">Exhaustion ${L.exh}</span>`);
   if(L.conc) chips.push(`<span class="live-chip conc">Concentrating: ${esc(L.conc.name)}${L.conc.rounds ? ` (${L.conc.rounds})` : ''}</span>`);
   if(L.insp) chips.push(`<span class="live-chip insp">✧ Inspiration</span>`);
+  const beast = L.wild && typeof L.wild === 'object' ? L.wild : null, comp = L.comp && typeof L.comp === 'object' ? L.comp : null;
   const slots = arr(L.slots).map(s=>`${ORD[s.level] || s.level} <b>${s.left}</b>/${s.max}`).join(' · ');
   const res = arr(L.res).map(r=>`${esc(r.label)} <b>${r.left}</b>/${r.max}`).join(' · ');
   return `<div class="pc-live">
-    <div class="hp-text"><span>HP <b>${cur ?? '—'}</b> / ${max ?? '—'}</span>${hp.temp ? `<span class="tmp">+${hp.temp} temp</span>` : ''}</div>
+    ${beast ? `<div class="pc-beast" title="Wild Shape: the HP below is the beast’s; at 0 the druid changes back and the rest carries over">Wild Shape: <b>${esc(beast.name)}</b> · AC ${esc(beast.ac)}</div>` : ''}
+    <div class="hp-text"><span>${beast ? 'Beast HP' : 'HP'} <b>${cur ?? '—'}</b> / ${max ?? '—'}</span>${hp.temp ? `<span class="tmp">+${hp.temp} temp</span>` : ''}</div>
     <div class="hp-bar"><i class="${pct <= 25 ? 'low' : pct <= 50 ? 'mid' : ''}" style="width:${pct}%"></i></div>
     ${chips.length ? `<div class="chips">${chips.join('')}</div>` : ''}
+    ${comp ? `<div class="pc-comp${comp.hp === 0 ? ' down' : ''}">Companion: <b>${esc(comp.name)}</b>${comp.name !== comp.beast ? ` (${esc(comp.beast)})` : ''} · HP <b>${esc(comp.hp)}</b>/${esc(comp.max)} · AC ${esc(comp.ac)}${comp.hp === 0 ? ' · down' : ''}</div>` : ''}
     ${slots ? `<div class="res">Slots: ${slots}</div>` : ''}
     ${res ? `<div class="res">${res}</div>` : ''}
   </div>`;

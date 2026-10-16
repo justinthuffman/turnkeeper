@@ -12,7 +12,7 @@ function compState(){
   if(!currentCharId) return null;
   try{ const c = JSON.parse(storageGet(compKey()) || 'null'); return c && typeof c === 'object' && beastByName(c.name) ? c : null; }catch(e){ return null; }
 }
-const saveComp = c=>storageSet(compKey(), c ? JSON.stringify(c) : null);
+const saveComp = c=>{ storageSet(compKey(), c ? JSON.stringify(c) : null); if(typeof livePush === 'function') livePush(); };
 const isBeastMaster = ()=>typeof cf !== 'undefined' && cf.classKey === 'ranger' && cf.subclass === 'Beast Master' && charLevel() >= 3;
 const compAllowed = b=>b.type === 'beast' && CR_VALUE(b.cr) <= 0.25 && ['Tiny', 'Small', 'Medium'].includes(b.size);
 const compMax = b=>Math.max(b.hp, 4 * charLevel());

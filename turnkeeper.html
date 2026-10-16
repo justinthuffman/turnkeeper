@@ -5339,6 +5339,11 @@ function liveSnapshot(){
     conc:track.conc ? {name:track.conc.name, rounds:track.conc.rounds || 0} : null,
     death:cur === 0 ? {s:track.death.s || 0, f:track.death.f || 0} : null,
     insp:!!track.insp,
+    // In Wild Shape (js/wild-shape.js): the beast, its own hit points (hp above is the same pool) and AC
+    wild:(()=>{ const w = typeof wildState === 'function' && wildState(), b = w && beastByName(w.name); return b ? {name:b.name.slice(0, 40), hp:Math.max(0, Math.min(w.hp, w.max)), max:w.max, ac:b.ac} : null; })(),
+    // A Beast Master's companion (js/companion.js)
+    comp:(()=>{ const c = typeof compState === 'function' && compState(), b = c && beastByName(c.name); if(!b) return null; const max = compMax(b);
+      return {name:String(c.nick || b.name).slice(0, 40), beast:b.name.slice(0, 40), hp:Math.max(0, Math.min(c.hp ?? max, max)), max, ac:b.ac + proficiencyBonus()}; })(),
     // The Summary's passive boxes (Observant and ability increases included), for the DM Screen
     // Effective AC, speed, initiative and spell DC as this page shows them, with what's changing
     // AC and speed (Shield of Faith +2 from Krunk, Haste…), for the DM Screen
