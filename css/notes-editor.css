@@ -1,0 +1,14 @@
+/* Notes boxes formatted as you type (js/notes-editor.js): the sheet's Notes and the DM Screen's Session Notes */
+.notes-tools{display:flex; flex-wrap:wrap; gap:4px; margin-bottom:6px;}
+.notes-tools button{background:var(--panel2); border:1px solid var(--border); color:var(--ink); padding:3px 9px; min-width:32px; font-size:0.85rem; border-radius:4px; box-shadow:none;}
+.notes-edit{background:var(--panel2); border:1px solid var(--border); border-radius:4px; padding:10px 14px; min-height:220px; line-height:1.5; color:var(--ink); outline:none; overflow-wrap:anywhere;}
+.notes-edit:focus{border-color:var(--sea-dim);}
+.notes-edit{position:relative;}
+.notes-edit.blank::before{content:attr(data-placeholder); position:absolute; left:14px; right:14px; top:10px; color:var(--ink-dim); pointer-events:none;}
+.notes-edit p{margin:0;}
+.notes-edit blockquote{margin:6px 0; padding:4px 12px; border-left:3px solid var(--sea-dim); color:var(--ink-dim);}
+.notes-edit code{background:var(--bg); padding:1px 5px; border-radius:3px; font-family:ui-monospace, Consolas, monospace; font-size:0.85em;}
+.notes-edit pre{background:var(--bg); padding:8px 10px; border-radius:4px; overflow-x:auto;}
+.notes-edit pre code{background:none; padding:0;}
+.notes-edit ul, .notes-edit ol{margin:4px 0 8px 22px; padding:0;}
+.notes-edit h4, .notes-edit h5, .notes-edit h6{margin:10px 0 6px; color:var(--sea);}

@@ -16,6 +16,7 @@
 <link rel="stylesheet" href="css/panels.css">
 <link rel="stylesheet" href="css/char-icons.css">
 <link rel="stylesheet" href="css/class-themes.css">
+<link rel="stylesheet" href="css/notes-editor.css">
 <link rel="stylesheet" href="css/settings.css">
 <link rel="stylesheet" href="css/char-sheet.css">
 <style>
@@ -261,7 +262,7 @@ button.chip-btn.end-turn:hover{background:var(--orange-bright);}
 @media (max-width:520px){ .ref-body dl{grid-template-columns:1fr;} .ref-body dd{margin-bottom:6px;} }
 
 /* ---------- Notes ---------- */
-#notesBox{width:100%; min-height:200px; resize:vertical; line-height:1.45;}
+#notesBox{min-height:260px;}
 
 /* ---------- Stat block popup (same look as the tracker's roll popups) ---------- */
 .roll-backdrop{position:fixed; inset:0; z-index:60; background:var(--backdrop); display:flex; align-items:center; justify-content:center; padding:16px; opacity:0; transition:opacity .2s ease;}
@@ -598,7 +599,10 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
 <!-- NOTES -->
 <section class="panel" id="notesPanel">
   <div class="panel-head"><h2>Session Notes</h2><span class="msg" id="notesMsg" style="margin:0"></span></div>
-  <textarea id="notesBox" placeholder="NPCs, clues, loot, what happened this session…"></textarea>
+  <div class="notes-tools" role="toolbar" aria-label="Formatting">
+    <button type="button" data-mark="bold" title="Bold"><b>B</b></button><button type="button" data-mark="italic" title="Italic"><i>I</i></button><button type="button" data-mark="underline" title="Underline"><u>U</u></button><button type="button" data-mark="strike" title="Strikethrough"><s>S</s></button><button type="button" data-mark="heading" title="Heading">H</button><button type="button" data-mark="quote" title="Quote">&ldquo;</button><button type="button" data-mark="list" title="List">&bull;</button><button type="button" data-mark="code" title="Code">&lt;/&gt;</button><button type="button" data-mark="block" title="Code block">{ }</button>
+  </div>
+  <div id="notesBox" class="notes-edit blank" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Session notes" data-placeholder="NPCs, clues, loot, what happened this session… Start a line with - for a list, # for a heading or > for a quote."></div>
   <p class="panel-note" style="margin:6px 0 0;">Saved to your DM account as you type.</p>
 </section>
 
@@ -628,6 +632,7 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
 <script src="js/damage.js"></script>
 <script src="js/dice.js"></script>
 <script src="js/char-icons.js"></script>
+<script src="js/notes-editor.js"></script>
 <script>
 /* ============================================================
    DM Screen. One page for the DM: the campaign's party (from the Turnkeeper database), an
@@ -1692,11 +1697,13 @@ $('refBody').innerHTML = REFERENCE.map(r=>`<details class="ref"><summary>${r.tit
 
 /* ---------- Session notes ---------- */
 let notesTimer = null;
-function loadNotes(){ let v = ''; try{ v = localStorage.getItem(storeKey('notes')) || ''; }catch(e){} $('notesBox').value = v; $('notesMsg').textContent = ''; }
-$('notesBox').addEventListener('input', ()=>{
+// Formatted as you type (js/notes-editor.js); saved as text with marks, to the DM's account (js/account-store.js)
+const notesEd = tkNotesEditor({box:$('notesBox'), tools:document.querySelector('#notesPanel .notes-tools'), onChange:()=>{
+  if(viewOnly) return;
   clearTimeout(notesTimer);
-  notesTimer = setTimeout(()=>{ try{ localStorage.setItem(storeKey('notes'), $('notesBox').value); $('notesMsg').textContent = 'Saved'; }catch(e){ $('notesMsg').textContent = 'Couldn’t save in this browser'; } }, 400);
-});
+  notesTimer = setTimeout(()=>{ try{ localStorage.setItem(storeKey('notes'), notesEd.get()); $('notesMsg').textContent = 'Saved'; }catch(e){ $('notesMsg').textContent = 'Couldn’t save in this browser'; } }, 400);
+}});
+function loadNotes(){ let v = ''; try{ v = localStorage.getItem(storeKey('notes')) || ''; }catch(e){} notesEd.set(v, true); $('notesMsg').textContent = ''; }
 
 /* ---------- View only (an admin watching a campaign they don't DM) ----------
    The page follows the campaign's DM: their fight and Session Notes (from their account's saved
@@ -1711,14 +1718,14 @@ function setViewOnly(name){
   if(!b){ b = document.createElement('div'); b.id = 'viewBanner'; b.className = 'view-banner'; document.body.prepend(b); }
   b.hidden = !viewOnly;
   if(viewOnly) b.textContent = `Watching ${name} as admin: view only. The fight and notes follow its DM.`;
-  $('notesBox').readOnly = viewOnly;
+  notesEd.readOnly(viewOnly);
 }
 // The DM's saved preferences changed: show their fight and notes for this campaign
 window.dmViewPrefs = prefs=>{
   if(!viewOnly) return;
   const get = k=>{ const v = (prefs || {})[encodeURIComponent(storeKey(k)).replace(/\./g, '%2E')]; return typeof v === 'string' ? v : null; };
   try{ const c = JSON.parse(get('combat') || 'null'); combat = c && typeof c === 'object' ? c : {list:[], round:0, turn:null, log:[], nextId:1}; }catch(e){}
-  $('notesBox').value = get('notes') || '';
+  notesEd.set(get('notes') || '', true);
   renderInit();
 };
 const VIEW_OK = '#campaignSelect, .panel-head, .panel-head *, summary, a[href], #settings, #settings *, .theme-picker, .theme-picker *, #viewBanner';
@@ -1739,7 +1746,7 @@ async function setCampaign(key){
   $('campaignSelect').value = campaign.key;
   combat = (campaign.view ? null : loadJSON(storeKey('combat'), null)) || {list:[], round:0, turn:null, log:[], nextId:1};
   live = {};
-  if(campaign.view) $('notesBox').value = ''; else loadNotes(); renderInit(); renderEncounter();
+  if(campaign.view) notesEd.set('', true); else loadNotes(); renderInit(); renderEncounter();
   if(window.renderRecentRolls) window.renderRecentRolls();
   if(window.dmLiveWatch) window.dmLiveWatch(campaign.key);
   // The party: the campaign's players and the characters they brought

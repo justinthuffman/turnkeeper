@@ -13,6 +13,7 @@ Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wi
 - **Notes show their formatting as you type**, like a word processor: no more Write and Preview. Select
   text and use the toolbar (or Ctrl+B, Ctrl+I, Ctrl+U); start a line with `- ` for a list, `# ` for a heading
   or `> ` for a quote. Pasted text comes in plain.
+- **The DM Screen's Session Notes work the same way**, with the same toolbar and shortcuts.
 
 ### Removed
 - **Settings → Backup and Leaving the Page:** everything is saved to your account as you go, so there's
