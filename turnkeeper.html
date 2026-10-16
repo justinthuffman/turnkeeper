@@ -570,6 +570,27 @@ button.flow-btn .src-tag{color:var(--ink); border-color:rgba(255,255,255,0.6);}
 .view-banner.test{background:#6a3fb5;}
 .view-banner button{background:rgba(0,0,0,0.25); color:#fff; border:1px solid rgba(255,255,255,0.6); border-radius:6px; padding:3px 10px; font:inherit; cursor:pointer;}
 .lu-box{max-width:620px;}
+/* The level-up screen (js/level-up.js playLevelUpFx) */
+#lvlFx{position:fixed; inset:0; z-index:3000; display:grid; place-items:center; background:radial-gradient(ellipse at 50% 40%, rgba(40,28,10,0.92), rgba(5,4,8,0.97) 70%); opacity:0; transition:opacity .45s ease; overflow:hidden;}
+#lvlFx.on{opacity:1;} #lvlFx.off{opacity:0;}
+.lv-rays{position:absolute; left:50%; top:38%; width:160vmax; height:160vmax; margin:-80vmax 0 0 -80vmax; background:repeating-conic-gradient(from 0deg, rgba(255,214,120,0.16) 0 6deg, transparent 6deg 18deg); animation:lvSpin 30s linear infinite, lvRaysIn 1.4s ease-out both; mask:radial-gradient(circle, #000 0, transparent 55%); -webkit-mask:radial-gradient(circle, #000 0, transparent 55%);}
+@keyframes lvSpin{to{transform:rotate(360deg);}}
+@keyframes lvRaysIn{from{opacity:0; scale:0.4;} to{opacity:1; scale:1;}}
+.lv-sparks i{position:absolute; bottom:-10px; left:var(--x); width:var(--s); height:var(--s); border-radius:50%; background:radial-gradient(circle, #fff6d2, #f0b84a 60%, transparent 72%); box-shadow:0 0 8px #f0b84a; animation:lvSpark var(--d) linear var(--t) infinite; opacity:0;}
+@keyframes lvSpark{0%{opacity:0; transform:translateY(0);} 15%{opacity:1;} 100%{opacity:0; transform:translateY(-85vh);}}
+.lv-core{position:relative; text-align:center; color:#f6ead2; max-width:min(560px, 92vw);}
+.lv-ring{width:120px; height:120px; margin:0 auto 10px; border-radius:50%; display:grid; place-items:center; border:3px solid #e8c36a; box-shadow:0 0 24px rgba(240,190,90,0.8), inset 0 0 18px rgba(240,190,90,0.5); background:radial-gradient(circle, rgba(60,40,10,0.9), rgba(20,14,6,0.95)); animation:lvRing 0.9s cubic-bezier(.2,1.6,.4,1) 0.2s both;}
+.lv-ring span{font-family:var(--font-display); font-size:3.4rem; color:#ffe7a6; text-shadow:0 0 14px rgba(255,200,90,0.9);}
+@keyframes lvRing{from{transform:scale(0) rotate(-90deg); opacity:0;} to{transform:scale(1) rotate(0); opacity:1;}}
+.lv-title{font-family:var(--font-display); font-size:clamp(2.2rem, 7vw, 3.6rem); letter-spacing:0.22em; background:linear-gradient(180deg, #fff3cf, #e8b44f 55%, #a8721e); -webkit-background-clip:text; background-clip:text; color:transparent; filter:drop-shadow(0 0 12px rgba(240,180,70,0.55)); animation:lvTitle 1s ease-out 0.5s both;}
+@keyframes lvTitle{from{letter-spacing:0.9em; opacity:0;} to{letter-spacing:0.22em; opacity:1;}}
+.lv-sub{font-size:1rem; letter-spacing:0.08em; color:#d9c69c; margin:4px 0 18px; animation:lvUp .6s ease-out 1s both;}
+.lv-list{list-style:none; padding:0; margin:0 auto; display:flex; flex-direction:column; gap:6px; max-width:420px;}
+.lv-list li{padding:8px 14px; border:1px solid rgba(232,195,106,0.45); border-radius:6px; background:linear-gradient(90deg, rgba(232,195,106,0.12), rgba(232,195,106,0.03)); text-align:left; animation:lvUp .5s ease-out calc(1.3s + var(--i) * 0.18s) both;}
+.lv-list li.lv-hp{border-color:#e07a6a;} .lv-list li.lv-spell{border-color:#9d8cff;} .lv-list li.lv-pick{border-color:#7fd1c0;}
+@keyframes lvUp{from{opacity:0; transform:translateY(12px);} to{opacity:1; transform:none;}}
+.lv-go{margin-top:20px; padding:9px 26px; border-radius:6px; border:1px solid #e8c36a; background:linear-gradient(180deg, #e8c36a, #a8721e); color:#1c1306; font:inherit; font-weight:700; letter-spacing:0.08em; cursor:pointer; animation:lvUp .5s ease-out calc(1.3s + var(--i) * 0.18s) both;}
+@media (prefers-reduced-motion: reduce){ #lvlFx *, #lvlFx{animation:none !important; transition:none !important;} .lv-sparks{display:none;} }
 .lu-sec{border-top:1px solid var(--border); padding:10px 0;}
 .lu-sec h3{margin:0 0 6px; font-family:var(--font-display); font-weight:normal; color:var(--sea); font-size:1.05rem;}
 .lu-row{display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin:6px 0;}
@@ -6141,7 +6162,7 @@ try{
     ['items', 'effectDefs'].forEach(part=>onValue(ref(db, `${CAMP(c)}/${part}`),
       s=>{ if(window.tkDefsUpdate) window.tkDefsUpdate(part, s.val() || {}); }, err=>console.warn('Custom items:', err)));
   };
-  const compared = new Set(), watched = new Set(), healWatched = new Set();
+  const compared = new Set(), watched = new Set(), healWatched = new Set(), levelWatched = new Set();
   // Follow the campaign: the DM's combat, everyone's effects and live state (tkTableUpdate)
   const following = new Set();
   function follow(key){
@@ -6172,6 +6193,12 @@ try{
     if(!watched.has(snap.char)){ watched.add(snap.char); await onDisconnect(node).update({online:false}); }
     // Healing sent to this character by someone else (heals/<this character>/<id>). Each one is taken
     // with a transaction that deletes it, so only one open copy of this character adds the HP.
+    // The DM's level up or down for this character (js/level-up.js tkLevelRequest), cleared once done
+    if(!levelWatched.has(snap.char)){
+      levelWatched.add(snap.char);
+      const lref = ref(db, `${CAMP(snap.campaign)}/levelups/${snap.char}`);
+      onValue(lref, s=>{ const v = s.val(); if(v && window.tkLevelRequest) window.tkLevelRequest(clean(v), ()=>set(lref, null).catch(err=>console.warn('Level up:', err))); }, err=>console.warn('Level up:', err));
+    }
     if(!healWatched.has(snap.char)){
       healWatched.add(snap.char);
       onValue(ref(db, `${CAMP(snap.campaign)}/heals/${snap.char}`), s=>{

@@ -149,11 +149,11 @@ function finishLevelUp(){
   csFlash(`Level ${to}!`);
 }
 // Level down: back one level, taking off the hit points that level added (if Turnkeeper recorded them)
-function levelDown(){
+function levelDown(quiet){
   if(!csDb()) return;
   const lv = currentCore.level || 1; if(lv <= 1) return;
   const rec = levelHistory()[lv], hp = rec ? rec.hp : null;
-  if(!confirm(`Go back to level ${lv - 1}?${hp ? ` Your hit point maximum drops by ${hp} (what level ${lv} added).` : ' Lower your hit point maximum in Edit Character if it went up.'}`)) return;
+  if(!quiet && !confirm(`Go back to level ${lv - 1}?${hp ? ` Your hit point maximum drops by ${hp} (what level ${lv} added).` : ' Lower your hit point maximum in Edit Character if it went up.'}`)) return;
   const oldMax = hpMax();
   if(hp){
     const hist = levelHistory(); delete hist[lv]; storageSet(levelsKey(), Object.keys(hist).length ? JSON.stringify(hist) : null);
@@ -167,5 +167,64 @@ function levelDown(){
   csFlash('Saved.');
 }
 window.tkLevelUp = openLevelUp;
+
+/* ---------- The DM levels you up (or down) from the DM Screen ----------
+   The request arrives at campaigns/<c>/levelups/<this character> (the module script hands it to
+   tkLevelRequest). Up: the level-up screen plays, listing what the new level unlocks (grouped:
+   "2 more spells known", not each spell), and the level is taken: at once when hit points need no
+   choice (the campaign's average or maximum), else the Level Up window opens for that one choice.
+   Anything else (a subclass, an Ability Score Improvement, spells) goes to the choices banner.
+   Down: quietly back a level. Either way the request is then cleared. */
+const LU_HANDLED = new Set();
+// What the next level brings, as short lines for the level-up screen
+function luUnlocks(){
+  const out = [], {list, racial} = luFeatures(), spells = luSpells() || [], entry = CLASS_FEATURES[cf.classKey];
+  const pbNow = 2 + Math.floor((LU.to - 2) / 4), pbNew = 2 + Math.floor((LU.to - 1) / 4);
+  if(LU.hp) out.push({k:'hp', t:`+${luGain()} hit points`});
+  if(entry && LU.to === entry.subclassLevel && !cf.subclass) out.push({k:'pick', t:`Choose your ${entry.subclassLabel}`});
+  list.filter(t=>!t.choose && !t.picks && !/^Ability Score Improvement$/.test(t.name)).forEach(t=>out.push({k:'feat', t:t.name}));
+  if(luAsiLevel()) out.push({k:'pick', t:'Ability Score Improvement (or a feat)'});
+  list.filter(t=>t.choose).forEach(t=>out.push({k:'pick', t:`Choose: ${t.name}`}));
+  list.filter(t=>t.picks).forEach(t=>out.push({k:'pick', t:`New picks: ${t.name}`}));
+  racial.forEach(t=>out.push({k:'feat', t:t.name}));
+  spells.forEach(t=>out.push({k:'spell', t:t.replace(/ \(\d+ in all\)/, '').replace(/: \d+ in all$/, '')}));
+  if(pbNew > pbNow) out.push({k:'feat', t:`Proficiency bonus +${pbNew}`});
+  return out;
+}
+// The level-up screen: an original take on a big RPG level-up (golden light, the new level, then what it unlocks)
+function playLevelUpFx(to, clsName, items){
+  return new Promise(done=>{
+    document.getElementById('lvlFx')?.remove();
+    const fx = document.createElement('div'); fx.id = 'lvlFx'; fx.setAttribute('role', 'dialog'); fx.setAttribute('aria-label', 'Level up');
+    const sparks = Array.from({length:18}, (_, i)=>`<i style="--x:${(i * 37) % 100}%;--d:${2 + (i % 5) * 0.4}s;--t:${(i % 7) * 0.25}s;--s:${3 + (i % 3) * 2}px"></i>`).join('');
+    fx.innerHTML = `<div class="lv-rays"></div><div class="lv-sparks">${sparks}</div><div class="lv-core">
+      <div class="lv-ring"><span>${to}</span></div>
+      <div class="lv-title">LEVEL UP</div><div class="lv-sub">${escapeHtml(clsName)} · Level ${to}</div>
+      <ul class="lv-list">${items.map((x, i)=>`<li class="lv-${x.k}" style="--i:${i}">${escapeHtml(x.t)}</li>`).join('') || '<li style="--i:0">Your new level</li>'}</ul>
+      <button type="button" class="lv-go" style="--i:${items.length + 1}">Continue</button></div>`;
+    document.body.appendChild(fx);
+    requestAnimationFrame(()=>fx.classList.add('on'));
+    const close = ()=>{ fx.classList.add('off'); setTimeout(()=>fx.remove(), 450); done(); };
+    fx.querySelector('.lv-go').addEventListener('click', close);
+    fx.addEventListener('keydown', e=>{ if(e.key === 'Escape' || e.key === 'Enter') close(); });
+    setTimeout(()=>fx.querySelector('.lv-go').focus(), 1200);
+  });
+}
+window.tkLevelRequest = async (req, clear)=>{
+  if(!req || !csDb() || LU_HANDLED.has(req.id)) return;
+  LU_HANDLED.add(req.id);
+  const lv = currentCore.level || 1;
+  if(req.dir === 'down'){ if(req.to === lv - 1) levelDown(true); clear(); return; }
+  if(req.to !== lv + 1){ clear(); return; }   // already done, or out of step: nothing to do
+  Object.assign(LU, {to:lv + 1, hp:null, sub:'', choices:{}, asiMode:'asi', asi1:'', asi2:'', feat:''});
+  const rule = luHpRule(), die = hitDie();
+  if(rule === 'average') LU.hp = {how:'average', value:hpAverage(die)};
+  if(rule === 'max') LU.hp = {how:'max', value:die};
+  const items = luUnlocks();
+  clear();
+  await playLevelUpFx(LU.to, cf.classText || currentCore.cls || '', items);
+  if(LU.hp) finishLevelUp();   // nothing to ask: the level is taken, and any choices go to the banner
+  else openLevelUp();          // the hit points are the player's to roll or average
+};
 window.tkLevelDown = levelDown;
 document.addEventListener('keydown', e=>{ if(e.key === 'Escape'){ const d = document.getElementById('levelUp'); if(d && !d.hidden) d.hidden = true; } });
