@@ -182,7 +182,8 @@ function luUnlocks(){
   const pbNow = 2 + Math.floor((LU.to - 2) / 4), pbNew = 2 + Math.floor((LU.to - 1) / 4);
   if(LU.hp) out.push({k:'hp', t:`+${luGain()} hit points`});
   if(entry && LU.to === entry.subclassLevel && !cf.subclass) out.push({k:'pick', t:`Choose your ${entry.subclassLabel}`});
-  list.filter(t=>!t.choose && !t.picks && !/^Ability Score Improvement$/.test(t.name)).forEach(t=>out.push({k:'feat', t:t.name}));
+  // (the class's own 'Martial Archetype' / 'Druid Circle' entry is just the reminder to pick: the pick line covers it)
+  list.filter(t=>!t.choose && !t.picks && !/^Ability Score Improvement$/.test(t.name) && !(entry && t.name === entry.subclassLabel)).forEach(t=>out.push({k:'feat', t:t.name}));
   if(luAsiLevel()) out.push({k:'pick', t:'Ability Score Improvement (or a feat)'});
   list.filter(t=>t.choose).forEach(t=>out.push({k:'pick', t:`Choose: ${t.name}`}));
   list.filter(t=>t.picks).forEach(t=>out.push({k:'pick', t:`New picks: ${t.name}`}));
