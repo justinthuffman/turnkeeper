@@ -29,7 +29,7 @@ const DETAIL_AREAS = [['look', 'Appearance', 3], ['traits', 'Personality traits'
 // rolls: kept once rolled (no rerolls), whichever method is picked
 // level: the starting level (the DM says which); hpHow: 'average' or 'roll' for levels after 1st, with
 // hpRolls[i] the roll for level i + 2 (kept once rolled: no rerolls, and no switching to the average)
-const blank = ()=>({bringTo:'', step:'race', raceGroup:'', race:'', ancestry:'', asiPick:[], cls:'', subclass:'', level:1, hpHow:'', hpRolls:[], method:'', assignBy:{array:{}, roll:{}}, points:{str:8, dex:8, con:8, int:8, wis:8, cha:8}, rolls:null,
+const blank = ()=>({bringTo:'', gearHow:'', goldRoll:null, step:'race', raceGroup:'', race:'', ancestry:'', asiPick:[], cls:'', subclass:'', level:1, hpHow:'', hpRolls:[], method:'', assignBy:{array:{}, roll:{}}, points:{str:8, dex:8, con:8, int:8, wis:8, cha:8}, rolls:null,
   bg:'', langs:[], tools:[], skills:[], extraSkills:[], expertise:[], equip:{}, picks:{}, cantrips:[], spells:[], book:[],
   name:'', alignment:'', portrait:'', portraitFit:null, ...Object.fromEntries([...DETAIL_TEXT, ...DETAIL_AREAS].map(([k])=>[k, '']))});
 let S = (()=>{ try{ return {...blank(), ...(JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null') || {})}; }catch(e){ return blank(); } })();
@@ -46,6 +46,10 @@ function allowedMethods(){
   const ok = ABILITY_METHODS.filter(([k])=>!a || a[k] !== false);
   return ok.length ? ok : ABILITY_METHODS;
 }
+// The DM's campaign options (js/dice.js CAMPAIGN_OPTS), with their defaults when there's no campaign
+const campOpt = k=>{ const o = settings().opts || {}; return typeof cleanOpts === 'function' ? cleanOpts(o)[k] : o[k]; };
+// Starting equipment: the class's kit, or its starting gold (the DM's option, or the player's pick)
+const gearHow = ()=>{ const g = campOpt('startGear') || 'kit'; return g === 'choice' ? (S.gearHow || 'kit') : g; };
 // Variant Human is an optional rule: offered only when the campaign's DM turns it on
 const variantHumanOk = ()=>settings().variantHuman === true;
 
@@ -104,7 +108,8 @@ function toolChoices(){
 // Paladins and Rangers cast from level 2. (Eldritch Knights and Arcane Tricksters pick theirs on the Spells tab.)
 const SPELL_ABILITY = {bard:'cha', cleric:'wis', druid:'wis', paladin:'cha', ranger:'wis', sorcerer:'cha', warlock:'cha', wizard:'int'};
 function spellPlan(){
-  const lim = SPELL_LIMITS[S.cls], L = S.level || 1; if(!lim || !clsB()) return null;
+  // Level 1 spells only, whatever the starting level: the sheet's Spells tab shows how many more to pick
+  const lim = SPELL_LIMITS[S.cls], L = 1; if(!lim || !clsB()) return null;
   if((S.cls === 'paladin' || S.cls === 'ranger') && L < 2) return null;
   const maxLevel = maxSpellLevelAt(S.cls, S.subclass, L);
   let all = SPELL_DATA[S.cls] && SPELL_DATA[S.cls].length ? SPELL_DATA[S.cls]
@@ -121,14 +126,14 @@ function spellPlan(){
 // Starting equipment: [[name, qty]] from class choices, fixed items and the background
 function pickSlots(){
   const c = clsB(), out = []; if(!c) return out;
-  c.choices.forEach((group, i)=>{ const o = group[S.equip[i] || 0]; (o.pick || []).forEach(([kind, n])=>{ for(let j = 0; j < n; j++) out.push({key:`c${i}:${S.equip[i] || 0}:${kind}:${j}`, kind}); }); });
-  (c.fixedPick || []).forEach(([kind, n])=>{ for(let j = 0; j < n; j++) out.push({key:`f:${kind}:${j}`, kind}); });
+  if(gearHow() === 'kit') c.choices.forEach((group, i)=>{ const o = group[S.equip[i] || 0]; (o.pick || []).forEach(([kind, n])=>{ for(let j = 0; j < n; j++) out.push({key:`c${i}:${S.equip[i] || 0}:${kind}:${j}`, kind}); }); });
+  if(gearHow() === 'kit') (c.fixedPick || []).forEach(([kind, n])=>{ for(let j = 0; j < n; j++) out.push({key:`f:${kind}:${j}`, kind}); });
   const bg = BACKGROUND_GEAR[S.bg]; ((bg && bg.pick) || []).forEach(([kind, n])=>{ for(let j = 0; j < n; j++) out.push({key:`b:${kind}:${j}`, kind}); });
   return out;
 }
 function equipmentList(){
   const c = clsB(), bg = BACKGROUND_GEAR[S.bg], out = [];
-  if(c){ c.choices.forEach((group, i)=>out.push(...group[S.equip[i] || 0].items)); out.push(...c.fixed); }
+  if(c && gearHow() === 'kit'){ c.choices.forEach((group, i)=>out.push(...group[S.equip[i] || 0].items)); out.push(...c.fixed); }
   pickSlots().forEach(p=>{ if(S.picks[p.key]) out.push([S.picks[p.key], 1]); });
   if(bg) out.push(...bg.items);
   return out;
@@ -149,7 +154,7 @@ function missing(step){
   if(step === 'class'){
     if(!c) out.push('Pick a class.');
     else if(subclassNow() && !S.subclass) out.push(`Pick your ${CLASS_FEATURES[S.cls].subclassLabel}.`);
-    if(c && (S.level || 1) > 1 && !S.hpHow) out.push('Pick how to work out hit points after 1st level.');
+    if(c && (S.level || 1) > 1){ const how = hpHowNow(); if(!how) out.push('Pick how to work out hit points after 1st level.'); else if(how === 'roll' && S.hpRolls.length < (S.level || 1) - 1) out.push('Roll your hit points.'); }
   }
   if(step === 'abilities'){
     if(!S.method) out.push('Pick how to make your ability scores.');
@@ -168,7 +173,7 @@ function missing(step){
     if(c.expertise && S.expertise.filter(s=>allSkills().includes(s)).length !== c.expertise) out.push(`Pick ${c.expertise} skills for Expertise.`);
   }
   if(step === 'skills' && !c) out.push('Pick a class first.');
-  if(step === 'equipment'){ if(!c) out.push('Pick a class first.'); else if(pickSlots().some(p=>!S.picks[p.key])) out.push('Finish picking your equipment.'); }
+  if(step === 'equipment'){ if(!c) out.push('Pick a class first.'); else if(gearHow() === 'gold' && !S.goldRoll) out.push('Roll your starting gold.'); else if(pickSlots().some(p=>!S.picks[p.key])) out.push('Finish picking your equipment.'); }
   if(step === 'spells'){
     const p = spellPlan();
     if(p){
@@ -256,24 +261,25 @@ function renderClass(){
   if(c){
     const entry = CLASS_FEATURES[S.cls], dmgOk = settings().dmgSubclasses === true;
     const sub = S.subclass && entry ? entry.subclasses[S.subclass] || [] : [];
-    const feats = entry ? [...entry.base, ...sub].filter(f=>f.level <= L).sort((a, b)=>a.level - b.level) : [];
+    const feats = entry ? [...entry.base, ...sub].filter(f=>f.level === 1) : [];
     h += `<div class="box"><h3>${c.name}${L > 1 ? ` · Level ${L}` : ''}</h3><p class="note">Hit die d${c.hd} · saving throws: ${c.saves.map(a=>ABIL_NAME[a]).join(', ')} · ${c.skills.n} skills${SPELL_LIMITS[S.cls] ? ' · casts spells' : ''}</p>`;
     if(subclassNow()){
       const subs = Object.keys(entry.subclasses).filter(s=>!DMG_SUBCLASSES.includes(s) || dmgOk);
       h += `<p><label>${entry.subclassLabel} ${sel('data-sub', S.subclass, subs, 'Pick one…')}</label></p>`;
-    } else if(entry) h += `<p class="note">You pick your ${esc(entry.subclassLabel)} at level ${entry.subclassLevel}.</p>`;
-    // Hit points after 1st level: the average, or a roll for each level (kept once rolled)
+    } else if(entry) h += `<p class="note">${L >= entry.subclassLevel ? `Your sheet asks for your ${esc(entry.subclassLabel)} when it opens.` : `You pick your ${esc(entry.subclassLabel)} at level ${entry.subclassLevel}.`}</p>`;
+    // Hit points after 1st level, by the campaign's rule: the player's pick (average or a roll for each
+    // level, kept once rolled), or always the average, rolled or the maximum
     if(L > 1){
-      const rolled = S.hpHow === 'roll' && S.hpRolls.length >= L - 1;
-      h += `<h3>Hit Points After 1st Level</h3><p class="note">1st level gets the full d${c.hd}. For each level after that, take the average (${hpAverage(c.hd)}) or roll the d${c.hd}; Constitution is added either way.</p>`
-        + `<div class="chips"><label class="chip"><input type="radio" name="hpHow" data-hphow="average"${S.hpHow === 'average' ? ' checked' : ''}${S.hpRolls.length ? ' disabled' : ''}> Take the average</label>`
-        + `<label class="chip"><input type="radio" name="hpHow" data-hphow="roll"${S.hpHow === 'roll' ? ' checked' : ''}> Roll</label></div>`
-        + (S.hpHow === 'roll' ? (rolled ? `<div class="rolls">${S.hpRolls.slice(0, L - 1).map((d, i)=>`<span class="rollset"><small>Lv ${i + 2}</small><b>${d}</b></span>`).join('')}</div><p class="note">Rolled, so these stay (no rerolls).</p>`
+      const rule = campOpt('hpLevel') || 'choice', how = hpHowNow(), rolled = how === 'roll' && S.hpRolls.length >= L - 1;
+      h += `<h3>Hit Points After 1st Level</h3><p class="note">1st level gets the full d${c.hd}. ${{choice:`For each level after that, take the average (${hpAverage(c.hd)}) or roll the d${c.hd}`, average:`Your campaign takes the average (${hpAverage(c.hd)}) for each level after that`, roll:`Your campaign rolls the d${c.hd} for each level after that`, max:`Your campaign gives the maximum (${c.hd}) for each level after that`}[rule]}; Constitution is added either way.</p>`
+        + (rule === 'choice' ? `<div class="chips"><label class="chip"><input type="radio" name="hpHow" data-hphow="average"${S.hpHow === 'average' ? ' checked' : ''}${S.hpRolls.length ? ' disabled' : ''}> Take the average</label>`
+        + `<label class="chip"><input type="radio" name="hpHow" data-hphow="roll"${S.hpHow === 'roll' ? ' checked' : ''}> Roll</label></div>` : '')
+        + (how === 'roll' ? (rolled ? `<div class="rolls">${S.hpRolls.slice(0, L - 1).map((d, i)=>`<span class="rollset"><small>Lv ${i + 2}</small><b>${d}</b></span>`).join('')}</div><p class="note">Rolled, so these stay (no rerolls).</p>`
           : `<p><button type="button" class="btn" id="rollHp">Roll d${c.hd} for level${L > 2 ? 's 2 to ' + L : ' 2'}</button></p>`) : '')
-        + (hpMax() ? `<p class="note">Hit point maximum: <b>${hpMax()}</b>.</p>` : S.hpHow && finalScores().con === null ? `<p class="note">Your total shows once your ability scores are set.</p>` : '');
+        + (hpMax() ? `<p class="note">Hit point maximum: <b>${hpMax()}</b>.</p>` : how && finalScores().con === null ? `<p class="note">Your total shows once your ability scores are set.</p>` : '');
     }
-    h += feats.length ? `<h3>Features${L > 1 ? ' up to level ' + L : ''}</h3><ul class="traits">${feats.map(f=>`<li>${L > 1 ? `<small class="lv">Lv ${f.level}</small> ` : ''}<b>${esc(f.name)}</b> ${esc(f.desc || '')}${f.choose || f.picks ? ' <i>(pick it in the Build box when the character opens)</i>' : ''}</li>`).join('')}</ul>` : '';
-    if(L > 1) h += `<p class="note">Ability Score Improvements, feats and other choices for levels after 1st are picked in the sheet’s Build box when the character opens; it highlights each one.</p>`;
+    h += feats.length ? `<h3>Level 1 Features</h3><ul class="traits">${feats.map(f=>`<li><b>${esc(f.name)}</b> ${esc(f.desc || '')}${f.choose || f.picks ? ' <i>(pick it in the Build box when the character opens)</i>' : ''}</li>`).join('')}</ul>` : '';
+    if(L > 1) h += `<p class="note">Here you make your level 1 choices. Everything levels 2 to ${L} bring (a subclass, Ability Score Improvements, more spells and the like) is waiting on your sheet when it opens: its banner lists each choice.</p>`;
     h += `</div>`;
   }
   return h;
@@ -342,13 +348,19 @@ function renderEquipment(){
   const slotSel = key=>{ const p = slots.find(x=>x.key === key); if(!p) return '';
     return `<div class="slotpick">${sel(`data-epick="${key}"`, S.picks[key] || '', WEAPON_PICKS[p.kind].list().map(x=>x.name), `Pick ${WEAPON_PICKS[p.kind].label}…`)}${S.picks[key] ? `<span class="note">${esc(itemInfo(S.picks[key]))}</span>` : ''}</div>`; };
   let h = `<h2>Equipment</h2><p class="note">Hover over (or tap) an underlined item to see what it is.</p><h3>${c.name}</h3>`;
-  c.choices.forEach((group, i)=>{
+  const g = CLASS_GOLD[S.cls];
+  if((campOpt('startGear') || 'kit') === 'choice') h += `<div class="chips"><label class="chip"><input type="radio" name="gearHow" data-gearhow="kit"${gearHow() === 'kit' ? ' checked' : ''}${S.goldRoll ? ' disabled' : ''}> The class’s starting equipment</label><label class="chip"><input type="radio" name="gearHow" data-gearhow="gold"${gearHow() === 'gold' ? ' checked' : ''}> Starting gold (${g[0]}${g[1] > 1 ? ' × ' + g[1] : ''} gp) to buy your own</label></div>`;
+  if(gearHow() === 'gold'){
+    h += S.goldRoll ? `<div class="rolls"><span class="rollset">${S.goldRoll.dice.map(d=>`<i>${d}</i>`).join('')}<b>${S.goldRoll.total} gp</b></span></div><p class="note">Rolled: ${S.goldRoll.dice.join(' + ')}${g[1] > 1 ? ` × ${g[1]}` : ''} = ${S.goldRoll.total} gp. Buy your gear in the Inventory tab once the character is made (the Player’s Handbook lists the prices).</p>`
+      : `<p class="note">Instead of the class’s kit, roll ${g[0]}${g[1] > 1 ? ' × ' + g[1] : ''} gp and buy your own gear.</p><p><button type="button" class="btn" id="rollGold">Roll ${g[0]}${g[1] > 1 ? ' × ' + g[1] : ''} gp</button></p>`;
+  }
+  if(gearHow() === 'kit') c.choices.forEach((group, i)=>{
     const chosen = group[S.equip[i] || 0];
     h += `<div class="choice">${group.map((o, j)=>`<label class="chip"><input type="radio" name="eq${i}" data-equip="${i}" value="${j}"${(S.equip[i] || 0) === j ? ' checked' : ''}> ${o.items.length === 1 && !o.pick.length ? itemTip(o.items[0][0], o.label) : esc(o.label)}</label>`).join('<span class="or">or</span>')}`
       + (chosen.items.length ? itemLines(chosen.items) : '')
       + slots.filter(p=>p.key.startsWith(`c${i}:${S.equip[i] || 0}:`)).map(p=>slotSel(p.key)).join('') + `</div>`;
   });
-  h += `<h3>Also from your class</h3>${c.fixed.length ? itemLines(c.fixed) : ''}${slots.filter(p=>p.key.startsWith('f:')).map(p=>slotSel(p.key)).join('')}`;
+  if(gearHow() === 'kit') h += `<h3>Also from your class</h3>${c.fixed.length ? itemLines(c.fixed) : ''}${slots.filter(p=>p.key.startsWith('f:')).map(p=>slotSel(p.key)).join('')}`;
   if(bg) h += `<h3>From your background (${esc(S.bg)})</h3>${itemLines(bg.items)}${slots.filter(p=>p.key.startsWith('b:')).map(p=>slotSel(p.key)).join('')}<p class="note">And ${bg.gold} gp.</p>`;
   else h += `<p class="note">Pick a background to add its equipment.</p>`;
   h += `<p class="note">Armor, a shield and weapons go on (equipped) automatically. Change them any time in the Inventory tab.</p>`;
@@ -396,14 +408,17 @@ function hpLevels(){
   const c = clsB(), con = finalScores().con; if(!c || con === null) return null;
   const extra = mod(con) + ((raceB() && raceB().hpPerLevel) || 0), out = [{level:1, die:c.hd, hp:Math.max(1, c.hd + extra)}];
   for(let l = 2; l <= (S.level || 1); l++){
-    const die = S.hpHow === 'roll' ? S.hpRolls[l - 2] : S.hpHow === 'average' ? hpAverage(c.hd) : null;
+    const how = hpHowNow(), die = how === 'roll' ? S.hpRolls[l - 2] : how === 'average' ? hpAverage(c.hd) : how === 'max' ? c.hd : null;
     if(die === null || die === undefined) return null;
     out.push({level:l, die, hp:Math.max(1, die + extra)});
   }
   return out;
 }
+// How hit points go up after 1st level: the campaign's rule, or the player's pick when it's theirs
+const hpHowNow = ()=>{ const r = campOpt('hpLevel') || 'choice'; return r === 'choice' ? S.hpHow : r; };
 function hpMax(){ const h = hpLevels(); return h ? h.reduce((n, x)=>n + x.hp, 0) : null; }
-const subclassNow = ()=>{ const e = CLASS_FEATURES[S.cls]; return !!e && (S.level || 1) >= e.subclassLevel; };
+// Only a level 1 subclass is picked here; a later one is asked for on the sheet (its choices banner)
+const subclassNow = ()=>LEVEL1_SUBCLASS.includes(S.cls);
 function renderReview(){
   const todo = missing('review'), fin = finalScores(), c = clsB(), p = spellPlan();
   let h = `<h2>Review</h2>`;
@@ -479,8 +494,9 @@ document.addEventListener('click', e=>{
   if(b.id === 'next' || b.id === 'back'){ const st = visibleSteps(), i = st.findIndex(([k])=>k === S.step); S.step = st[Math.max(0, Math.min(st.length - 1, i + (b.id === 'next' ? 1 : -1)))][0]; render(); scrollTo(0, 0); return; }
   if(b.dataset.rgroup){ if(S.raceGroup !== b.dataset.rgroup){ const g = RACE_GROUPS.find(x=>x.name === b.dataset.rgroup), subs = subsOf(g); S.raceGroup = g.name; S.race = subs.length === 1 ? subs[0][0] : ''; S.ancestry = ''; S.asiPick = []; S.langs = []; } render(); return; }
   if(b.dataset.race){ if(S.race !== b.dataset.race){ S.race = b.dataset.race; S.asiPick = []; S.langs = []; } render(); return; }
-  if(b.dataset.cls){ if(S.cls !== b.dataset.cls){ S.cls = b.dataset.cls; S.subclass = ''; S.hpHow = ''; S.hpRolls = []; S.skills = []; S.expertise = []; S.equip = {}; S.picks = {}; S.cantrips = []; S.spells = []; S.book = []; S.tools = []; } render(); return; }
+  if(b.dataset.cls){ if(S.cls !== b.dataset.cls){ S.cls = b.dataset.cls; S.subclass = ''; S.hpHow = ''; S.hpRolls = []; S.goldRoll = null; S.gearHow = ''; S.skills = []; S.expertise = []; S.equip = {}; S.picks = {}; S.cantrips = []; S.spells = []; S.book = []; S.tools = []; } render(); return; }
   if(b.dataset.pb){ const a = b.dataset.pb; S.points[a] = Math.max(8, Math.min(15, S.points[a] + +b.dataset.d)); render(); return; }
+  if(b.id === 'rollGold'){ if(!S.goldRoll){ const [dice, mult] = CLASS_GOLD[S.cls], [n, sides] = dice.split('d').map(Number), r = new Uint32Array(n); crypto.getRandomValues(r); const rolls = [...r].map(x=>1 + x % sides); S.goldRoll = {dice:rolls, total:rolls.reduce((a, x)=>a + x, 0) * mult}; } render(); return; }
   if(b.id === 'rollHp'){ const c = clsB(); while(S.hpRolls.length < (S.level || 1) - 1){ const r = new Uint32Array(1); crypto.getRandomValues(r); S.hpRolls.push(1 + r[0] % c.hd); } render(); return; }
   if(b.id === 'rollScores'){ if(!S.rolls){ S.rolls = Array.from({length:6}, d4d6); S.assignBy.roll = {}; } render(); return; }
   if(b.id === 'startOver'){ if(confirm('Start over? This clears everything you’ve picked.')){ S = blank(); render(); } return; }
@@ -491,6 +507,7 @@ document.addEventListener('change', e=>{
   if(d.asipick){ S.asiPick = toggle(S.asiPick, d.asipick, t.checked, raceB().pick); }
   else if(d.sub !== undefined){ S.subclass = t.value; }
   else if(d.level !== undefined){ S.level = Math.min(20, Math.max(1, +t.value || 1)); if(!subclassNow()) S.subclass = ''; }
+  else if(d.gearhow){ if(!(d.gearhow === 'kit' && S.goldRoll)) S.gearHow = d.gearhow; }
   else if(d.hphow){ if(!(d.hphow === 'average' && S.hpRolls.length)) S.hpHow = d.hphow; }
   else if(d.ancestry !== undefined){ S.ancestry = t.value; }
   else if(d.bring !== undefined){ S.bringTo = d.bring; }
@@ -552,10 +569,11 @@ function buildRecord(){
   const kv = {
     [kvKey('inv:@')]:JSON.stringify({items}),
     [kvKey('equip:@')]:JSON.stringify(equip),
-    [kvKey('gold:@')]:JSON.stringify({log:[{t:Date.now(), d:BACKGROUND_GEAR[S.bg].gold, note:`Starting gold (${S.bg})`}]}),
+    [kvKey('gold:@')]:JSON.stringify({log:[{t:Date.now(), d:BACKGROUND_GEAR[S.bg].gold, note:`Starting gold (${S.bg})`},
+      ...(gearHow() === 'gold' && S.goldRoll ? [{t:Date.now() + 1, d:S.goldRoll.total, note:`Starting gold (${c.name}, instead of equipment)`}] : [])]}),
   };
   if(S.subclass) kv[kvKey('subclass:@')] = S.subclass;
-  if((S.level || 1) > 1) kv[kvKey('levels:@')] = JSON.stringify(Object.fromEntries(hpLevels().slice(1).map(x=>[x.level, {hp:x.hp, how:S.hpHow, die:x.die}])));   // js/level-up.js
+  if((S.level || 1) > 1) kv[kvKey('levels:@')] = JSON.stringify(Object.fromEntries(hpLevels().slice(1).map(x=>[x.level, {hp:x.hp, how:hpHowNow(), die:x.die}])));   // js/level-up.js
   if(S.race === 'Dragonborn' && S.ancestry) kv[kvKey('choice:@:Draconic Ancestry')] = S.ancestry;   // the sheet's Build box choice
   if(p){
     const prepared = [...S.cantrips, ...S.spells];
@@ -598,7 +616,7 @@ async function createCharacter(){
   const params = new URLSearchParams(location.search), code = params.get('join');
   const readSettings = async key=>{
     const out = {};
-    for(const k of ['abilities', 'dmgSubclasses', 'variantHuman']){ try{ out[k] = (await get(ref(db, `${CAMP(key)}/settings/${k}`))).val(); }catch(e){} }
+    for(const k of ['abilities', 'dmgSubclasses', 'variantHuman', 'opts']){ try{ out[k] = (await get(ref(db, `${CAMP(key)}/settings/${k}`))).val(); }catch(e){} }
     return out;
   };
   try{

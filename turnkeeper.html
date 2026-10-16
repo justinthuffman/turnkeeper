@@ -1448,6 +1448,7 @@ function ammoText(am){ return [am.magic && `+${am.magic} to hit and damage`, am.
 // Special ammunition is used up when it's fired (the to-hit roll)
 function afterAmmo(){
   const am = rollState.sel && rollState.sel.ammo; if(!am || am.done) return;
+  if(typeof critSettings === 'object' && critSettings.opts && critSettings.opts.ammo === false) return;   // the DM doesn't track ammunition
   am.done = true; useUpItem(am.itemId);
 }
 // Actions that are a single ability check get the same flow: (pick skill) → roll mode → Roll → popup

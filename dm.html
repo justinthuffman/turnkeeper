@@ -318,6 +318,11 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
 .top-right{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
 .cs-popup{width:min(980px, 100%);}
 .cs-lock{display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:10px;}
+.cs-sec{border-top:1px solid var(--border); padding:10px 0 4px;}
+.cs-sec:first-of-type{border-top:none;}
+.cs-h{font-family:var(--font-display); font-weight:normal; color:var(--sea); font-size:1.05rem; margin:0 0 6px;}
+.cs-opts.cs-col{flex-direction:column; align-items:flex-start;}
+.cs-later{color:var(--ink-dim); font-style:italic; margin-left:4px;}
 .cs-abil{flex-basis:100%; display:flex; flex-wrap:wrap; gap:6px 14px; align-items:center;}
 .cs-opts{display:flex; flex-wrap:wrap; gap:8px 18px; align-items:center; margin:10px 0 4px; font-size:0.85rem;}
 .cs-tip{font-size:0.78rem; color:var(--ink-dim); margin:4px 0 0;}
@@ -1943,21 +1948,18 @@ $('diceStyleMenu').addEventListener('click', e=>{ if(e.target.closest('#dsTry'))
 function fillDiceStyleMenu(){ $('diceStyleMenu').innerHTML = diceStyleMenuHtml(dmStyle, 'Your rolls are only ever shown on this screen.'); }
 $('setDice').addEventListener('toggle', e=>{ if(e.currentTarget.open) fillDiceStyleMenu(); });
 
-/* ---------- Campaign settings: crit GIF pools (V4) ----------
-   Behind a simple password ("pizza": a speed bump among friends, not security). Saved in the
+/* ---------- Campaign settings: every campaign option, and the crit GIF pools ----------
+   Character creation, leveling, table rules (CAMPAIGN_OPTS in js/dice.js), sounds; the reaction GIF
+   pools on a page of their own. Behind a simple password ("pizza": a speed bump among friends, not security). Saved in the
    campaign's settings in Firebase (window.dmSettingsWrite), read by every screen. See the Crit
    GIFs section of js/dice.js for how a roll picks from these pools. */
 const CS_PASSWORD = 'pizza';
 const CS_UNLOCK_KEY = 'dndTracker:dm:settingsOpen';
-// The !tk Avrae alias's pools and titles (Justin's, 2026-09-24), offered as a starting point
-const OLD_TK = {success:{links:['https://i.makeagif.com/media/2-24-2023/ZKu4VQ.gif', 'https://media.tenor.com/FOkn--1uI2MAAAAM/funny-dance-crazy-dance.gif', 'https://media.tenor.com/LJtdApnW_8UAAAAM/the-office-easter-easter.gif'],
-    flavor:["{who}: I DIDN'T DO FUCKING SHIT! I DIDN'T RIG SHIT!"]},
-  fail:{links:['https://c.tenor.com/Zuo3h4qRV4kAAAAd/tenor.gif', 'https://c.tenor.com/gQoEyrf6660AAAAd/tenor.gif', 'https://platform.vox.com/wp-content/uploads/sites/2/chorus/uploads/chorus_asset/file/8689379/anigif_enhanced_946_1433453114_7.gif'],
-    flavor:['{who} TOOK TOO SMALL A SLICE AND MADE A BIG MUD PIE!!']}};
 let csReturnFocus = null;
+let csView = 'main';   // 'main' (every option) or 'gifs' (the reaction GIF pools)
 const csUnlocked = ()=>{ try{ return sessionStorage.getItem(CS_UNLOCK_KEY) === '1'; }catch(e){ return false; } };
 function openSettings(){
-  csReturnFocus = document.activeElement;
+  csReturnFocus = document.activeElement; csView = 'main';
   renderSettings();
   const bd = $('csBackdrop'); bd.hidden = false;
   requestAnimationFrame(()=>bd.classList.add('open'));
@@ -2009,16 +2011,10 @@ function renderSettings(){
   }
   // Keep whatever is being typed across a redraw (a change from another screen)
   const el = document.activeElement, typing = el && el.closest && el.closest('#csBody') && el.id ? {id:el.id, v:el.value} : null;
-  $('csBody').innerHTML = `<div class="cs-opts">
-      <label><input type="checkbox" id="csDiceSound"${critSettings.diceSound ? ' checked' : ''}> Dice sounds on every screen</label>
-      <label><input type="checkbox" id="csSound"${critSettings.sound ? ' checked' : ''}> Play sound from clips (MP4 and WebM) on every screen</label>
-      <label title="The Dungeon Master’s Guide villain subclasses: the Oathbreaker (Paladin) and the Death Domain (Cleric). Players can pick them only while this is on."><input type="checkbox" id="csDmgSubclasses"${critSettings.dmgSubclasses ? ' checked' : ''}> DMG villain subclasses (Oathbreaker, Death Domain)</label>
-      <label title="The Player’s Handbook’s optional Variant Human (page 31): +1 to two ability scores, a skill and a feat at level 1, instead of +1 to every score. Players can pick it in the character creator only while this is on."><input type="checkbox" id="csVariantHuman"${critSettings.variantHuman ? ' checked' : ''}> Variant Human (optional rule)</label>
-      <label title="A house rule: throwing a healing potion at an ally heals them (the thrower rolls). Drinking or giving one is an action either way."><input type="checkbox" id="csThrownPotions"${critSettings.thrownPotions ? ' checked' : ''}> Thrown potions heal</label>
-      <label><input type="checkbox" id="csFx"${critFxOn() ? ' checked' : ''}> Show crit GIFs on this screen</label>
-      <div class="cs-abil" title="Which ways players can make ability scores in the character creator. Keep at least one.">New characters’ ability scores: ${[['array', 'Standard array'], ['pointBuy', 'Point buy'], ['roll', 'Roll 4d6']].map(([k, l])=>`<label><input type="checkbox" data-cs-abil="${k}"${critSettings.abilities[k] ? ' checked' : ''}> ${l}</label>`).join(' ')}</div>
-      <label>Party leveling <select id="csLeveling"><option value="milestone"${critSettings.leveling === 'xp' ? '' : ' selected'}>Milestone (you say when)</option><option value="xp"${critSettings.leveling === 'xp' ? ' selected' : ''}>Experience points</option></select></label>
-      <button type="button" class="ghost" id="csSeed">Add the old !tk GIFs to To Hit</button></div>
+  if(csView === 'gifs'){
+    $('csBody').innerHTML = `<p><button type="button" class="ghost" data-cs-view="main">← Campaign settings</button></p>
+    <h5 class="cs-h">Reaction GIFs</h5>
+    <div class="cs-opts"><label><input type="checkbox" id="csFx"${critFxOn() ? ' checked' : ''}> Show crit GIFs on this screen</label></div>
     <p class="cs-tip">On a natural 20 or 1, a player’s roll shows one GIF or clip and one flavor line from its row, on every screen, after the dice land. <b>{who}</b> in flavor text becomes the roller’s name. A row with “Use the To Hit pool” ticked, or with nothing in its own pool, uses To Hit’s. Paste the GIF’s own address (ending in .gif, .mp4 or .webm): on Tenor or Giphy, right-click the GIF, open it in a new tab, and copy that tab’s address. Links that won’t show are marked <span class="cs-bad">bad link</span>.</p>
     <div class="cs-msg" id="csMsg"></div>
     ${CRIT_ROWS.map(([row, name, yes, no])=>{
@@ -2026,6 +2022,37 @@ function renderSettings(){
       return `<div class="cs-row${g.useHit ? ' uses-hit' : ''}"><div class="cs-row-head"><h5>${name}</h5>${row === 'hit' ? '' : `<label><input type="checkbox" data-cs-usehit="${row}"${g.useHit ? ' checked' : ''}> Use the To Hit pool</label>`}</div>
         <div class="cs-cols">${csCell(row, 'success', yes)}${csCell(row, 'fail', no)}</div></div>`;
     }).join('')}`;
+  } else {
+    const o = critSettings.opts, later = k=>CAMPAIGN_OPT_LATER.includes(k) ? ' <small class="cs-later" title="Your choice is saved for when Turnkeeper tracks it">not tracked yet</small>' : '';
+    const pick = (k, label, opts, tip)=>`<label${tip ? ` title="${esc(tip)}"` : ''}>${label}${later(k)} <select data-cs-opt="${k}">${opts.map(([v, l])=>`<option value="${v}"${o[k] === v ? ' selected' : ''}>${l}</option>`).join('')}</select></label>`;
+    const tick = (k, label, tip)=>`<label${tip ? ` title="${esc(tip)}"` : ''}><input type="checkbox" data-cs-opt="${k}"${o[k] ? ' checked' : ''}> ${label}${later(k)}</label>`;
+    $('csBody').innerHTML = `<div class="cs-msg" id="csMsg"></div>
+    <section class="cs-sec"><h5 class="cs-h">Character Creation</h5><div class="cs-opts cs-col">
+      <div class="cs-abil" title="Which ways players can make ability scores in the character creator. Keep at least one.">Ability scores: ${[['array', 'Standard array'], ['pointBuy', 'Point buy (27)'], ['roll', 'Roll 4d6, drop the lowest']].map(([k, l])=>`<label><input type="checkbox" data-cs-abil="${k}"${critSettings.abilities[k] ? ' checked' : ''}> ${l}</label>`).join(' ')}</div>
+      ${pick('startGear', 'Starting equipment', [['kit', 'The class’s starting equipment'], ['gold', 'Starting gold (buy their own)'], ['choice', 'The player picks']], 'Player’s Handbook: each class has a starting kit, or rolls its starting gold and buys gear instead. Background equipment comes either way.')}
+      <label title="The Player’s Handbook’s optional Variant Human (page 31): +1 to two ability scores, a skill and a feat at level 1, instead of +1 to every score. Players can pick it in the character creator only while this is on."><input type="checkbox" id="csVariantHuman"${critSettings.variantHuman ? ' checked' : ''}> Variant Human (optional rule)</label>
+      <label title="The Dungeon Master’s Guide villain subclasses: the Oathbreaker (Paladin) and the Death Domain (Cleric). Players can pick them only while this is on."><input type="checkbox" id="csDmgSubclasses"${critSettings.dmgSubclasses ? ' checked' : ''}> DMG villain subclasses (Oathbreaker, Death Domain)</label>
+    </div></section>
+    <section class="cs-sec"><h5 class="cs-h">Leveling</h5><div class="cs-opts cs-col">
+      <label>Party leveling <select id="csLeveling"><option value="milestone"${critSettings.leveling === 'xp' ? '' : ' selected'}>Milestone (you say when)</option><option value="xp"${critSettings.leveling === 'xp' ? ' selected' : ''}>Experience points</option></select></label>
+      ${pick('hpLevel', 'Hit points after 1st level', [['choice', 'The player picks: roll or average'], ['average', 'Always the average'], ['roll', 'Always rolled'], ['max', 'Always the maximum']], 'For each level after 1st (Level Up, and starting above level 1). Constitution is added either way.')}
+    </div></section>
+    <section class="cs-sec"><h5 class="cs-h">Table Rules</h5><div class="cs-opts cs-col">
+      ${pick('encumbrance', 'Encumbrance', [['off', 'Off'], ['standard', 'Standard (carrying capacity)'], ['variant', 'Variant (encumbered, heavily encumbered)']], 'Player’s Handbook chapter 7. Item weights show in the inventory while this is on.')}
+      ${tick('coinWeight', 'Coins have weight (50 to the pound)')}
+      ${tick('ammo', 'Ammunition is used up', 'Each shot uses an arrow, bolt or bullet from the inventory.')}
+      ${tick('rations', 'Food and water')}
+      ${tick('lifestyle', 'Lifestyle expenses', 'Players pick a lifestyle in Details.')}
+      ${tick('sanity', 'Sanity (Dungeon Master’s Guide)')}
+      ${tick('injuries', 'Lingering injuries (Dungeon Master’s Guide)')}
+      <label title="A house rule: throwing a healing potion at an ally heals them (the thrower rolls). Drinking or giving one is an action either way."><input type="checkbox" id="csThrownPotions"${critSettings.thrownPotions ? ' checked' : ''}> Thrown potions heal</label>
+    </div></section>
+    <section class="cs-sec"><h5 class="cs-h">Sounds and Reactions</h5><div class="cs-opts cs-col">
+      <label><input type="checkbox" id="csDiceSound"${critSettings.diceSound ? ' checked' : ''}> Dice sounds on every screen</label>
+      <label><input type="checkbox" id="csSound"${critSettings.sound ? ' checked' : ''}> Play sound from clips (MP4 and WebM) on every screen</label>
+      <p><button type="button" class="ghost" data-cs-view="gifs">Reaction GIFs (natural 20s and 1s) →</button></p>
+    </div></section>`;
+  }
   // Mark links that won't load: each is checked on its own (the thumbnails may not load
   // while hidden), and the answer is remembered for this visit
   $('csBody').querySelectorAll('.cs-thumb').forEach(t=>checkLink(t.getAttribute('src')).then(ok=>{
@@ -2041,6 +2068,7 @@ $('csBody').addEventListener('click', async e=>{
     return;
   }
   const b = e.target.closest('button'); if(!b) return;
+  if(b.dataset.csView){ csView = b.dataset.csView; renderSettings(); $('csBody').scrollTop = 0; return; }
   const {row, side} = b.dataset;
   if(b.dataset.csAdd){
     const kind = b.dataset.csAdd, inp = $(`cs-${row}-${side}-${kind}`), v = inp.value.trim();
@@ -2055,15 +2083,7 @@ $('csBody').addEventListener('click', async e=>{
     const r = CRIT_ROWS.find(x=>x[0] === row), title = `${r[1]}: ${side === 'success' ? r[2] : r[3]}`;
     if(confirm(`Delete every GIF and flavor line in ${title}?`) && confirm('Are you sure? This can’t be undone.')) csWrite(`gifs/${row}/${side}`, null);
   }
-  else if(b.id === 'csSeed'){
-    if(!confirm('Add the !tk alias’s 6 GIFs and 2 titles to To Hit?')) return;
-    // Only what isn't in the pool already (so clicking it twice doesn't double anything)
-    for(const s of ['success', 'fail']){
-      const have = critSettings.gifs.hit[s];
-      for(const l of OLD_TK[s].links) if(!have.links.some(x=>x.v === l)) await csWrite(`gifs/hit/${s}/links`, l, true);
-      for(const f of OLD_TK[s].flavor) if(!have.flavor.some(x=>x.v === f)) await csWrite(`gifs/hit/${s}/flavor`, f, true);
-    }
-  }
+
 });
 $('csBody').addEventListener('change', e=>{
   if(e.target.id === 'csSound') csWrite('sound', e.target.checked);
@@ -2071,6 +2091,7 @@ $('csBody').addEventListener('change', e=>{
   else if(e.target.id === 'csLeveling') csWrite('leveling', e.target.value);
   else if(e.target.id === 'csThrownPotions') csWrite('thrownPotions', e.target.checked);
   else if(e.target.id === 'csDmgSubclasses') csWrite('dmgSubclasses', e.target.checked);
+  else if(e.target.dataset.csOpt){ const k = e.target.dataset.csOpt; csWrite(`opts/${k}`, e.target.type === 'checkbox' ? e.target.checked : e.target.value); }
   else if(e.target.id === 'csVariantHuman') csWrite('variantHuman', e.target.checked);
   else if(e.target.id === 'csFx') setCritFxOn(e.target.checked);
   else if(e.target.dataset.csAbil){

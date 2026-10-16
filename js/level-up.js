@@ -42,19 +42,25 @@ function luSpells(){
 }
 function luAsiLevel(){ return featSlotLevels().includes(LU.to); }
 
+// How hit points go up here: the player's pick (roll or average), or what the DM set for the campaign
+const luHpRule = ()=>(typeof critSettings === 'object' && critSettings.opts && critSettings.opts.hpLevel) || 'choice';
 function renderLevelUp(){
   const dlg = document.getElementById('levelUp'); if(!dlg) return;
-  const die = hitDie(), avg = hpAverage(die), con = luConMod(), dwarf = luDwarf(), entry = CLASS_FEATURES[cf.classKey];
+  const die = hitDie(), avg = hpAverage(die), con = luConMod(), dwarf = luDwarf(), entry = CLASS_FEATURES[cf.classKey], rule = luHpRule();
+  // A rule with no choice to make fills itself in
+  if(!LU.hp && rule === 'average') LU.hp = {how:'average', value:avg};
+  if(!LU.hp && rule === 'max') LU.hp = {how:'max', value:die};
   const {list, racial} = luFeatures(), spells = luSpells();
   const needSub = entry && LU.to === entry.subclassLevel && !cf.subclass;
   const chooseNow = list.filter(t=>t.choose);
   const picksNow = list.filter(t=>t.picks);
   let h = `<div class="cs-modal-box lu-box"><div class="cs-modal-head"><h2>Level Up to ${LU.to}</h2><button type="button" class="roll-close" data-lu-close aria-label="Close">&times;</button></div>`;
   // Hit points
-  h += `<div class="lu-sec"><h3>Hit Points</h3><p class="cs-none">Roll your hit die (d${die}) or take the average (${avg}), then add your Constitution modifier (${fmtMod(con)})${dwarf ? ' and 1 for Dwarven Toughness' : ''}.</p>`
-    + `<div class="lu-row"><button type="button" class="${LU.hp && LU.hp.how === 'roll' ? '' : 'ghost'}" data-lu-hp="roll"${LU.hp && LU.hp.how === 'roll' ? ' disabled' : ''}>Roll d${die}</button>`
-    + `<button type="button" class="${LU.hp && LU.hp.how === 'average' ? '' : 'ghost'}" data-lu-hp="average"${LU.hp && LU.hp.how === 'roll' ? ' disabled' : ''}>Take ${avg}</button>`
-    + (LU.hp ? `<span class="lu-hp">${LU.hp.how === 'roll' ? `Rolled <b>${LU.hp.value}</b>` : `Average <b>${LU.hp.value}</b>`} ${fmtMod(con)}${dwarf ? ' +1' : ''} = <b>+${luGain()}</b> hit points</span>` : '') + `</div>`
+  const ruleText = {choice:`Roll your hit die (d${die}) or take the average (${avg})`, average:`Your campaign uses the average of your hit die (${avg})`, roll:`Your campaign rolls your hit die (d${die})`, max:`Your campaign gives the maximum of your hit die (${die})`}[rule];
+  h += `<div class="lu-sec"><h3>Hit Points</h3><p class="cs-none">${ruleText}, then add your Constitution modifier (${fmtMod(con)})${dwarf ? ' and 1 for Dwarven Toughness' : ''}.</p>`
+    + `<div class="lu-row">${rule === 'choice' || rule === 'roll' ? `<button type="button" class="${LU.hp && LU.hp.how === 'roll' ? '' : 'ghost'}" data-lu-hp="roll"${LU.hp && LU.hp.how === 'roll' ? ' disabled' : ''}>Roll d${die}</button>` : ''}`
+    + `${rule === 'choice' ? `<button type="button" class="${LU.hp && LU.hp.how === 'average' ? '' : 'ghost'}" data-lu-hp="average"${LU.hp && LU.hp.how === 'roll' ? ' disabled' : ''}>Take ${avg}</button>` : ''}`
+    + (LU.hp ? `<span class="lu-hp">${LU.hp.how === 'roll' ? `Rolled <b>${LU.hp.value}</b>` : LU.hp.how === 'max' ? `Maximum <b>${LU.hp.value}</b>` : `Average <b>${LU.hp.value}</b>`} ${fmtMod(con)}${dwarf ? ' +1' : ''} = <b>+${luGain()}</b> hit points</span>` : '') + `</div>`
     + (LU.hp && LU.hp.how === 'roll' ? `<p class="cs-none">Rolled, so that’s it: no rerolls.</p>` : '') + `</div>`;
   // Subclass
   if(needSub){
@@ -106,7 +112,7 @@ function openLevelUp(){
     dlg.addEventListener('click', e=>{
       if(e.target === dlg || e.target.closest('[data-lu-close]')){ dlg.hidden = true; return; }
       const b = e.target.closest('button'); if(!b) return;
-      if(b.dataset.luHp){ const die = hitDie(); if(b.dataset.luHp === 'roll'){ if(!LU.hp || LU.hp.how !== 'roll') LU.hp = {how:'roll', value:luRoll(die)}; } else LU.hp = {how:'average', value:hpAverage(die)}; renderLevelUp(); }
+      if(b.dataset.luHp){ const die = hitDie(), rule = luHpRule(); if(b.dataset.luHp === 'average' && rule !== 'choice') return; if(b.dataset.luHp === 'roll' && !['choice', 'roll'].includes(rule)) return; if(b.dataset.luHp === 'roll'){ if(!LU.hp || LU.hp.how !== 'roll') LU.hp = {how:'roll', value:luRoll(die)}; } else LU.hp = {how:'average', value:hpAverage(die)}; renderLevelUp(); }
       else if(b.dataset.luGo !== undefined) finishLevelUp();
     });
     dlg.addEventListener('change', e=>{

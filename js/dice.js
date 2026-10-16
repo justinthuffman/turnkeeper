@@ -547,6 +547,23 @@ function safeUrl(u){
   try{ const x = new URL(u); return x.protocol === 'https:' ? x.href : ''; }catch(e){ return ''; }
 }
 const isClip = u=>/\.(mp4|webm)(\?|#|$)/i.test(u);
+/* The DM's campaign options (DM Screen → Campaign settings), with their defaults. A word option lists
+   its choices in CAMPAIGN_OPT_CHOICES. Some are for rules Turnkeeper doesn't track yet: the DM's choice is
+   kept for when it does (CAMPAIGN_OPT_LATER).
+     startGear    new characters get the class's starting equipment (kit), its starting gold (gold), or pick (choice)
+     hpLevel      hit points after 1st level: the player picks roll or average (choice), average, roll, or the maximum (max)
+     encumbrance  off, standard (carrying capacity) or variant (encumbered / heavily encumbered); item weight shows when not off
+     coinWeight   coins weigh something (50 to the pound)
+     ammo         arrows, bolts and the like are used up as you shoot
+     rations      food and water; lifestyle: lifestyle expenses; sanity: the Sanity score; injuries: lingering injuries */
+const CAMPAIGN_OPTS = {startGear:'kit', hpLevel:'choice', encumbrance:'off', coinWeight:false, ammo:true, rations:false, lifestyle:false, sanity:false, injuries:false};
+const CAMPAIGN_OPT_CHOICES = {startGear:['kit', 'gold', 'choice'], hpLevel:['choice', 'average', 'roll', 'max'], encumbrance:['off', 'standard', 'variant']};
+const CAMPAIGN_OPT_LATER = ['coinWeight', 'rations', 'sanity', 'injuries'];
+function cleanOpts(raw){
+  raw = raw && typeof raw === 'object' ? raw : {};
+  return Object.fromEntries(Object.entries(CAMPAIGN_OPTS).map(([k, d])=>{ const v = raw[k];
+    return [k, typeof d === 'boolean' ? (typeof v === 'boolean' ? v : d) : (CAMPAIGN_OPT_CHOICES[k].includes(v) ? v : d)]; }));
+}
 function cleanCritSettings(raw){
   raw = raw && typeof raw === 'object' ? raw : {};
   const gifs = {}, src = raw.gifs && typeof raw.gifs === 'object' ? raw.gifs : {};
@@ -558,10 +575,11 @@ function cleanCritSettings(raw){
   });
   // leveling: how the party levels up (Campaign settings): 'milestone' (the DM says when) or 'xp'
   // thrownPotions: a house rule (on unless the DM turns it off): a healing potion thrown at an ally heals them
+  // opts: the DM's campaign options (Campaign settings), each with its default (CAMPAIGN_OPTS)
   // variantHuman: the character creator offers the optional Variant Human; off unless turned on
   // abilities: which ability score methods the character creator offers (all three unless turned off)
   // dmgSubclasses: the DM allows the Dungeon Master's Guide villain subclasses (Oathbreaker, Death Domain); off unless turned on
-  return {sound:raw.sound === true, diceSound:raw.diceSound !== false, leveling:raw.leveling === 'xp' ? 'xp' : 'milestone', thrownPotions:raw.thrownPotions !== false, dmgSubclasses:raw.dmgSubclasses === true, variantHuman:raw.variantHuman === true, abilities:Object.fromEntries(['array', 'pointBuy', 'roll'].map(k=>[k, !raw.abilities || raw.abilities[k] !== false])), gifs, scene:cleanScene(raw.scene)};
+  return {sound:raw.sound === true, diceSound:raw.diceSound !== false, leveling:raw.leveling === 'xp' ? 'xp' : 'milestone', thrownPotions:raw.thrownPotions !== false, dmgSubclasses:raw.dmgSubclasses === true, variantHuman:raw.variantHuman === true, opts:cleanOpts(raw.opts), abilities:Object.fromEntries(['array', 'pointBuy', 'roll'].map(k=>[k, !raw.abilities || raw.abilities[k] !== false])), gifs, scene:cleanScene(raw.scene)};
 }
 /* The scene the DM sets (DMG chapter 5, PHB chapter 8, 2014): light, underwater, strong wind, heavy
    rain or snow, extreme cold or heat, high altitude. call: the DM asked everyone for a save (id, why);

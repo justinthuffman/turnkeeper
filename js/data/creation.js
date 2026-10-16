@@ -138,6 +138,9 @@ const CLASS_BUILD = {
 };
 // Classes that pick their subclass at level 1
 const LEVEL1_SUBCLASS = ['cleric', 'sorcerer', 'warlock'];
+// Starting gold instead of the class's equipment (PHB chapter 5): [dice, multiplier]
+const CLASS_GOLD = {barbarian:['2d4', 10], bard:['5d4', 10], cleric:['5d4', 10], druid:['2d4', 10], fighter:['5d4', 10], monk:['5d4', 1],
+  paladin:['5d4', 10], ranger:['5d4', 10], rogue:['4d4', 10], sorcerer:['3d4', 10], warlock:['4d4', 10], wizard:['4d4', 10]};
 
 // Background equipment and the gold in its pouch; pick: [[kind, count]] for "a gaming set" and so on.
 // Items that aren't on the equipment lists (a prayer book, a trophy) are kept as plain items.

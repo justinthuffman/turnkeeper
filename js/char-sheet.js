@@ -14,9 +14,13 @@ const csEsc = s=>String(s ?? '').replace(/[&<>"']/g, c=>({'&':'&amp;', '<':'&lt;
 const csDb = ()=>!!(charStore.kv && currentCore && currentCharId);
 const ALIGNMENTS = ['Lawful Good', 'Neutral Good', 'Chaotic Good', 'Lawful Neutral', 'True Neutral', 'Chaotic Neutral', 'Lawful Evil', 'Neutral Evil', 'Chaotic Evil', 'Unaligned'];
 const LIFESTYLES = ['Wretched', 'Squalid', 'Poor', 'Modest', 'Comfortable', 'Wealthy', 'Aristocratic'];
-// The Campaign settings toggles: XP leveling (the DM Screen's Party leveling); lifestyle, weight
-// and currencies are future toggles, off for now
-const campaignTracks = what=>what === 'xp' ? (typeof critSettings === 'object' && critSettings.leveling === 'xp') : false;
+// The Campaign settings that change the sheet: XP leveling (Party leveling), lifestyle expenses (the
+// Lifestyle box in Details), and weight (shown in the inventory when encumbrance is on)
+const campaignTracks = what=>{
+  if(typeof critSettings !== 'object') return false;
+  const o = critSettings.opts || {};
+  return what === 'xp' ? critSettings.leveling === 'xp' : what === 'lifestyle' ? !!o.lifestyle : what === 'weight' ? !!o.encumbrance && o.encumbrance !== 'off' : false;
+};
 
 // Save part of the record (debounced per key), then optionally redraw the page from it
 const csTimers = {}, csCorePending = new Set();   // keys typed here and not sent yet (live sync keeps them)
