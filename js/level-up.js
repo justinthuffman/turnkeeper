@@ -153,7 +153,7 @@ function finishLevelUp(){
   // Current hit points rise with the maximum (including what Constitution increases and Tough add)
   const newMax = hpMax();
   if(track.hp !== null && oldMax !== null && newMax !== null){ track.hp = Math.max(0, track.hp + (newMax - oldMax)); saveTrack(); renderResources(); }
-  document.getElementById('levelUp').hidden = true;
+  const dlg = document.getElementById('levelUp'); if(dlg) dlg.hidden = true;   // (a DM level-up takes the level without opening the window)
   const m = document.getElementById('cdLevelMsg');
   if(m) m.textContent = `Now level ${to}: +${gain} hit points.${spellLimits() && !spellLimits().none ? ' New spells: pick them on the Spells tab.' : ''}`;
   csFlash(`Level ${to}!`);

@@ -577,6 +577,8 @@ button.flow-btn .src-tag{color:var(--ink); border-color:rgba(255,255,255,0.6);}
 .pick-card small{color:var(--ink-dim); font-size:0.74rem;}
 .pick-card:hover{border-color:var(--sea-dim);}
 .pick-card.on{border-color:var(--sea); box-shadow:0 0 0 1px var(--sea) inset;}
+.sub-pick-box{max-width:760px;}
+#f_subclass:not(:disabled), #cfSubclass:not(:disabled){cursor:pointer;}
 /* The level-up screen (js/level-up.js playLevelUpFx) */
 #lvlFx{position:fixed; inset:0; z-index:3000; display:grid; place-items:center; background:radial-gradient(ellipse at 50% 40%, rgba(40,28,10,0.92), rgba(5,4,8,0.97) 70%); opacity:0; transition:opacity .45s ease; overflow:hidden;}
 #lvlFx.on{opacity:1;} #lvlFx.off{opacity:0;}
@@ -4913,6 +4915,34 @@ function setSubclass(name){
   if(spellBody.classList.contains('open')) renderSpellList();
 }
 document.getElementById('f_subclass').addEventListener('change', e=>setSubclass(e.target.value));
+/* The subclass dropdowns (Character Summary, Class Features) open a window of cards instead of a plain
+   list: each subclass with what it is and its features by level (js/data/subclass-info.js) */
+function openSubclassPicker(){
+  const entry = CLASS_FEATURES[cf.classKey]; if(!entry || charLevel() < entry.subclassLevel) return;
+  let dlg = document.getElementById('subPick');
+  if(!dlg){
+    dlg = document.createElement('div'); dlg.id = 'subPick'; dlg.className = 'cs-modal'; dlg.setAttribute('role', 'dialog'); dlg.setAttribute('aria-modal', 'true');
+    document.body.appendChild(dlg);
+    dlg.addEventListener('click', e=>{
+      if(e.target === dlg || e.target.closest('[data-subpick-close]')){ dlg.hidden = true; return; }
+      const card = e.target.closest('[data-subpick]'); if(!card) return;
+      if(card.dataset.subpick !== cf.subclass) setSubclass(card.dataset.subpick);
+      dlg.hidden = true;
+    });
+  }
+  dlg.setAttribute('aria-label', `Choose your ${entry.subclassLabel}`);
+  dlg.innerHTML = `<div class="cs-modal-box sub-pick-box"><div class="cs-modal-head"><h2>${escapeHtml(cf.subclass ? entry.subclassLabel : `Choose your ${entry.subclassLabel}`)}</h2><button type="button" class="roll-close" data-subpick-close aria-label="Close">&times;</button></div>`
+    + pickCardsHtml('data-subpick', cf.subclass, subclassOptions(cf.classKey, pickableSubclasses(entry))) + `</div>`;
+  dlg.hidden = false;
+  const first = dlg.querySelector('.pick-card.on') || dlg.querySelector('.pick-card'); if(first) first.focus();
+}
+['f_subclass', 'cfSubclass'].forEach(id=>{
+  const el = document.getElementById(id);
+  el.addEventListener('mousedown', e=>{ if(el.disabled) return; e.preventDefault(); openSubclassPicker(); });
+  el.addEventListener('touchend', e=>{ if(el.disabled) return; e.preventDefault(); openSubclassPicker(); }, {passive:false});
+  el.addEventListener('keydown', e=>{ if(!el.disabled && ['Enter', ' ', 'ArrowDown', 'ArrowUp'].includes(e.key)){ e.preventDefault(); openSubclassPicker(); } });
+});
+document.addEventListener('keydown', e=>{ if(e.key === 'Escape'){ const d = document.getElementById('subPick'); if(d && !d.hidden) d.hidden = true; } });
 // The DMG villain subclasses (Oathbreaker, Death Domain) only when the DM allows them in Campaign
 // settings; one the character already has stays
 function pickableSubclasses(entry){
