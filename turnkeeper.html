@@ -589,7 +589,7 @@ button.flow-btn .src-tag{color:var(--ink); border-color:rgba(255,255,255,0.6);}
 .lv-list li{padding:8px 14px; border:1px solid rgba(232,195,106,0.45); border-radius:6px; background:linear-gradient(90deg, rgba(232,195,106,0.12), rgba(232,195,106,0.03)); text-align:left; animation:lvUp .5s ease-out calc(1.3s + var(--i) * 0.18s) both;}
 .lv-list li.lv-hp{border-color:#e07a6a;} .lv-list li.lv-spell{border-color:#9d8cff;} .lv-list li.lv-pick{border-color:#7fd1c0;}
 @keyframes lvUp{from{opacity:0; transform:translateY(12px);} to{opacity:1; transform:none;}}
-.lv-go{margin-top:20px; padding:9px 26px; border-radius:6px; border:1px solid #e8c36a; background:linear-gradient(180deg, #e8c36a, #a8721e); color:#1c1306; font:inherit; font-weight:700; letter-spacing:0.08em; cursor:pointer; animation:lvUp .5s ease-out calc(1.3s + var(--i) * 0.18s) both;}
+#lvlFx .lv-go{margin-top:20px; padding:9px 26px; border-radius:6px; border:1px solid #f3d58a !important; background:linear-gradient(180deg, #f3d27a, #b07a22) !important; color:#1c1306 !important; opacity:1; text-shadow:none !important; box-shadow:0 0 14px rgba(240,190,90,0.55) !important; font:inherit; font-weight:700; letter-spacing:0.08em; cursor:pointer; animation:lvUp .5s ease-out calc(1.3s + var(--i) * 0.18s) both;}
 @media (prefers-reduced-motion: reduce){ #lvlFx *, #lvlFx{animation:none !important; transition:none !important;} .lv-sparks{display:none;} }
 .lu-sec{border-top:1px solid var(--border); padding:10px 0;}
 .lu-sec h3{margin:0 0 6px; font-family:var(--font-display); font-weight:normal; color:var(--sea); font-size:1.05rem;}
@@ -2759,6 +2759,13 @@ const TARGETED = {
 const table = {combat:null, effects:{}, live:{}};
 const tableWas = {active:null, myTurn:null};
 const arrOf = x=>Array.isArray(x) ? x : Object.values(x || {});
+// The character's class for display: the class itself, and its subclass (full name) once picked.
+// Not the record's old free-text class (a V5 import could say "Vengeance Paladin" with no subclass picked).
+function classTitle(withSub){
+  const k = typeof cf !== 'undefined' && cf.classKey; if(!k) return (currentCore && currentCore.cls) || '';
+  const name = k.charAt(0).toUpperCase() + k.slice(1);
+  return withSub && cf.subclass ? `${name} · ${cf.subclass}` : name;
+}
 // V6: the campaign the open character plays in (from its record), or null
 let tkCampaign = {key:null, name:'None'};
 function myCampaignKey(){ return currentCharId ? tkCampaign.key : null; }
@@ -5394,7 +5401,7 @@ function liveSnapshot(){
   const cur = hpNow(), max = hpMax();
   return {campaign:camp.key, char:currentCharId, effects:Object.fromEntries((track.cast || []).map(x=>[x.id, {name:x.name, caster:(document.getElementById('f_name').value || '').slice(0, 60), targets:arrOf(x.targets).map(sharedTarget), status:x.status || null, conc:!!x.conc, rounds:x.rounds || 0, ...(x.save && x.dc ? {save:x.save, dc:x.dc, when:x.when || 'end'} : {})}])),
     data:{
-    name:(document.getElementById('f_name').value || '').slice(0, 60), level:charLevel(), cls:(document.getElementById('f_class').value || '').slice(0, 60),   // lengths fit the database rules
+    name:(document.getElementById('f_name').value || '').slice(0, 60), level:charLevel(), cls:classTitle(true).slice(0, 60),   // lengths fit the database rules
     hp:{cur, max, temp:track.temp || 0},
     status:Object.keys(st.on).filter(k=>st.on[k] && STATUS_BY_KEY[k]).map(k=>({name:STATUS_BY_KEY[k].name, group:STATUS_BY_KEY[k].group, rounds:rounds[k] || 0, from:(st.ext && st.ext[k]) || null})),
     exh:st.exh || 0,

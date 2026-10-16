@@ -231,7 +231,7 @@ window.tkLevelRequest = async (req, clear)=>{
   if(rule === 'max') LU.hp = {how:'max', value:die};
   const items = luUnlocks();
   clear();
-  await playLevelUpFx(LU.to, cf.classText || currentCore.cls || '', items);
+  await playLevelUpFx(LU.to, classTitle(false), items);
   if(LU.hp) finishLevelUp();   // nothing to ask: the level is taken, and any choices go to the banner
   else openLevelUp();          // the hit points are the player's to roll or average
 };

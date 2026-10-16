@@ -940,7 +940,8 @@ function pcCard(pc){
   }).join('');
   const stat = (dt, dd, title, changed) => `<div${changed ? ' class="changed"' : ''} title="${esc(title||'')}"><dt>${dt}</dt><dd>${dd ?? '—'}</dd></div>`;
   const ps = passivesOf(pc), fx = statsOf(pc);
-  return `<article class="pc-card${may ? ' allowed' : turnNow ? ' turn' : ''}" data-char="${pc.char}">${top(`Level ${p.level} ${esc(p.race)} ${esc(p.cls)}`)}
+  const Lc = live[pc.char], cls = Lc && typeof Lc.cls === 'string' && Lc.cls ? Lc.cls : p.cls, lvl = (Lc && Lc.level) || p.level;   // their Turnkeeper says best (class and picked subclass)
+  return `<article class="pc-card${may ? ' allowed' : turnNow ? ' turn' : ''}" data-char="${pc.char}">${top(`Level ${lvl} ${esc(p.race)} ${esc(cls)}`)}
     ${liveHtml(pc)}
     <dl class="pc-stats">${stat('AC', fx.ac, fx.acTitle, fx.ac !== p.ac)}${stat('HP', fx.hpMax, fx.hpTitle, fx.hpMax !== p.hpMax)}${stat('Init', fmtMod(fx.init), fx.init !== p.init ? `${fmtMod(p.init)} base` : '', fx.init !== p.init)}${stat('Speed', fx.speed, fx.speedTitle, fx.speed !== fx.speedBase)}${stat('DC', fx.dc, 'Spell save DC',fx.dc !== (p.spellDc ?? null))}</dl>
     <div class="pc-mods">${fx.notes.map(n=>`<div>${esc(n)}</div>`).join('')}</div>
