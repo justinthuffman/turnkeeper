@@ -560,7 +560,9 @@ if(!user){
   // My characters (characters/<id> where owner is this account)
   const mineSnap = await get(query(ref(db, CHARS), orderByChild('owner'), equalTo(user.uid))).catch(err=>{ console.warn('My characters:', err); return null; });
   const allMine = Object.entries((mineSnap && mineSnap.val()) || {}).map(([id, rec])=>({id, rec}));
-  const mine = allMine.filter(x=>!x.rec.archived), archivedChars = allMine.filter(x=>x.rec.archived);
+  // A DM's test-room copies (DM Screen → Test) live in the test room, not on the roster
+  const ownChars = allMine.filter(x=>!(x.rec.core && x.rec.core.testRoom));
+  const mine = ownChars.filter(x=>!x.rec.archived), archivedChars = ownChars.filter(x=>x.rec.archived);
   const campNames = {};
   const myCamps = me.campaigns && typeof me.campaigns === 'object' ? me.campaigns : {};
   await Promise.all(Object.keys(myCamps).map(async k=>{ const m = (await get(ref(db, `${CAMP(k)}/meta`)).catch(()=>null))?.val(); if(m) campNames[k] = m; }));

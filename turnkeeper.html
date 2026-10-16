@@ -565,6 +565,10 @@ button.flow-btn .src-tag{color:var(--ink); border-color:rgba(255,255,255,0.6);}
 
 /* Tooltip */
 /* Level Up (js/level-up.js): uses the Edit Character window's look */
+.view-banner{position:sticky; top:0; z-index:70; display:flex; flex-wrap:wrap; gap:8px 14px; align-items:center; justify-content:center; background:var(--orange, #b8433a); color:#fff; padding:7px 14px; font-size:0.86rem;}
+.view-banner[hidden]{display:none;}
+.view-banner.test{background:#6a3fb5;}
+.view-banner button{background:rgba(0,0,0,0.25); color:#fff; border:1px solid rgba(255,255,255,0.6); border-radius:6px; padding:3px 10px; font:inherit; cursor:pointer;}
 .lu-box{max-width:620px;}
 .lu-sec{border-top:1px solid var(--border); padding:10px 0;}
 .lu-sec h3{margin:0 0 6px; font-family:var(--font-display); font-weight:normal; color:var(--sea); font-size:1.05rem;}
@@ -4275,6 +4279,22 @@ function applyCore(core, charId){
   if(window.renderCharSheet) window.renderCharSheet();   // V5 panels (js/char-sheet.js)
 }
 
+// The banner on a view-only sheet: whose it is, and a way to start again from the player's character
+function showViewBanner(name){
+  let b = document.getElementById('viewBanner');
+  // A copy in the DM's test room (DM Screen → Test): it's theirs to play, but say what it is
+  if(!window.tkViewOnly && currentCore && currentCore.testRoom){
+    if(!b){ b = document.createElement('div'); b.id = 'viewBanner'; b.className = 'view-banner test'; document.body.prepend(b); }
+    b.hidden = false; b.classList.add('test');
+    b.innerHTML = `<span>Test room: a copy of <b>${escapeHtml(name || 'this character')}</b>. Play it, level it, try anything; the real character and the game aren’t touched.</span>`;
+    return;
+  }
+  if(!window.tkViewOnly){ if(b) b.hidden = true; return; }
+  if(!b){ b = document.createElement('div'); b.id = 'viewBanner'; b.className = 'view-banner'; document.body.prepend(b); }
+  b.hidden = false;
+  b.innerHTML = `<span>Viewing <b>${escapeHtml(name || 'this character')}</b> (the player’s sheet): try anything, nothing is saved or sent to the table.</span><button type="button" id="viewReload">Reload from the player</button>`;
+  document.getElementById('viewReload').onclick = ()=>location.reload();
+}
 async function openDbCharacter(id){
   setStatus('Opening the character…');
   try{
@@ -4286,10 +4306,15 @@ async function openDbCharacter(id){
     if(campaignKey && window.tkFollowDefs) window.tkFollowDefs(campaignKey);   // the campaign's custom items and effects
     const meta = campaignKey ? await db.campaignMeta(campaignKey).catch(()=>null) : null;
     tkCampaign = {key:campaignKey, name:meta && typeof meta.name === 'string' ? meta.name.slice(0, 80) : campaignKey ? 'Your campaign' : 'None'};
+    // Someone else's character (the campaign's DM, or an admin): view only. Everything on the sheet
+    // works (rolls, attacks, damage, features) but nothing is saved to the character or sent to the
+    // table; it starts from the player's character as it is now (Reload brings it up to date)
+    window.tkViewOnly = !!(rec.owner && window.tkUser && rec.owner !== window.tkUser.uid);
     Object.assign(charStore, {id, campaign:campaignKey, kv:rec.kv || {}, pending:{}});
-    followCharacter();   // changes made elsewhere show here (js/char-store.js)
+    if(!window.tkViewOnly) followCharacter();   // changes made elsewhere show here (js/char-store.js)
     applyCore(rec.core, id);
-    setStatus('Loaded from the Turnkeeper database.', 'ok');
+    showViewBanner(rec.core.name);
+    setStatus(window.tkViewOnly ? 'Viewing a player’s character: nothing here is saved.' : 'Loaded from the Turnkeeper database.', 'ok');
   }catch(err){ setStatus(err.message, 'err'); }
 }
 /* ---------- Pinned sections (Racial Traits, Class Features) ---------- */
@@ -5943,7 +5968,7 @@ function myTurnNow(){
 }
 // Outside a campaign you can always roll; in one, on your turn in combat or when the DM allows it
 function mayRoll(){
-  if(!currentCharId || !myCampaignKey()) return true;
+  if(!currentCharId || !myCampaignKey() || window.tkViewOnly) return true;
   return !!(diceTable.allow && diceTable.allow[currentCharId]) || myTurnNow() || pendingSaves().length > 0 || !!pendingEnvCall();
 }
 window.tkDiceRefresh = ()=>{ document.body.classList.toggle('may-roll', mayRoll()); syncThrow(); };
@@ -6094,19 +6119,20 @@ try{
   // V5: characters in the database (js/char-store.js). Records come back raw: applyCore and the
   // tracker's loaders check each value, and kv values are JSON or plain text they parse themselves.
   const charRef = (c, id, part)=>ref(db, `${CHARS}/${id}${part ? '/' + part : ''}`);   // V6: characters/<id>, whatever campaign they're in
+  const viewing = ()=>!!window.tkViewOnly, nothing = ()=>Promise.resolve();
   window.tkDb = {
     getChar: async (c, id)=>(await get(charRef(c, id))).val(),
     // Live sync (js/char-store.js): the whole record whenever it changes; returns a stop function
     followChar: (c, id, cb)=>onValue(charRef(c, id), s=>cb(s.val()), err=>console.warn('Following the character:', err)),
     // A campaign's name (meta), for Character Summary's Campaign box
     campaignMeta: async c=>c ? (await get(ref(db, `${CAMP(c)}/meta`))).val() : null,
-    setCore: (c, id, core)=>update(charRef(c, id), {core, t:serverTimestamp()}),
+    setCore: (c, id, core)=>viewing() ? nothing() : update(charRef(c, id), {core, t:serverTimestamp()}),
     // Part of the record: {details:{…}, languages:[…]} → core/details, core/languages
-    updateCore: (c, id, patch)=>update(charRef(c, id), {...Object.fromEntries(Object.entries(patch).map(([k, v])=>['core/' + k, v === undefined ? null : v])), t:serverTimestamp()}),
-    updateKv: (c, id, patch)=>update(charRef(c, id), {...Object.fromEntries(Object.entries(patch).map(([k, v])=>['kv/' + k, v])), t:serverTimestamp()}),
+    updateCore: (c, id, patch)=>viewing() ? nothing() : update(charRef(c, id), {...Object.fromEntries(Object.entries(patch).map(([k, v])=>['core/' + k, v === undefined ? null : v])), t:serverTimestamp()}),
+    updateKv: (c, id, patch)=>viewing() ? nothing() : update(charRef(c, id), {...Object.fromEntries(Object.entries(patch).map(([k, v])=>['kv/' + k, v])), t:serverTimestamp()}),
     // The campaign's shared custom items (Grun's Greataxe) and effects (Bleeding): {name, json, by, t}
-    deleteDef: (c, part, id)=>set(ref(db, `${CAMP(c)}/${part}/${id}`), null),
-    saveDef: (c, part, id, name, def, by)=>set(ref(db, `${CAMP(c)}/${part}/${id}`), {name:String(name).slice(0, part === 'items' ? 80 : 60), json:JSON.stringify(def), by:String(by || '').slice(0, 60), t:serverTimestamp()}),
+    deleteDef: (c, part, id)=>viewing() ? nothing() : set(ref(db, `${CAMP(c)}/${part}/${id}`), null),
+    saveDef: (c, part, id, name, def, by)=>viewing() ? nothing() : set(ref(db, `${CAMP(c)}/${part}/${id}`), {name:String(name).slice(0, part === 'items' ? 80 : 60), json:JSON.stringify(def), by:String(by || '').slice(0, 60), t:serverTimestamp()}),
   };
   // Follow a campaign's custom items and effects (every player's list updates as they're added)
   const defsFollowed = new Set();
@@ -6132,6 +6158,7 @@ try{
     const snap = liveSnapshot();
     if(!snap){ showLive(null); return; }
     follow(snap.campaign);
+    if(viewing()){ showLive(null); return; }
     const node = ref(db, `${CAMP(snap.campaign)}/live/${snap.char}`);
     if(!compared.has(snap.char)){
       compared.add(snap.char);
@@ -6161,18 +6188,19 @@ try{
   let queue = Promise.resolve();
   // Tell the DM Screen something happened here: 'last' (who you're attacking) or 'turnEnd'
   window.tkSendAct = (kind, data)=>{
-    const snap = liveSnapshot(); if(!snap) return;
+    const snap = liveSnapshot(); if(!snap || viewing()) return;
     set(ref(db, `${CAMP(snap.campaign)}/acts/${snap.char}/${kind}`), {...data, t:serverTimestamp()})
       .catch(err=>console.warn('Telling the DM:', err));
   };
   // Share a roll: the latest per character, replaced by the next (every screen plays it)
   window.tkSendRoll = roll=>{
-    const snap = liveSnapshot(); if(!snap) return;
+    const snap = liveSnapshot(); if(!snap || viewing()) return;
     set(ref(db, `${CAMP(snap.campaign)}/rolls/${snap.char}`), {...roll, t:serverTimestamp()})
       .catch(err=>console.warn('Sharing the roll:', err));
   };
   // Heal someone else: it waits on their heals list until their Turnkeeper takes it
   window.tkSendHeal = (char, heal)=>{
+    if(viewing()) return Promise.resolve();
     const snap = liveSnapshot(); if(!snap) return Promise.reject(new Error('Not live'));
     const id = 'h' + Date.now() + Math.floor(Math.random() * 1000);
     return set(ref(db, `${CAMP(snap.campaign)}/heals/${char}/${id}`), {...heal, fromChar:snap.char, t:serverTimestamp()});

@@ -28,7 +28,7 @@ function charStoreSet(key, val){
 function flushCharStore(){
   clearTimeout(charStore.timer);
   const patch = charStore.pending; charStore.pending = {};
-  if(!Object.keys(patch).length || !charStore.id) return;
+  if(!Object.keys(patch).length || !charStore.id || window.tkViewOnly) return;   // view only: nothing is saved
   if(!window.tkDb){ Object.assign(charStore.pending, patch); charStore.timer = setTimeout(flushCharStore, 2000); return; }
   window.tkDb.updateKv(charStore.campaign, charStore.id, patch).catch(err=>{
     console.warn('Saving the character:', err);

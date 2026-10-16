@@ -80,6 +80,9 @@ button.sel-toggle:hover{background:none; color:var(--ink);}
 .pc-mods{font-size:0.74rem; color:var(--racial); display:flex; flex-direction:column; gap:2px;}
 .pc-card > .pc-sublbl{align-self:end;}
 .pc-top{display:flex; gap:10px; align-items:center;}
+.test-banner{position:sticky; top:0; z-index:61; background:#6a3fb5; color:#fff; text-align:center; padding:6px 12px; font-size:0.85rem; font-weight:600;}
+.test-banner[hidden]{display:none;}
+#testRoomBtn.on{border-color:#6a3fb5; color:#fff; background:#6a3fb5;}
 .view-banner{position:sticky; top:0; z-index:60; background:var(--orange, #b8433a); color:#fff; text-align:center; padding:6px 12px; font-size:0.85rem; font-weight:600;}
 .view-banner[hidden]{display:none;}
 body.view-only .panel button:not(.panel-head *), body.view-only .panel input, body.view-only .panel select:not(#campaignSelect){cursor:not-allowed;}
@@ -424,7 +427,7 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
 
 <header class="top">
   <h1><a class="brand-link" href="index.html" title="Back to all characters"><svg class="brand-mark" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="16" fill="none" stroke="var(--sea)" stroke-width="2"/><path d="M14 11 H26 M14 29 H26 M15 11 Q15 18 20 20 Q25 18 25 11 M15 29 Q15 22 20 20 Q25 22 25 29" fill="none" stroke="var(--sea)" stroke-width="1.8" stroke-linejoin="round"/><path d="M17.5 27 Q20 24 22.5 27 Z" fill="var(--orange)"/></svg>Turnkeeper</a><span class="page-name">DM Screen</span></h1>
-  <div class="top-right"><label class="campaign-pick">Campaign <select id="campaignSelect"></select></label><button type="button" class="ghost" id="campSettingsBtn">Campaign settings</button>
+  <div class="top-right"><label class="campaign-pick">Campaign <select id="campaignSelect"></select></label><button type="button" class="ghost" id="campSettingsBtn">Campaign settings</button><button type="button" class="ghost" id="testRoomBtn" title="A test room: copies of the party, fresh after a long rest, to play and level as you like. Nothing touches the real game.">Test</button>
   <!-- SETTINGS for this screen: theme, dice and tray, panels, backup (the gear; css/settings.css, js/themes.js) -->
   <div class="settings" id="settings">
     <button type="button" class="gear-btn" id="settingsBtn" aria-expanded="false" aria-controls="settingsPop" title="Settings" aria-label="Settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.49.49 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.48.48 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.48.48 0 0 0-.59.22L2.74 8.87a.48.48 0 0 0 .12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32a.48.48 0 0 0-.12-.61l-2.01-1.58zM12 15.6a3.6 3.6 0 1 1 0-7.2 3.6 3.6 0 0 1 0 7.2z"/></svg></button>
@@ -915,7 +918,9 @@ function statsOf(pc){
 }
 function pcCard(pc){
   const p = party[pc.name];
-  const links = `<div class="pc-links"><a href="turnkeeper.html?char=${encodeURIComponent(pc.char)}" target="_blank" rel="noopener">Open in Turnkeeper</a></div>`;
+  // In a test room the copies open as sheets of the DM's own; a real player's sheet doesn't open here
+  const inTest = !!(dmCampaigns.find(x=>x.key === campaign.key) || {}).test;
+  const links = inTest ? `<div class="pc-links"><a href="turnkeeper.html?char=${encodeURIComponent(pc.char)}${TEST_MODE && location.search.includes('test') ? '&test=1' : ''}" target="_blank" rel="noopener">Open the test copy</a></div>` : '';
   // Rolling: in combat the player whose turn it is may roll; otherwise only those the DM clicked
   const may = !!allowed[pc.char], cur = combat.round ? byId(combat.turn) : null;
   const turnNow = !may && !!(cur && cur.kind === 'pc' && cur.name === pc.name);
@@ -1724,6 +1729,7 @@ async function setCampaign(key){
   const c = dmCampaigns.find(x=>x.key === key) || dmCampaigns[0]; if(!c) return;
   campaign = {key:c.key, name:c.name, party:[], view:!!c.view};
   setViewOnly(campaign.view ? c.name : null);
+  renderTestUi();
   try{ localStorage.setItem('dndTracker:dm:campaign', campaign.key); }catch(e){}
   $('campaignSelect').value = campaign.key;
   combat = (campaign.view ? null : loadJSON(storeKey('combat'), null)) || {list:[], round:0, turn:null, log:[], nextId:1};
@@ -1736,15 +1742,47 @@ async function setCampaign(key){
   loadParty();
 }
 // From the module script once signed in: the campaigns this account DMs (none: say how to make one)
-window.dmStart = list=>{
+window.dmStart = (list, openKey)=>{
   dmCampaigns = list;
   $('campaignSelect').innerHTML = list.map(c=>`<option value="${esc(c.key)}">${esc(c.name)}${c.view ? ' (watch only)' : ''}</option>`).join('');
+  if(openKey && list.some(c=>c.key === openKey)){ setCampaign(openKey); return; }
   if(!list.length){ $('partyGrid').innerHTML = '<p class="panel-note">You aren’t the DM of a campaign yet. Make one on the <a href="index.html">Turnkeeper hub</a>: Create a campaign.</p>'; return; }
   // The campaign in the link (the hub's Open the DM Screen: dm.html?c=<key>), else the last one open here
   let saved = new URLSearchParams(location.search).get('c'); if(!saved){ try{ saved = localStorage.getItem('dndTracker:dm:campaign'); }catch(e){} }
   setCampaign(list.some(c=>c.key === saved) ? saved : list[0].key);
 };
 $('campaignSelect').addEventListener('change', e=>setCampaign(e.target.value));
+/* ---------- Test room (module script: dmTestStart, dmTestEnd) ---------- */
+function renderTestUi(){
+  const c = dmCampaigns.find(x=>x.key === campaign.key), inTest = !!(c && c.test);
+  $('testRoomBtn').textContent = inTest ? 'End test' : 'Test';
+  $('testRoomBtn').classList.toggle('on', inTest);
+  let b = $('testBanner');
+  if(!b){ b = document.createElement('div'); b.id = 'testBanner'; b.className = 'test-banner'; document.body.prepend(b); }
+  b.hidden = !inTest;
+  if(inTest){ const from = dmCampaigns.find(x=>x.key === c.testOf); b.textContent = `Test room${from ? ` for ${from.name}` : ''}: copies of the party, fresh after a long rest. Play them, level them, run fights; nothing touches the real game. End test to throw it away.`; }
+}
+$('testRoomBtn').addEventListener('click', async ()=>{
+  const btn = $('testRoomBtn'), c = dmCampaigns.find(x=>x.key === campaign.key); if(!c || !window.dmTestStart) return;
+  btn.disabled = true;
+  try{
+    if(c.test){
+      if(!confirm('End the test? The test copies and everything done with them are thrown away.')) return;
+      await window.dmTestEnd(c.key);
+      dmCampaigns = dmCampaigns.filter(x=>x.key !== c.key);
+      window.dmStart(dmCampaigns.filter(x=>!x.view).concat(dmCampaigns.filter(x=>x.view)), c.testOf);
+    } else {
+      if(!confirm(`Start a test room for ${c.name}? It copies the party, fresh after a long rest, for you to play and level as you like. The players never see it.`)) return;
+      // One test room per campaign: an older one goes first, so this one starts fresh
+      for(const old of dmCampaigns.filter(x=>x.test && x.testOf === c.key)) await window.dmTestEnd(old.key).catch(err=>console.warn('An old test room:', err));
+      dmCampaigns = dmCampaigns.filter(x=>!(x.test && x.testOf === c.key));
+      const room = await window.dmTestStart(c.key);
+      dmCampaigns.push(room);
+      window.dmStart(dmCampaigns, room.key);
+    }
+  }catch(err){ alert('The test room couldn’t be set up: ' + err.message); }
+  finally{ btn.disabled = false; }
+});
 
 /* ---------- Themes and the Settings gear (js/themes.js, the same as the tracker) ---------- */
 setupSettings({onOpen:()=>{ if($('setDice').open) fillDiceStyleMenu(); }});
@@ -2209,7 +2247,7 @@ renderDmItems();
    Signs in invisibly and follows campaigns/<campaign>/live, handing each change to
    dmLiveUpdate. Settings: js/config.js; connecting: js/firebase.js. */
 try{
-  const {db, user, fb:{ref, get, onValue, set, push, serverTimestamp}} = await tkRequireUser();
+  const {db, user, fb:{ref, get, onValue, set, push, update, serverTimestamp}} = await tkRequireUser();
   window.dmUser = {uid:user.uid, name:user.displayName || ''};
   // V5: a character's record in the Turnkeeper database (its base facts), or null if it isn't there yet
   // The campaign's custom items and effects (js/item-forms.js saves through these)
@@ -2260,11 +2298,64 @@ try{
   // Let a player roll, or stop them (a click on their Party card)
   window.dmSetAllow = (key, char, on)=>watching(key) ? refuse() : set(ref(db, `${CAMP(key)}/allow/${char}`), on ? true : null)
     .catch(err=>{ console.warn('Allowing rolls:', err); window.dmLiveStatus('err', err.message); });
+  /* ---------- Test room (the Test button) ----------
+     A temporary campaign of the DM's own: a copy of each party character (owned by the DM, so the DM
+     can open and play it like a player), fresh as after a long rest: full hit points and spell slots,
+     no conditions or effects, out of Wild Shape, the companion healed. Each keeps its level, spells,
+     gear and choices. Players never see it. Ending the test deletes the copies and the room. */
+  const randomCode = n=>Array.from(crypto.getRandomValues(new Uint8Array(n)), b=>'abcdefghijkmnpqrstuvwxyz23456789'[b % 32]).join('');
+  const kvKey = k=>encodeURIComponent(k).replace(/\./g, '%2E');
+  // A character's saved data, reset to just after a long rest (the copy's own: "@" is its id)
+  function freshKv(kv){
+    const out = {...(kv || {})};
+    delete out[kvKey('track:@')];   // hit points, spent slots and uses, conditions, effects, concentration, death saves
+    delete out[kvKey('wild:@')];    // Wild Shape
+    const ck = kvKey('companion:@');
+    if(out[ck]){ try{ const c = JSON.parse(out[ck]); delete c.hp; out[ck] = JSON.stringify(c); }catch(e){ delete out[ck]; } }   // the companion at full HP
+    return out;
+  }
+  window.dmTestEnd = async testKey=>{
+    const members = (await get(ref(db, `${CAMP(testKey)}/members`)).catch(()=>null))?.val() || {};
+    const patch = {};
+    for(const [uid, m] of Object.entries(members)){
+      if(m && m.role === 'player' && typeof m.char === 'string'){
+        ['live', 'effects', 'acts', 'rolls', 'allow'].forEach(part=>{ patch[`${CAMP(testKey)}/${part}/${m.char}`] = null; });
+        patch[`${CHARS}/${m.char}`] = null;
+      }
+      patch[`${CAMP(testKey)}/members/${uid}`] = null;
+    }
+    patch[`${CAMP(testKey)}/combat`] = null; patch[`${CAMP(testKey)}/settings`] = null; patch[`${CAMP(testKey)}/dm`] = null;
+    patch[`${CAMP(testKey)}/meta`] = null; patch[`${USERS}/${user.uid}/campaigns/${testKey}`] = null;
+    await update(ref(db), patch);
+  };
+  window.dmTestStart = async realKey=>{
+    const meta = (await get(ref(db, `${CAMP(realKey)}/meta`))).val() || {};
+    const members = (await get(ref(db, `${CAMP(realKey)}/members`))).val() || {};
+    const settings = (await get(ref(db, `${CAMP(realKey)}/settings`)).catch(()=>null))?.val() || null;
+    const key = 'test-' + randomCode(8);
+    // The room first (the rules check its DM before anything else goes in)
+    await set(ref(db, `${CAMP(key)}/meta`), {name:String((meta.name || realKey) + ' (test)').slice(0, 80), dm:user.uid, invite:randomCode(10), created:serverTimestamp(), test:true, testOf:realKey});
+    await set(ref(db, `${CAMP(key)}/members/${user.uid}`), {role:'dm', joined:serverTimestamp()});
+    await set(ref(db, `${USERS}/${user.uid}/campaigns/${key}`), 'dm');
+    if(settings){ const {scene, ...rest} = settings; await set(ref(db, `${CAMP(key)}/settings`), rest).catch(err=>console.warn('Test room settings:', err)); }   // the same rules (not the scene)
+    // A fresh copy of each party character
+    for(const m of Object.values(members)){
+      if(!m || m.role !== 'player' || typeof m.char !== 'string') continue;
+      const rec = (await get(ref(db, `${CHARS}/${m.char}`)).catch(()=>null))?.val();
+      if(!rec || !rec.core) continue;
+      const r = push(ref(db, CHARS));
+      const core = {...rec.core, hpCur:rec.core.hpMax ?? rec.core.hpCur ?? null, testCopyOf:m.char, testRoom:true};
+      await set(r, {owner:user.uid, core, kv:freshKv(rec.kv), campaign:key, t:serverTimestamp()});
+      await set(ref(db, `${CAMP(key)}/members/copy-${r.key}`), {role:'player', char:r.key, joined:serverTimestamp()});
+    }
+    return {key, name:String((meta.name || realKey) + ' (test)').slice(0, 80), test:true, testOf:realKey};
+  };
+
   // The campaigns this account DMs (users/<account>/campaigns: key → 'dm' | 'player'), with their names
   const mine = (await get(ref(db, `${USERS}/${user.uid}/campaigns`))).val() || {};
   const dmList = await Promise.all(Object.keys(mine).filter(k=>mine[k] === 'dm').map(async k=>{
     const meta = (await get(ref(db, `${CAMP(k)}/meta`))).val() || {};
-    return meta.dm === user.uid ? {key:k, name:typeof meta.name === 'string' ? meta.name.slice(0, 80) : k} : null;
+    return meta.dm === user.uid ? {key:k, name:typeof meta.name === 'string' ? meta.name.slice(0, 80) : k, test:meta.test === true, testOf:typeof meta.testOf === 'string' ? meta.testOf : null} : null;
   }));
   // An admin can also watch any campaign a character plays in (view only)
   const watch = [];
