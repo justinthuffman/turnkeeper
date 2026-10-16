@@ -206,8 +206,9 @@ function playLevelUpFx(to, clsName, items){
     document.getElementById('lvlFx')?.remove();
     const fx = document.createElement('div'); fx.id = 'lvlFx'; fx.setAttribute('role', 'dialog'); fx.setAttribute('aria-label', 'Level up');
     const sparks = Array.from({length:18}, (_, i)=>`<i style="--x:${(i * 37) % 100}%;--d:${2 + (i % 5) * 0.4}s;--t:${(i % 7) * 0.25}s;--s:${3 + (i % 3) * 2}px"></i>`).join('');
-    fx.innerHTML = `<div class="lv-rays"></div><div class="lv-sparks">${sparks}</div><div class="lv-core">
-      <div class="lv-ring"><span>${to}</span></div>
+    // The rays turn around the ring (they sit inside its box), so they stay centered on it however long the list is
+    fx.innerHTML = `<div class="lv-sparks">${sparks}</div><div class="lv-core">
+      <div class="lv-ringwrap"><div class="lv-rays"></div><div class="lv-ring"><span>${to}</span></div></div>
       <div class="lv-title">LEVEL UP</div><div class="lv-sub">${escapeHtml(clsName)} · Level ${to}</div>
       <ul class="lv-list">${items.map((x, i)=>`<li class="lv-${x.k}" style="--i:${i}">${escapeHtml(x.t)}</li>`).join('') || '<li style="--i:0">Your new level</li>'}</ul>
       <button type="button" class="lv-go" style="--i:${items.length + 1}">Continue</button></div>`;
