@@ -6027,10 +6027,14 @@ window.tkDiceUpdate = (part, data)=>{
   const all = data && typeof data === 'object' ? data : {};
   // Rolls already there when the page opened aren't replayed
   if(!diceTable.primed){ diceTable.primed = true; Object.values(all).forEach(r=>r && r.id && diceTable.seen.add(String(r.id))); return; }
+  // While this character still has choices to make (it can't roll yet), other players' rolls are
+  // skipped, not saved up: they're marked seen, so none of them play once the choices are made
+  // (Justin, 2026-10-15)
+  const waiting = typeof pendingChoices === 'function' && pendingChoices().length > 0;
   Object.values(all).forEach(r=>{
     if(!r || !r.id || diceTable.seen.has(String(r.id))) return;
     diceTable.seen.add(String(r.id));
-    showRoll(cleanRoll(r));
+    if(!waiting) showRoll(cleanRoll(r));
   });
 };
 window.tkDiceRefresh();
