@@ -685,12 +685,24 @@ if(!user){
     }catch(err){ msg('campMsg', 'Couldn’t create the campaign: ' + err.message, true); }
   };
 
-  /* Admin (test mode only): copy a real character into the sandbox to try things out. The admin mark
-     (admins/<account>) is set by hand with the Firebase CLI; the real character is only read, never
-     written. Real characters are at characters/<id> (V6), or before the switch-over at the old spot
-     (campaigns/waterdeep/characters/<id>) for the four in PORTRAITS. */
+  /* Admin: the admin mark (admins/<account>) is set by hand with the Firebase CLI.
+     Live: every character's sheet (view only: try anything, nothing saved or sent) and the DM Screen
+     (watch only), e.g. to see for yourself when a player says something isn't working.
+     Test mode: copy a real character into the sandbox to try things out (the real one is only read). */
+  const admin = (await get(ref(db, `admins/${user.uid}`)).catch(()=>null))?.val() === true;
+  if(admin && !TEST_MODE){
+    const all = Object.entries((await get(ref(db, CHARS)).catch(()=>null))?.val() || {}).filter(([, r])=>r && r.core && !r.archived);
+    const keys = [...new Set(all.map(([, r])=>r.campaign).filter(k=>typeof k === 'string' && /^[a-z0-9-]{2,40}$/.test(k)))];
+    const camp = {};
+    await Promise.all(keys.map(async k=>{ const m = (await get(ref(db, `${CAMP(k)}/meta`)).catch(()=>null))?.val(); camp[k] = m && typeof m.name === 'string' ? m.name : k; }));
+    all.sort(([, a], [, b])=>String(camp[a.campaign] || '~').localeCompare(String(camp[b.campaign] || '~')) || String(a.core.name || '').localeCompare(String(b.core.name || '')));
+    const box = $('hubAdmin'); box.hidden = false;
+    box.innerHTML = `<h2>Admin</h2><div class="hub-row"><a class="hub-btn" href="dm.html" target="_blank" rel="noopener">Open the DM Screen</a><span class="hub-note">Every game, watch only</span></div>`
+      + `<h3 class="hub-sub">Character Sheets</h3><p class="hub-note">Open anyone’s sheet to see what they see. Try anything: nothing is saved to their character or sent to the table.</p>`
+      + (all.length ? all.map(([id, r])=>`<div class="hub-row"><a class="hub-btn ghost" href="turnkeeper.html?char=${encodeURIComponent(id)}" target="_blank" rel="noopener">${esc(r.core.name || 'Unnamed')}</a><span class="hub-note">${esc([r.core.cls, r.core.level ? 'level ' + r.core.level : '', r.campaign ? camp[r.campaign] : 'no campaign'].filter(Boolean).join(' · '))}${r.owner === user.uid ? ' (yours)' : ''}</span></div>`).join('') : '<p class="hub-note">No characters yet.</p>')
+      + `<p class="hub-note">Test copies (to play a character in a test fight) are in <a href="index.html?test=1">test mode</a>.</p>`;
+  }
   if(TEST_MODE){
-    const admin = (await get(ref(db, `admins/${user.uid}`)).catch(()=>null))?.val() === true;
     if(admin){
       let real = Object.entries((await get(ref(db, 'characters')).catch(()=>null))?.val() || {}).map(([id, rec])=>({id, rec}));
       if(!real.length) real = (await Promise.all(Object.keys(PORTRAITS).map(async id=>({id, rec:(await get(ref(db, `campaigns/waterdeep/characters/${id}`)).catch(()=>null))?.val()})))).filter(x=>x.rec && x.rec.core);
