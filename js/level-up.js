@@ -68,7 +68,7 @@ function renderLevelUp(){
   h += `<div class="lu-sec"><h3>Hit Points</h3><p class="cs-none">${ruleText}, then add your Constitution modifier (${fmtMod(con)})${dwarf ? ' and 1 for Dwarven Toughness' : ''}.</p>`
     + `<div class="lu-row">${rule === 'choice' || rule === 'roll' ? `<button type="button" class="${LU.hp && LU.hp.how === 'roll' ? '' : 'ghost'}" data-lu-hp="roll"${LU.hp && LU.hp.how === 'roll' ? ' disabled' : ''}>Roll d${die}</button>` : ''}`
     + `${rule === 'choice' ? `<button type="button" class="${LU.hp && LU.hp.how === 'average' ? '' : 'ghost'}" data-lu-hp="average"${LU.hp && LU.hp.how === 'roll' ? ' disabled' : ''}>Take ${avg}</button>` : ''}`
-    + (LU.hp ? `<span class="lu-hp">${LU.hp.how === 'roll' ? `Rolled <b>${LU.hp.value}</b>` : LU.hp.how === 'max' ? `Maximum <b>${LU.hp.value}</b>` : `Average <b>${LU.hp.value}</b>`} ${fmtMod(con)}${dwarf ? ' +1' : ''} = <b>+${luGain()}</b> hit points, <b>${luNewMax()}</b> in all</span>` : '') + `</div>`
+    + (LU.hp ? `<span class="lu-hp">${LU.hp.how === 'roll' ? `Rolled <b>${LU.hp.value}</b>` : LU.hp.how === 'max' ? `Maximum <b>${LU.hp.value}</b>` : `Average <b>${LU.hp.value}</b>`} ${fmtMod(con)}${dwarf ? ' +1' : ''} = <b>+${luGain()}</b> hit points, <b>${luNewMax()}</b> total</span>` : '') + `</div>`
     + (LU.hp && LU.hp.how === 'roll' ? `<p class="cs-none">Rolled, so that’s it: no rerolls.</p>` : '') + `</div>`;
   // Subclass
   if(needSub){
@@ -190,7 +190,7 @@ const LU_HANDLED = new Set();
 function luUnlocks(){
   const out = [], {list, racial} = luFeatures(), spells = luSpells() || [], entry = CLASS_FEATURES[cf.classKey];
   const pbNow = 2 + Math.floor((LU.to - 2) / 4), pbNew = 2 + Math.floor((LU.to - 1) / 4);
-  if(LU.hp) out.push({k:'hp', t:`+${luGain()} hit points (${luNewMax()} in all)`});
+  if(LU.hp) out.push({k:'hp', t:`+${luGain()} hit points (${luNewMax()} total)`});
   if(entry && LU.to === entry.subclassLevel && !cf.subclass) out.push({k:'pick', t:`Choose your ${entry.subclassLabel}`});
   // (the class's own 'Martial Archetype' / 'Druid Circle' entry is just the reminder to pick: the pick line covers it)
   list.filter(t=>!t.choose && !t.picks && !/^Ability Score Improvement$/.test(t.name) && !(entry && t.name === entry.subclassLabel)).forEach(t=>out.push({k:'feat', t:t.name}));
