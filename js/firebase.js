@@ -10,7 +10,10 @@ function tkFirebase(){
   if(!tkFirebasePromise) tkFirebasePromise = Promise.all(['firebase-app.js', 'firebase-auth.js', 'firebase-database.js'].map(f=>import(FB + f)))
     .then(async ([appMod, authMod, fb])=>{
       const app = appMod.initializeApp(FIREBASE_CONFIG), auth = authMod.getAuth(app);
-      const user = await new Promise(ok=>{ const stop = authMod.onAuthStateChanged(auth, u=>{ stop(); ok(u); }); });
+      let user = await new Promise(ok=>{ const stop = authMod.onAuthStateChanged(auth, u=>{ stop(); ok(u); }); });
+      // The old invisible sign-in (V5) left an anonymous account in players' browsers; live doesn't accept
+      // those (test mode's throwaway accounts are anonymous on purpose), so sign it out and ask to sign in
+      if(user && user.isAnonymous && !TEST_MODE){ await authMod.signOut(auth); user = null; }
       return {app, db:fb.getDatabase(app), fb, auth, authMod, user};
     });
   return tkFirebasePromise;
