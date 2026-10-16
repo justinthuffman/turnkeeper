@@ -4349,6 +4349,7 @@ function savePrepared(){
   const list = [...state.preparedSpells];
   preparedMem.set(preparedKey(), list);
   storageSet(preparedKey(), list.length ? JSON.stringify(list) : null);
+  renderChoiceBanner();
 }
 /* Wizard spellbook (2014): 6 1st-level spells at level 1 and 2 more each level up (free),
    plus any the wizard copies from scrolls or other spellbooks (no limit). Copying costs are
@@ -4361,6 +4362,7 @@ function saveBook(){
   if(!currentCharId) return;
   bookMem.set(bookKey(), {...state.spellbook});
   storageSet(bookKey(), Object.keys(state.spellbook).length ? JSON.stringify(state.spellbook) : null);
+  renderChoiceBanner();
 }
 function loadBook(){
   const k = bookKey();
@@ -4528,11 +4530,23 @@ function featProfGrants(){
   });
   return out;
 }
-/* Choices waiting (a subclass, a Fighting Style, a feat or ability points, a feat's picks): until
+/* Choices waiting (a subclass, a Fighting Style, a feat or ability points, a feat's picks, spells): until
    they're made, the Combat Menu and rolls wait (Justin, 2026-10-09). A banner at the top says so
    wherever Character Summary is; clicking it opens the Overview tab and the panel and centers
    the choices. */
-const pendingChoices = ()=>currentCharId ? buildChoices().filter(c=>!c.value) : [];
+// Spells still to pick (Justin, 2026-10-15: spells are picked on the sheet, not in the creator, and
+// there's no rolling until the character is ready): a wizard's free spellbook spells, then cantrips and
+// spells known or prepared, up to the class's limits (spellLimits)
+function spellChoices(){
+  if(!currentCharId) return [];
+  const lim = spellLimits(); if(!lim || lim.none) return [];
+  const out = [], have = preparedCounts(), n = (k, one, many)=>`${k} ${k === 1 ? one : many}`;
+  if(usesSpellbook()){ const bc = bookCounts(); if(bc.free < bc.freeMax) out.push({label:n(bc.freeMax - bc.free, 'spellbook spell', 'spellbook spells'), spells:true}); }
+  if(lim.cantrips && have.cantrips < lim.cantrips) out.push({label:n(lim.cantrips - have.cantrips, 'cantrip', 'cantrips'), spells:true});
+  if(lim.spells && have.spells < lim.spells) out.push({label:n(lim.spells - have.spells, lim.kind === 'prepared' ? 'spell to prepare' : 'spell known', lim.kind === 'prepared' ? 'spells to prepare' : 'spells known'), spells:true});
+  return out;
+}
+const pendingChoices = ()=>currentCharId ? [...buildChoices().filter(c=>!c.value), ...spellChoices()] : [];
 // Center something on screen once the panels and sections opening around it have finished sliding.
 // find() looks it up each time: a section can redraw (and replace it) while opening.
 function centerWhenOpen(find){ [60, 450, 900].forEach(ms=>setTimeout(()=>{ const el = find(); if(el) el.scrollIntoView({behavior:'smooth', block:'center'}); }, ms)); }
@@ -4543,6 +4557,7 @@ function renderChoiceBanner(){
   if(p.length) b.innerHTML = `<span>⚠</span><span><b>${p.length === 1 ? 'A choice to make' : `${p.length} choices to make`}</b> before you play: ${p.map(c=>escapeHtml(c.featSlot ? `level ${c.featSlot} ability scores or a feat` : c.label)).join(', ')}.</span><span class="cb-go">Go to ${p.length === 1 ? 'it' : 'them'}</span>`;
 }
 function goToChoices(){
+  if(pendingChoices().every(c=>c.spells)){ if(window.showTab) showTab('spells'); tkPanels.expand('spellsPanel'); centerWhenOpen(()=>document.getElementById('spellsPanel')); return; }
   if(window.showTab) showTab('overview');
   tkPanels.expand('summaryPanel');
   const box = document.getElementById('buildBox');

@@ -314,7 +314,7 @@ button.theme-option[aria-pressed="true"] .theme-dot{border-color:var(--ink); box
 .pc-top > div:not(.char-icon){flex:1 1 0; min-width:0;}   /* the name column fills the space beside the icon, and may shrink so nothing pushes past the card's edge */
 .pc-allow.off{background:none; color:var(--ink-dim); font-weight:normal; border:1px solid var(--border);}
 .pc-card.turn{border-color:#f2c14e;}
-/* Campaign settings (crit GIF pools), behind the password */
+/* Campaign settings (every campaign option, and the crit GIF pools) */
 .top-right{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
 .cs-popup{width:min(980px, 100%);}
 .cs-lock{display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:10px;}
@@ -1950,14 +1950,11 @@ $('setDice').addEventListener('toggle', e=>{ if(e.currentTarget.open) fillDiceSt
 
 /* ---------- Campaign settings: every campaign option, and the crit GIF pools ----------
    Character creation, leveling, table rules (CAMPAIGN_OPTS in js/dice.js), sounds; the reaction GIF
-   pools on a page of their own. Behind a simple password ("pizza": a speed bump among friends, not security). Saved in the
+   pools on a page of their own. (V6: no password any more: only the campaign's DM opens its DM Screen.) Saved in the
    campaign's settings in Firebase (window.dmSettingsWrite), read by every screen. See the Crit
    GIFs section of js/dice.js for how a roll picks from these pools. */
-const CS_PASSWORD = 'pizza';
-const CS_UNLOCK_KEY = 'dndTracker:dm:settingsOpen';
 let csReturnFocus = null;
 let csView = 'main';   // 'main' (every option) or 'gifs' (the reaction GIF pools)
-const csUnlocked = ()=>{ try{ return sessionStorage.getItem(CS_UNLOCK_KEY) === '1'; }catch(e){ return false; } };
 function openSettings(){
   csReturnFocus = document.activeElement; csView = 'main';
   renderSettings();
@@ -2004,11 +2001,6 @@ function checkLink(url){
   return linkChecks[url];
 }
 function renderSettings(){
-  if(!csUnlocked()){
-    $('csBody').innerHTML = `<p class="cs-tip">Enter the password to change this campaign’s settings.</p>
-      <div class="cs-lock"><input type="password" id="csPass" autocomplete="off" aria-label="Password"><button type="button" id="csUnlock">Open</button><span class="cs-msg" id="csMsg"></span></div>`;
-    return;
-  }
   // Keep whatever is being typed across a redraw (a change from another screen)
   const el = document.activeElement, typing = el && el.closest && el.closest('#csBody') && el.id ? {id:el.id, v:el.value} : null;
   if(csView === 'gifs'){
@@ -2062,11 +2054,6 @@ function renderSettings(){
   if(typing && $(typing.id)){ $(typing.id).value = typing.v; $(typing.id).focus(); }
 }
 $('csBody').addEventListener('click', async e=>{
-  if(e.target.id === 'csUnlock'){
-    if($('csPass').value.trim().toLowerCase() === CS_PASSWORD){ try{ sessionStorage.setItem(CS_UNLOCK_KEY, '1'); }catch(err){} renderSettings(); }
-    else{ csMsg('That’s not it.'); $('csPass').select(); }
-    return;
-  }
   const b = e.target.closest('button'); if(!b) return;
   if(b.dataset.csView){ csView = b.dataset.csView; renderSettings(); $('csBody').scrollTop = 0; return; }
   const {row, side} = b.dataset;
@@ -2103,8 +2090,7 @@ $('csBody').addEventListener('change', e=>{
 });
 $('csBody').addEventListener('keydown', e=>{
   if(e.key !== 'Enter') return;
-  if(e.target.id === 'csPass'){ e.preventDefault(); $('csUnlock').click(); }
-  else if(e.target.matches('.cs-add input')){ e.preventDefault(); e.target.nextElementSibling.click(); }
+  if(e.target.matches('.cs-add input')){ e.preventDefault(); e.target.nextElementSibling.click(); }
 });
 // The campaign's settings, from the module script
 window.dmSettingsUpdate = (key, data)=>{

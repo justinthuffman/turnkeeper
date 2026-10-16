@@ -30,7 +30,7 @@ const DETAIL_AREAS = [['look', 'Appearance', 3], ['traits', 'Personality traits'
 // level: the starting level (the DM says which); hpHow: 'average' or 'roll' for levels after 1st, with
 // hpRolls[i] the roll for level i + 2 (kept once rolled: no rerolls, and no switching to the average)
 const blank = ()=>({bringTo:'', gearHow:'', goldRoll:null, step:'race', raceGroup:'', race:'', ancestry:'', asiPick:[], cls:'', subclass:'', level:1, hpHow:'', hpRolls:[], method:'', assignBy:{array:{}, roll:{}}, points:{str:8, dex:8, con:8, int:8, wis:8, cha:8}, rolls:null,
-  bg:'', langs:[], tools:[], skills:[], extraSkills:[], expertise:[], equip:{}, picks:{}, cantrips:[], spells:[], book:[],
+  bg:'', langs:[], tools:[], skills:[], extraSkills:[], expertise:[], equip:{}, picks:{},
   name:'', alignment:'', portrait:'', portraitFit:null, ...Object.fromEntries([...DETAIL_TEXT, ...DETAIL_AREAS].map(([k])=>[k, '']))});
 let S = (()=>{ try{ return {...blank(), ...(JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null') || {})}; }catch(e){ return blank(); } })();
 if(S.race && !S.raceGroup) S.raceGroup = (raceGroupOf(S.race) || {}).name || '';   // a draft from before races had subraces
@@ -103,26 +103,6 @@ function toolChoices(){
   ((S.cls && classLanguagesTools(S.cls, S.subclass, 1).choose) || []).forEach(t=>add(t, clsB().name));
   return out;
 }
-// Spells at the starting level (js/data/levels.js has the class tables): {cantripList, spellList (1st level
-// and up, to the highest the character can cast), cantrips, known, book, prepared, maxLevel, ability} or null.
-// Paladins and Rangers cast from level 2. (Eldritch Knights and Arcane Tricksters pick theirs on the Spells tab.)
-const SPELL_ABILITY = {bard:'cha', cleric:'wis', druid:'wis', paladin:'cha', ranger:'wis', sorcerer:'cha', warlock:'cha', wizard:'int'};
-function spellPlan(){
-  // Level 1 spells only, whatever the starting level: the sheet's Spells tab shows how many more to pick
-  const lim = SPELL_LIMITS[S.cls], L = 1; if(!lim || !clsB()) return null;
-  if((S.cls === 'paladin' || S.cls === 'ranger') && L < 2) return null;
-  const maxLevel = maxSpellLevelAt(S.cls, S.subclass, L);
-  let all = SPELL_DATA[S.cls] && SPELL_DATA[S.cls].length ? SPELL_DATA[S.cls]
-    : (CLASS_SPELL_NAMES[S.cls] || []).flatMap((names, lvl)=>names.map(n=>({...(findSpell(n) || {}), name:n, level:lvl})));
-  // A warlock's patron adds its expanded spells to the list
-  const entry = CLASS_FEATURES[S.cls], sub = entry && S.subclass ? entry.subclasses[S.subclass] || [] : [];
-  const extra = sub.filter(t=>t.expanded).flatMap(t=>t.tiers || []).map(x=>findSpell(x.name)).filter(sp=>sp && !all.some(s=>s.name === sp.name));
-  all = [...all, ...extra].filter(s=>s.level <= maxLevel).sort((a, b)=>a.level - b.level || a.name.localeCompare(b.name));
-  const ability = SPELL_ABILITY[S.cls], score = finalScores()[ability];
-  return {cantripList:all.filter(s=>s.level === 0), spellList:all.filter(s=>s.level >= 1), maxLevel, ability,
-    cantrips:lim.cantrips ? lim.cantrips(L) : 0, known:lim.known ? lim.known(L) : 0, book:S.cls === 'wizard' ? wizardBookAt(L) : 0,
-    prepared:lim.prepared ? Math.max(1, (score === null ? 0 : mod(score)) + (lim.half ? Math.floor(L / 2) : L)) : 0};
-}
 // Starting equipment: [[name, qty]] from class choices, fixed items and the background
 function pickSlots(){
   const c = clsB(), out = []; if(!c) return out;
@@ -141,8 +121,9 @@ function equipmentList(){
 
 /* ---------- What's still missing, per step ---------- */
 const STEPS = [['race', 'Race'], ['class', 'Class'], ['abilities', 'Abilities'], ['background', 'Background'], ['skills', 'Skills'],
-  ['equipment', 'Equipment'], ['spells', 'Spells'], ['details', 'Details'], ['review', 'Review']];
-const visibleSteps = ()=>STEPS.filter(([k])=>k !== 'spells' || spellPlan());
+  ['equipment', 'Equipment'], ['details', 'Details'], ['review', 'Review']];
+// Spells aren't picked here: the sheet's Spells tab is where they're chosen and prepared (Justin, 2026-10-15)
+const visibleSteps = ()=>STEPS;
 function missing(step){
   const out = [], r = raceB(), c = clsB();
   if(step === 'race'){
@@ -174,15 +155,6 @@ function missing(step){
   }
   if(step === 'skills' && !c) out.push('Pick a class first.');
   if(step === 'equipment'){ if(!c) out.push('Pick a class first.'); else if(gearHow() === 'gold' && !S.goldRoll) out.push('Roll your starting gold.'); else if(pickSlots().some(p=>!S.picks[p.key])) out.push('Finish picking your equipment.'); }
-  if(step === 'spells'){
-    const p = spellPlan();
-    if(p){
-      if(S.cantrips.length !== p.cantrips) out.push(`Pick ${p.cantrips} cantrips.`);
-      if(p.known && S.spells.length !== p.known) out.push(`Pick ${p.known} spells known.`);
-      if(p.book && S.book.length !== p.book) out.push(`Pick ${p.book} spells for your spellbook.`);
-      if(p.prepared && S.spells.length !== Math.min(p.prepared, p.book || 99)) out.push(`Prepare ${Math.min(p.prepared, p.book || 99)} spells.`);
-    }
-  }
   if(step === 'details' && !S.name.trim()) out.push('Give your character a name.');
   if(step === 'review') visibleSteps().filter(([k])=>k !== 'review').forEach(([k, l])=>missing(k).forEach(m=>out.push(`${l}: ${m}`)));
   return out;
@@ -206,7 +178,7 @@ function render(){
   const a = document.activeElement, again = a && $('body').contains(a) ? focusSelector(a) : null;
   $('steps').innerHTML = steps.map(([k, l], i)=>`<button type="button" class="step${k === S.step ? ' on' : ''}${k !== 'review' && !missing(k).length ? ' done' : ''}" data-step="${k}"><span>${i + 1}</span>${l}</button>`).join('');
   $('body').innerHTML = ({race:renderRace, class:renderClass, abilities:renderAbilities, background:renderBackground, skills:renderSkills,
-    equipment:renderEquipment, spells:renderSpells, details:renderDetails, review:renderReview})[S.step]();
+    equipment:renderEquipment, details:renderDetails, review:renderReview})[S.step]();
   renderSummary();
   if(again){ const el = $('body').querySelector(again); if(el) el.focus({preventScroll:true}); }
   const i = steps.findIndex(([k])=>k === S.step);
@@ -232,8 +204,7 @@ function renderSummary(){
     + `<div class="sum-scores">${ABIL.map(a=>`<span><small>${a.toUpperCase()}</small><b>${fin[a] ?? '—'}</b><i>${fin[a] === null ? '' : fmt(mod(fin[a]))}</i></span>`).join('')}</div>`
     + `<p class="sum-line">${[hp ? `HP ${hp}` : '', r ? `Speed ${r.speed} ft` : '', c ? `Hit die d${c.hd}` : ''].filter(Boolean).join(' · ') || '&nbsp;'}</p>`
     + (allSkills().length ? `<p class="sum-line"><span>Skills</span> ${allSkills().map(s=>S.expertise.includes(s) ? s + '*' : s).map(esc).join(', ')}</p>` : '')
-    + ([...S.langs, ...S.tools].filter(Boolean).length ? `<p class="sum-line"><span>Picked</span> ${[...S.langs, ...S.tools].filter(Boolean).map(esc).join(', ')}</p>` : '')
-    + (spellPlan() && [...S.cantrips, ...S.book, ...S.spells].length ? `<p class="sum-line"><span>Spells</span> ${[...new Set([...S.cantrips, ...S.book, ...S.spells])].map(esc).join(', ')}</p>` : '');
+    + ([...S.langs, ...S.tools].filter(Boolean).length ? `<p class="sum-line"><span>Picked</span> ${[...S.langs, ...S.tools].filter(Boolean).map(esc).join(', ')}</p>` : '');
 }
 
 function renderRace(){
@@ -367,27 +338,6 @@ function renderEquipment(){
   return h;
 }
 // Spells: the box with the checkbox picks it; hovering the name shows the spell, clicking the name holds that open
-function spellOf(s){ return {...s, desc:s.desc || (typeof DESCRIPTIONS === 'object' && DESCRIPTIONS[s.name]) || ''}; }
-function renderSpells(){
-  const p = spellPlan(); if(!p) return '';
-  const row = (s, attr, list, n, on)=>`<span class="chip spell"><input type="checkbox" ${attr}="${esc(s.name)}" aria-label="${esc(s.name)}"${on ? ' checked' : ''}${!on && list.length >= n ? ' disabled' : ''}> <span class="sname" data-sp="${esc(s.name)}">${esc(s.name)}</span></span>`;
-  // Spells by level (1st, 2nd…), each group with its own heading
-  const byLevel = (list, attr, picked, n)=>[...new Set(list.map(s=>s.level))].map(lv=>`${p.maxLevel > 1 ? `<h4>${ORD[lv] || lv + 'th'} level</h4>` : ''}<div class="chips">${list.filter(s=>s.level === lv).map(s=>row(s, attr, picked, n, picked.includes(s.name))).join('')}</div>`).join('');
-  let h = `<h2>Spells</h2><p class="note">Hover over a spell’s name to see what it does; click the name to keep it open (with a link to the full rules). Tick the box to pick it. Your spellcasting ability is ${ABIL_NAME[p.ability]}${p.maxLevel > 1 ? `, and you can cast spells up to ${ORD[p.maxLevel] || p.maxLevel + 'th'} level` : ''}.</p>`;
-  if(p.cantrips) h += `<h3>Cantrips: pick ${p.cantrips}</h3><div class="chips">${p.cantripList.map(s=>row(s, 'data-cantrip', S.cantrips, p.cantrips, S.cantrips.includes(s.name))).join('')}</div>`;
-  if(p.known) h += `<h3>Spells known: pick ${p.known}</h3>` + byLevel(p.spellList, 'data-spell', S.spells, p.known);
-  if(p.book){
-    h += `<h3>Spellbook: pick ${p.book}</h3>` + byLevel(p.spellList, 'data-book', S.book, p.book);
-    S.spells = S.spells.filter(n=>S.book.includes(n));
-    const n = Math.min(p.prepared, p.book);
-    h += `<h3>Prepared today: pick ${n}</h3><p class="note">From your spellbook (Intelligence modifier + your level). You can change these after a long rest.</p>`
-      + (p.spellList.some(s=>S.book.includes(s.name)) ? byLevel(p.spellList.filter(s=>S.book.includes(s.name)), 'data-spell', S.spells, n) : '<p class="note">Fill your spellbook first.</p>');
-  } else if(p.prepared){
-    h += `<h3>Prepared today: pick ${p.prepared}</h3><p class="note">${ABIL_NAME[p.ability]} modifier + ${S.cls === 'paladin' ? 'half your level' : 'your level'}. You can change these after a long rest.${S.cls === 'cleric' ? ' Your domain spells are always prepared on top of these.' : S.cls === 'paladin' ? ' Your oath spells are always prepared on top of these.' : ''}</p>`
-      + byLevel(p.spellList, 'data-spell', S.spells, p.prepared);
-  }
-  return h;
-}
 // A portrait: a picture uploaded here (shrunk to a small image) or a link to one (https only)
 const safePortrait = safePortraitUrl;   // js/char-icons.js
 function renderDetails(){
@@ -420,7 +370,7 @@ function hpMax(){ const h = hpLevels(); return h ? h.reduce((n, x)=>n + x.hp, 0)
 // Only a level 1 subclass is picked here; a later one is asked for on the sheet (its choices banner)
 const subclassNow = ()=>LEVEL1_SUBCLASS.includes(S.cls);
 function renderReview(){
-  const todo = missing('review'), fin = finalScores(), c = clsB(), p = spellPlan();
+  const todo = missing('review'), fin = finalScores(), c = clsB();
   let h = `<h2>Review</h2>`;
   if(todo.length) h += `<div class="box warn"><b>Still to do:</b><ul>${todo.map(t=>`<li>${esc(t)}</li>`).join('')}</ul></div>`;
   h += `<div class="box"><h3>${esc(S.name || 'Unnamed')}</h3><p>Level ${S.level || 1} ${esc(S.race || '?')} ${esc(c ? c.name : '?')}${S.subclass ? ` (${esc(S.subclass)})` : ''} · ${esc(S.bg || 'no background')}${S.alignment ? ' · ' + esc(S.alignment) : ''}</p>`
@@ -429,7 +379,7 @@ function renderReview(){
     + `<p>Skills: ${allSkills().map(s=>S.expertise.includes(s) ? s + ' (expertise)' : s).join(', ') || '—'}</p>`
     + (S.langs.length || S.tools.length ? `<p>Picked: ${[...S.langs, ...S.tools].filter(Boolean).join(', ')}</p>` : '')
     + `<p>Equipment: ${equipmentList().map(([n, q])=>q > 1 ? `${n} ×${q}` : n).join(', ')}${S.bg ? `, ${BACKGROUND_GEAR[S.bg].gold} gp` : ''}</p>`
-    + (p ? `<p>Spells: ${[...S.cantrips, ...(p.book ? S.book : S.spells)].join(', ')}</p>` : '') + `</div>`;
+    + (c && SPELL_LIMITS[S.cls] ? `<p>Spells: you pick and prepare them on your sheet’s Spells tab; it won’t let you roll until they’re chosen.</p>` : '') + `</div>`;
   if(!ctx.join && ctx.camps.length){
     if(S.bringTo && !ctx.camps.some(c=>c.key === S.bringTo)) S.bringTo = '';
     h += `<h3>Campaign</h3><p class="note">A character plays in one campaign at a time, and you play one character in each.</p><div class="chips" style="flex-direction:column; align-items:flex-start">`
@@ -446,13 +396,6 @@ function renderReview(){
    in place, so its link can be clicked; clicking anywhere else, or Escape, lets it go. */
 let tipHeld = false;
 function tipHtml(el){
-  if(el.dataset.sp){
-    const p = spellPlan(), s = p && [...p.cantripList, ...p.spellList].find(x=>x.name === el.dataset.sp); if(!s) return '';
-    const sp = spellOf(s);
-    return `<b>${esc(sp.name)}</b><div class="meta">${esc(sp.school || '')}${sp.time ? ' &middot; ' + esc(sp.time) : ''}${sp.ritual ? ' (Ritual)' : ''}${sp.range ? `<br>Range: ${esc(sp.range)} &middot; Duration: ${esc(sp.duration)}<br>Components: ${esc(sp.comp)}` : ''}</div>`
-      + `<div class="meta" style="margin-top:6px; color:var(--ink);">${esc(sp.desc)}</div>`
-      + `<div class="tip-link"><a href="https://dnd5e.wikidot.com/spell:${slugify(sp.name)}" target="_blank" rel="noopener">Full rules on dnd5e.wikidot.com ↗</a><span class="tip-hint">Click the spell to keep this open</span></div>`;
-  }
   if(el.dataset.tip) return `<b>${esc(el.dataset.tip)}</b><div class="meta">${esc(itemInfo(el.dataset.tip))}</div>`;
   return '';
 }
@@ -473,7 +416,7 @@ function hideTip(force){
   if(tipHeld && force !== true) return;
   tipHeld = false; const t = $('tooltip'); if(t){ t.classList.remove('tip-held'); t.style.display = 'none'; }
 }
-const tipTarget = e=>e.target.closest && e.target.closest('[data-sp], [data-tip]');
+const tipTarget = e=>e.target.closest && e.target.closest('[data-tip]');
 document.addEventListener('mouseover', e=>{ const el = tipTarget(e); if(el) showTip(e, el); });
 document.addEventListener('mousemove', e=>{ if(tipTarget(e)) moveTip(e); });
 document.addEventListener('mouseout', e=>{ const el = tipTarget(e); if(el && !el.contains(e.relatedTarget)) hideTip(); });
@@ -494,7 +437,7 @@ document.addEventListener('click', e=>{
   if(b.id === 'next' || b.id === 'back'){ const st = visibleSteps(), i = st.findIndex(([k])=>k === S.step); S.step = st[Math.max(0, Math.min(st.length - 1, i + (b.id === 'next' ? 1 : -1)))][0]; render(); scrollTo(0, 0); return; }
   if(b.dataset.rgroup){ if(S.raceGroup !== b.dataset.rgroup){ const g = RACE_GROUPS.find(x=>x.name === b.dataset.rgroup), subs = subsOf(g); S.raceGroup = g.name; S.race = subs.length === 1 ? subs[0][0] : ''; S.ancestry = ''; S.asiPick = []; S.langs = []; } render(); return; }
   if(b.dataset.race){ if(S.race !== b.dataset.race){ S.race = b.dataset.race; S.asiPick = []; S.langs = []; } render(); return; }
-  if(b.dataset.cls){ if(S.cls !== b.dataset.cls){ S.cls = b.dataset.cls; S.subclass = ''; S.hpHow = ''; S.hpRolls = []; S.goldRoll = null; S.gearHow = ''; S.skills = []; S.expertise = []; S.equip = {}; S.picks = {}; S.cantrips = []; S.spells = []; S.book = []; S.tools = []; } render(); return; }
+  if(b.dataset.cls){ if(S.cls !== b.dataset.cls){ S.cls = b.dataset.cls; S.subclass = ''; S.hpHow = ''; S.hpRolls = []; S.goldRoll = null; S.gearHow = ''; S.skills = []; S.expertise = []; S.equip = {}; S.picks = {}; S.tools = []; } render(); return; }
   if(b.dataset.pb){ const a = b.dataset.pb; S.points[a] = Math.max(8, Math.min(15, S.points[a] + +b.dataset.d)); render(); return; }
   if(b.id === 'rollGold'){ if(!S.goldRoll){ const [dice, mult] = CLASS_GOLD[S.cls], [n, sides] = dice.split('d').map(Number), r = new Uint32Array(n); crypto.getRandomValues(r); const rolls = [...r].map(x=>1 + x % sides); S.goldRoll = {dice:rolls, total:rolls.reduce((a, x)=>a + x, 0) * mult}; } render(); return; }
   if(b.id === 'rollHp'){ const c = clsB(); while(S.hpRolls.length < (S.level || 1) - 1){ const r = new Uint32Array(1); crypto.getRandomValues(r); S.hpRolls.push(1 + r[0] % c.hd); } render(); return; }
@@ -521,9 +464,6 @@ document.addEventListener('change', e=>{
   else if(d.exp){ S.expertise = toggle(S.expertise, d.exp, t.checked, clsB().expertise); }
   else if(d.equip){ S.equip[+d.equip] = +t.value; }
   else if(d.epick){ S.picks[d.epick] = t.value; }
-  else if(d.cantrip){ S.cantrips = toggle(S.cantrips, d.cantrip, t.checked, spellPlan().cantrips); }
-  else if(d.book){ S.book = toggle(S.book, d.book, t.checked, spellPlan().book); }
-  else if(d.spell){ const p = spellPlan(); S.spells = toggle(S.spells, d.spell, t.checked, p.known || Math.min(p.prepared, p.book || 99)); }
   else if(d.f && t.tagName !== 'SELECT'){ S[d.f] = t.value; save(); return; }   // typed text: already saved as it was typed; no redraw (Tab moves on)
   else if(d.f){ S[d.f] = t.value; }
   else return;
@@ -543,7 +483,7 @@ const kvKey = k=>encodeURIComponent(k).replace(/\./g, '%2E');
 let newItemN = 0;
 const itemId = ()=>'i' + Date.now().toString(36) + (newItemN++).toString(36) + Math.floor(Math.random() * 1e4).toString(36);
 function buildRecord(){
-  const c = clsB(), fin = finalScores(), p = spellPlan(), hp = hpMax();
+  const c = clsB(), fin = finalScores(), hp = hpMax();
   const skills = {}; allSkills().forEach(s=>skills[s] = S.expertise.includes(s) ? 'e' : 'p');
   const core = {name:S.name.trim().slice(0, 40), race:S.race, cls:c.name, level:S.level || 1, scores:fin, saves:[...c.saves], skills,
     hpMax:hp, hpCur:hp, speed:raceB().speed, ac:10 + mod(fin.dex),
@@ -575,11 +515,6 @@ function buildRecord(){
   if(S.subclass) kv[kvKey('subclass:@')] = S.subclass;
   if((S.level || 1) > 1) kv[kvKey('levels:@')] = JSON.stringify(Object.fromEntries(hpLevels().slice(1).map(x=>[x.level, {hp:x.hp, how:hpHowNow(), die:x.die}])));   // js/level-up.js
   if(S.race === 'Dragonborn' && S.ancestry) kv[kvKey('choice:@:Draconic Ancestry')] = S.ancestry;   // the sheet's Build box choice
-  if(p){
-    const prepared = [...S.cantrips, ...S.spells];
-    if(prepared.length) kv[kvKey('prepared:@')] = JSON.stringify(prepared);
-    if(p.book) kv[kvKey('spellbook:@')] = JSON.stringify(Object.fromEntries(S.book.map(n=>[n, 'free'])));
-  }
   return {core, kv};
 }
 async function createCharacter(){
