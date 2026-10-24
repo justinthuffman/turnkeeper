@@ -10,6 +10,10 @@ Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wi
   each does: a Draconic Bloodline sorcerer's Dragon Ancestor (Blue dragon for lightning…), a fighter's Fighting
   Style and the like. Before, they waited for the sheet's choices box.
 
+### Fixed
+- **A Draconic Bloodline sorcerer speaks Draconic** automatically (the creator and the sheet's languages), and a
+  Knowledge Domain cleric gets their two languages of choice.
+
 ## 2026-10-16 — Notes you can see, spells to pick, and no more backups
 
 ### Fixed

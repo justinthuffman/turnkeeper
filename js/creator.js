@@ -86,10 +86,12 @@ function freePicks(){
 }
 const classSkillOptions = ()=>{ const c = clsB(); return !c ? [] : c.skills.from === 'any' ? Object.keys(SKILLS) : c.skills.from; };
 function allSkills(){ return [...new Set([...fixedSkills(), ...S.skills, ...S.extraSkills])]; }
-// Languages: the race's (and Common) are automatic; race and background may add picks
+// Languages: the race's (and Common) and the class's (Draconic for a Draconic Bloodline sorcerer…) are automatic;
+// race, background and some subclasses (Knowledge Domain) add picks
 function languageInfo(){
-  const known = S.race ? raceLanguages(S.race).languages : ['Common'];
-  const extra = (S.race ? raceLanguages(S.race).extra : 0) + ((bgB() && bgB().languages) || 0);
+  const cls = S.cls ? classLanguagesTools(S.cls, S.subclass, 1) : {languages:[], extraLanguages:0};
+  const known = [...new Set([...(S.race ? raceLanguages(S.race).languages : ['Common']), ...cls.languages])];
+  const extra = (S.race ? raceLanguages(S.race).extra : 0) + ((bgB() && bgB().languages) || 0) + (cls.extraLanguages || 0);
   return {known, extra};
 }
 // Tool proficiencies "of your choice" from background and class: [{label, kinds, n}]

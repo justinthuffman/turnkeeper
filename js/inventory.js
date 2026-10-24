@@ -102,6 +102,7 @@ function autoProfs(){
   const n = x=>x === 1 ? 'one more language' : `${x} more languages`;
   if(race.extra) out.notes.push(`Your race: ${n(race.extra)} of your choice.`);
   cls.choose.forEach(c=>out.notes.push(`Your class: ${c} of your choice.`));
+  if(cls.extraLanguages) out.notes.push(`Your class: ${n(cls.extraLanguages)} of your choice.`);
   if(bg){
     if(bg.languages) out.notes.push(`${bg.name} background: ${n(bg.languages)} of your choice.`);
     (bg.choose || []).forEach(c=>out.notes.push(`${bg.name} background: ${c} of your choice.`));

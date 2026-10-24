@@ -37,7 +37,10 @@ function raceLanguages(race){
 }
 // Languages and tools from class (and subclass, from its level); "choose" are reminders
 function classLanguagesTools(classKey, subclass, level){
-  const out = {languages:[], tools:[], choose:[]};
+  const out = {languages:[], tools:[], choose:[], extraLanguages:0};
+  // Subclass languages (PHB): a Draconic Bloodline sorcerer speaks Draconic; a Knowledge Domain cleric learns two of their choice
+  if(classKey === 'sorcerer' && /draconic/i.test(subclass || '')) out.languages.push('Draconic');
+  if(classKey === 'cleric' && /knowledge/i.test(subclass || '')) out.extraLanguages += 2;
   if(classKey === 'rogue'){ out.languages.push("Thieves' Cant"); out.tools.push("Thieves' Tools");
     if(/assassin/i.test(subclass || '') && level >= 3) out.tools.push('Disguise Kit', "Poisoner's Kit"); }
   if(classKey === 'druid'){ out.languages.push('Druidic'); out.tools.push('Herbalism Kit'); }
