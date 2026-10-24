@@ -3,6 +3,13 @@
 What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest first.
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
+## 2026-10-23 — Pick one, right in the creator
+
+### Changed
+- **The character creator asks for level 1 "pick one" features** on the Class step, as cards that say what
+  each does: a Draconic Bloodline sorcerer's Dragon Ancestor (Blue dragon for lightning…), a fighter's Fighting
+  Style and the like. Before, they waited for the sheet's choices box.
+
 ## 2026-10-16 — Notes you can see, spells to pick, and no more backups
 
 ### Fixed

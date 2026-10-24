@@ -29,7 +29,7 @@ const DETAIL_AREAS = [['look', 'Appearance', 3], ['traits', 'Personality traits'
 // rolls: kept once rolled (no rerolls), whichever method is picked
 // level: the starting level (the DM says which); hpHow: 'average' or 'roll' for levels after 1st, with
 // hpRolls[i] the roll for level i + 2 (kept once rolled: no rerolls, and no switching to the average)
-const blank = ()=>({bringTo:'', gearHow:'', goldRoll:null, step:'race', raceGroup:'', race:'', ancestry:'', asiPick:[], cls:'', subclass:'', level:1, hpHow:'', hpRolls:[], method:'', assignBy:{array:{}, roll:{}}, points:{str:8, dex:8, con:8, int:8, wis:8, cha:8}, rolls:null,
+const blank = ()=>({bringTo:'', gearHow:'', goldRoll:null, step:'race', raceGroup:'', race:'', ancestry:'', asiPick:[], cls:'', subclass:'', choices:{}, level:1, hpHow:'', hpRolls:[], method:'', assignBy:{array:{}, roll:{}}, points:{str:8, dex:8, con:8, int:8, wis:8, cha:8}, rolls:null,
   bg:'', langs:[], tools:[], skills:[], extraSkills:[], expertise:[], equip:{}, picks:{},
   name:'', alignment:'', portrait:'', portraitFit:null, ...Object.fromEntries([...DETAIL_TEXT, ...DETAIL_AREAS].map(([k])=>[k, '']))});
 let S = (()=>{ try{ return {...blank(), ...(JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null') || {})}; }catch(e){ return blank(); } })();
@@ -135,6 +135,7 @@ function missing(step){
   if(step === 'class'){
     if(!c) out.push('Pick a class.');
     else if(subclassNow() && !S.subclass) out.push(`Pick your ${CLASS_FEATURES[S.cls].subclassLabel}.`);
+    if(c) level1Picks().filter(f=>!(S.choices || {})[f.name]).forEach(f=>out.push(`Pick your ${f.name}.`));
     if(c && (S.level || 1) > 1){ const how = hpHowNow(); if(!how) out.push('Pick how to work out hit points after 1st level.'); else if(how === 'roll' && S.hpRolls.length < (S.level || 1) - 1) out.push('Roll your hit points.'); }
   }
   if(step === 'abilities'){
@@ -225,6 +226,12 @@ function renderRace(){
   }
   return h;
 }
+// The class's (and level 1 subclass's) "pick one" features at level 1, chosen here (Justin, 2026-10-23)
+function level1Picks(){
+  const entry = CLASS_FEATURES[S.cls]; if(!entry) return [];
+  const sub = S.subclass ? entry.subclasses[S.subclass] || [] : [];
+  return [...entry.base, ...sub].filter(f=>f.level === 1 && f.choose && Array.isArray(f.tiers) && f.tiers.length);
+}
 function renderClass(){
   const c = clsB(), L = S.level || 1;
   let h = `<h2>Class</h2><div class="cards">${Object.entries(CLASS_BUILD).map(([k, b])=>`<button type="button" class="pick${S.cls === k ? ' on' : ''}" data-cls="${k}"><b>${b.name}</b><small>d${b.hd} · ${b.saves.map(a=>ABIL_NAME[a]).join(', ')}</small></button>`).join('')}</div>`;
@@ -249,7 +256,9 @@ function renderClass(){
           : `<p><button type="button" class="btn" id="rollHp">Roll d${c.hd} for level${L > 2 ? 's 2 to ' + L : ' 2'}</button></p>`) : '')
         + (hpMax() ? `<p class="note">Hit point maximum: <b>${hpMax()}</b>.</p>` : how && finalScores().con === null ? `<p class="note">Your total shows once your ability scores are set.</p>` : '');
     }
-    h += feats.length ? `<h3>Level 1 Features</h3><ul class="traits">${feats.map(f=>`<li><b>${esc(f.name)}</b> ${esc(f.desc || '')}${f.choose || f.picks ? ' <i>(pick it in the Build box when the character opens)</i>' : ''}</li>`).join('')}</ul>` : '';
+    h += feats.length ? `<h3>Level 1 Features</h3><ul class="traits">${feats.map(f=>`<li><b>${esc(f.name)}</b> ${esc(f.desc || '')}${f.choose && f.tiers ? ' <i>(pick it below)</i>' : f.choose || f.picks ? ' <i>(pick it in the Build box when the character opens)</i>' : ''}</li>`).join('')}</ul>` : '';
+    // Level 1 "pick one" features (Dragon Ancestor, Fighting Style…): cards with what each does
+    level1Picks().forEach(f=>{ h += `<h3>${esc(f.name)}</h3>${pickCardsHtml('data-featpick', (S.choices || {})[f.name] || '', f.tiers.map(t=>({name:t.name, desc:t.text || ''})), ` data-feat="${esc(f.name)}"`)}`; });
     if(L > 1) h += `<p class="note">Here you make your level 1 choices. Everything levels 2 to ${L} bring (a subclass, Ability Score Improvements, more spells and the like) is waiting on your sheet when it opens: its banner lists each choice.</p>`;
     h += `</div>`;
   }
@@ -435,6 +444,7 @@ document.addEventListener('click', e=>{
   const b = e.target.closest('button'); if(!b) return;
   if(b.dataset.step){ S.step = b.dataset.step; render(); scrollTo(0, 0); return; }
   if(b.id === 'next' || b.id === 'back'){ const st = visibleSteps(), i = st.findIndex(([k])=>k === S.step); S.step = st[Math.max(0, Math.min(st.length - 1, i + (b.id === 'next' ? 1 : -1)))][0]; render(); scrollTo(0, 0); return; }
+  if(b.dataset.featpick){ S.choices = S.choices || {}; const f = b.dataset.feat; S.choices[f] = S.choices[f] === b.dataset.featpick ? '' : b.dataset.featpick; render(); return; }
   if(b.dataset.subpick){ S.subclass = S.subclass === b.dataset.subpick ? '' : b.dataset.subpick; render(); return; }
   if(b.dataset.rgroup){ if(S.raceGroup !== b.dataset.rgroup){ const g = RACE_GROUPS.find(x=>x.name === b.dataset.rgroup), subs = subsOf(g); S.raceGroup = g.name; S.race = subs.length === 1 ? subs[0][0] : ''; S.ancestry = ''; S.asiPick = []; S.langs = []; } render(); return; }
   if(b.dataset.race){ if(S.race !== b.dataset.race){ S.race = b.dataset.race; S.asiPick = []; S.langs = []; } render(); return; }
@@ -516,6 +526,7 @@ function buildRecord(){
   if(S.subclass) kv[kvKey('subclass:@')] = S.subclass;
   if((S.level || 1) > 1) kv[kvKey('levels:@')] = JSON.stringify(Object.fromEntries(hpLevels().slice(1).map(x=>[x.level, {hp:x.hp, how:hpHowNow(), die:x.die}])));   // js/level-up.js
   if(S.race === 'Dragonborn' && S.ancestry) kv[kvKey('choice:@:Draconic Ancestry')] = S.ancestry;   // the sheet's Build box choice
+  level1Picks().forEach(f=>{ const v = (S.choices || {})[f.name]; if(v) kv[kvKey('choice:@:' + f.name)] = v; });   // Dragon Ancestor, Fighting Style…
   return {core, kv};
 }
 async function createCharacter(){
