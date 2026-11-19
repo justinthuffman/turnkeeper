@@ -2100,6 +2100,7 @@ function renderSettings(){
       ${pick('encumbrance', 'Encumbrance', [['off', 'Off'], ['standard', 'Standard (carrying capacity)'], ['variant', 'Variant (encumbered, heavily encumbered)']], 'Player’s Handbook chapter 7. Item weights show in the inventory while this is on.')}
       ${tick('coinWeight', 'Coins have weight (50 to the pound)')}
       ${tick('ammo', 'Ammunition is used up', 'Each shot uses an arrow, bolt or bullet from the inventory.')}
+      ${pick('missileDarts', 'Magic Missile damage', [['each', 'Roll a d4 for each dart'], ['once', 'Roll one d4 that every dart deals']], 'Each dart deals 1d4 + 1 force damage. The rules don’t say whether each dart rolls its own d4 or one roll counts for all of them, so tables differ.')}
       ${tick('rations', 'Food and water')}
       ${tick('lifestyle', 'Lifestyle expenses', 'Players pick a lifestyle in Details.')}
       ${tick('sanity', 'Sanity (Dungeon Master’s Guide)')}

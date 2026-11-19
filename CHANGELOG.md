@@ -3,6 +3,21 @@
 What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest first.
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
+## 2026-11-19 — One attack at a time, and Magic Missile's darts
+
+### Changed
+- **Several attacks in a row, one at a time** (2014 rules): with Extra Attack, a weapon's popup says "Attack 1 of 2";
+  pick the target, roll to hit, roll damage if it hits, then **Next attack** starts the next one at the same target
+  (pick another if you like). Each attack can crit on its own. **Scorching Ray** (3 rays, one more per slot level above
+  2nd) and **Eldritch Blast** (2 beams at level 5, 3 at 11, 4 at 17) work the same way, ray by ray. The DM sees each
+  one's target in the turn order ("Longsword, attack 2 of 2"), with no popups.
+- **Magic Missile: split the darts** in the DM's combat. Set how many darts go at each creature with − and +, then roll
+  each target's damage. Every dart hits: no attack roll, so no crit. The DM sees the split.
+
+### Added
+- **Campaign settings → Table Rules → Magic Missile damage:** roll a d4 for each dart (the default), or roll one d4
+  that every dart deals.
+
 ## 2026-11-19 — Bloodied players
 
 ### Fixed

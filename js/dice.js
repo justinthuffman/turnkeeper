@@ -555,9 +555,11 @@ const isClip = u=>/\.(mp4|webm)(\?|#|$)/i.test(u);
      encumbrance  off, standard (carrying capacity) or variant (encumbered / heavily encumbered); item weight shows when not off
      coinWeight   coins weigh something (50 to the pound)
      ammo         arrows, bolts and the like are used up as you shoot
-     rations      food and water; lifestyle: lifestyle expenses; sanity: the Sanity score; injuries: lingering injuries */
-const CAMPAIGN_OPTS = {startGear:'kit', hpLevel:'choice', encumbrance:'off', coinWeight:false, ammo:true, rations:false, lifestyle:false, sanity:false, injuries:false};
-const CAMPAIGN_OPT_CHOICES = {startGear:['kit', 'gold', 'choice'], hpLevel:['choice', 'average', 'roll', 'max'], encumbrance:['off', 'standard', 'variant']};
+     rations      food and water; lifestyle: lifestyle expenses; sanity: the Sanity score; injuries: lingering injuries
+     missileDarts Magic Missile's damage: a d4 for each dart (each), or one d4 that every dart deals (once); the rules
+                  leave it open, so the DM picks */
+const CAMPAIGN_OPTS = {startGear:'kit', hpLevel:'choice', encumbrance:'off', coinWeight:false, ammo:true, rations:false, lifestyle:false, sanity:false, injuries:false, missileDarts:'each'};
+const CAMPAIGN_OPT_CHOICES = {startGear:['kit', 'gold', 'choice'], hpLevel:['choice', 'average', 'roll', 'max'], encumbrance:['off', 'standard', 'variant'], missileDarts:['each', 'once']};
 const CAMPAIGN_OPT_LATER = ['coinWeight', 'rations', 'sanity', 'injuries'];
 function cleanOpts(raw){
   raw = raw && typeof raw === 'object' ? raw : {};
