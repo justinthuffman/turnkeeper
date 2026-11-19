@@ -1061,8 +1061,9 @@ function ordered(){
 }
 const byId = id => combat.list.find(c=>c.id === id);
 const isDown = c => c.kind === 'monster' && c.max !== null && c.hp <= 0;
-// A monster at half its hit points or less (still standing). Players get only this yes/no.
-const isBloodied = c => c.kind === 'monster' && c.max > 0 && c.hp > 0 && c.hp <= c.max / 2;
+// A monster or player character at half its hit points or less (still standing); a character's come
+// from their live Turnkeeper (syncLiveToInit). Players get only this yes/no.
+const isBloodied = c => (c.kind === 'monster' || c.kind === 'pc') && c.max > 0 && c.hp > 0 && c.hp <= c.max / 2;
 /* A creature's damage defenses (js/damage.js tokens: "fire", "slashing~" for non-magical only):
    set by hand in its row, from a saved monster, or from its SRD stat block (loaded once). They're
    shared in the turn order, so a player's damage roll shows the resistance math. */
@@ -1396,7 +1397,7 @@ function combatantHtml(c, i, list){
   const down = c.max !== null && c.hp <= 0;
   const chips = [
     ...(down ? [`<span class="cond-chip state">${c.kind === 'monster' ? 'Defeated' : 'Down: death saves'}</span>`] : []),
-    ...(isBloodied(c) ? [`<span class="cond-chip bloody" title="Half its hit points or less">Bloodied</span>`] : []),
+    ...(isBloodied(c) ? [`<span class="cond-chip bloody" title="Half their hit points or less">Bloodied</span>`] : []),
     ...(c.conc ? [`<span class="cond-chip conc" title="Concentrating">Concentrating: ${esc(c.conc)}<button type="button" data-act="conc-end" aria-label="End concentration">×</button></span>`] : []),
     ...effectsOn(c).map(e=>`<span class="cond-chip live fx" title="Cast by ${esc(e.caster)}">${esc(e.name)} · ${esc(e.caster)}${e.rounds ? ` (${e.rounds})` : ''}</span>`),
     ...(liveFor(c) ? [...arr(liveFor(c).status).filter(s=>!s.from).map(s=>`<span class="cond-chip live" title="From ${esc(c.name)}’s Turnkeeper">${esc(s.name)}${s.rounds ? ` (${s.rounds})` : ''}</span>`),

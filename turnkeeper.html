@@ -3003,7 +3003,7 @@ function renderTable(){
   document.getElementById('itable').innerHTML = order.map(o=>{
     const L = o.char ? live[o.char] : null, me = o.char === currentCharId, chips = [];
     if(o.down) chips.push(`<span class="ichip cond">Defeated</span>`);
-    if(o.bloodied === true) chips.push(`<span class="ichip bloody" title="Half its hit points or less">Bloodied</span>`);
+    if(o.bloodied === true) chips.push(`<span class="ichip bloody" title="Half their hit points or less">Bloodied</span>`);
     if(L && L.hp && L.hp.cur === 0) chips.push(`<span class="ichip cond">Down</span>`);
     arrOf(o.conds).forEach(k=>chips.push(`<span class="ichip cond">${escapeHtml(k.name)}${k.rounds ? ` (${k.rounds})` : ''}</span>`));
     if(L) arrOf(L.status).filter(s=>!s.from).forEach(s=>chips.push(`<span class="ichip ${s.group === 'cond' ? 'cond' : 'fx'}">${escapeHtml(s.name)}</span>`));

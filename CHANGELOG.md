@@ -3,6 +3,12 @@
 What's new in Turnkeeper, the Crisis in Waterdeep character tracker, newest first.
 Rules follow D&D 5e (2014), checked against [dnd5e.wikidot.com](https://dnd5e.wikidot.com).
 
+## 2026-11-19 — Bloodied players
+
+### Fixed
+- **Player characters show Bloodied too** at half their hit points or less (not at 0), like monsters: the red
+  glow and Bloodied tag on the DM Screen, and in the turn order everyone sees.
+
 ## 2026-10-23 — Pick one, right in the creator
 
 ### Changed
